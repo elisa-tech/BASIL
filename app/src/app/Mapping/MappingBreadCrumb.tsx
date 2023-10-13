@@ -9,8 +9,6 @@ export const MappingBreadCrumb: React.FunctionComponent<BreadCrumbProps> = ({
   api=null,
 }: BreadCrumbProps) => {
 
-    console.log(api);
-
     if (api != null){
     return (
       <React.Fragment><Breadcrumb ouiaId="BasicBreadcrumb">

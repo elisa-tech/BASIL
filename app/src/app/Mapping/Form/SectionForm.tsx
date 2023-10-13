@@ -71,9 +71,9 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
       if (getSelection().toString() != ''){
         if (getSelection().anchorNode.parentNode.id == "input-raw-specification"){
           setModalSection(getSelection().toString());
-          setModalOffset(getSelection().anchorOffset);
+          setModalOffset(Math.min(getSelection().baseOffset, getSelection().extentOffset));
           setSectionValue(getSelection().toString());
-          setOffsetValue(getSelection().anchorOffset);
+          setOffsetValue(Math.min(getSelection().baseOffset, getSelection().extentOffset));
         }
       }
     }

@@ -52,7 +52,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   const getOffset = () => {
     if (getSelection().toString() != ''){
       if (getSelection().anchorNode.parentNode.id == "snippet-" + sectionIndex){
-        return offset + getSelection().anchorOffset;
+        return offset + Math.min(getSelection().baseOffset, getSelection().extentOffset);
       } else {
         return offset;
       }

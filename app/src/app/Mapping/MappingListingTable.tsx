@@ -186,8 +186,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     let ts_l = snippet['test_specifications'].length;
     let tc_l = snippet['test_cases'].length;
 
-    if ((j_l>0) && (sr_l == 0) && (ts_l == 0) && (tc_l == 0)){
+    if ((j_l > 0) && (sr_l == 0) && (ts_l == 0) && (tc_l == 0)){
       return "code-block-bg-gold";
+    } else if ((j_l == 0) && (sr_l == 0) && (ts_l == 0) && (tc_l == 0)){
+      return "code-block-bg-gray";
     } else {
       return "code-block-bg-green";
     }

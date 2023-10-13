@@ -26,6 +26,10 @@ body,
   background-color: var(--pf-v5-global--palette--gold-50);
 }
 
+.code-block-bg-gray{
+  background-color: var(--pf-v5-global--palette--black-200);
+}
+
 .leaf-padding{
   padding-right: 0px;
 }

@@ -1,0 +1,60 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.pf-v5-c-content {
+  --pf-v5-c-content--small--Color: red; /* changes all <small> color to red */
+  --pf-v5-c-content--blockquote--BorderLeftColor: purple; /* changes all <blockquote> left border color to purple */
+  --pf-v5-c-content--hr--BackgroundColor: lemonchiffon; /* changes a <hr> color to lemonchiffon */
+}
+
+.pf-v5-c-table__tbody.pf-m-expanded {
+  background-color: #f0f0f0;
+}
+
+.code-block-bg-green{
+  background-color: var(--pf-v5-global--palette--green-50);
+}
+
+.code-block-bg-red{
+  background-color: var(--pf-v5-global--palette--red-50);
+}
+
+.code-block-bg-gold{
+  background-color: var(--pf-v5-global--palette--gold-50);
+}
+
+.leaf-padding{
+  padding-right: 0px;
+}
+
+.danger-text{
+  color: var(--pf-v5-global--danger-color--100);
+}
+
+.success-text{
+  color: var(--pf-v5-global--success-color--200);
+}
+
+.hidden{
+  display: none;
+}
+
+.visible{
+  display: block;
+}
+
+.date-text{
+  font-size: 11px;
+  color: var(--pf-v5-global--disabled-color--100);
+}
+
+tr.row-bottom-sep td{
+  border-bottom: 16px solid var(--pf-v5-global--BackgroundColor--200);
+}
+
+.full-height{
+  height: 100%;
+}

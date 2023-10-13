@@ -21,3 +21,14 @@ BASIL will help you on identifying gaps and on tracking progress.
 * Test Specifications
 * Test Cases
 * Justifications
+
+## How to run it
+
+BASIL consists of 2 sub projects, follow links for further details:
+
+* api - [README](api/README.md)
+* app - [README](app/README.md)
+
+Moreover you need to init a database to be able to use BASIL:
+
+* db - [README](db/README.md)

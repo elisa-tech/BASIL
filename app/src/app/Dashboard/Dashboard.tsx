@@ -84,7 +84,7 @@ const Dashboard: React.FunctionComponent = () => {
       if (currentLibrary == ""){
         if(qsCurrentLibrary != undefined){
           if (qsCurrentLibrary.length > 0){
-            if (libraries.indexOf(qsCurrentLibrary)>0){
+            if (libraries.indexOf(qsCurrentLibrary)>=0){
               setCurrentLibrary(qsCurrentLibrary);
             }
           } else {

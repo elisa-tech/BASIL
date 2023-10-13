@@ -723,7 +723,7 @@ class Api(Resource):
         """
         curl http://localhost:5000/api
         """
-
+        apis_dict = []
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface()
 

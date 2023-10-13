@@ -78,6 +78,15 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
       }
     }
 
+    const setSectionAsUnmatching = () => {
+      const unmatching_section = '?????????';
+      const unmatching_offset = 0;
+      setSectionValue(unmatching_section);
+      setModalSection(unmatching_section);
+      setOffsetValue(0);
+      setModalOffset(0);
+    }
+
     return (
         <React.Fragment>
           <FormGroup label="Section" fieldId={`input-justification-section`}>
@@ -119,6 +128,10 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
               </FormHelperText>
             )}
           </FormGroup>
+
+          <Button variant="link" onClick={setSectionAsUnmatching}>
+            Set as unmatching
+          </Button>
 
           <CodeBlock className="code-block-bg-green">
             <CodeBlockCode>

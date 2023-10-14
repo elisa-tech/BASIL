@@ -404,8 +404,9 @@ def get_query_string_args(args):
     order_by = args.get("order_by", default="", type=str)
     order_how = args.get("order_how", default="", type=str)
 
-    permitted_keys = ["id", "api-id", "work_item_type", "mapped_to_type", "relation_id", "mode", "search", "library",
-                      "parent_table", "parent_id"]
+    permitted_keys = ["id", "api-id", "work_item_type", "mapped_to_type",
+                      "relation_id", "mode", "search", "library",
+                      "parent_table", "parent_id", "url"]
     ret = {"db": db,
            "limit": limit,
            "order_by": order_by,
@@ -498,6 +499,96 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     dbi.engine.dispose()
     return ret
 
+
+def check_direct_work_items_against_another_spec_file(db_session, spec, api):
+    ret = {'sw-requirements': {'ok': [],
+                               'ko': [],
+                               'warning': []},
+           'test-specifications': {'ok': [],
+                                   'ko': [],
+                                   'warning': []},
+           'test-cases': {'ok': [],
+                          'ko': [],
+                          'warning': []},
+           'justifications': {'ok': [],
+                              'ko': [],
+                              'warning': []}
+           }
+
+    # ApiSwRequirement
+    api_srs = db_session.query(ApiSwRequirementModel).filter(
+        ApiSwRequirementModel.api_id == api.id
+    ).all()
+    for api_sr in api_srs:
+        if api_sr.section in spec:
+            if spec.index(api_sr.section) == api_sr.offset:
+                ret['sw-requirements']['ok'].append({'id': api_sr.id,
+                                                     'title': api_sr.sw_requirement.title})
+            else:
+                ret['sw-requirements']['warning'].append({'id': api_sr.id,
+                                                          'old-offset': api_sr.offset,
+                                                          'new-offset': spec.index(api_sr.section),
+                                                          'title': api_sr.sw_requirement.title})
+        else:
+            ret['sw-requirements']['ko'].append({'id': api_sr.id,
+                                                 'title': api_sr.sw_requirement.title})
+
+    # ApiTestSpecification
+    api_tss = db_session.query(ApiTestSpecificationModel).filter(
+        ApiTestSpecificationModel.api_id == api.id
+    ).all()
+    for api_ts in api_tss:
+        if api_ts.section in spec:
+            if spec.index(api_ts.section) == api_ts.offset:
+                ret['test-specifications']['ok'].append({'id': api_ts.id,
+                                                         'title': api_ts.test_specification.title})
+            else:
+                ret['test-specifications']['warning'].append({'id': api_ts.id,
+                                                              'old-offset': api_ts.offset,
+                                                              'new-offset': spec.index(api_ts.section),
+                                                              'title': api_ts.test_specification.title})
+        else:
+            ret['test-specifications']['ko'].append({'id': api_ts.id,
+                                                     'title': api_ts.test_specification.title})
+
+    # ApiTestCase
+    api_tcs = db_session.query(ApiTestCaseModel).filter(
+        ApiTestCaseModel.api_id == api.id
+    ).all()
+    for api_tc in api_tcs:
+        if api_tc.section in spec:
+            if spec.index(api_tc.section) == api_tc.offset:
+                ret['test-cases']['ok'].append({'id': api_tc.id,
+                                                'title': api_tc.test_case.title})
+            else:
+                ret['test-cases']['warning'].append({'id': api_tc.id,
+                                                     'old-offset': api_tc.offset,
+                                                     'new-offset': spec.index(
+                                                         api_tc.section),
+                                                     'title': api_tc.test_case.title})
+        else:
+            ret['test-cases']['ko'].append({'id': api_tc.id,
+                                            'title': api_tc.test_case.title})
+
+    # ApiJustification
+    api_js = db_session.query(ApiJustificationModel).filter(
+        ApiJustificationModel.api_id == api.id
+    ).all()
+    for api_j in api_js:
+        if api_j.section in spec:
+            if spec.index(api_j.section) == api_j.offset:
+                ret['justifications']['ok'].append({'id': api_j.id,
+                                                    'title': api_j.justification.description})
+            else:
+                ret['justifications']['warning'].append({'id': api_j.id,
+                                                         'old-offset': api_j.offset,
+                                                         'new-offset': spec.index(
+                                                             api_j.section),
+                                                         'title': api_j.justification.description})
+        else:
+            ret['justifications']['ko'].append({'id': api_j.id,
+                                                'title': api_j.justification.description})
+    return ret
 
 class Token():
 
@@ -608,109 +699,98 @@ class CheckSpecification(Resource):
     fields = ['id']
 
     def get(self):
-        ret = {'sw-requirements': {'ok': [],
-                                   'ko': [],
-                                   'warning': []},
-               'test-specifications': {'ok': [],
-                                       'ko': [],
-                                       'warning': []},
-               'test-cases': {'ok': [],
-                              'ko': [],
-                              'warning': []},
-               'justifications': {'ok': [],
-                                  'ko': [],
-                                  'warning': []}
-               }
 
         args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(self.fields, args):
+            return 'bad request!', 400
+
         dbi = db_orm.DbInterface()
 
         query = dbi.session.query(ApiModel).filter(
             ApiModel.id == args['id']
         )
-        api = query.all()
+        apis = query.all()
 
-        if len(api) != 1:
+        if len(apis) != 1:
             return "Unable to find the api", 400
 
-        spec_html = get_api_specification(api[0].raw_specification_url)
-        unmapped_spec_html = spec_html
+        api = apis[0]
 
-        # ApiSwRequirement
-        api_srs = dbi.session.query(ApiSwRequirementModel).filter(
-            ApiSwRequirementModel.api_id == api[0].id
-        ).all()
-        for api_sr in api_srs:
-            if api_sr.section in spec_html:
-                if spec_html.index(api_sr.section) == api_sr.offset:
-                    ret['sw-requirements']['ok'].append({'id': api_sr.id,
-                                                         'title': api_sr.sw_requirement.title})
-                else:
-                    ret['sw-requirements']['warning'].append({'id': api_sr.id,
-                                                              'old-offset': api_sr.offset,
-                                                              'new-offset': spec_html.index(api_sr.section),
-                                                              'title': api_sr.sw_requirement.title})
-            else:
-                ret['sw-requirements']['ko'].append({'id': api_sr.id,
-                                                     'title': api_sr.sw_requirement.title})
+        if 'url' in args.keys():
+            spec = get_api_specification(request.args['url'])
+        else:
+            spec = get_api_specification(api.raw_specification_url)
+
+        ret = check_direct_work_items_against_another_spec_file(dbi.session, spec, api)
+        dbi.engine.dispose()
+        return ret
+
+
+class FixNewSpecificationWarnings(Resource):
+    fields = ['id']
+
+    def get(self):
+
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(self.fields, args):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface()
+
+        query = dbi.session.query(ApiModel).filter(
+            ApiModel.id == args['id']
+        )
+        apis = query.all()
+
+        if len(apis) != 1:
+            return "Unable to find the api", 400
+
+        api = apis[0]
+
+        spec = get_api_specification(api.raw_specification_url)
+
+        analysis = check_direct_work_items_against_another_spec_file(dbi.session, spec, api)
+
+        #ApiSwRequirements
+        for i in range(len(analysis['sw-requirements']['warning'])):
+            sr_all = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == analysis['sw-requirements']['warning'][i]['id']
+            ).all()
+            if len(sr_all) == 1:
+                sr_all[0].offset = analysis['sw-requirements']['warning'][i]['new-offset']
+                dbi.session.commit()
 
         # ApiTestSpecification
-        api_tss = dbi.session.query(ApiTestSpecificationModel).filter(
-            ApiTestSpecificationModel.api_id == api[0].id
-        ).all()
-        for api_ts in api_tss:
-            if api_ts.section in spec_html:
-                if spec_html.index(api_ts.section) == api_ts.offset:
-                    ret['test-specifications']['ok'].append({'id': api_ts.id,
-                                                             'title': api_ts.test_specification.title})
-                else:
-                    ret['test-specifications']['warning'].append({'id': api_ts.id,
-                                                                  'old-offset': api_ts.offset,
-                                                                  'new-offset': spec_html.index(api_ts.section),
-                                                                  'title': api_ts.test_specification.title})
-            else:
-                ret['test-specifications']['ko'].append({'id': api_ts.id,
-                                                         'title': api_ts.test_specification.title})
+        for i in range(len(analysis['test-specifications']['warning'])):
+            ts_all = dbi.session.query(ApiTestSpecificationModel).filter(
+                ApiTestSpecificationModel.id == analysis['test-specifications']['warning'][i]['id']
+            ).all()
+            if len(ts_all) == 1:
+                ts_all[0].offset = analysis['test-specifications']['warning'][i]['new-offset']
+                dbi.session.commit()
 
         # ApiTestCase
-        api_tcs = dbi.session.query(ApiTestCaseModel).filter(
-            ApiTestCaseModel.api_id == api[0].id
-        ).all()
-        for api_tc in api_tcs:
-            if api_tc.section in spec_html:
-                if spec_html.index(api_tc.section) == api_tc.offset:
-                    ret['test-cases']['ok'].append({'id': api_tc.id,
-                                                    'title': api_tc.test_case.title})
-                else:
-                    ret['test-cases']['warning'].append({'id': api_tc.id,
-                                                         'old-offset': api_tc.offset,
-                                                         'new-offset': spec_html.index(
-                                                             api_tc.section),
-                                                         'title': api_tc.test_case.title})
-            else:
-                ret['test-cases']['ko'].append({'id': api_tc.id,
-                                                'title': api_tc.test_case.title})
+        for i in range(len(analysis['test-cases']['warning'])):
+            tc_all = dbi.session.query(ApiTestCaseModel).filter(
+                ApiTestCaseModel.id == analysis['test-cases']['warning'][i]['id']
+            ).all()
+            if len(tc_all) == 1:
+                tc_all[0].offset = analysis['test-cases']['warning'][i]['new-offset']
+                dbi.session.commit()
 
         # ApiJustification
-        api_js = dbi.session.query(ApiJustificationModel).filter(
-            ApiJustificationModel.api_id == api[0].id
-        ).all()
-        for api_j in api_js:
-            if api_j.section in spec_html:
-                if spec_html.index(api_j.section) == api_j.offset:
-                    ret['justifications']['ok'].append({'id': api_j.id,
-                                                        'title': api_j.justification.description})
-                else:
-                    ret['justifications']['warning'].append({'id': api_j.id,
-                                                             'old-offset': api_j.offset,
-                                                             'new-offset': spec_html.index(
-                                                                 api_j.section),
-                                                             'title': api_j.justification.description})
-            else:
-                ret['justifications']['ko'].append({'id': api_j.id,
-                                                    'title': api_j.justification.description})
+        for i in range(len(analysis['justifications']['warning'])):
+            j_all = dbi.session.query(ApiJustificationModel).filter(
+                ApiJustificationModel.id == analysis['justifications']['warning'][i]['id']
+            ).all()
+            if len(j_all) == 1:
+                j_all[0].offset = analysis['justifications']['warning'][i]['new-offset']
+                dbi.session.commit()
 
-        return ret
+        dbi.engine.dispose()
+        return True
 
 
 class Api(Resource):
@@ -2973,6 +3053,8 @@ api.add_resource(TestSpecificationTestCasesMapping, '/mapping/test-specification
 # History
 api.add_resource(MappingHistory, '/mapping/history')
 api.add_resource(CheckSpecification, '/apis/check-specification')
+api.add_resource(FixNewSpecificationWarnings, '/apis/fix-specification-warnings')
+
 # Usage
 api.add_resource(MappingUsage, '/mapping/usage')
 # Comments

@@ -161,6 +161,28 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
     }
   }
 
+  const handleFixWarnings = () => {
+    setMessageValue('');
+    fetch(baseApiUrl + '/apis/fix-specification-warnings?id=' + api.id, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      })
+      .then((response) => {
+        if (response.status !== 200) {
+          setMessageValue(response.statusText);
+        } else {
+          handleModalConfirm();
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString());
+        console.log(err.message);
+      });
+  }
+
   const handleRawSpecificationUrlValueChange = (_event, value: string) => {
         setRawSpecificationUrlValue(value);
     };
@@ -195,7 +217,14 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
           </Button>,
           <Button key="cancel" variant="link" onClick={handleModalToggle}>
             Cancel
-          </Button>
+          </Button>,
+          <Button
+            key="fix warnings"
+            variant="primary"
+            isDisabled={api != null ? (rawSpecificationUrlValue != api.raw_specification_url) : true}
+            onClick={() => handleFixWarnings()}>
+            Fix Warnings
+          </Button>,
         ]}
       >
         <Form>

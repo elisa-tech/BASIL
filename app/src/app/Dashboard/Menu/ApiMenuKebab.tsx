@@ -43,11 +43,20 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     >
 
       <DropdownList>
-        <DropdownItem value={0} isDisabled key="disabled link" to="#default-link4">
+        <DropdownItem
+          value={0}
+          key="link"
+          to="#default-link2"
+          // Prevent the default onClick functionality for example purposes
+          onClick={() => setModalCheckSpecInfo(apiData, true)}
+        >
+          Check Spec
+        </DropdownItem>
+        <DropdownItem value={1} isDisabled key="disabled link" to="#default-link4">
           Delete
         </DropdownItem>
         <DropdownItem
-          value={1}
+          value={2}
           key="action"
           onClick={() => setModalInfo(apiData,
                                       true,
@@ -59,15 +68,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
           >
           New Version
         </DropdownItem>
-        <DropdownItem
-          value={2}
-          key="link"
-          to="#default-link2"
-          // Prevent the default onClick functionality for example purposes
-          onClick={() => setModalCheckSpecInfo(apiData, true)}
-        >
-          Check Spec
-        </DropdownItem>
+
       </DropdownList>
     </Dropdown>
   );

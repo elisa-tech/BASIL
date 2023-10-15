@@ -436,7 +436,9 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     undesired_keys = ['section', 'offset']
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification == None:
-        return []
+        api_specification = "Unable to find the Software Specification. " \
+                            "Please check the value in the Software Component properties" \
+                            " or check your internet connection (If file is remote)."
 
     sr = dbi.session.query(ApiSwRequirementModel).filter(
         ApiSwRequirementModel.api_id == api.id).order_by(

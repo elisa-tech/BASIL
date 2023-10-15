@@ -219,10 +219,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             } else {
               setMessageValue('Database updated!');
               if (formVerb=='POST'){
-                loadLibraries(libraryValue);
-                loadApi();
-                handleModalToggle();
-                setMessageValue('');
+                window.location = "/?currentLibrary=" + libraryValue;
               }
             }
           })

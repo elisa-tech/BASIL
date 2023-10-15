@@ -32,3 +32,7 @@ BASIL consists of 2 sub projects, follow links for further details:
 Moreover you need to init a database to be able to use BASIL:
 
 * db - [README](db/README.md)
+
+## Links
+
+* ELISA Webinar: Introducing Basil [link](https://elisa.tech/blog/2023/10/04/introducing-basil-video/)

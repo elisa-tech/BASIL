@@ -45,19 +45,20 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
       <DropdownList>
         <DropdownItem
           value={0}
-          key="link"
-          to="#default-link2"
-          // Prevent the default onClick functionality for example purposes
+          key="action check different spec"
           onClick={() => setModalCheckSpecInfo(apiData, true)}
         >
           Check Spec
         </DropdownItem>
-        <DropdownItem value={1} isDisabled key="disabled link" to="#default-link4">
+        <DropdownItem
+          value={1}
+          isDisabled
+          key="action delete">
           Delete
         </DropdownItem>
         <DropdownItem
           value={2}
-          key="action"
+          key="action new version"
           onClick={() => setModalInfo(apiData,
                                       true,
                                       'api',

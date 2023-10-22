@@ -1,4 +1,9 @@
+.idea/
+*/.DS_Store
+api/test/test.log
+api/test/.pytest_cache
 app/node_modules
 app/public
 db/*.db
+docs/build
 examples/

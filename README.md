@@ -35,4 +35,5 @@ Moreover you need to init a database to be able to use BASIL:
 
 ## Links
 
-* ELISA Webinar: Introducing Basil [link](https://elisa.tech/blog/2023/10/04/introducing-basil-video/)
+* [Documentation](https://basil-the-fusa-spice.readthedocs.io/)
+* [ELISA Webinar: Introducing Basil](https://elisa.tech/blog/2023/10/04/introducing-basil-video/)

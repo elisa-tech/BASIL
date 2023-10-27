@@ -17,6 +17,6 @@ pdm install
 ```sh
 
 # Start the development server
-python3 api/api.py
+pdm run python3 api/api.py
 
 ```

@@ -21,6 +21,6 @@ To generate the default empty **db/basil.db** database:
 cd db && cd models
 
 # Initialize the sqlite database, you will find it in db/basil.db
-python3 init_db.py
+pdm run python3 init_db.py
 
 ```

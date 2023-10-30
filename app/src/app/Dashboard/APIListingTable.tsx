@@ -34,6 +34,7 @@ export interface APIListingTableProps {
   setModalInfo;
   apis;
   setModalCheckSpecInfo;
+  setModalDeleteInfo;
 }
 
 const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
@@ -42,6 +43,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   searchValue = "",
   setModalInfo,
   setModalCheckSpecInfo,
+  setModalDeleteInfo,
   apis,
   setTotalCoverage,
 }: APIListingTableProps) => {
@@ -102,6 +104,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
         <Tbody key={dataRow.id} isExpanded={isRepoExpanded(dataRow)}>
           <Tr>
             <Td
+              id={"td-expand-" + dataRow.id}
               expand={{
                 rowIndex,
                 isExpanded: isRepoExpanded(dataRow),
@@ -110,7 +113,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
               }}
             />
             <Td dataLabel={columnNames.id}>{dataRow.id}</Td>
-            <Td dataLabel={columnNames.api} component="a" href={"mapping/" + dataRow.id}>{dataRow.api}</Td>
+            <Td dataLabel={columnNames.api}><Button variant="link" component="a" href={"mapping/" + dataRow.id}>{dataRow.api}</Button></Td>
             <Td dataLabel={columnNames.library_version}>{dataRow.library_version}</Td>
             <Td dataLabel={columnNames.category}>{dataRow.category}</Td>
             <Td dataLabel={columnNames.coverage}>
@@ -123,6 +126,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
               <ApiMenuKebab
                 setModalInfo={setModalInfo}
                 setModalCheckSpecInfo={setModalCheckSpecInfo}
+                setModalDeleteInfo={setModalDeleteInfo}
                 apiData={dataRow} />
             </Td>
           </Tr>
@@ -163,7 +167,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     }
 
   return (
-    <Table aria-label="Expandable table">
+    <Table id="table-api-listing" aria-label="Api Listing table">
       <Thead>
         <Tr>
           <Th />

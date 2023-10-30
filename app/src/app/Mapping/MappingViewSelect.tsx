@@ -26,7 +26,7 @@ export const MappingViewSelect: React.FunctionComponent<MappingViewSelectProps> 
   ];
 
   return (
-    <FormSelect width={50} value={mappingViewSelectValue} onChange={onChange} aria-label="FormSelect Input" ouiaId="BasicFormSelect">
+    <FormSelect id="select-mapping-view" width={50} value={mappingViewSelectValue} onChange={onChange} aria-label="FormSelect Input" ouiaId="BasicFormSelect">
       {options.map((option, index) => (
         <FormSelectOption isDisabled={option.disabled} key={index} value={option.value} label={option.label} />
       ))}

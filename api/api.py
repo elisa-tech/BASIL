@@ -4,47 +4,45 @@ from flask import Flask, request, send_file
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
 import json, os, sys, uuid
+import datetime
 from html.parser import HTMLParser
 from flask import jsonify
 import urllib
 from urllib.parse import quote
 from urllib.error import HTTPError, URLError
-import spdx_manager
-
+from sqlalchemy import *
 import logging
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
-db_path = os.path.join(os.path.dirname(currentdir), "db")
-models_path = os.path.join(db_path, "models")
-sys.path.insert(0, models_path)
-sys.path.insert(0, db_path)
-
-log_call_counter = 0
+sys.path.insert(1, os.path.dirname(currentdir))
 
 JOIN_APIS_TABLE = "apis"
 JOIN_SW_REQUIREMENTS_TABLE = "sw-requirements"
 JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
 
-TOKEN_CHECK_OK = "TOKEN-OK"
-import db_orm
+from db import db_orm
+from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
+from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirementHistoryModel
+from db.models.api_test_case import ApiTestCaseModel, ApiTestCaseHistoryModel
+from db.models.api_test_specification import ApiTestSpecificationModel, ApiTestSpecificationHistoryModel
+from db.models.api import ApiModel, ApiHistoryModel
+from db.models.comment import CommentModel
+from db.models.justification import JustificationModel, JustificationHistoryModel
+from db.models.note import NoteModel
+from db.models.sw_requirement_test_case import SwRequirementTestCaseModel, SwRequirementTestCaseHistoryModel
+from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel, SwRequirementTestSpecificationHistoryModel
+from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
+from db.models.test_case import TestCaseModel, TestCaseHistoryModel
+from db.models.test_specification_test_case import TestSpecificationTestCaseModel, TestSpecificationTestCaseHistoryModel
+from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 
-from api import ApiModel, ApiHistoryModel
-from api_justification import *
-from api_sw_requirement import *
-from api_test_case import *
-from api_test_specification import *
-from comment import *
-from justification import *
-from note import *
-from sw_requirement import *
-from sw_requirement_test_case import *
-from sw_requirement_test_specification import *
-from test_case import *
-from test_specification import *
-from test_specification_test_case import *
+try:
+    from api import spdx_manager
+except:
+    import spdx_manager
 
 app = Flask("BASIL-API")
 api = Api(app)
@@ -63,7 +61,6 @@ _TC = 'test_case'
 _TCs = f'{_TC}s'
 _J = 'justification'
 _Js = f'{_J}s'
-
 
 def get_api_from_request(_request, _db_session):
     if 'api-id' not in _request.keys():
@@ -192,6 +189,35 @@ def get_dict_without_keys(_dict, _undesired_keys):
     return _dict
 
 
+def get_model_editable_fields(_model, _is_history):
+    not_editable_model_fields = ['id','created_at', 'updated_at']
+    not_editable_model_history_fields = ['row_id', 'created_at', 'updated_at']
+    all_fields = _model.__table__.columns.keys()
+    if not _is_history:
+        return [x for x in all_fields if x not in not_editable_model_fields]
+    else:
+        return [x for x in all_fields if x not in not_editable_model_history_fields]
+
+
+def filter_query(_query, _args, _model, _is_history):
+    fields = get_model_editable_fields(_model, _is_history)
+    for arg_key in _args.keys():
+        if "field" in arg_key:
+            field_n = arg_key.replace('field', '')
+            field = _args[f'field{field_n}']
+            filter = _args[f'filter{field_n}']
+            if field in fields:
+                _query = _query.filter(getattr(_model, field) == filter)
+            elif field == 'id':
+                _query = _query.filter(_model.id == filter)
+
+        if arg_key == "search":
+            _query = _query.filter(or_(
+                getattr(_model, field).like(f'%{_args["search"]}%') for field in fields)
+            )
+
+    return _query
+
 def get_work_item_close_html():
     tmp = '</div>'
     tmp += '<br clear="all" />'
@@ -208,6 +234,11 @@ def get_indirect_work_items_section_open_html(work_item_type, nesting, coverage)
     tmp += f'<span class="span-indirect-title">{work_item_desc}</span> '
     tmp += f'<progress name="coverage-progress" style="height:20px; width: 100px;" value="{coverage}" max="100" title="{coverage}"></progress>'
     return tmp
+
+def get_db():
+    if app.config['TESTING']:
+        return 'test.db'
+    return 'basil.db'
 
 
 def get_api_specification(_url_or_path):
@@ -394,6 +425,7 @@ def get_splitted_sections(_specification, _mapping, _work_item_types):
 def check_fields_in_request(fields, request):
     for field in fields:
         if field not in request.keys():
+            print(f'field: {field} not in request: {request.keys()}')
             return False
     return True
 
@@ -608,10 +640,9 @@ class SPDXLibrary(Resource):
 
     def get(self):
         from spdx_manager import SPDXManager
-        import datetime
 
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         query = dbi.session.query(ApiModel).filter(
             ApiModel.library == args['library']
@@ -647,7 +678,7 @@ class Comment(Resource):
         if "parent_table" not in args.keys() or "parent_id" not in args.keys():
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
         query = dbi.session.query(CommentModel).filter(
             CommentModel.parent_table == args["parent_table"]
         ).filter(
@@ -671,7 +702,7 @@ class Comment(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         parent_table = request_data['parent_table'].strip()
         if parent_table == "":
@@ -707,7 +738,7 @@ class CheckSpecification(Resource):
         if not check_fields_in_request(self.fields, args):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         query = dbi.session.query(ApiModel).filter(
             ApiModel.id == args['id']
@@ -739,7 +770,7 @@ class FixNewSpecificationWarnings(Resource):
         if not check_fields_in_request(self.fields, args):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         query = dbi.session.query(ApiModel).filter(
             ApiModel.id == args['id']
@@ -796,42 +827,19 @@ class FixNewSpecificationWarnings(Resource):
 
 
 class Api(Resource):
-    fields = ["api", "library", "library-version",
-              "raw-specification-url", "category",
-              "implementation-file", "implementation-file-from-row",
-              "implementation-file-to-row", "tags"]
+    fields = get_model_editable_fields(ApiModel, False)
+    fields_hashes = [x.replace('_','-') for x in fields]
 
     def get(self):
         """
-        curl http://localhost:5000/api
+        curl http://localhost:5000/apis
         """
         apis_dict = []
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         query = dbi.session.query(ApiModel)
-
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'name':
-                    query = query.filter(ApiModel.api == filter)
-                elif field == 'library':
-                    query = query.filter(ApiModel.library == filter)
-                elif field == 'id':
-                    query = query.filter(ApiModel.id == filter)
-
-            if arg_key == "search":
-                query = query.filter(or_(ApiModel.api.like(f'%{args["search"]}%'),
-                                         ApiModel.category.like(f'%{args["search"]}%'),
-                                         ApiModel.tags.like(f'%{args["search"]}%'),
-                                         ApiModel.library_version.like(f'%{args["search"]}%'),
-                                         ApiModel.raw_specification_url.like(f'%{args["search"]}%'),
-                                         ApiModel.implementation_file.like(f'%{args["search"]}%'),
-                                         ))
-
+        query = filter_query(query, args, ApiModel, False)
         apis = query.all()
 
         if len(apis):
@@ -858,11 +866,12 @@ class Api(Resource):
         add a new Api
         """
         request_data = request.get_json(force=True)
-
-        if not check_fields_in_request(self.fields, request_data):
+        post_fields = self.fields_hashes.copy()
+        post_fields.append('action')
+        if not check_fields_in_request(post_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = dbi.session.query(ApiModel).filter(
@@ -961,12 +970,12 @@ class Api(Resource):
         """
 
         request_data = request.get_json(force=True)
-        put_fields = self.fields.copy()
+        put_fields = self.fields_hashes.copy()
         put_fields.append('api-id')
         if not check_fields_in_request(put_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -989,37 +998,70 @@ class Api(Resource):
             dbi.engine.dispose()
             return 'An Api with selected name and library already exist in the db', 409
 
-        if request_data['api'] != api.api:
-            api.api = request_data['api']
-
-        if request_data['library'] != api.library:
-            api.library = request_data['library']
-
-        if request_data['library-version'] != api.library:
-            api.library_version = request_data['library-version']
-
-        if request_data['raw-specification-url'] != api.raw_specification_url:
-            api.raw_specification_url = request_data['raw-specification-url']
-
-        if request_data['category'] != api.category:
-            api.category = request_data['category']
-
-        if request_data['implementation-file'] != api.implementation_file:
-            api.implementation_file = request_data['implementation-file']
-
-        if request_data['implementation-file-from-row'] != api.implementation_file_from_row:
-            api.implementation_file_from_row = request_data['implementation-file-from-row']
-
-        if request_data['implementation-file-to-row'] != api.implementation_file_to_row:
-            api.implementation_file_to_row = request_data['implementation-file-to-row']
-
-        if request_data['tags'] != api.tags:
-            api.tags = request_data['tags']
+        for field in self.fields:
+            if field.replace('_', '-') in request_data.keys():
+                if getattr(api, field) != request_data[field.replace('_', '-')]:
+                    setattr(api, field, request_data[field.replace('_', '-')])
 
         dbi.session.commit()
         dbi.engine.dispose()
         return api.as_dict()
 
+    def delete(self):
+        request_data = request.get_json(force=True)
+
+        delete_fields = self.fields_hashes.copy()
+        delete_fields.append('api-id')
+        if not check_fields_in_request(delete_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # Find api
+        apis = dbi.session.query(ApiModel).filter(
+            ApiModel.id == request_data['api-id']
+        ).filter(
+            ApiModel.api == request_data['api']
+        ).filter(
+            ApiModel.library == request_data['library']
+        ).filter(
+            ApiModel.library_version == request_data['library-version']
+        ).all()
+
+        if len(apis) != 1:
+            dbi.engine.dispose()
+            return 'Api not found', 400
+
+        api = apis[0]
+
+        justifications_mapping_api = dbi.session.query(ApiJustificationModel).filter(
+            ApiJustificationModel.api_id == api.id).all()
+
+        sw_requirements_mapping_api = dbi.session.query(ApiSwRequirementModel).filter(
+            ApiSwRequirementModel.api_id == api.id).all()
+
+        test_specifications_mapping_api = dbi.session.query(ApiTestSpecificationModel).filter(
+            ApiTestSpecificationModel.api_id == api.id).all()
+
+        test_cases_mapping_api = dbi.session.query(ApiTestCaseModel).filter(
+            ApiTestCaseModel.api_id == api.id).all()
+
+        for j in justifications_mapping_api:
+            dbi.session.delete(j)
+
+        for s in sw_requirements_mapping_api:
+            dbi.session.delete(s)
+
+        for ts in test_specifications_mapping_api:
+            dbi.session.delete(ts)
+
+        for tc in test_cases_mapping_api:
+            dbi.session.delete(tc)
+
+        dbi.session.delete(api)
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return True
 
 class ApiHistory(Resource):
     def get(self):
@@ -1028,7 +1070,7 @@ class ApiHistory(Resource):
         if 'api-id' not in args.keys():
             return []
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         _model = ApiModel
         _model_history = ApiHistoryModel
@@ -1046,7 +1088,7 @@ class ApiHistory(Resource):
 
             obj = {"version": model_version.version,
                    "type": "object",
-                   "created_at": datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
+                   "created_at": datetime.datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
 
             for k in _model_fields:
                 if k not in ['row_id', 'version', 'created_at', 'updated_at']:
@@ -1090,7 +1132,7 @@ class Library(Resource):
         """
 
         # args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
         libraries = dbi.session.query(ApiModel.library).distinct().all()
         dbi.engine.dispose()
         return sorted([x.library for x in libraries])
@@ -1106,7 +1148,7 @@ class ApiSpecification(Resource):
         if "api-id" not in args.keys():
             return {}
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         api = get_api_from_request(args, dbi.session)
         if not api:
@@ -1134,7 +1176,7 @@ class ApiTestSpecificationsMapping(Resource):
 
         undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -1196,7 +1238,7 @@ class ApiTestSpecificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1272,7 +1314,7 @@ class ApiTestSpecificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1285,17 +1327,10 @@ class ApiTestSpecificationsMapping(Resource):
         test_specification = test_specification_mapping_api.test_specification
 
         # Update only modified fields
-        if test_specification.title != request_data["test-specification"]["title"]:
-            test_specification.title = request_data["test-specification"]["title"]
-
-        if test_specification.preconditions != request_data["test-specification"]["preconditions"]:
-            test_specification.preconditions = request_data["test-specification"]["preconditions"]
-
-        if test_specification.test_description != request_data["test-specification"]["test-description"]:
-            test_specification.test_description = request_data["test-specification"]["test-description"]
-
-        if test_specification.expected_behavior != request_data["test-specification"]["expected-behavior"]:
-            test_specification.expected_behavior = request_data["test-specification"]["expected-behavior"]
+        for field in TestSpecification.fields:
+            if field.replace('_', '-') in request_data["test-specification"].keys():
+                if getattr(test_specification, field) != request_data["test-specification"][field.replace('_', '-')]:
+                    setattr(test_specification, field, request_data["test-specification"][field.replace('_', '-')])
 
         if test_specification_mapping_api.section != request_data["section"]:
             test_specification_mapping_api.section = request_data["section"]
@@ -1316,7 +1351,7 @@ class ApiTestSpecificationsMapping(Resource):
         if not check_fields_in_request(['relation-id', 'api-id'], request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1362,7 +1397,7 @@ class ApiTestCasesMapping(Resource):
 
         undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -1414,7 +1449,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1483,7 +1518,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1500,17 +1535,10 @@ class ApiTestCasesMapping(Resource):
             return "Test Case mapping api not found", 400
 
         # Update only modified fields
-        if test_case.title != request_data["test-case"]["title"]:
-            test_case.title = request_data["test-case"]["title"]
-
-        if test_case.description != request_data["test-case"]["description"]:
-            test_case.description = request_data["test-case"]["description"]
-
-        if test_case.repository != request_data["test-case"]["repository"]:
-            test_case.repository = request_data["test-case"]["repository"]
-
-        if test_case.relative_path != request_data["test-case"]["relative-path"]:
-            test_case.relative_path = request_data["test-case"]["relative-path"]
+        for field in TestCase.fields:
+            if field.replace('_', '-') in request_data["test-case"].keys():
+                if getattr(test_case, field) != request_data["test-case"][field.replace('_', '-')]:
+                    setattr(test_case, field, request_data["test-case"][field.replace('_', '-')])
 
         if test_case_mapping_api.section != request_data["section"]:
             test_case_mapping_api.section = request_data["section"]
@@ -1531,7 +1559,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(['relation-id', 'api-id'], request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1566,7 +1594,7 @@ class ApiTestCasesMapping(Resource):
 class MappingHistory(Resource):
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         if 'work_item_type' not in args.keys() or 'mapped_to_type' not in args.keys() or 'relation_id' not in args.keys():
             dbi.engine.dispose()
@@ -1651,7 +1679,7 @@ class MappingHistory(Resource):
 
             obj = {"version": model_version.version,
                    "type": "object",
-                   "created_at": datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
+                   "created_at": datetime.datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
 
             for k in _model_fields:
                 if k not in ['row_id', 'version', 'created_at', 'updated_at']:
@@ -1665,7 +1693,7 @@ class MappingHistory(Resource):
 
             obj = {"version": model_map_version.version,
                    "type": "mapping",
-                   "created_at": datetime.strptime(str(model_map_version.created_at),
+                   "created_at": datetime.datetime.strptime(str(model_map_version.created_at),
                                                    '%Y-%m-%d %H:%M:%S.%f')}
             for k in _model_map_fields:
                 if args['work_item_type'] == 'justification':
@@ -1723,7 +1751,7 @@ class MappingUsage(Resource):
               is used
         """
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         if 'work_item_type' not in args.keys() or 'id' not in args.keys():
             dbi.engine.dispose()
@@ -1821,7 +1849,7 @@ class ApiSpecificationsMapping(Resource):
 
         undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -1863,7 +1891,7 @@ class ApiJustificationsMapping(Resource):
 
         undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -1903,7 +1931,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1952,7 +1980,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1966,8 +1994,10 @@ class ApiJustificationsMapping(Resource):
         justification = justification_mapping_api.justification
 
         # Update only modified fields
-        if justification.description != request_data["justification"]["description"]:
-            justification.description = request_data["justification"]["description"]
+        for field in Justification.fields:
+            if field.replace('_', '-') in request_data["justification"].keys():
+                if getattr(justification, field) != request_data["justification"][field.replace('_', '-')]:
+                    setattr(justification, field, request_data["justification"][field.replace('_', '-')])
 
         if request_data['section'] != justification_mapping_api.section:
             justification_mapping_api.section = request_data["section"]
@@ -1988,7 +2018,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(['relation-id', 'api-id'], request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2040,7 +2070,7 @@ class ApiSwRequirementsMapping(Resource):
 
         undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -2058,7 +2088,7 @@ class ApiSwRequirementsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2127,7 +2157,7 @@ class ApiSwRequirementsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2140,17 +2170,10 @@ class ApiSwRequirementsMapping(Resource):
         sw_requirement = sw_requirement_mapping_api.sw_requirement
 
         # Update only modified fields
-        if sw_requirement.description != request_data["sw-requirement"]["description"]:
-            sw_requirement.description = request_data["sw-requirement"]["description"]
-
-        if sw_requirement.title != request_data["sw-requirement"]["title"]:
-            sw_requirement.title = request_data["sw-requirement"]["title"]
-
-        if sw_requirement_mapping_api.section != request_data["section"]:
-            sw_requirement_mapping_api.section = request_data["section"]
-
-        if sw_requirement_mapping_api.offset != request_data["offset"]:
-            sw_requirement_mapping_api.offset = request_data["offset"]
+        for field in SwRequirement.fields:
+            if field.replace('_', '-') in request_data["sw-requirement"].keys():
+                if getattr(sw_requirement, field) != request_data["sw-requirement"][field.replace('_', '-')]:
+                    setattr(sw_requirement, field, request_data["sw-requirement"][field.replace('_', '-')])
 
         if sw_requirement_mapping_api.coverage != int(request_data["coverage"]):
             sw_requirement_mapping_api.coverage = int(request_data["coverage"])
@@ -2165,7 +2188,7 @@ class ApiSwRequirementsMapping(Resource):
         if not check_fields_in_request(['relation-id', 'api-id'], request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2198,44 +2221,16 @@ class ApiSwRequirementsMapping(Resource):
 
 
 class Justification(Resource):
-    fields = ['description']
+    fields = get_model_editable_fields(JustificationModel, False)
+    fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
         """
         """
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
         query = dbi.session.query(JustificationModel)
-
-        if "join" in args.keys() and "join_id" in args.keys():
-            if args["join"] == JOIN_APIS_TABLE:
-                query = query.join(ApiModel).filter(ApiModel.id == args["join_id"])
-
-        filter_by_id = False
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'id':
-                    filter_by_id = True
-                    break
-        if filter_by_id:
-            query = query.filter(JustificationModel.id == filter)
-            dbi.engine.dispose()
-            return [ju.as_dict() for ju in query.all()]
-
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'description':
-                    query = query.filter(JustificationModel.description.like(f'%{filter}%'))
-
-            if arg_key == "search":
-                query = query.filter(JustificationModel.description.like(f'%{args["search"]}%'))
-
+        query = filter_query(query, args, JustificationModel, False)
         jus = [ju.as_dict() for ju in query.all()]
 
         if 'mode' in args.keys():
@@ -2248,65 +2243,17 @@ class Justification(Resource):
 
 
 class TestSpecification(Resource):
-    fields = ['title', 'preconditions', 'test_description', 'expected_behavior']
+    fields = get_model_editable_fields(TestSpecificationModel, False)
+    fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
         """
         """
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
-        if "join" in args.keys() and "join_id" in args.keys():
-            if args["join"] == JOIN_APIS_TABLE:
-                join_test_specs = dbi.session.query(ApiTestSpecificationModel).filter(
-                    ApiTestSpecificationModel.api_id == args["join_id"]).all()
-                join_test_specs = [x.id for x in join_test_specs]
-                query = dbi.session.query(TestSpecificationModel).filter(
-                    TestSpecificationModel.id.in_(join_test_specs))
-            elif args["join"] == JOIN_SW_REQUIREMENTS_TABLE:
-                join_test_specs = dbi.session.query(SwRequirementTestSpecificationModel).filter(
-                    SwRequirementTestSpecificationModel.sw_requirement_id == args["join_id"]).all()
-                join_test_specs = [x.id for x in join_test_specs]
-                query = dbi.session.query(TestSpecificationModel).filter(
-                    TestSpecificationModel.id.in_(join_test_specs))
-        else:
-            query = dbi.session.query(TestSpecificationModel)
-
-        filter_by_id = False
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'id':
-                    filter_by_id = True
-                    break
-        if filter_by_id:
-            query = query.filter(TestSpecificationModel.id == filter)
-            dbi.engine.dispose()
-            return [ts.as_dict() for ts in query.all()]
-
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'title':
-                    query = query.filter(TestSpecificationModel.title.like(f'%{filter}%'))
-                elif field == 'preconditions':
-                    query = query.filter(TestSpecificationModel.preconditions.like(f'%{filter}%'))
-                elif field == 'test-description':
-                    query = query.filter(TestSpecificationModel.test_description.like(f'%{filter}%'))
-                elif field == 'expected-description':
-                    query = query.filter(TestSpecificationModel.expected_behavior.like(f'%{filter}%'))
-
-            if arg_key == "search":
-                query = query.filter(or_(TestSpecificationModel.title.like(f'%{args["search"]}%'),
-                                         TestSpecificationModel.preconditions.like(f'%{args["search"]}%'),
-                                         TestSpecificationModel.test_description.like(f'%{args["search"]}%'),
-                                         TestSpecificationModel.expected_behavior.like(f'%{args["search"]}%')
-                                         ))
-
+        query = dbi.session.query(TestSpecificationModel)
+        query = filter_query(query, args, TestSpecificationModel, False)
         tss = [ts.as_dict() for ts in query.all()]
 
         if 'mode' in args.keys():
@@ -2319,59 +2266,16 @@ class TestSpecification(Resource):
 
 
 class SwRequirement(Resource):
-    fields = ["title", "description"]
-
+    fields = get_model_editable_fields(SwRequirementModel, False)
+    fields_hashes = [x.replace('_', '-') for x in fields]
     def get(self):
         """
         """
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
-        if "join" in args.keys() and "join_id" in args.keys():
-            if args["join"] == JOIN_APIS_TABLE:
-                # TODO Fix the join table
-                # Api and SwRequirement are not related
-                api_sw_requirements = dbi.session.query(ApiSwRequirementModel).filter(
-                    ApiSwRequirementModel.api_id == args["join_id"]).all()
-                api_sw_requirement_ids = [x.id for x in api_sw_requirements]
-                query = dbi.session.query(SwRequirementModel).filter(
-                    SwRequirementModel.id.in_(api_sw_requirement_ids))
-            else:
-                dbi.engine.dispose()
-                return []
-        else:
-            query = dbi.session.query(SwRequirementModel)
-
-        filter_by_id = False
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'id':
-                    filter_by_id = True
-                    break
-
-        if filter_by_id:
-            query = query.filter(SwRequirementModel.id == filter)
-            dbi.engine.dispose()
-            return [sr.as_dict() for sr in query.all()]
-
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'title':
-                    query = query.filter(SwRequirementModel.title.like(f'%{filter}%'))
-                elif field == 'description':
-                    query = query.filter(SwRequirementModel.description.like(f'%{filter}%'))
-
-            if arg_key == "search":
-                query = query.filter(or_(SwRequirementModel.title.like(f'%{args["search"]}%'),
-                                         SwRequirementModel.description.like(f'%{args["search"]}%')
-                                         ))
-
+        query = dbi.session.query(SwRequirementModel)
+        query = filter_query(query, args, SwRequirementModel, False)
         srs = [sr.as_dict() for sr in query.all()]
 
         if 'mode' in args.keys():
@@ -2384,68 +2288,16 @@ class SwRequirement(Resource):
 
 
 class TestCase(Resource):
-    fields = ['title', 'description', 'repository', 'relative_path']
+    fields = get_model_editable_fields(TestCaseModel, False)
+    fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
         """
         """
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface()
-
-        if "join" in args.keys() and "join_id" in args.keys():
-            if args["join"] == JOIN_APIS_TABLE:
-                join_test_cases = dbi.session.query(ApiTestCaseModel).filter(
-                    ApiTestCaseModel.api_id == args["join_id"]).all()
-                join_test_cases_ids = [x.id for x in join_test_cases]
-                query = dbi.session.query(TestCaseModel).filter(TestCaseModel.id.in_(join_test_cases_ids))
-            elif args["join"] == JOIN_SW_REQUIREMENTS_TABLE:
-                join_test_cases = dbi.session.query(ApiTestCaseModel).filter(
-                    ApiTestCaseModel.api_id == args["join_id"]).all()
-                join_test_cases_ids = [x.id for x in join_test_cases]
-                query = dbi.session.query(TestCaseModel).filter(TestCaseModel.id.in_(join_test_cases_ids))
-            elif args["join"] == JOIN_TEST_SPECIFICATIONS_TABLE:
-                join_test_cases = dbi.session.query(ApiTestCaseModel).filter(
-                    ApiTestCaseModel.api_id == args["join_id"]).all()
-                join_test_cases_ids = [x.id for x in join_test_cases]
-                query = dbi.session.query(TestCaseModel).filter(TestCaseModel.id.in_(join_test_cases_ids))
-        else:
-            query = dbi.session.query(TestCaseModel)
-
-        filter_by_id = False
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'id':
-                    filter_by_id = True
-                    break
-        if filter_by_id:
-            query = query.filter(TestCaseModel.id == filter)
-            dbi.engine.dispose()
-            return [tc.as_dict() for tc in query.all()]
-
-        for arg_key in args.keys():
-            if "field" in arg_key:
-                field_n = arg_key.replace('field', '')
-                field = args[f'field{field_n}']
-                filter = args[f'filter{field_n}']
-                if field == 'title':
-                    query = query.filter(TestCaseModel.title.like(f'%{filter}%'))
-                elif field == 'description':
-                    query = query.filter(TestCaseModel.description.like(f'%{filter}%'))
-                elif field == 'repository':
-                    query = query.filter(TestCaseModel.repository.like(f'%{filter}%'))
-                elif field == 'relative-path':
-                    query = query.filter(TestCaseModel.relative_path.like(f'%{filter}%'))
-
-            if arg_key == "search":
-                query = query.filter(or_(TestCaseModel.title.like(f'%{args["search"]}%'),
-                                         TestCaseModel.description.like(f'%{args["search"]}%'),
-                                         TestCaseModel.repository.like(f'%{args["search"]}%'),
-                                         TestCaseModel.relative_path.like(f'%{args["search"]}%')
-                                         ))
-
+        dbi = db_orm.DbInterface(get_db())
+        query = dbi.session.query(TestCaseModel)
+        query = filter_query(query, args, TestCaseModel, False)
         tcs = [tc.as_dict() for tc in query.all()]
 
         if 'mode' in args.keys():
@@ -2478,7 +2330,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         if 'id' not in request_data['sw-requirement'].keys():
             return 'bad request!!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
         sw_requirement_id = request_data['sw-requirement']['id']
         coverage = request_data['coverage']
 
@@ -2582,7 +2434,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         sw_mapping_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
             SwRequirementTestSpecificationModel.id == request_data['relation-id']
@@ -2591,17 +2443,10 @@ class SwRequirementTestSpecificationsMapping(Resource):
         test_specification = sw_mapping_ts.test_specification
 
         # Update only modified fields
-        if test_specification.title != request_data["test-specification"]["title"]:
-            test_specification.title = request_data["test-specification"]["title"]
-
-        if test_specification.preconditions != request_data["test-specification"]["preconditions"]:
-            test_specification.preconditions = request_data["test-specification"]["preconditions"]
-
-        if test_specification.test_description != request_data["test-specification"]["test-description"]:
-            test_specification.test_description = request_data["test-specification"]["test-description"]
-
-        if test_specification.expected_behavior != request_data["test-specification"]["expected-behavior"]:
-            test_specification.expected_behavior = request_data["test-specification"]["expected-behavior"]
+        for field in TestSpecification.fields:
+            if field.replace('_', '-') in request_data["test-specification"].keys():
+                if getattr(test_specification, field) != request_data["test-specification"][field.replace('_', '-')]:
+                    setattr(test_specification, field, request_data["test-specification"][field.replace('_', '-')])
 
         if sw_mapping_ts.coverage != int(request_data["coverage"]):
             sw_mapping_ts.coverage = int(request_data["coverage"])
@@ -2620,7 +2465,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         sw_mapping_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
             SwRequirementTestSpecificationModel.id == request_data['relation-id']
@@ -2658,7 +2503,7 @@ class SwRequirementTestCasesMapping(Resource):
             return 'bad request!!', 400
 
         relation_id = request_data['relation-id']
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2759,7 +2604,7 @@ class SwRequirementTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         sw_mapping_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
             SwRequirementTestCaseModel.id == request_data['relation-id']
@@ -2768,17 +2613,10 @@ class SwRequirementTestCasesMapping(Resource):
         test_case = sw_mapping_tc.test_case
 
         # Update only modified fields
-        if test_case.title != request_data["test-case"]["title"]:
-            test_case.title = request_data["test-case"]["title"]
-
-        if test_case.description != request_data["test-case"]["description"]:
-            test_case.description = request_data["test-case"]["description"]
-
-        if test_case.repository != request_data["test-case"]["repository"]:
-            test_case.repository = request_data["test-case"]["repository"]
-
-        if test_case.relative_path != request_data["test-case"]["relative-path"]:
-            test_case.relative_path = request_data["test-case"]["relative-path"]
+        for field in TestCase.fields:
+            if field.replace('_', '-') in request_data["test-case"].keys():
+                if getattr(test_case, field) != request_data["test-case"][field.replace('_', '-')]:
+                    setattr(test_case, field, request_data["test-case"][field.replace('_', '-')])
 
         if sw_mapping_tc.coverage != int(request_data["coverage"]):
             sw_mapping_tc.coverage = int(request_data["coverage"])
@@ -2797,7 +2635,7 @@ class SwRequirementTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         sw_mapping_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
             SwRequirementTestCaseModel.id == request_data['relation-id']
@@ -2832,7 +2670,7 @@ class TestSpecificationTestCasesMapping(Resource):
             return 'bad request!!', 400
 
         relation_id = request_data['relation-id']
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2949,7 +2787,7 @@ class TestSpecificationTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         ts_mapping_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
             TestSpecificationTestCaseModel.id == request_data['relation-id']
@@ -2958,17 +2796,10 @@ class TestSpecificationTestCasesMapping(Resource):
         test_case = ts_mapping_tc.test_case
 
         # Update only modified fields
-        if test_case.title != request_data["test-case"]["title"]:
-            test_case.title = request_data["test-case"]["title"]
-
-        if test_case.description != request_data["test-case"]["description"]:
-            test_case.description = request_data["test-case"]["description"]
-
-        if test_case.repository != request_data["test-case"]["repository"]:
-            test_case.repository = request_data["test-case"]["repository"]
-
-        if test_case.relative_path != request_data["test-case"]["relative-path"]:
-            test_case.relative_path = request_data["test-case"]["relative-path"]
+        for field in TestCase.fields:
+            if field.replace('_', '-') in request_data["test-case"].keys():
+                if getattr(test_case, field) != request_data["test-case"][field.replace('_', '-')]:
+                    setattr(test_case, field, request_data["test-case"][field.replace('_', '-')])
 
         if ts_mapping_tc.coverage != int(request_data["coverage"]):
             ts_mapping_tc.coverage = int(request_data["coverage"])
@@ -2986,7 +2817,7 @@ class TestSpecificationTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         ts_mapping_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
             TestSpecificationTestCaseModel.id == request_data['relation-id']
@@ -3011,7 +2842,7 @@ class ForkApiSwRequirement(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
-        dbi = db_orm.DbInterface()
+        dbi = db_orm.DbInterface(get_db())
 
         try:
             asr_mapping = dbi.session.query(ApiSwRequirementModel).filter(
@@ -3031,6 +2862,15 @@ class ForkApiSwRequirement(Resource):
         dbi.engine.dispose()
         return asr_mapping.as_dict()
 
+
+class TestingSupportInitDb(Resource):
+
+    def get(self):
+        if app.config['TESTING']:
+            app.config['DB'] = 'test.db'
+            import db.models.init_db as init_db
+            init_db.initialization(db_name='test.db')
+        return True
 
 api.add_resource(Api, '/apis')
 api.add_resource(ApiHistory, '/apis/history')
@@ -3057,6 +2897,9 @@ api.add_resource(MappingHistory, '/mapping/history')
 api.add_resource(CheckSpecification, '/apis/check-specification')
 api.add_resource(FixNewSpecificationWarnings, '/apis/fix-specification-warnings')
 
+#Testing Support
+api.add_resource(TestingSupportInitDb, '/test-support/init-db')
+
 # Usage
 api.add_resource(MappingUsage, '/mapping/usage')
 # Comments
@@ -3070,6 +2913,15 @@ api.add_resource(ForkApiSwRequirement, '/fork/api/sw-requirement')
 if __name__ == "__main__":
     import api_url
 
-    # app.config['SECRET_KEY'] = os.environ["app_token"]
+    if os.environ.get('BASIL_TESTING', 'off') == 'on':
+        app.config['TESTING'] = True
+
     app.config['ENV'] = 'local'
+
+    if app.config['TESTING']:
+        app.config['DB'] = 'test.db'
+        import db.models.init_db as init_db
+        init_db.initialization(db_name='test.db')
+    else:
+        app.config['DB'] = 'basil.db'
     app.run(host='0.0.0.0', port=api_url.api_port)

@@ -190,11 +190,11 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
     return (
         <Form>
-          <FormGroup label="Sw Requirement Title" isRequired fieldId={`input-sw-requirement-title-${formData.id}`}>
+          <FormGroup label="Sw Requirement Title" isRequired fieldId={`input-sw-requirement-${formAction}-title-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-sw-requirement-title-${formData.id}`}
-              name={`input-sw-requirement-title-${formData.id}`}
+              id={`input-sw-requirement-${formAction}-title-${formData.id}`}
+              name={`input-sw-requirement-${formAction}-title-${formData.id}`}
               value={titleValue || ''}
               onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
             />
@@ -208,13 +208,13 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Description" isRequired fieldId={`input-sw-requirement-description-${formData.id}`}>
+          <FormGroup label="Description" isRequired fieldId={`input-sw-requirement-${formAction}-description-${formData.id}`}>
             <TextArea
               isRequired
               resizeOrientation="vertical"
               aria-label="Sw Requirement description field"
-              id={`input-sw-requirement-description-${formData.id}`}
-              name={`input-sw-requirement-description-${formData.id}`}
+              id={`input-sw-requirement-${formAction}-description-${formData.id}`}
+              name={`input-sw-requirement-${formAction}-description-${formData.id}`}
               value={descriptionValue || ''}
               onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
             />
@@ -228,10 +228,10 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Unique Coverage:" fieldId={`input-sw-requirement-coverage-${formData.id}`}>
+          <FormGroup label="Unique Coverage:" fieldId={`input-sw-requirement-${formAction}-coverage-${formData.id}`}>
             <TextInput
-              id={`input-sw-requirement-coverage-${formData.id}`}
-              name={`input-sw-requirement-coverage-${formData.id}`}
+              id={`input-sw-requirement-${formAction}-coverage-${formData.id}`}
+              name={`input-sw-requirement-${formAction}-coverage-${formData.id}`}
               value={coverageValue || ''}
               onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             />
@@ -257,11 +257,13 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-sw-requirement-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-sw-requirement-reset"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

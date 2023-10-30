@@ -96,20 +96,24 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       return work_item_descriptions[work_item_types.indexOf(_work_item_type)];
   }
 
-  const tcFormEmpty = {'coverage': 0,
+  const tcFormEmpty = {'id': 0,
+                       'coverage': 0,
                        'title': '',
                        'description': '',
                        'repository': '',
                        'relative_path': ''}
-  const tsFormEmpty = {'coverage': 0,
+  const tsFormEmpty = {'id': 0,
+                       'coverage': 0,
                        'title': '',
                        'preconditions': '',
                        'test_description': '',
                        'expected_behavior': ''}
-  const srFormEmpty = {'coverage': 0,
+  const srFormEmpty = {'id':0,
+                       'coverage': 0,
                        'title': '',
                        'description': ''}
-  const jFormEmpty = {'description': '',
+  const jFormEmpty = {'id': 0,
+                      'description': '',
                       'coverage': 100}
 
   const getTestCaseData = (_list, _index, _parent_type) => {
@@ -337,6 +341,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               <FlexItem>
                 <Button
                   variant="secondary"
+                  id="btn-mapping-new-sw-requirement"
                   onClick={() => (setSrModalInfo(true,
                                                  false,
                                                  'add',
@@ -353,6 +358,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               <FlexItem>
                 <Button
                   variant="secondary"
+                  id="btn-mapping-new-test-specification"
                   onClick={() => (setTsModalInfo(true,
                                                  false,
                                                  'add',
@@ -369,6 +375,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               <FlexItem>
                 <Button
                   variant="secondary"
+                  id="btn-mapping-new-test-case"
                   onClick={() => (setTcModalInfo(true,
                                                  false,
                                                  'add',
@@ -385,6 +392,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               <FlexItem>
                 <Button
                   variant="secondary"
+                  id="btn-mapping-new-justification"
                   onClick={() => setJModalInfo(true,
                                                'add',
                                                api,

@@ -3,6 +3,7 @@ import { Button, Card, CardBody, Flex, FlexItem, Label, PageSection, Pagination,
 import { APIListingTable} from '@app/Dashboard/APIListingTable';
 import { APIModal } from './Modal/APIModal';
 import { APICheckSpecModal } from './Modal/APICheckSpecModal';
+import { APIDeleteModal } from './Modal/APIDeleteModal';
 import { APIExportSPDXModal } from './Modal/APIExportSPDXModal';
 
 export interface APIListingPageSectionProps {
@@ -29,6 +30,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const rows = [];
   const [page, setPage] = React.useState(1);
   const [modalShowState, setModalShowState] = React.useState(false);
+
   const [modalCheckSpecShowState, setModalCheckSpecShowState] = React.useState(false);
   const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false);
   const [modalCheckSpecApiData, setModalCheckSpecApiData] = React.useState(null);
@@ -40,6 +42,9 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [modalDescription, setModalDescription] = React.useState('');
   const [perPage, setPerPage] = React.useState(10);
   const [SPDXContent, setSPDXContent] = React.useState('');
+
+  const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false);
+  const [modalDeleteApiData, setModalDeleteApiData] = React.useState(null);
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const [paginatedRows, setPaginatedRows] = React.useState(rows.slice(0, 10));
@@ -59,6 +64,13 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
     setModalObject(_modalObject);
     setModalVerb(_modalVerb);
     setModalAction(_modalAction);
+    setModalTitle(_modalTitle);
+    setModalDescription(_modalDescription);
+  }
+
+  const setModalDeleteInfo = (_modalObject, _modalShowState, _modalTitle, _modalDescription) => {
+    setModalDeleteShowState(_modalShowState);
+    setModalObject(_modalObject);
     setModalTitle(_modalTitle);
     setModalDescription(_modalDescription);
   }
@@ -129,7 +141,9 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
             </Flex>
             <Flex align={{ default: 'alignRight' }}>
               <FlexItem>
-                <Button variant="primary"
+                <Button
+                  id="btn-add-sw-component"
+                  variant="primary"
                   onClick={() => setModalInfo(emptyFormData,
                                               true,
                                               'api',
@@ -142,6 +156,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
               </FlexItem>
               <FlexItem>
                 <Button
+                  id="btn-export-sw-components-to-spdx"
                   variant="secondary"
                   onClick={() => exportSPDX()}
                 >Export to SPDX
@@ -157,6 +172,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
             baseApiUrl={baseApiUrl}
             setModalInfo={setModalInfo}
             setModalCheckSpecInfo={setModalCheckSpecInfo}
+            setModalDeleteInfo={setModalDeleteInfo}
             apis={apis}/>
         </CardBody>
       </Card>
@@ -173,6 +189,15 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         loadLibraries={loadLibraries}
         loadApi={loadApi}
         baseApiUrl={baseApiUrl} />
+      <APIDeleteModal
+        baseApiUrl={baseApiUrl}
+        modalShowState={modalDeleteShowState}
+        setModalShowState={setModalDeleteShowState}
+        api={modalObject}
+        modalTitle={modalTitle}
+        modalDescription={modalDescription}
+        loadLibraries={loadLibraries}
+        loadApi={loadApi} />
       <APICheckSpecModal
         baseApiUrl={baseApiUrl}
         modalShowState={modalCheckSpecShowState}

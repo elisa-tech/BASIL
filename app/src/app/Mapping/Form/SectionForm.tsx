@@ -129,7 +129,10 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
             )}
           </FormGroup>
 
-          <Button variant="link" onClick={setSectionAsUnmatching}>
+          <Button
+            id="btn-section-set-unmatching"
+            variant="link"
+            onClick={setSectionAsUnmatching}>
             Set as unmatching
           </Button>
 

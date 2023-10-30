@@ -60,10 +60,18 @@ export const APIModal: React.FunctionComponent<APIModalProps> = ({
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
-          <Button key="confirm" variant="primary" onClick={() => handleModalConfirm()}>
+          <Button
+            id="btn-modal-api-confirm"
+            key="confirm"
+            variant="primary"
+            onClick={() => handleModalConfirm()}>
             Confirm
           </Button>,
-          <Button key="cancel" variant="link" onClick={handleModalToggle}>
+          <Button
+            id="btn-modal-api-reset"
+            key="cancel"
+            variant="link"
+            onClick={handleModalToggle}>
             Cancel
           </Button>
         ]}

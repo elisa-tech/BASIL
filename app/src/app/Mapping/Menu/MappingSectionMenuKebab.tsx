@@ -83,7 +83,9 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
       <DropdownList>
         <DropdownItem
           value={0}
-          key="assign-justification"
+          id={"btn-mapping-section-justification-" + sectionIndex}
+          name="btn-mapping-section-justification"
+          key="assign justification"
           onClick={() => (setJModalInfo(true,
                                         'add',
                                         api,
@@ -93,7 +95,9 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
         </DropdownItem>
         <DropdownItem
           value={1}
-          key="assign-sw-requirement"
+          id={"btn-mapping-section-sw-requirement-" + sectionIndex}
+          name="btn-mapping-section-sw-requirement"
+          key="assign sw requirement"
           onClick={() => (setSrModalInfo(true,
                                          false,
                                          'add',
@@ -108,7 +112,9 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
         </DropdownItem>
         <DropdownItem
           value={2}
-          key="assign-test-case"
+          id={"btn-mapping-section-test-case-" + sectionIndex}
+          name="btn-mapping-section-test-case"
+          key="assign test case"
           onClick={() => (setTcModalInfo(true,
                                          false,
                                          'add',
@@ -123,7 +129,9 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
         </DropdownItem>
         <DropdownItem
           value={3}
-          key="assign-test-specification"
+          id={"btn-mapping-section-test-specification-" + sectionIndex}
+          name="btn-mapping-section-test-specification"
+          key="assign test specification"
           onClick={() => (setTsModalInfo(true,
                                          false,
                                          'add',

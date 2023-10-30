@@ -1,0 +1,25 @@
+{
+  "first": {
+    "api": "firts-api",
+    "library": "first-library",
+    "library-version": "1.0.0",
+    "category": "first-category",
+    "raw_specification_url": "https://github.com/elisa-tech/BASIL/raw/main/README.md",
+    "implementation_file": "first-file",
+    "implementation_file_from_row": 1,
+    "implementation_file_to_row": 10,
+    "tags": "first-tags"
+  },
+  "first_mod": {
+    "api": "firts-api modified",
+    "library": "first-library modified",
+    "library-version": "1.0.1",
+    "category": "first-category modified",
+    "raw_specification_url": "https://github.com/elisa-tech/BASIL/raw/main/README.md",
+    "implementation_file": "first-file modified",
+    "implementation_file_from_row": 2,
+    "implementation_file_to_row": 11,
+    "tags": "first-tags modified"
+  },
+  "first_api_mod_new_version": "1.0.2"
+}

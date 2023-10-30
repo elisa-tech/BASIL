@@ -9,11 +9,12 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from db_base import Base
+from db.models.db_base import Base
 
 class TestCaseModel(Base):
     __tablename__ = "test_cases"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     repository: Mapped[str] = mapped_column(String())
@@ -96,6 +97,7 @@ def receive_after_insert(mapper, connection, target):
 class TestCaseHistoryModel(Base):
     __tablename__ = 'test_cases_history'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

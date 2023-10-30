@@ -69,6 +69,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
       <DropdownList>
         <DropdownItem
           value={0}
+          id={"btn-menu-justification-delete-" + mappingList[mappingIndex].relation_id}
           key="delete"
           className="danger-text"
           onClick={() => (setDeleteModalInfo(true,
@@ -81,6 +82,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
         </DropdownItem>
         <DropdownItem
           value={1}
+          id={"btn-menu-justification-edit-" + mappingList[mappingIndex].relation_id}
           key="edit"
           onClick={() => (setJModalInfo(true,
                                         'edit',
@@ -99,6 +101,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
         </DropdownItem>
         <DropdownItem
           value={3}
+          id={"btn-menu-justification-history-" + mappingList[mappingIndex].relation_id}
           key="history"
           onClick={() => (setHistoryModalInfo(true,
                                               _J,
@@ -108,6 +111,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
         </DropdownItem>
         <DropdownItem
           value={4}
+          id={"btn-menu-justification-details-" + mappingList[mappingIndex].relation_id}
           key="show-details"
           onClick={() => (setDetailsModalInfo(true,
                                               _J,
@@ -116,6 +120,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
         </DropdownItem>
         <DropdownItem
           value={5}
+          id={"btn-menu-justification-usage-" + mappingList[mappingIndex].relation_id}
           key="usage"
           onClick={() => (setUsageModalInfo(true,
                                             _J,

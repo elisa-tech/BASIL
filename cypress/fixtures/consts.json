@@ -1,0 +1,13 @@
+{
+  "app_base_url": "http://localhost:9000",
+  "api_base_url": "http://localhost:5000",
+  "api":{
+    "modal_button_confirm_id": "#btn-modal-api-confirm",
+    "table_listing_id": "#table-api-listing"
+  },
+  "mapping": {
+    "select_view_id": "#select-mapping-view",
+    "table_matching_id": "#table-matching-sections",
+    "table_unmatching_id": "#table-unmatching-sections"
+  }
+}

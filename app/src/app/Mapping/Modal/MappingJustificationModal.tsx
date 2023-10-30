@@ -106,12 +106,14 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
       >
         <Tab
           eventKey={0}
+          id="tab-btn-justification-data"
           title={<TabTitleText>Justification Data</TabTitleText>}
           tabContentId="tabNewJustification"
           tabContentRef={newItemRef}
         />
         <Tab
           eventKey={1}
+          id="tab-btn-justification-mapping-section"
           title={<TabTitleText>Mapping Section</TabTitleText>}
           tabContentId="tabSection"
           tabContentRef={sectionItemsRef}
@@ -119,16 +121,18 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
         <Tab
           isDisabled={modalVerb == 'POST' ? false : true}
           eventKey={2}
+          id="tab-btn-justification-existing"
           title={<TabTitleText>Existing</TabTitleText>}
           tabContentId="tabExistingJustification"
           tabContentRef={existingItemsRef}
         />
       </Tabs>
       <div>
-        <TabContent eventKey={0} id="tabNewJustification" ref={newItemRef}>
+        <TabContent eventKey={0} id="tabContentJustificationForm" ref={newItemRef}>
           <TabContentBody hasPadding>
             <JustificationForm
               api={api}
+              formAction={modalAction}
               formData={modalFormData}
               formVerb={modalVerb}
               parentData={parentData}
@@ -143,7 +147,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
             />
           </TabContentBody>
         </TabContent>
-        <TabContent eventKey={1} id="tabSection" ref={sectionItemsRef} hidden>
+        <TabContent eventKey={1} id="tabContentJustificationSection" ref={sectionItemsRef} hidden>
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
@@ -158,7 +162,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
             />
           </TabContentBody>
         </TabContent>
-        <TabContent eventKey={2} id="tabExistingJustification" ref={existingItemsRef} hidden>
+        <TabContent eventKey={2} id="tabContentJustificationExisting" ref={existingItemsRef} hidden>
           <TabContentBody hasPadding>
             <JustificationSearch
               api={api}

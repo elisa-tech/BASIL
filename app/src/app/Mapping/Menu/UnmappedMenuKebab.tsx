@@ -155,12 +155,14 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
           value={2}
           key="delete"
           className="danger-text"
+          id={"btn-menu-unmapped-delete-" + mappingList[mappingIndex].relation_id}
           onClick={handleDelete}>
           Delete
         </DropdownItem>
         <DropdownItem
           value={0}
           key="edit"
+          id={"btn-menu-unmapped-edit-" + mappingList[mappingIndex].relation_id}
           onClick={handleEdit}>
           Edit
         </DropdownItem>

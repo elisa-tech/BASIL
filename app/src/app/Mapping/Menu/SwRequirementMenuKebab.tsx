@@ -83,7 +83,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
       <DropdownList>
         <DropdownItem
           value={0}
-          key="assign-test-case"
+          id={"btn-menu-sw-requirement-assign-test-case-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-assign-test-case"}
+          key="assign test case"
           onClick={() => setTcModalInfo(true,
                                         true,
                                         'add',
@@ -98,7 +100,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
         </DropdownItem>
         <DropdownItem
           value={1}
-          key="assign-test-specification"
+          id={"btn-menu-sw-requirement-assign-test-specification-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-assign-test-specification"}
+          key="assign test specification"
           onClick={() => setTsModalInfo(true,
                                         true,
                                         'add',
@@ -113,6 +117,8 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
         </DropdownItem>
         <DropdownItem
           value={2}
+          id={"btn-menu-sw-requirement-delete-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-delete"}
           key="delete"
           className="danger-text"
           onClick={() => (setDeleteModalInfo(true,
@@ -124,7 +130,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
           Delete
         </DropdownItem>
         <DropdownItem
-          value={0}
+          value={3}
+          id={"btn-menu-sw-requirement-edit-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-edit"}
           key="edit"
           onClick={() => (setSrModalInfo(true,
                                          indirect,
@@ -139,7 +147,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
           Edit
         </DropdownItem>
         <DropdownItem
-          value={3}
+          value={4}
+          id={"btn-menu-sw-requirement-fork-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-fork"}
           key="fork"
           onClick={() => (setForkModalInfo(true,
                                            _SR,
@@ -150,7 +160,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
           Fork
         </DropdownItem>
         <DropdownItem
-          value={4}
+          value={5}
+          id={"btn-menu-sw-requirement-history-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-history"}
           key="history"
           onClick={() => (setHistoryModalInfo(true,
                                               _SR,
@@ -159,7 +171,7 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
           History
         </DropdownItem>
         <DropdownItem
-          value={5}
+          value={6}
           key="show-details"
           onClick={() => (setDetailsModalInfo(true,
                                               _SR,
@@ -167,7 +179,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
           Show Details
         </DropdownItem>
         <DropdownItem
-          value={6}
+          value={7}
+          id={"btn-menu-sw-requirement-details-" + mappingList[mappingIndex].relation_id}
+          name={"btn-menu-sw-requirement-details"}
           key="usage"
           onClick={() => (setUsageModalInfo(true,
                                             _SR,

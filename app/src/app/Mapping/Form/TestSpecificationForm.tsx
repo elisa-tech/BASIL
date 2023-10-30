@@ -231,11 +231,11 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
     return (
         <Form>
-          <FormGroup label="Test Specification Title" isRequired fieldId={`input-test-specification-title-${formData.id}`}>
+          <FormGroup label="Test Specification Title" isRequired fieldId={`input-test-specification-${formAction}-title-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-test-specification-title-${formData.id}`}
-              name={`input-test-specification-title-${formData.id}`}
+              id={`input-test-specification-${formAction}-title-${formData.id}`}
+              name={`input-test-specification-${formAction}-title-${formData.id}`}
               value={titleValue || ''}
               onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
             />
@@ -249,13 +249,13 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Preconditions" fieldId={`input-test-specification-preconditions-${formData.id}`}>
+          <FormGroup label="Preconditions" fieldId={`input-test-specification-${formAction}-preconditions-${formData.id}`}>
             <TextArea
               isRequired
               resizeOrientation="vertical"
               aria-label="Test Specification preconditions field"
-              id={`input-test-specification-preconditions-${formData.id}`}
-              name={`input-test-specification-preconditions-${formData.id}`}
+              id={`input-test-specification-${formAction}-preconditions-${formData.id}`}
+              name={`input-test-specification-${formAction}-preconditions-${formData.id}`}
               value={preconditionsValue || ''}
               onChange={(_ev, value) => handlePreconditionsValueChange(_ev, value)}
             />
@@ -265,8 +265,8 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
               isRequired
               resizeOrientation="vertical"
               aria-label="Test Specification test description field"
-              id={`input-test-specification-test-description-${formData.id}`}
-              name={`input-test-specification-test-description-${formData.id}`}
+              id={`input-test-specification-${formAction}-test-description-${formData.id}`}
+              name={`input-test-specification-${formAction}-test-description-${formData.id}`}
               value={testDescriptionValue || ''}
               onChange={(_ev, value) => handleTestDescriptionValueChange(_ev, value)}
             />
@@ -280,13 +280,13 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Expected Behavior" isRequired fieldId={`input-test-specification-expected-behavior-${formData.id}`}>
+          <FormGroup label="Expected Behavior" isRequired fieldId={`input-test-specification-${formAction}-expected-behavior-${formData.id}`}>
             <TextArea
               isRequired
               resizeOrientation="vertical"
               aria-label="Test Specification expected behavior field"
-              id={`input-test-specification-expected-behavior-${formData.id}`}
-              name={`input-test-specification-expected-behavior-${formData.id}`}
+              id={`input-test-specification-${formAction}-expected-behavior-${formData.id}`}
+              name={`input-test-specification-${formAction}-expected-behavior-${formData.id}`}
               value={expectedBehaviorValue || ''}
               onChange={(_ev, value) => handleExpectedBehaviorValueChange(_ev, value)}
             />
@@ -301,11 +301,11 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
             )}
           </FormGroup>
 
-          <FormGroup label="Unique Coverage:" isRequired fieldId={`input-test-specification-coverage-${formData.id}`}>
+          <FormGroup label="Unique Coverage:" isRequired fieldId={`input-test-specification-${formAction}-coverage-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-test-specification-coverage-${formData.id}`}
-              name={`input-test-specification-coverage-${formData.id}`}
+              id={`input-test-specification-${formAction}-coverage-${formData.id}`}
+              name={`input-test-specification-${formAction}-coverage-${formData.id}`}
               value={coverageValue || ''}
               onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             />
@@ -331,11 +331,13 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-test-specification-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-test-specification-reset"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

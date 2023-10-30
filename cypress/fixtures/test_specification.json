@@ -1,0 +1,16 @@
+{
+  "first": {
+    "title": "TS.0001",
+    "test_description": "Test Specification Description",
+    "preconditions": "Preconditions",
+    "expected_behavior": "Expected behavior",
+    "coverage": 10
+  },
+  "first_mod": {
+    "title": "TS.0001 - mod",
+    "test_description": "Test Specification Description - modified",
+    "preconditions": "Preconditions - modified",
+    "expected_behavior": "Expected behavior - modified",
+    "coverage": 20
+  }
+}

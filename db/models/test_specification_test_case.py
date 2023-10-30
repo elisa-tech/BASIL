@@ -1,11 +1,12 @@
-from test_case import *
-from api_test_specification import ApiTestSpecificationModel
-from sw_requirement_test_specification import *
-from db_base import Base
+from db.models.test_case import *
+from db.models.api_test_specification import ApiTestSpecificationModel
+from db.models.sw_requirement_test_specification import *
+from db.models.db_base import Base
 
 class TestSpecificationTestCaseModel(Base):
     __tablename__ = "test_case_mapping_test_specification"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     test_specification_mapping_api_id: Mapped[Optional[int]] = mapped_column(
@@ -130,6 +131,7 @@ def receive_after_insert(mapper, connection, target):
 class TestSpecificationTestCaseHistoryModel(Base):
     __tablename__ = 'test_case_mapping_test_specification_history'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

@@ -106,18 +106,21 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
         role="region"
       >
         <Tab
+          id="tab-btn-sw-requirement-data"
           eventKey={0}
           title={<TabTitleText>Sw Requirement Data</TabTitleText>}
           tabContentId="tabNewTestCase"
           tabContentRef={newItemRef}
         />
         <Tab
+          id="tab-btn-sw-requirement-mapping-section"
           eventKey={1}
           title={<TabTitleText>Mapping Section</TabTitleText>}
           tabContentId="tabSection"
           tabContentRef={sectionItemsRef}
         />
         <Tab
+          id="tab-btn-sw-requirement-existing"
           eventKey={2}
           isDisabled={modalVerb == 'POST' ? false : true}
           title={<TabTitleText>Existing</TabTitleText>}
@@ -126,10 +129,11 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
         />
       </Tabs>
       <div>
-        <TabContent eventKey={0} id="tabNewTestCase" ref={newItemRef}>
+        <TabContent eventKey={0} id="tabContentSwRequirementForm" ref={newItemRef}>
           <TabContentBody hasPadding>
             <SwRequirementForm
               api={api}
+              formAction={modalAction}
               formData={modalFormData}
               formVerb={modalVerb}
               parentData={parentData}
@@ -144,7 +148,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
             />
           </TabContentBody>
         </TabContent>
-        <TabContent eventKey={1} id="tabSection" ref={sectionItemsRef} hidden>
+        <TabContent eventKey={1} id="tabContentSwRequirementSection" ref={sectionItemsRef} hidden>
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
@@ -159,7 +163,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
             />
           </TabContentBody>
         </TabContent>
-        <TabContent eventKey={2} id="tabExistingTestCase" ref={existingItemsRef} hidden>
+        <TabContent eventKey={2} id="tabContentSwRequirementExisting" ref={existingItemsRef} hidden>
           <TabContentBody hasPadding>
             <SwRequirementSearch
               api={api}

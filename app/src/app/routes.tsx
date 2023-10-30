@@ -30,14 +30,14 @@ const routes: AppRouteConfig[] = [
     exact: true,
     label: 'SW Components',
     path: '/',
-    title: 'Basil | The Fusa Spice | Software Components',
+    title: 'BASIL | The Fusa Spice | Software Components',
   },
   {
     component: Mapping,
     exact: true,
     label: 'SW Specification Mapping',
     path: '/mapping/:api_id',
-    title: 'Basil | The Fusa Spice | Software Component Specification Mapping',
+    title: 'BASIL | The Fusa Spice | Software Component Specification Mapping',
   },
 ];
 

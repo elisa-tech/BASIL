@@ -7,11 +7,12 @@ from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import sessionmaker
-from db_base import Base
+from db.models.db_base import Base
 
 class JustificationModel(Base):
     __tablename__ = 'justifications'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     description: Mapped[Optional[str]] = mapped_column(String())
@@ -83,6 +84,7 @@ def receive_after_insert(mapper, connection, target):
 class JustificationHistoryModel(Base):
     __tablename__ = 'justifications_history'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

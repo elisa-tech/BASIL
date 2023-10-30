@@ -6,11 +6,12 @@ from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import sessionmaker
-from db_base import Base
+from db.models.db_base import Base
 
 class NoteModel(Base):
     __tablename__ = "notes"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     parent_table: Mapped[str] = mapped_column(String(100))

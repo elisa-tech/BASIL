@@ -1,9 +1,10 @@
-from api_sw_requirement import *
-from test_specification import *
+from db.models.api_sw_requirement import *
+from db.models.test_specification import *
 
 class SwRequirementTestSpecificationModel(Base):
     __tablename__ = "test_specification_mapping_sw_requirement"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     sw_requirement_mapping_api: Mapped["ApiSwRequirementModel"] = relationship("ApiSwRequirementModel", foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id")
@@ -69,7 +70,7 @@ class SwRequirementTestSpecificationModel(Base):
         if db_session == None:
             return self.coverage
 
-        from test_specification_test_case import TestSpecificationTestCaseModel
+        from db.models.test_specification_test_case import TestSpecificationTestCaseModel
         #Calc children(TestSpecificationTestCase) coverage
         #filtering with test_specification_mapping_sw_requirement_id
         #Return self.coverage * Sum(childrend coverage)
@@ -126,6 +127,7 @@ def receive_after_insert(mapper, connection, target):
 class SwRequirementTestSpecificationHistoryModel(Base):
     __tablename__ = 'test_specification_mapping_sw_requirement_history'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

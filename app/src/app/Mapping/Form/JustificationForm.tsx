@@ -165,13 +165,13 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
 
     return (
         <Form>
-          <FormGroup label="Description" isRequired fieldId={`input-justification-description-${formData.id}`}>
+          <FormGroup label="Description" isRequired fieldId={`input-justification-${formAction}-description-${formData.id}`}>
             <TextArea
               isRequired
               resizeOrientation="vertical"
               aria-label="Justification description field"
-              id={`input-justification-description-${formData.id}`}
-              name={`input-justification-description-${formData.id}`}
+              id={`input-justification-${formAction}-description-${formData.id}`}
+              name={`input-justification-${formAction}-description-${formData.id}`}
               value={descriptionValue || ''}
               onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
             />
@@ -186,11 +186,11 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
             )}
           </FormGroup>
 
-          <FormGroup label="Unique Coverage:" isRequired fieldId={`input-justification-coverage-${formData.id}`}>
+          <FormGroup label="Unique Coverage:" isRequired fieldId={`input-justification-${formAction}-coverage-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-justification-coverage-${formData.id}`}
-              name={`input-justification-coverage-${formData.id}`}
+              id={`input-justification-${formAction}-coverage-${formData.id}`}
+              name={`input-justification-${formAction}-coverage-${formData.id}`}
               value={coverageValue || ''}
               onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             />
@@ -216,11 +216,13 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-justification-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-justification-reset"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

@@ -1,10 +1,11 @@
-from api import *
-from test_specification import *
-from comment import *
+from db.models.api import *
+from db.models.test_specification import *
+from db.models.comment import *
 
 class ApiTestSpecificationModel(Base):
     __tablename__ = "test_specification_mapping_api"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
@@ -100,7 +101,7 @@ class ApiTestSpecificationModel(Base):
         if db_session == None:
             return self.coverage
 
-        from test_specification_test_case import TestSpecificationTestCaseModel
+        from db.models.test_specification_test_case import TestSpecificationTestCaseModel
         tcs_coverage = 0
 
         # Test Cases
@@ -159,6 +160,7 @@ def receive_after_insert(mapper, connection, target):
 class ApiTestSpecificationHistoryModel(Base):
     __tablename__ = 'test_specification_mapping_api_history'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

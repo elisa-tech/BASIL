@@ -1,0 +1,16 @@
+{
+  "first": {
+    "title": "TC.0001",
+    "description": "Test Case Description",
+    "repository": "Test Repository",
+    "relative_path": "path/to/test",
+    "coverage": 40
+  },
+  "first_mod": {
+    "title": "TC.0001 - modified",
+    "description": "Test Case Description - modified",
+    "repository": "Test Repository - modified",
+    "relative_path": "path/to/test-mod",
+    "coverage": 50
+  }
+}

@@ -11,11 +11,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
-from db_base import Base
+from db.models.db_base import Base
 
 class ApiModel(Base):
     __tablename__ = "apis"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     api: Mapped[str] = mapped_column(String(100))
@@ -77,9 +78,9 @@ class ApiModel(Base):
                  "tags": self.tags}
 
         if db_session is not None:
-            from api_sw_requirement import ApiSwRequirementModel
-            from api_test_specification import ApiTestSpecificationModel
-            from api_test_case import ApiTestCaseModel
+            from db.models.api_sw_requirement import ApiSwRequirementModel
+            from db.models.api_test_specification import ApiTestSpecificationModel
+            from db.models.api_test_case import ApiTestCaseModel
 
             _dict['version'] = self.current_version(db_session)
             #Calc coverage
@@ -156,7 +157,7 @@ def receive_after_insert(mapper, connection, target):
 class ApiHistoryModel(Base):
     __tablename__ = "apis_history"
     __table_args__ = {"sqlite_autoincrement": True}
-
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

@@ -37,6 +37,9 @@ const Dashboard: React.FunctionComponent = () => {
   }
 
   const loadApi = () => {
+    if (currentLibrary == undefined){
+      return;
+    }
     if (currentLibrary.trim().length == 0){
       return;
     }
@@ -77,7 +80,11 @@ const Dashboard: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     loadApi();
-  }, [currentLibrary, searchValue]);
+  }, [currentLibrary]);
+
+  React.useEffect(() => {
+    loadApi();
+  }, [searchValue]);
 
   React.useEffect(() => {
     if (libraries.length > 0){
@@ -107,6 +114,7 @@ const Dashboard: React.FunctionComponent = () => {
           <Flex>
             <FlexItem align={{ default: 'alignRight' }}>
               <SearchInput
+                id="input-api-list-search"
                 placeholder="Search Identifier"
                 value={searchValue}
                 onChange={(_event, value) => onChangeSearchValue(value)}
@@ -118,11 +126,6 @@ const Dashboard: React.FunctionComponent = () => {
         </PageSection>
         <PageSection type="tabs" variant={PageSectionVariants.light} isWidthLimited>
           <Tabs activeKey={activeTabKey} usePageInsets id="open-tabs-example-tabs-list">
-            {/*}<Tab eventKey={0} title={<TabTitleText>glibc</TabTitleText>} tabContentId="glibc" />
-            <Tab eventKey={1} title={<TabTitleText>libcurl</TabTitleText>} tabContentId="libcurl" />
-            <Tab eventKey={2} title={<TabTitleText>libcrypt</TabTitleText>} tabContentId="libcrypt" />
-            <Tab eventKey={3} title={<TabTitleText>something</TabTitleText>} tabContentId="something" />
-            <Tab eventKey={4} title={<TabTitleText>somethingelse</TabTitleText>} tabContentId="somethingelse" />*/}
             {libraries.map((library, index) => (
               <Tab eventKey={index} onClick={() => {libraryTabClick(library)}} title={<TabTitleText>{library}</TabTitleText>}></Tab>
             ))}

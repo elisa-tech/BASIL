@@ -1,10 +1,11 @@
-from api import *
-from justification import *
-from comment import *
+from db.models.api import *
+from db.models.justification import *
+from db.models.comment import *
 
 class ApiJustificationModel(Base):
     __tablename__ = "justification_mapping_api"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
@@ -118,6 +119,7 @@ def receive_after_insert(mapper, connection, target):
 class ApiJustificationHistoryModel(Base):
     __tablename__ = "justification_mapping_api_history"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

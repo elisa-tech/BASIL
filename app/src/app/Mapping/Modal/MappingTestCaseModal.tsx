@@ -106,12 +106,14 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
       >
         <Tab
           eventKey={0}
+          id="tab-btn-test-case-data"
           title={<TabTitleText>Test Case Data</TabTitleText>}
           tabContentId="tabNewTestCase"
           tabContentRef={newItemRef}
         />
         <Tab
           eventKey={1}
+          id="tab-btn-test-case-mapping-section"
           isDisabled={modalIndirect}
           title={<TabTitleText>Mapping Section</TabTitleText>}
           tabContentId="tabSection"
@@ -119,6 +121,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
         />
         <Tab
           eventKey={2}
+          id="tab-btn-test-case-existing"
           isDisabled={modalVerb == 'POST' ? false : true}
           title={<TabTitleText>Existing</TabTitleText>}
           tabContentId="tabExistingTestCase"
@@ -126,10 +129,11 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
         />
       </Tabs>
       <div>
-        <TabContent eventKey={0} id="tabNewTestCase" ref={newItemRef}>
+        <TabContent eventKey={0} id="tabContentTestCaseForm" ref={newItemRef}>
           <TabContentBody hasPadding>
             <TestCaseForm
               api={api}
+              formAction={modalAction}
               formData={modalFormData}
               formVerb={modalVerb}
               parentData={parentData}
@@ -144,7 +148,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
             />
           </TabContentBody>
         </TabContent>
-        <TabContent eventKey={1} id="tabSection" ref={sectionItemsRef} hidden>
+        <TabContent eventKey={1} id="tabContentTestCaseSection" ref={sectionItemsRef} hidden>
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
@@ -159,7 +163,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
             />
           </TabContentBody>
         </TabContent>
-        <TabContent eventKey={2} id="tabExistingTestCase" ref={existingItemsRef} hidden>
+        <TabContent eventKey={2} id="tabContentTestCaseExisting" ref={existingItemsRef} hidden>
           <TabContentBody hasPadding>
             <TestCaseSearch
               api={api}

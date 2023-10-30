@@ -4,12 +4,7 @@ import {
   Hint,
   HintBody,
   Modal,
-  ModalVariant,
-  Text,
-  TextContent,
-  TextList,
-  TextListItem,
-  TextVariants,
+  ModalVariant
 } from '@patternfly/react-core';
 
 export interface MappingDeleteModalProps{
@@ -90,10 +85,17 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
-          <Button variant="primary" onClick={deleteMapping}>
+          <Button
+            id="btn-mapping-delete-confirm"
+            variant="primary"
+            onClick={deleteMapping}>
             Confirm
           </Button>,
-          <Button key="cancel" variant="link" onClick={handleModalToggle}>
+          <Button
+            id="btn-mapping-delete-cancel"
+            key="cancel"
+            variant="link"
+            onClick={handleModalToggle}>
             Cancel
           </Button>
         ]}

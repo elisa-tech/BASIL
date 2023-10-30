@@ -170,6 +170,18 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         setTagsValue(value);
     };
 
+    const resetForm = () => {
+      setApiValue(formData.api);
+      setLibraryValue(formData.library);
+      setLibraryVersionValue(formAction == 'fork' ? '' : formData.library_version);
+      setRawSpecificationUrlValue(formData.raw_specification_url);
+      setCategoryValue(formData.category);
+      setTagsValue(formData.tags);
+      setImplementationFileValue(formData.implementation_file);
+      setImplementationFileFromRowValue(formData.implementation_file_from_row);
+      setImplementationFileToRowValue(formData.implementation_file_to_row);
+    }
+
     const handleSubmit = () => {
         if (formVerb=='POST'){
           {/*Only post handled in modal window*/}
@@ -216,15 +228,15 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           .then((response) => {
             if (response.status !== 200) {
               setMessageValue(response.statusText);
+              setModalFormSubmitState('waiting');
             } else {
               setMessageValue('Database updated!');
-              if (formVerb=='POST'){
-                window.location = "/?currentLibrary=" + libraryValue;
-              }
+              window.location = "/?currentLibrary=" + libraryValue;
             }
           })
           .catch((err) => {
             setMessageValue(err.toString());
+            setModalFormSubmitState('waiting');
             console.log(err.message);
           });
       };
@@ -234,8 +246,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <FormGroup label="Software Component Name" isRequired fieldId={`input-api-api-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-api-api-${formData.id}`}
-              name={`input-api-api-${formData.id}`}
+              id={`input-api-${formAction}-api-${formData.id}`}
+              name={`input-api-${formAction}-api-${formData.id}`}
               value={apiValue || ''}
               onChange={(_ev, value) => handleApiValueChange(_ev, value)}
             />
@@ -252,8 +264,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <FormGroup label="Library" isRequired fieldId={`input-api-library-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-api-library-${formData.id}`}
-              name={`input-api-library-${formData.id}`}
+              id={`input-api-${formAction}-library-${formData.id}`}
+              name={`input-api-${formAction}-library-${formData.id}`}
               value={libraryValue || ''}
               onChange={(_ev, value) => handleLibraryValueChange(_ev, value)}
             />
@@ -270,8 +282,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <FormGroup label="Library Version" isRequired fieldId={`input-api-library-version-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-api-library-version-${formData.id}`}
-              name={`input-api-library-version-${formData.id}`}
+              id={`input-api-${formAction}-library-version-${formData.id}`}
+              name={`input-api-${formAction}-library-version-${formData.id}`}
               value={libraryVersionValue || ''}
               onChange={(_ev, value) => handleLibraryVersionValueChange(_ev, value)}
             />
@@ -288,8 +300,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <FormGroup label="Specification Url/Path (plain text format):" isRequired fieldId={`input-api-raw-specification-url-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-api-raw-specification-url-${formData.id}`}
-              name={`input-api-raw-specification-url-${formData.id}`}
+              id={`input-api-${formAction}-raw-specification-url-${formData.id}`}
+              name={`input-api-${formAction}-raw-specification-url-${formData.id}`}
               value={rawSpecificationUrlValue || ''}
               onChange={(_ev, value) => handleRawSpecificationUrlValueChange(_ev, value)}
             />
@@ -306,8 +318,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <FormGroup label="Category:" fieldId={`input-api-category-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-api-category-${formData.id}`}
-              name={`input-api-category-${formData.id}`}
+              id={`input-api-${formAction}-category-${formData.id}`}
+              name={`input-api-${formAction}-category-${formData.id}`}
               value={categoryValue || ''}
               onChange={(_ev, value) => handleCategoryValueChange(_ev, value)}
             />
@@ -315,16 +327,16 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <FormGroup label="Implementation file Url/Path:" fieldId={`input-api-implementation-file-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-api-implementation-file-${formData.id}`}
-              name={`input-api-implementation-file-${formData.id}`}
+              id={`input-api-${formAction}-implementation-file-${formData.id}`}
+              name={`input-api-${formAction}-implementation-file-${formData.id}`}
               value={implementationFileValue || ''}
               onChange={(_ev, value) => handleImplementationFileValueChange(_ev, value)}
             />
           </FormGroup>
           <FormGroup label="Implementation file from row number:" fieldId={`input-api-implementation-file-from-row-${formData.id}`}>
             <TextInput
-              id={`input-api-implementation-file-from-row-${formData.id}`}
-              name={`input-api-implementation-file-from-row-${formData.id}`}
+              id={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
+              name={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
               value={implementationFileFromRowValue || ''}
               onChange={(_ev, value) => handleImplementationFileFromRowValueChange(_ev, value)}
             />
@@ -340,8 +352,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormGroup>
           <FormGroup label="Implementation file to row number:" fieldId={`input-api-implementation-file-to-row-${formData.id}`}>
             <TextInput
-              id={`input-api-implementation-file-to-row-${formData.id}`}
-              name={`input-api-implementation-file-to-row-${formData.id}`}
+              id={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}
+              name={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}
               value={implementationFileToRowValue || ''}
               onChange={(_ev, value) => handleImplementationFileToRowValueChange(_ev, value)}
             />
@@ -357,8 +369,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormGroup>
           <FormGroup label="Tags:" fieldId={`input-api-tags-${formData.id}`}>
             <TextInput
-              id={`input-api-tags-${formData.id}`}
-              name={`input-api-tags-${formData.id}`}
+              id={`input-api-${formAction}-tags-${formData.id}`}
+              name={`input-api-${formAction}-tags-${formData.id}`}
               value={tagsValue || ''}
               onChange={(_ev, value) => handleTagsValueChange(_ev, value)}
             />
@@ -375,11 +387,17 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-api-form-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
-              <Button variant="link">Reset</Button>
+              <Button
+                id="btn-api-form-reset"
+                variant="secondary"
+                onClick={() => resetForm()}>
+              Reset
+              </Button>
             </ActionGroup>
           ) : (<span></span>)}
         </Form>

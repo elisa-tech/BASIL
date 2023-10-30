@@ -6,20 +6,15 @@ import os, sys
 import hashlib, json
 import datetime
 
-currentdir = os.path.dirname(os.path.realpath(__file__))
-db_path = os.path.join(os.path.dirname(currentdir), "db")
-models_path = os.path.join(db_path, "models")
-sys.path.insert(0, models_path)
-sys.path.insert(0, db_path)
 
-import db_orm
-from api import ApiModel
-from api_sw_requirement import ApiSwRequirementModel
-from api_test_specification import ApiTestSpecificationModel
-from api_test_case import ApiTestCaseModel
-from api_justification import ApiJustificationModel
-from sw_requirement_test_specification import SwRequirementTestSpecificationModel
-from test_specification_test_case import TestSpecificationTestCaseModel
+from db import db_orm
+from db.models.api import ApiModel
+from db.models.api_sw_requirement import ApiSwRequirementModel
+from db.models.api_test_specification import ApiTestSpecificationModel
+from db.models.api_test_case import ApiTestCaseModel
+from db.models.api_justification import ApiJustificationModel
+from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 
 class SPDXManager():
 
@@ -290,4 +285,3 @@ class SPDXManager():
         # and we can safely serialize it without validating again
         #if not validation_messages:
         write_file(self.document, filepath, validate=False)
-

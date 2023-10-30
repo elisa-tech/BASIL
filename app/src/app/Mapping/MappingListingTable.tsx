@@ -432,7 +432,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
                   </FlexItem>
-                  <Label variant="outline" isCompact>
+                  <Label name="label-sw-requirement-coverage" variant="outline" isCompact>
                     {coverageFormat(mappedItem['coverage'])}% Coverage
                   </Label>
                   <FlexItem align={{ default: 'alignRight' }}>
@@ -736,7 +736,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   return (
     <React.Fragment>
       <PageSection>
-        <Table>
+        <Table id="table-matching-sections">
           <Thead>
             <Tr>
               <Th>{columnNames.specification}</Th>
@@ -750,7 +750,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       </PageSection>
 
       <PageSection>
-        <Table>
+        <Table id="table-unmatching-sections">
           <Thead>
             <Tr>
               <Th>{columnNames.specification}</Th>

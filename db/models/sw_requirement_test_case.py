@@ -1,10 +1,11 @@
-from api_sw_requirement import *
-from test_case import *
-from test_specification_test_case import *
+from db.models.api_sw_requirement import *
+from db.models.test_case import *
+from db.models.test_specification_test_case import *
 
 class SwRequirementTestCaseModel(Base):
     __tablename__ = "test_case_mapping_sw_requirement"
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     sw_requirement_mapping_api: Mapped["ApiSwRequirementModel"] = relationship("ApiSwRequirementModel", foreign_keys="SwRequirementTestCaseModel.sw_requirement_mapping_api_id")
@@ -124,6 +125,7 @@ def receive_after_insert(mapper, connection, target):
 class SwRequirementTestCaseHistoryModel(Base):
     __tablename__ = 'test_case_mapping_sw_requirement_history'
     __table_args__ = {"sqlite_autoincrement": True}
+    extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())

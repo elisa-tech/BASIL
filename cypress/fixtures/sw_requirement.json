@@ -1,0 +1,12 @@
+{
+  "first": {
+    "title": "SR.0001",
+    "description": "My first software requirement.",
+    "coverage": 55
+  },
+  "first_mod": {
+    "title": "SR.0001 - mod",
+    "description": "My first software requirement. Modified",
+    "coverage": 40
+  }
+}

@@ -249,11 +249,11 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     return (
         <Form>
-          <FormGroup label="Test Case Title" isRequired fieldId={`input-test-case-title-${formData.id}`}>
+          <FormGroup label="Test Case Title" isRequired fieldId={`input-test-case-${formAction}-title-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-test-case-title-${formData.id}`}
-              name={`input-test-case-title-${formData.id}`}
+              id={`input-test-case-${formAction}-title-${formData.id}`}
+              name={`input-test-case-${formAction}-title-${formData.id}`}
               value={titleValue || ''}
               onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
             />
@@ -267,13 +267,13 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Description" isRequired fieldId={`input-test-case-description-${formData.id}`}>
+          <FormGroup label="Description" isRequired fieldId={`input-test-case-${formAction}-description-${formData.id}`}>
             <TextArea
               isRequired
               resizeOrientation="vertical"
               aria-label="Test Case description field"
-              id={`input-test-case-description-${formData.id}`}
-              name={`input-test-case-description-${formData.id}`}
+              id={`input-test-case-${formAction}-description-${formData.id}`}
+              name={`input-test-case-${formAction}-description-${formData.id}`}
               value={descriptionValue || ''}
               onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
             />
@@ -287,11 +287,11 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Repository" isRequired fieldId={`input-test-case-repository-${formData.id}`}>
+          <FormGroup label="Repository" isRequired fieldId={`input-test-case-${formAction}-repository-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-test-case-repository-${formData.id}`}
-              name={`input-test-case-repository-${formData.id}`}
+              id={`input-test-case-${formAction}-repository-${formData.id}`}
+              name={`input-test-case-${formAction}-repository-${formData.id}`}
               value={repositoryValue || ''}
               onChange={(_ev, value) => handleRepositoryValueChange(_ev, value)}
             />
@@ -305,11 +305,11 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
               </FormHelperText>
             )}
           </FormGroup>
-          <FormGroup label="Relative Path" isRequired fieldId={`input-test-case-relative-path-${formData.id}`}>
+          <FormGroup label="Relative Path" isRequired fieldId={`input-test-case-${formAction}-relative-path-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-test-case-relative-path-${formData.id}`}
-              name={`input-test-case-relative-path-${formData.id}`}
+              id={`input-test-case-${formAction}-relative-path-${formData.id}`}
+              name={`input-test-case-${formAction}-relative-path-${formData.id}`}
               value={relativePathValue || ''}
               onChange={(_ev, value) => handleRelativePathValueChange(_ev, value)}
             />
@@ -324,11 +324,11 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
             )}
           </FormGroup>
 
-          <FormGroup label="Unique Coverage:" isRequired fieldId={`input-test-case-coverage-${formData.id}`}>
+          <FormGroup label="Unique Coverage:" isRequired fieldId={`input-test-case-${formAction}-coverage-${formData.id}`}>
             <TextInput
               isRequired
-              id={`input-test-case-coverage-${formData.id}`}
-              name={`input-test-case-coverage-${formData.id}`}
+              id={`input-test-case-${formAction}-coverage-${formData.id}`}
+              name={`input-test-case-${formAction}-coverage-${formData.id}`}
               value={coverageValue || ''}
               onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             />
@@ -354,11 +354,13 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-test-case-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-test-case-reset"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

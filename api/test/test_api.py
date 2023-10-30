@@ -24,6 +24,8 @@ TestSpecificationTestCaseHistoryModel.__test__ = False
 api.app.config['TESTING'] = True
 api.app.config['DEBUG'] = True
 
+init_db.initialization(db_name="test.db")
+
 def log_test(_test, _log):
     f = open('test.log', 'a')
     f.write(f'* {_test}\n  > {_log}')

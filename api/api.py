@@ -2922,10 +2922,16 @@ api.add_resource(ForkApiSwRequirement, '/fork/api/sw-requirement')
 
 if __name__ == "__main__":
     import api_url
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--testing',
+                        default=False,
+                        action='store_true',
+                        help='Test Api Project using db/test.db database')
+    args = parser.parse_args()
 
-    if os.environ.get('BASIL_TESTING', 'off') == 'on':
-        app.config['TESTING'] = True
-
+    app.config['TESTING'] = args.testing
     app.config['ENV'] = 'local'
 
     if app.config['TESTING']:

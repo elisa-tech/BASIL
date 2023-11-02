@@ -26,11 +26,8 @@ export const MappingHistoryModal: React.FunctionComponent<MappingModalProps> = (
     setIsModalOpen(modalShowState);
   }, [modalShowState]);
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
-    if (new_state == false){
-
-    }
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -48,12 +45,12 @@ export const MappingHistoryModal: React.FunctionComponent<MappingModalProps> = (
           <Text component={TextVariants.h3}>Version {version.version} - {version.created_at}</Text>
           <TextList>
             {Object.keys(version.object).map((key, index) => (
-                <TextListItem><em><b>{key}</b>: </em>{version.object[key]}</TextListItem>
+                <TextListItem key={index}><em><b>{key}</b>: </em>{version.object[key]}</TextListItem>
             ))}
           </TextList>
           <TextList>
             {Object.keys(version.mapping).map((key, index) => (
-                <TextListItem><em><b>{key}</b>: </em>{version.mapping[key]}</TextListItem>
+                <TextListItem key={index}><em><b>{key}</b>: </em>{version.mapping[key]}</TextListItem>
             ))}
           </TextList>
         </TextContent>

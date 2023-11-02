@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Card, CardBody, Flex, FlexItem, Label, PageSection, Pagination, Title, Toolbar, ToolbarContent, ToolbarItem } from '@patternfly/react-core';
+import { Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core';
 import { MappingListingTable} from './MappingListingTable';
 import { MappingSwRequirementModal } from './Modal/MappingSwRequirementModal';
 import { MappingTestSpecificationModal } from './Modal/MappingTestSpecificationModal';
@@ -36,12 +36,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   totalCoverage,
   api,
   }: MappingPageSectionProps) => {
-  const rows = [];
-  const [modalShowState, setModalShowState] = React.useState<boolean>(false);
-  const [modalCheckSpecShowState, setModalCheckSpecShowState] = React.useState<boolean>(false);
-  const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState<boolean>(false);
-  const [modalCheckSpecApiData, setModalCheckSpecApiData] = React.useState(null);
-  const [modalObject, setModalObject] = React.useState('');
+
   const [modalAction, setModalAction] = React.useState('');
   const [modalVerb, setModalVerb] = React.useState('');
   const [modalFormData, setModalFormData] = React.useState('');
@@ -54,7 +49,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
   const [modalSection, setModalSection] = React.useState('');
   const [modalOffset, setModalOffset] = React.useState('');
-  const [apiSwRequirement, setApiSwRequirement] = React.useState(null);
 
   const [srModalShowState, setSrModalShowState] = React.useState<boolean>(false);
   const [tsModalShowState, setTsModalShowState] = React.useState<boolean>(false);
@@ -78,7 +72,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
   const _A = 'api';
   const _SR = 'sw-requirement';
-  const _SR_ = 'sw_requirement';
   const _TS = 'test-specification';
   const _TS_ = 'test_specification';
   const _TC = 'test-case';
@@ -270,7 +263,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setHistoryModalInfo = (show, work_item_type, mapped_to_type, relation_id) => {
-    let url = baseApiUrl + "/mapping/history?work_item_type=" + work_item_type + "&mapped_to_type=" + mapped_to_type + "&relation_id=" + relation_id;
+    const url = baseApiUrl + "/mapping/history?work_item_type=" + work_item_type + "&mapped_to_type=" + mapped_to_type + "&relation_id=" + relation_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -283,7 +276,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setDetailsModalInfo = (show, work_item_type, work_item_id) => {
-    let url = baseApiUrl + "/" + work_item_type + "s?field1=id&filter1=" + work_item_id;
+    const url = baseApiUrl + "/" + work_item_type + "s?field1=id&filter1=" + work_item_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -298,7 +291,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setUsageModalInfo = (show, work_item_type, work_item_id) => {
-    let url = baseApiUrl + "/mapping/usage?work_item_type=" + work_item_type + "&id=" + work_item_id;
+    const url = baseApiUrl + "/mapping/usage?work_item_type=" + work_item_type + "&id=" + work_item_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -312,15 +305,16 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     });
   }
 
-  const toggleIndirectTestSpecifications = (_event: React.FormEvent<HTMLInputElement>, checked: boolean) => {
+  const toggleIndirectTestSpecifications = () => {
     setShowIndirectTestSpecifications(!showIndirectTestSpecifications);
   };
-  const toggleIndirectTestCases = (_event: React.FormEvent<HTMLInputElement>, checked: boolean) => {
+  const toggleIndirectTestCases = () => {
     setShowIndirectTestCases(!showIndirectTestCases);
   };
 
   React.useEffect(() => {
     loadMappingData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showIndirectTestSpecifications, showIndirectTestCases]);
 
   return (
@@ -444,7 +438,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       mappingData={mappingData}
       unmappingData={unmappingData}
       api={api}
-      apiSwRequirement={apiSwRequirement}
       srModalShowState={srModalShowState}
       setSrModalShowState={setSrModalShowState}
       tsModalShowState={tsModalShowState}
@@ -474,7 +467,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       modalDescription={modalDescription}
       modalFormData={modalFormData}
       modalIndirect={modalIndirect}
-      modalObject={modalObject}
       modalOffset={modalOffset}
       setModalOffset={setModalOffset}
       modalSection={modalSection}
@@ -493,7 +485,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       modalDescription={modalDescription}
       modalFormData={modalFormData}
       modalIndirect={modalIndirect}
-      modalObject={modalObject}
       modalOffset={modalOffset}
       setModalOffset={setModalOffset}
       modalSection={modalSection}
@@ -513,7 +504,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       modalDescription={modalDescription}
       modalFormData={modalFormData}
       modalIndirect={modalIndirect}
-      modalObject={modalObject}
       modalOffset={modalOffset}
       setModalOffset={setModalOffset}
       modalSection={modalSection}
@@ -533,7 +523,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       modalDescription={modalDescription}
       modalFormData={modalFormData}
       modalIndirect={modalIndirect}
-      modalObject={modalObject}
       modalOffset={modalOffset}
       setModalOffset={setModalOffset}
       modalSection={modalSection}

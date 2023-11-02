@@ -1,6 +1,15 @@
-from db.models.api import *
-from db.models.justification import *
-from db.models.comment import *
+from datetime import datetime
+from db.models.api import ApiModel
+from db.models.comment import CommentModel
+from db.models.db_base import Base
+from db.models.justification import JustificationModel, JustificationHistoryModel
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
 
 class ApiJustificationModel(Base):
     __tablename__ = "justification_mapping_api"
@@ -29,6 +38,7 @@ class ApiJustificationModel(Base):
         self.coverage = coverage
         self.created_at = datetime.now()
         self.updated_at = self.created_at
+
     def __repr__(self) -> str:
         return f"ApiJustificationModel(id={self.id!r}, section={self.section!r}, " \
                f"offset={self.offset!r}, coverage={self.coverage!r}, " \
@@ -48,7 +58,6 @@ class ApiJustificationModel(Base):
         last_item = last_item_query.all()[0]
         return f'{last_item.version}.{last_mapping.version}'
 
-
     def as_dict(self, full_data=False, db_session=None):
         _dict = {'justification': self.justification.as_dict(full_data=full_data, db_session=db_session),
                  'relation_id': self.id,
@@ -58,7 +67,7 @@ class ApiJustificationModel(Base):
 
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
-            #Comments
+            # Comments
             _dict['justification']['comment_count'] = len(db_session.query(CommentModel).filter(
                 CommentModel.parent_table == self.__tablename__
             ).filter(
@@ -104,6 +113,7 @@ def receive_after_update(mapper, connection, target):
         )
         connection.execute(insert_query)
 
+
 @event.listens_for(ApiJustificationModel, "after_insert")
 def receive_after_insert(mapper, connection, target):
     insert_query = insert(ApiJustificationHistoryModel).values(
@@ -116,6 +126,8 @@ def receive_after_insert(mapper, connection, target):
         version=1
     )
     connection.execute(insert_query)
+
+
 class ApiJustificationHistoryModel(Base):
     __tablename__ = "justification_mapping_api_history"
     __table_args__ = {"sqlite_autoincrement": True}
@@ -142,6 +154,7 @@ class ApiJustificationHistoryModel(Base):
         self.version = version
         self.created_at = datetime.now()
         self.updated_at = self.created_at
+
     def __repr__(self) -> str:
         return f"ApiJustificationModel(id={self.id!r}, section={self.section!r}, " \
                f"offset={self.offset!r}, coverage={self.coverage!r}," \

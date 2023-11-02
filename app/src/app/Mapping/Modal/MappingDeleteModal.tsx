@@ -16,7 +16,6 @@ export interface MappingDeleteModalProps{
   modalDescription;
   workItemType;
   parentType;
-  parentRelatedToType;
   relationData;
   loadMappingData;
 }
@@ -30,15 +29,14 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   modalDescription = "",
   workItemType,
   parentType,
-  parentRelatedToType,
   relationData,
   loadMappingData,
   }: MappingDeleteModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [messageValue, setMessageValue] = React.useState('');
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -51,7 +49,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   }, [modalShowState]);
 
   const deleteMapping = () => {
-    let data = {'api-id': api.id,
+    const data = {'api-id': api.id,
                 'relation-id': relationData.relation_id};
     fetch(baseApiUrl + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',
@@ -87,6 +85,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
         actions={[
           <Button
             id="btn-mapping-delete-confirm"
+            key="confirm"
             variant="primary"
             onClick={deleteMapping}>
             Confirm

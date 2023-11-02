@@ -1,12 +1,9 @@
 import React from 'react';
-import { Modal, ModalVariant, Form, FormGroup, Popover, Button, TextInput} from '@patternfly/react-core';
-import { PageSection } from '@patternfly/react-core';
-import { TextContent, Text, TextList, TextListItem, TextVariants } from '@patternfly/react-core';
+import { Button, Modal, ModalVariant } from '@patternfly/react-core';
+import { TextContent, TextList, TextListItem } from '@patternfly/react-core';
 import { Panel, PanelMain, PanelMainBody } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { CommentForm } from '../Form/CommentForm';
-import { JustificationSearch } from '../Search/JustificationSearch';
-import { MappingModalProps } from './MappingModalProps';
 
 export interface MappingCommentModalProps {
   api;
@@ -48,8 +45,8 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   const _TC = 'test-case';
   const _TC_ = 'test_case';
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -89,10 +86,12 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
     if ((parent_table != '') && (parent_id != '')){
       loadComments(parent_table, parent_id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen]);
 
   React.useEffect(() => {
     getComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments]);
 
 
@@ -109,9 +108,9 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
 
   const getComments = () => {
     return comments.map((comment, index) => (
-                <TextListItem>
+                <TextListItem key={index}>
 
-                  <em><b>{comment.username}</b></em>< span class="date-text"> on {comment.created_at}</span>
+                  <em><b>{comment.username}</b></em><span className="date-text"> on {comment.created_at}</span>
                   <br />
                   {comment.comment}
 

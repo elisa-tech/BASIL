@@ -23,7 +23,6 @@ export interface IAppRouteGroup {
 }
 
 export type AppRouteConfig = IAppRoute | IAppRouteGroup;
-const api_id;
 const routes: AppRouteConfig[] = [
   {
     component: Dashboard,

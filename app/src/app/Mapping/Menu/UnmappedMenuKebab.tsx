@@ -1,16 +1,17 @@
 import React from 'react';
-import { Dropdown, DropdownItem, DropdownList, Divider, MenuToggle, MenuToggleElement } from '@patternfly/react-core';
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  MenuToggleElement } from '@patternfly/react-core';
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon';
 
 //NOTE: Unampped sections are only direct mapping
 //      so we don't need indirect and mappedParedntRelatedToType
 
 export interface UnmappedMenuKebabProps {
-  setModalInfo;
   srModalShowState;
-  tcModalShowState;
-  tsModalShowState;
-  jModalShowState;
   setDeleteModalInfo;
   setTcModalInfo;
   setTsModalInfo;
@@ -26,11 +27,6 @@ export interface UnmappedMenuKebabProps {
 }
 
 export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> = ({
-  setModalInfo,
-  tsModalShowState,
-  tcModalShowState,
-  setTcModalShowState,
-  jModalShowState,
   setDeleteModalInfo,
   setTcModalInfo,
   setTsModalInfo,
@@ -50,7 +46,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
     setIsOpen(!isOpen);
   };
 
-  const onSelect = (_event: React.MouseEvent<Element, MouseEvent> | undefined, value: string | number | undefined) => {
+  const onSelect = () => {
     setIsOpen(false);
   };
 

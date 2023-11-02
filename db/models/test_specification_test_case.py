@@ -1,7 +1,17 @@
-from db.models.test_case import *
+from datetime import datetime
+from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.api_test_specification import ApiTestSpecificationModel
-from db.models.sw_requirement_test_specification import *
+from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
 from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer
+from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm.exc import NoResultFound
+from typing import Optional
+
 
 class TestSpecificationTestCaseModel(Base):
     __tablename__ = "test_case_mapping_test_specification"
@@ -16,9 +26,11 @@ class TestSpecificationTestCaseModel(Base):
     test_specification_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("test_specification_mapping_sw_requirement.id"))
     test_specification_mapping_sw_requirement: Mapped[Optional["SwRequirementTestSpecificationModel"]] = relationship(
-        "SwRequirementTestSpecificationModel", foreign_keys="TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id")
+        "SwRequirementTestSpecificationModel",
+        foreign_keys="TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id")
     test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id"))
-    test_case: Mapped["TestCaseModel"] = relationship("TestCaseModel", foreign_keys="TestSpecificationTestCaseModel.test_case_id")
+    test_case: Mapped["TestCaseModel"] = relationship(
+        "TestCaseModel", foreign_keys="TestSpecificationTestCaseModel.test_case_id")
     coverage: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -59,7 +71,8 @@ class TestSpecificationTestCaseModel(Base):
             _dict['api'] = {'id': self.test_specification_mapping_api.api_id}
             _dict['test_specification'] = {'id': self.test_specification_mapping_api.test_specification.id}
         if self.test_specification_mapping_sw_requirement_id:
-            _dict['sw-requirement'] = {'id': self.test_specification_mapping_sw_requirement.sw_requirement_mapping_api.sw_requirement_id}
+            _dict['sw-requirement'] = {
+                'id': self.test_specification_mapping_sw_requirement.sw_requirement_mapping_api.sw_requirement_id}
             _dict['test_specification'] = {'id': self.test_specification_mapping_sw_requirement.test_specification.id}
 
         if db_session is not None:
@@ -72,7 +85,7 @@ class TestSpecificationTestCaseModel(Base):
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
 
-        #print(f"\n\nDICT: {_dict}")
+        # print(f"\n\nDICT: {_dict}")
         return _dict
 
     def current_version(self, db_session):
@@ -88,16 +101,16 @@ class TestSpecificationTestCaseModel(Base):
 
     def test_case_as_dict(self, db_session):
         try:
-            tc = db_session.query(TestCaseModel).filter( \
+            tc = db_session.query(TestCaseModel).filter(
                 TestCaseModel.id == self.test_case_id).one()
             return tc.as_dict(db_session)
-        except:
+        except NoResultFound:
             return None
 
 
 @event.listens_for(TestSpecificationTestCaseModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(TestSpecificationTestCaseHistoryModel.version).where( \
+    last_query = select(TestSpecificationTestCaseHistoryModel.version).where(
         TestSpecificationTestCaseHistoryModel.id == target.id).order_by(
         TestSpecificationTestCaseHistoryModel.version.desc()).limit(1)
     version = -1
@@ -114,6 +127,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(TestSpecificationTestCaseModel, "after_insert")
 def receive_after_insert(mapper, connection, target):
@@ -159,6 +173,7 @@ class TestSpecificationTestCaseHistoryModel(Base):
         return f"TestSpecificationTestCaseHistoryModel(row_id={self.row_id!r}, " \
                f"id={self.id!r}, version={self.version!r}, " \
                f"test_specification_mapping_api_id={self.test_specification_mapping_api_id!r}, " \
-               f"test_specification_mapping_sw_requirement_id={self.test_specification_mapping_sw_requirement_id!r}, " \
+               f"test_specification_mapping_sw_requirement_id=" \
+               f"{self.test_specification_mapping_sw_requirement_id!r}, " \
                f"test_case_id={self.test_case_id!r}, " \
                f"coverage={self.coverage!r}, version={self.version!r})"

@@ -1,41 +1,24 @@
 import * as React from 'react';
-import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants, SearchInput, Tab, Tabs, TabTitleText } from '@patternfly/react-core';
+import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants } from '@patternfly/react-core';
 import { MappingBreadCrumb } from './MappingBreadCrumb';
 import { MappingPageSection } from './MappingPageSection';
 import {
-  BrowserRouter as Router,
-  Switch,
-  Route,
-  Link,
   useParams
 } from "react-router-dom";
 
-const Mapping: React.FunctionComponent = (api_id, setNotificationCount) => {
-  const API_BASE_URL = 'http://localhost:5000';
+const Mapping: React.FunctionComponent = (api_id) => {
 
+  const API_BASE_URL = 'http://localhost:5000';
   const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('sw-requirements');
   const [num, setNum] = React.useState(0);
   const [apiData, setApiData] = React.useState(null);
   const [mappingData, setMappingData] = React.useState([]);
   const [unmappingData, setUnmappingData] = React.useState([]);
   const [totalCoverage, setTotalCoverage] = React.useState(0);
-
-  let { api_id } = useParams();
-
-  const loadMapping = (current) => {
-    fetch(API_BASE_URL + '/libraries')
-      .then((res) => res.json())
-      .then((data) => {
-        setLibraries(data);
-      })
-      .catch((err) => {
-        console.log(err.message);
-      });
-      setCurrentLibrary(current);
-  }
+  const { api_id } = useParams();
 
   const loadApiData = () => {
-    let url = API_BASE_URL + '/api-specifications?api-id=' + api_id;
+    const url = API_BASE_URL + '/api-specifications?api-id=' + api_id;
 
     fetch(url)
       .then((res) => res.json())
@@ -48,7 +31,7 @@ const Mapping: React.FunctionComponent = (api_id, setNotificationCount) => {
   }
 
   const loadMappingData = () => {
-    let url = API_BASE_URL + '/mapping/api/' + mappingViewSelectValue + '?api-id=' + api_id;
+    const url = API_BASE_URL + '/mapping/api/' + mappingViewSelectValue + '?api-id=' + api_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -66,10 +49,12 @@ const Mapping: React.FunctionComponent = (api_id, setNotificationCount) => {
       loadMappingData();
     }
     setNum(num + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
     loadMappingData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingViewSelectValue]);
 
   React.useEffect(() => {
@@ -81,7 +66,7 @@ const Mapping: React.FunctionComponent = (api_id, setNotificationCount) => {
     for (let i = 0; i<mappingData.length; i++){
       wa = wa + (mappingData[i]['section'].length / total_len) * (mappingData[i]['coverage'] / 100.0);
     }
-    let tc = Number.parseFloat(wa*100).toFixed(1);
+    const tc = Number.parseFloat(wa*100).toFixed(1);
     setTotalCoverage(tc);
   }, [mappingData]);
 

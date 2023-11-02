@@ -1,0 +1,14 @@
+[flake8]
+max-line-length = 119
+exclude =
+  .git
+  __pycache__
+  .venv
+  .idea
+  */.DS_Store
+  api/test/.pytest_cache
+  examples
+per-file-ignores =
+    api/api.py:E402
+    api/test/*.py:E402
+    db/models/init_db.py:E402

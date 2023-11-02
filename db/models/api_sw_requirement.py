@@ -1,9 +1,15 @@
-from db.models.api import *
-from db.models.sw_requirement import *
-from db.models.sw_requirement_test_case import *
-from db.models.sw_requirement_test_specification import *
-from db.models.comment import *
+from datetime import datetime
+from db.models.api import ApiModel
 from db.models.db_base import Base
+from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
+from db.models.comment import CommentModel
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
 
 class ApiSwRequirementModel(Base):
     __tablename__ = "sw_requirement_mapping_api"
@@ -32,6 +38,7 @@ class ApiSwRequirementModel(Base):
         self.coverage = coverage
         self.created_at = datetime.now()
         self.updated_at = self.created_at
+
     def __repr__(self) -> str:
         return f"ApiSwRequirementModel(id={self.id!r}, section={self.section!r}, " \
                f"offset={self.offset!r}, coverage={self.coverage!r}," \
@@ -39,14 +46,15 @@ class ApiSwRequirementModel(Base):
                f"- {str(self.sw_requirement)!r}"
 
     def get_indirect_test_cases(self, db_session):
+        from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
         sr_tc_mapping = []
         sr_tcs = db_session.query(SwRequirementTestCaseModel).filter(
                 SwRequirementTestCaseModel.sw_requirement_mapping_api_id == self.id).all()
 
         for i in range(len(sr_tcs)):
             tmp = sr_tcs[i].as_dict(db_session=db_session)
-            tmp['direct-relation-id'] = self.id #ApiSwRequirementModel
-            tmp['indirect-relation-id'] = tmp['id'] #SwRequirementTestCaseModel
+            tmp['direct-relation-id'] = self.id  # ApiSwRequirementModel
+            tmp['indirect-relation-id'] = tmp['id']  # SwRequirementTestCaseModel
             tmp['mapped-to'] = "sw-requirement"
             tmp['direct'] = 0
             tmp['section'] = self.section
@@ -63,6 +71,7 @@ class ApiSwRequirementModel(Base):
         return sr_tc_mapping
 
     def get_indirect_test_specifications(self, db_session):
+        from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
         sr_ts_mapping = []
         sr_tss = db_session.query(SwRequirementTestSpecificationModel).filter(
                 SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == self.id).all()
@@ -114,14 +123,16 @@ class ApiSwRequirementModel(Base):
         return _dict
 
     def get_waterfall_coverage(self, db_session):
-        #Return Api-SR waterfall coverage
+        from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
+        from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+        # Return Api-SR waterfall coverage
 
-        if db_session == None:
+        if db_session is None:
             return self.coverage
 
         tss_coverage = 0
         tcs_coverage = 0
-        #Test Specifications
+        # Test Specifications
         ts_query = db_session.query(SwRequirementTestSpecificationModel).filter(
             SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == self.id
         )
@@ -145,9 +156,12 @@ class ApiSwRequirementModel(Base):
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage
 
+
 @event.listens_for(ApiSwRequirementModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(ApiSwRequirementHistoryModel.version).where(ApiSwRequirementHistoryModel.id == target.id).order_by(ApiSwRequirementHistoryModel.version.desc()).limit(1)
+    last_query = select(ApiSwRequirementHistoryModel.version).where(
+        ApiSwRequirementHistoryModel.id == target.id).order_by(
+        ApiSwRequirementHistoryModel.version.desc()).limit(1)
     version = -1
     for row in connection.execute(last_query):
         version = row[0]
@@ -163,6 +177,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(ApiSwRequirementModel, "after_insert")
 def receive_after_insert(mapper, connection, target):

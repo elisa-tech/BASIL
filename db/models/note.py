@@ -1,12 +1,9 @@
 from datetime import datetime
-from typing import List
-from typing import Optional
-from sqlalchemy import *
+from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
-from db.models.db_base import Base
+
 
 class NoteModel(Base):
     __tablename__ = "notes"

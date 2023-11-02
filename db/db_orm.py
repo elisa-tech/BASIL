@@ -3,6 +3,7 @@ import os.path
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
+
 class DbInterface():
 
     engine = None

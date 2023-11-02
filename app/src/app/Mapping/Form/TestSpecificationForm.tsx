@@ -1,5 +1,17 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, TextArea, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import {
+  ActionGroup,
+  Button,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Hint,
+  HintBody,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface TestSpecificationFormProps {
   api;
@@ -16,9 +28,7 @@ export interface TestSpecificationFormProps {
   modalOffset;
   modalSection;
   parentData;
-  parentRelatedToType;
   parentType;
-  setModalFormSubmitState;
 }
 
 export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFormProps> = ({
@@ -41,9 +51,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     modalOffset,
     modalSection,
     parentData,
-    parentRelatedToType,
     parentType,
-    setModalFormSubmitState,
     }: TestSpecificationFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -130,12 +138,14 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     React.useEffect(() => {
         if (modalFormSubmitState == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modalFormSubmitState]);
 
     const handleTitleValueChange = (_event, value: string) => {
@@ -183,7 +193,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'test-specification': {'title': titleValue,
                                  'preconditions': preconditionsValue,

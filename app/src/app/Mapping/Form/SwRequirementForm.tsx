@@ -1,5 +1,17 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, TextArea, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import {
+  ActionGroup,
+  Button,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Hint,
+  HintBody,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface SwRequirementFormProps {
   api;
@@ -12,13 +24,8 @@ export interface SwRequirementFormProps {
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
-  modalIndirect;
   modalOffset;
   modalSection;
-  parentData;
-  parentRelatedToType;
-  parentType;
-  setModalFormSubmitState;
 }
 
 export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> = ({
@@ -35,13 +42,8 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     handleModalToggle,
     loadMappingData,
     modalFormSubmitState="waiting",
-    modalIndirect,
     modalOffset,
     modalSection,
-    parentData,
-    parentRelatedToType,
-    parentType,
-    setModalFormSubmitState,
     }: SwRequirementFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -56,11 +58,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error');
 
     const [messageValue, setMessageValue] = React.useState(formMessage);
-
     const [statusValue, setStatusValue] = React.useState('waiting');
-
-    const _SR = 'sw-requirement';
-
 
     const resetForm = () => {
         setTitleValue("");
@@ -106,12 +104,14 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     React.useEffect(() => {
         if (modalFormSubmitState == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modalFormSubmitState]);
 
     const handleTitleValueChange = (_event, value: string) => {
@@ -149,7 +149,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'sw-requirement': {'title': titleValue,
                              'description': descriptionValue},

@@ -1,6 +1,17 @@
-from db.models.api import *
-from db.models.test_specification import *
-from db.models.comment import *
+from datetime import datetime
+from db.models.api import ApiModel
+from db.models.db_base import Base
+from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
+from db.models.comment import CommentModel
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+ats_fkey = "ApiTestSpecificationModel.test_specification_id"
+
 
 class ApiTestSpecificationModel(Base):
     __tablename__ = "test_specification_mapping_api"
@@ -12,7 +23,7 @@ class ApiTestSpecificationModel(Base):
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiTestSpecificationModel.api_id")
     test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id"))
     test_specification: Mapped["TestSpecificationModel"] = relationship("TestSpecificationModel",
-                                                                   foreign_keys="ApiTestSpecificationModel.test_specification_id")
+                                                                        foreign_keys=ats_fkey)
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
@@ -29,6 +40,7 @@ class ApiTestSpecificationModel(Base):
         self.coverage = coverage
         self.created_at = datetime.now()
         self.updated_at = self.created_at
+
     def __repr__(self) -> str:
         return f"ApiTestSpecificationModel(id={self.id!r}, " \
                f"section={self.section!r}, " \
@@ -98,7 +110,7 @@ class ApiTestSpecificationModel(Base):
         return _dict
 
     def get_waterfall_coverage(self, db_session):
-        if db_session == None:
+        if db_session is None:
             return self.coverage
 
         from db.models.test_specification_test_case import TestSpecificationTestCaseModel
@@ -114,7 +126,6 @@ class ApiTestSpecificationModel(Base):
         else:
             tcs_coverage = 100
 
-
         waterfall_coverage = (min(max(0, tcs_coverage), 100) * self.coverage) / 100.0
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         print(f'tcs_coverage: {tcs_coverage}')
@@ -122,10 +133,11 @@ class ApiTestSpecificationModel(Base):
         print(f'self.coverage: {self.coverage}')
         return waterfall_coverage
 
+
 @event.listens_for(ApiTestSpecificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(ApiTestSpecificationHistoryModel.version).where( \
-        ApiTestSpecificationHistoryModel.id == target.id).order_by( \
+    last_query = select(ApiTestSpecificationHistoryModel.version).where(
+        ApiTestSpecificationHistoryModel.id == target.id).order_by(
         ApiTestSpecificationHistoryModel.version.desc()).limit(1)
     version = -1
     for row in connection.execute(last_query):
@@ -142,6 +154,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(ApiTestSpecificationModel, "after_insert")
 def receive_after_insert(mapper, connection, target):

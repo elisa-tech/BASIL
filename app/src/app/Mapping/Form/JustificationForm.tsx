@@ -1,5 +1,17 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, TextArea, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import {
+  ActionGroup,
+  Button,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Hint,
+  HintBody,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface JustificationFormProps {
   api;
@@ -12,13 +24,8 @@ export interface JustificationFormProps {
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
-  modalIndirect;
   modalOffset;
   modalSection;
-  parentData;
-  parentRelatedToType;
-  parentType;
-  setModalFormSubmitState;
 }
 
 export const JustificationForm: React.FunctionComponent<JustificationFormProps> = ({
@@ -34,13 +41,8 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
     handleModalToggle,
     loadMappingData,
     modalFormSubmitState="waiting",
-    modalIndirect,
     modalOffset,
     modalSection,
-    parentData,
-    parentRelatedToType,
-    parentType,
-    setModalFormSubmitState,
     }: JustificationFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -54,8 +56,6 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
     const [messageValue, setMessageValue] = React.useState(formMessage);
 
     const [statusValue, setStatusValue] = React.useState('waiting');
-
-    const _J = 'justification';
 
     const resetForm = () => {
         setDescriptionValue("");
@@ -92,12 +92,14 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     React.useEffect(() => {
         if (modalFormSubmitState == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modalFormSubmitState]);
 
     const handleDescriptionValueChange = (_event, value: string) => {
@@ -125,7 +127,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'justification': {'description': descriptionValue},
           'section': modalSection,

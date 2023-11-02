@@ -1,12 +1,22 @@
 import * as React from 'react';
-import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import { ActionGroup, Button, Flex, FlexItem, PageSection } from '@patternfly/react-core';
-import { PageSection, Divider } from '@patternfly/react-core';
-import { TextContent, Text, TextVariants } from '@patternfly/react-core';
-import { Badge, Label, Card, CardBody } from '@patternfly/react-core';
-import { Icon } from '@patternfly/react-core';
-import LongArrowAltDownIcon from '@patternfly/react-icons/dist/esm/icons/long-arrow-alt-down-icon';
-import {CodeBlock, CodeBlockCode} from '@patternfly/react-core';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CodeBlock,
+  CodeBlockCode,
+  Divider,
+  Flex,
+  FlexItem,
+  Icon,
+  Label,
+  PageSection,
+  Text,
+  TextContent,
+  TextVariants
+} from '@patternfly/react-core';
 import { MappingSectionMenuKebab } from './Menu/MappingSectionMenuKebab';
 import { SwRequirementMenuKebab } from './Menu/SwRequirementMenuKebab';
 import { TestSpecificationMenuKebab } from './Menu/TestSpecificationMenuKebab';
@@ -21,32 +31,8 @@ import TaskIcon from '@patternfly/react-icons/dist/esm/icons/task-icon';
 import BalanceScaleIcon from '@patternfly/react-icons/dist/esm/icons/balance-scale-icon';
 import MigrationIcon from '@patternfly/react-icons/dist/esm/icons/migration-icon';
 
-interface APIHistoryData {
-  versionNumber: number;
-  id?: string;
-  description?: string;
-  notes?: string;
-}
-
-interface APIDetailsData {
-  url?: string;
-  library?: string;
-  branch?: string;
-  fileMatchCriteria: string;
-}
-
-interface DataObject {
-  id: string;
-  api: string;
-  coverage: 0 | 25 | 50 | 75 | 100;
-  history: APIHistoryData[];
-  details: APIDetailsData;
-}
-
 export interface MappingListingTableProps {
   api;
-  apiSwRequirement;
-  baseApiUrl:string;
   mappingData;
   unmappingData;
   setTsModalInfo;
@@ -54,13 +40,11 @@ export interface MappingListingTableProps {
   setSrModalInfo;
   setJModalInfo;
   srModalShowState;
-  setSrModalShowState;
   tsModalShowState;
   setTsModalShowState;
   tcModalShowState;
   setTcModalShowState;
   jModalShowState;
-  setJModalShowState;
   setCommentModalInfo;
   setDeleteModalInfo;
   setDetailsModalInfo;
@@ -74,9 +58,6 @@ export interface MappingListingTableProps {
 
 const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = ({
   api,
-  apiSwRequirement,
-  setApiSwRequirement,
-  baseApiUrl,
   mappingData=[],
   unmappingData=[],
   setTsModalInfo,
@@ -84,13 +65,11 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   setSrModalInfo,
   setJModalInfo,
   srModalShowState,
-  setSrModalShowState,
   tsModalShowState,
   setTsModalShowState,
   tcModalShowState,
   setTcModalShowState,
   jModalShowState,
-  setJModalShowState,
   setCommentModalInfo,
   setDeleteModalInfo,
   setDetailsModalInfo,
@@ -102,24 +81,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   showIndirectTestSpecifications,
 }: MappingListingTableProps) => {
 
-  const [expandedRepoNames, setExpandedRepoNames] = React.useState<string[]>([]);
-  const setRepoExpanded = (repo: DataObject, isExpanding = true) =>
-    setExpandedRepoNames(prevExpanded => {
-      const otherExpandedRepoNames = prevExpanded.filter(r => r !== repo.id);
-      return isExpanding ? [...otherExpandedRepoNames, repo.id] : otherExpandedRepoNames;
-    });
-  const isRepoExpanded = (repo: DataObject) => expandedRepoNames.includes(repo.id);
-  const [currentApiID, setCurrentApiID] = React.useState(0);
-  const [currentApiHistory, setCurrentApiHistory] = React.useState([]);
-  const [snippets, setSnippets] = React.useState([]);
-
   const _A = 'api';
   const _SR = 'sw-requirement';
-  const _SR_ = 'sw_requirement';
   const _TS = 'test-specification';
-  const _TS_ = 'test_specification';
   const _TC = 'test-case';
-  const _TC_ = 'test_case';
   const _J = 'justification';
 
   const getWorkItemDescription = (_work_item_type) => {
@@ -132,40 +97,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return work_item_descriptions[work_item_types.indexOf(_work_item_type)];
   }
 
-  React.useEffect(() => {
-    let url = baseApiUrl + '/apis/history?api-id=' + currentApiID;
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        setCurrentApiHistory(data);
-      })
-      .catch((err) => {
-        console.log(err.message);
-      });
-  }, [currentApiID]);
-
   const columnNames = {
     specification: 'SPECIFICATION',
     work_items: 'WORK ITEMS',
   };
-
-
-  const getHistory = () => {
-    if (currentApiHistory.length == 0){
-      return "";
-    } else {
-      return currentApiHistory.map((version, versionIndex) => (
-        <React.Fragment key={versionIndex}>
-          <Text component={TextVariants.h3}>Version {version.version} - {version.created_at}</Text>
-          <TextList>
-            {Object.keys(version.object).map((key, index) => (
-                <TextListItem key={index}><em>{key}: </em>{version.object[key]}</TextListItem>
-            ))}
-          </TextList>
-        </React.Fragment>
-      ));
-    }
-  }
 
   const getLimitedText = (_text, _length) => {
     if (_text == undefined){
@@ -181,10 +116,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   const coverageFormat = (x) => Number.parseFloat(x).toFixed(1);
 
   const getMappedSectionCodeBlockBackgroundColor = (snippet) => {
-    let j_l = snippet['justifications'].length;
-    let sr_l = snippet['sw_requirements'].length;
-    let ts_l = snippet['test_specifications'].length;
-    let tc_l = snippet['test_cases'].length;
+    const j_l = snippet['justifications'].length;
+    const sr_l = snippet['sw_requirements'].length;
+    const ts_l = snippet['test_specifications'].length;
+    const tc_l = snippet['test_cases'].length;
 
     if ((j_l > 0) && (sr_l == 0) && (ts_l == 0) && (tc_l == 0)){
       return "code-block-bg-gold";
@@ -234,7 +169,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return "";
     } else {
       return test_cases.map((test_case, cIndex) => (
-          <React.Fragment>
+          <React.Fragment key={cIndex}>
             <Card pl="10">
               <CardBody>
                 <Flex>
@@ -320,7 +255,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return "";
     } else {
       return test_specs.map((test_spec, cIndex) => (
-          <React.Fragment>
+          <React.Fragment key={cIndex}>
             <Card pl="10">
               <CardBody>
                 <Flex>
@@ -417,7 +352,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return "";
     } else {
       return mapping.map((mappedItem, mIndex) => (
-          <React.Fragment>
+          <React.Fragment key={mIndex}>
             <Card>
               <CardBody>
                 <Flex>
@@ -495,7 +430,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return "";
     } else {
       return mapping.map((mappedItem, mIndex) => (
-          <React.Fragment>
+          <React.Fragment key={mIndex}>
             <Card>
               <CardBody>
                 <Flex>
@@ -556,21 +491,20 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     let work_item_id = '';
     let work_item_type = '';
     let work_item_description = '';
-    let menu = '';
 
-    if (snippet.hasOwnProperty('justification')){
+    if (Object.prototype.hasOwnProperty.call(snippet, "justification")){
       work_item_type = 'justification';
       work_item_description = snippet['justification']['description'];
       work_item_id = snippet['justification']['id'];
-    } else if (snippet.hasOwnProperty('sw_requirement')){
+    } else if (Object.prototype.hasOwnProperty.call(snippet, "sw_requirement")){
       work_item_type = 'sw-requirement';
       work_item_description = snippet['sw_requirement']['title'];
       work_item_id = snippet['sw_requirement']['id'];
-    } else if (snippet.hasOwnProperty('test_specification')){
+    } else if (Object.prototype.hasOwnProperty.call(snippet, "test_specification")){
       work_item_type = 'test-specification';
       work_item_description = snippet['test_specification']['title'];
       work_item_id = snippet['test_specification']['id'];
-    } else if (snippet.hasOwnProperty('test_case')){
+    } else if (Object.prototype.hasOwnProperty.call(snippet, "test_case")){
       work_item_type = 'test-case';
       work_item_description = snippet['test_case']['title'];
       work_item_id = snippet['test_case']['id'];
@@ -637,7 +571,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return "";
     } else {
       return mappingData.map((snippet, snippetIndex) => (
-          <Tr className="row-bottom-sep">
+          <Tr className="row-bottom-sep" key={snippetIndex}>
             <Td width={50} dataLabel={columnNames.specification}>
             <Card>
               <CardBody>
@@ -691,7 +625,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       return "";
     } else {
       return unmappingData.map((snippet, snippetIndex) => (
-          <Tr>
+          <Tr key={snippetIndex}>
             <Td width={50} dataLabel={columnNames.specification}>
             <Card>
               <CardBody>
@@ -722,16 +656,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       ));
     }
   }
-
-
-  const dataHistory =
-    {
-      history: [{
-        version: 1,
-        object: {'prova': 'valore1'},
-        mapping: {}
-      }]
-    }
 
   return (
     <React.Fragment>

@@ -1,14 +1,17 @@
 import React from 'react';
 import {
+  ActionGroup,
+  Button,
   Form,
   FormGroup,
+  FormHelperText,
   HelperText,
   HelperTextItem,
-  FormHelperText,
-  Button,
-  TextInput,
+  Hint,
+  HintBody,
   TextArea,
-  ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface TestCaseFormProps {
   api;
@@ -27,7 +30,6 @@ export interface TestCaseFormProps {
   parentData;
   parentRelatedToType;
   parentType;
-  setModalFormSubmitState;
 }
 
 export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
@@ -52,7 +54,6 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     parentData,
     parentRelatedToType,
     parentType,
-    setModalFormSubmitState,
     }: TestCaseFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -78,7 +79,6 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     const _A = 'api';
     const _SR = 'sw-requirement';
-    const _SR_ = 'sw_requirement';
     const _TS = 'test-specification';
     const _TS_ = 'test_specification';
 
@@ -140,12 +140,14 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     React.useEffect(() => {
         if (modalFormSubmitState == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modalFormSubmitState]);
 
     const handleTitleValueChange = (_event, value: string) => {
@@ -198,7 +200,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'test-case': {'title': titleValue,
                         'description': descriptionValue,

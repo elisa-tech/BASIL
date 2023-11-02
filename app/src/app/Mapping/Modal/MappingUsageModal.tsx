@@ -3,11 +3,9 @@ import {
   Button,
   Modal,
   ModalVariant,
-  Text,
   TextContent,
   TextList,
   TextListItem,
-  TextVariants,
 } from '@patternfly/react-core';
 
 import { MappingModalProps } from './MappingModalProps';
@@ -27,11 +25,8 @@ export const MappingUsageModal: React.FunctionComponent<MappingModalProps> = ({
   }, [modalShowState]);
 
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
-    if (new_state == false){
-
-    }
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };

@@ -1,6 +1,13 @@
 import React from 'react';
-import { Modal, ModalVariant } from '@patternfly/react-core';
-import { CodeBlock, CodeBlockAction, CodeBlockCode, ClipboardCopyButton, Button } from '@patternfly/react-core';
+import {
+  Button,
+  ClipboardCopyButton,
+  CodeBlock,
+  CodeBlockAction,
+  CodeBlockCode,
+  Modal,
+  ModalVariant
+} from '@patternfly/react-core';
 
 export interface APIExportSPDXModalProps {
   modalShowState;
@@ -33,8 +40,8 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
   }, [modalShowState]);
 
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     if (new_state == false){
       setSPDXContent('');
     }

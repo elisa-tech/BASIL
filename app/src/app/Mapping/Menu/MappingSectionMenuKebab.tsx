@@ -1,10 +1,13 @@
 import React from 'react';
-import { Dropdown, DropdownItem, DropdownList, Divider, MenuToggle, MenuToggleElement } from '@patternfly/react-core';
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  MenuToggleElement } from '@patternfly/react-core';
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon';
 
 export interface MappingSectionMenuKebabProps {
-  setModalInfo;
-  setModalCheckSpecInfo;
   setTcModalInfo;
   setTsModalInfo;
   setSrModalInfo;
@@ -16,8 +19,6 @@ export interface MappingSectionMenuKebabProps {
 }
 
 export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenuKebabProps> = ({
-  setModalInfo,
-  setModalCheckSpecInfo,
   setTcModalInfo,
   setTsModalInfo,
   setSrModalInfo,
@@ -33,7 +34,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
     setIsOpen(!isOpen);
   };
 
-  const onSelect = (_event: React.MouseEvent<Element, MouseEvent> | undefined, value: string | number | undefined) => {
+  const onSelect = () => {
     setIsOpen(false);
   };
 

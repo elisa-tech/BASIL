@@ -3,11 +3,9 @@ import {
   Button,
   Modal,
   ModalVariant,
-  Text,
   TextContent,
   TextList,
   TextListItem,
-  TextVariants,
 } from '@patternfly/react-core';
 import { MappingModalProps } from './MappingModalProps';
 
@@ -20,8 +18,8 @@ export const MappingDetailsModal: React.FunctionComponent<MappingModalProps> = (
   }: MappingModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -42,7 +40,7 @@ export const MappingDetailsModal: React.FunctionComponent<MappingModalProps> = (
           <TextContent>
           <TextList>
             {Object.keys(version).map((key, index) => (
-                <TextListItem><em><b>{key}</b>: </em>{version[key]}</TextListItem>
+                <TextListItem key={index}><em><b>{key}</b>: </em>{version[key]}</TextListItem>
             ))}
           </TextList>
           </TextContent>

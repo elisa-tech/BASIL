@@ -1,17 +1,14 @@
-from typing import Any
-
-from flask import Flask, request, send_file
 from flask_cors import CORS
+from flask import Flask, request, send_file
 from flask_restful import Resource, Api, reqparse
-import json, os, sys, uuid
+import os
 import datetime
-from html.parser import HTMLParser
-from flask import jsonify
-import urllib
-from urllib.parse import quote
-from urllib.error import HTTPError, URLError
-from sqlalchemy import *
 import logging
+from sqlalchemy import or_
+from sqlalchemy.orm.exc import NoResultFound
+import sys
+import urllib
+from urllib.error import HTTPError, URLError
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
@@ -27,22 +24,20 @@ from db import db_orm
 from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
 from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirementHistoryModel
 from db.models.api_test_case import ApiTestCaseModel, ApiTestCaseHistoryModel
-from db.models.api_test_specification import ApiTestSpecificationModel, ApiTestSpecificationHistoryModel
+from db.models.api_test_specification import ApiTestSpecificationModel
+from db.models.api_test_specification import ApiTestSpecificationHistoryModel
 from db.models.api import ApiModel, ApiHistoryModel
 from db.models.comment import CommentModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
-from db.models.note import NoteModel
-from db.models.sw_requirement_test_case import SwRequirementTestCaseModel, SwRequirementTestCaseHistoryModel
-from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel, SwRequirementTestSpecificationHistoryModel
+from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
+from db.models.sw_requirement_test_case import SwRequirementTestCaseHistoryModel
+from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationHistoryModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseModel, TestSpecificationTestCaseHistoryModel
+from db.models.test_specification_test_case import TestSpecificationTestCaseModel
+from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
-
-try:
-    from api import spdx_manager
-except:
-    import spdx_manager
 
 app = Flask("BASIL-API")
 api = Api(app)
@@ -61,6 +56,7 @@ _TC = 'test_case'
 _TCs = f'{_TC}s'
 _J = 'justification'
 _Js = f'{_J}s'
+
 
 def get_api_from_request(_request, _db_session):
     if 'api-id' not in _request.keys():
@@ -81,7 +77,7 @@ def get_combined_history_object(_obj, _map, _obj_fields, _map_fields):
     _obj_fields += ['version']
     _map_fields += ['version']
 
-    obj_version = _obj['version'] if 'version' in _obj.keys() else ''
+    # obj_version = _obj['version'] if 'version' in _obj.keys() else ''
     map_version = _map['version'] if 'version' in _map.keys() else ''
 
     if map_version != '':
@@ -170,7 +166,7 @@ def get_work_item_open_html(work_item_type, title, version):
     #    tmp += '<div class="div-work-items-direct">'
     # else:
     #    tmp += f'<div name="indirect-{work_item_type}" class="div-work-items-indirect indirect-{nesting}-nesting">'
-    tmp += f'<div style="border-bottom:1px solid black">'
+    tmp += '<div style="border-bottom:1px solid black">'
     tmp += '<div class="div-work-item-title">'
     tmp += '<p>'
     tmp += f'<span class="meaning_version">v{version}</span>' \
@@ -190,7 +186,7 @@ def get_dict_without_keys(_dict, _undesired_keys):
 
 
 def get_model_editable_fields(_model, _is_history):
-    not_editable_model_fields = ['id','created_at', 'updated_at']
+    not_editable_model_fields = ['id', 'created_at', 'updated_at']
     not_editable_model_history_fields = ['row_id', 'created_at', 'updated_at']
     all_fields = _model.__table__.columns.keys()
     if not _is_history:
@@ -218,6 +214,7 @@ def filter_query(_query, _args, _model, _is_history):
 
     return _query
 
+
 def get_work_item_close_html():
     tmp = '</div>'
     tmp += '<br clear="all" />'
@@ -230,10 +227,13 @@ def get_indirect_work_items_section_open_html(work_item_type, nesting, coverage)
     work_item_desc = work_item_type.replace("-", " ").capitalize()
 
     tmp = ''
-    tmp += f'<div name="indirect-{work_item_type}" class="div-work-items-indirect indirect-{nesting}-nesting">'
+    tmp += f'<div name="indirect-{work_item_type}" ' \
+           f'class="div-work-items-indirect indirect-{nesting}-nesting">'
     tmp += f'<span class="span-indirect-title">{work_item_desc}</span> '
-    tmp += f'<progress name="coverage-progress" style="height:20px; width: 100px;" value="{coverage}" max="100" title="{coverage}"></progress>'
+    tmp += f'<progress name="coverage-progress" style="height:20px; width: 100px;" ' \
+           f'value="{coverage}" max="100" title="{coverage}"></progress>'
     return tmp
+
 
 def get_db():
     if app.config['TESTING']:
@@ -242,7 +242,7 @@ def get_db():
 
 
 def get_api_specification(_url_or_path):
-    if _url_or_path == None:
+    if _url_or_path is None:
         return None
     else:
         _url_or_path = _url_or_path.strip()
@@ -254,14 +254,14 @@ def get_api_specification(_url_or_path):
                 resource = urllib.request.urlopen(_url_or_path)
                 content = resource.read().decode(resource.headers.get_content_charset())
                 return content
-            except URLError as exp:
-                print(f"URLError: {exp.reason} reading {_url_or_path}")
+            except URLError as excp:
+                print(f"URLError: {excp.reason} reading {_url_or_path}")
                 return None
-            except HTTPError as exp:
-                print(f"HTTPError: {exp.reason} reading {_url_or_path}")
+            except HTTPError as excp:
+                print(f"HTTPError: {excp.reason} reading {_url_or_path}")
                 return None
-            except ValueError as exp:
-                print(f"ValueError reading {_url_or_path}")
+            except ValueError as excp:
+                print(f"ValueError reading {_url_or_path}: {excp}")
                 return None
         else:
             if not os.path.exists(_url_or_path):
@@ -272,7 +272,7 @@ def get_api_specification(_url_or_path):
                 fc = f.read()
                 f.close()
                 return fc
-            except:
+            except OSError:
                 return None
 
 
@@ -286,7 +286,7 @@ def get_api_coverage(_sections):
 
 def split_section(_to_splits, _that_split, _work_item_type):
     sections = []
-    _work_items = []
+    # _work_items = []
     _current_work_item = _that_split[_work_item_type]
     _current_work_item['relation_id'] = _that_split['relation_id']
     _current_work_item['coverage'] = _that_split['coverage'] if 'coverage' in _that_split.keys() else 0
@@ -467,7 +467,7 @@ def get_query_string_args(args):
 def get_api_sw_requirements_mapping_sections(dbi, api):
     undesired_keys = ['section', 'offset']
     api_specification = get_api_specification(api.raw_specification_url)
-    if api_specification == None:
+    if api_specification is None:
         api_specification = "Unable to find the Software Specification. " \
                             "Please check the value in the Software Component properties" \
                             " or check your internet connection (If file is remote)."
@@ -624,6 +624,7 @@ def check_direct_work_items_against_another_spec_file(db_session, spec, api):
                                                 'title': api_j.justification.description})
     return ret
 
+
 class Token():
 
     def filter(self, token):
@@ -672,7 +673,7 @@ class Comment(Resource):
     fields = ["comment", "parent_table", "username"]
 
     def get(self):
-        mandatory_fields = ["parent_table", "parent_id"]
+        # mandatory_fields = ["parent_table", "parent_id"]
         args = get_query_string_args(request.args)
 
         if "parent_table" not in args.keys() or "parent_id" not in args.keys():
@@ -786,7 +787,7 @@ class FixNewSpecificationWarnings(Resource):
 
         analysis = check_direct_work_items_against_another_spec_file(dbi.session, spec, api)
 
-        #ApiSwRequirements
+        # ApiSwRequirements
         for i in range(len(analysis['sw-requirements']['warning'])):
             sr_all = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == analysis['sw-requirements']['warning'][i]['id']
@@ -828,7 +829,7 @@ class FixNewSpecificationWarnings(Resource):
 
 class Api(Resource):
     fields = get_model_editable_fields(ApiModel, False)
-    fields_hashes = [x.replace('_','-') for x in fields]
+    fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
         """
@@ -1063,6 +1064,7 @@ class Api(Resource):
         dbi.engine.dispose()
         return True
 
+
 class ApiHistory(Resource):
     def get(self):
         args = get_query_string_args(request.args)
@@ -1084,8 +1086,6 @@ class ApiHistory(Resource):
 
         # object dict
         for model_version in model_versions_query.all():
-            _description = ''
-
             obj = {"version": model_version.version,
                    "type": "object",
                    "created_at": datetime.datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
@@ -1185,7 +1185,7 @@ class ApiTestSpecificationsMapping(Resource):
             return "Api not found", 404
 
         api_specification = get_api_specification(api.raw_specification_url)
-        if api_specification == None:
+        if api_specification is None:
             return []
 
         ts = dbi.session.query(ApiTestSpecificationModel).filter(
@@ -1264,10 +1264,10 @@ class ApiTestSpecificationsMapping(Resource):
             expected_behavior = request_data['test-specification']['expected-behavior']
 
             if len(dbi.session.query(TestSpecificationModel).filter(
-                    TestSpecificationModel.title == title).filter(
-                TestSpecificationModel.preconditions == preconditions).filter(
-                TestSpecificationModel.test_description == test_description).filter(
-                TestSpecificationModel.expected_behavior == expected_behavior).all()) > 0:
+                        TestSpecificationModel.title == title).filter(
+                    TestSpecificationModel.preconditions == preconditions).filter(
+                    TestSpecificationModel.test_description == test_description).filter(
+                    TestSpecificationModel.expected_behavior == expected_behavior).all()) > 0:
                 dbi.engine.dispose()
                 return "Test Specification already associated to the selected api Specification section.", 409
 
@@ -1287,9 +1287,9 @@ class ApiTestSpecificationsMapping(Resource):
         else:
             id = request_data['test-specification']['id']
             if len(dbi.session.query(ApiTestSpecificationModel).filter(
-                    ApiTestSpecificationModel.api_id == api.id).filter(
-                ApiTestSpecificationModel.test_specification_id == id).filter(
-                ApiTestSpecificationModel.section == section).all()) > 0:
+                        ApiTestSpecificationModel.api_id == api.id).filter(
+                    ApiTestSpecificationModel.test_specification_id == id).filter(
+                    ApiTestSpecificationModel.section == section).all()) > 0:
                 dbi.engine.dispose()
                 return "Test Specification already associated to the selected api Specification section.", 409
 
@@ -1395,7 +1395,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
 
-        undesired_keys = ['section', 'offset']
+        # undesired_keys = ['section', 'offset']
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1476,9 +1476,9 @@ class ApiTestCasesMapping(Resource):
 
             # Check if the same Test Case is already associated with the same snippet
             if len(dbi.session.query(ApiTestCaseModel).join(TestCaseModel).filter(
-                    ApiTestCaseModel.section == section).filter(
-                TestCaseModel.repository == repository).filter(
-                TestCaseModel.relative_path == relative_path).all()) > 0:
+                        ApiTestCaseModel.section == section).filter(
+                    TestCaseModel.repository == repository).filter(
+                    TestCaseModel.relative_path == relative_path).all()) > 0:
                 dbi.engine.dispose()
                 return "Test Case already associated to the current api.", 409
 
@@ -1530,7 +1530,7 @@ class ApiTestCasesMapping(Resource):
             test_case_mapping_api = dbi.session.query(ApiTestCaseModel).filter(
                 ApiTestCaseModel.id == request_data["relation-id"]).one()
             test_case = test_case_mapping_api.test_case
-        except:
+        except NoResultFound:
             dbi.engine.dispose()
             return "Test Case mapping api not found", 400
 
@@ -1596,7 +1596,9 @@ class MappingHistory(Resource):
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
 
-        if 'work_item_type' not in args.keys() or 'mapped_to_type' not in args.keys() or 'relation_id' not in args.keys():
+        if 'work_item_type' not in args.keys() or \
+                'mapped_to_type' not in args.keys() or \
+                'relation_id' not in args.keys():
             dbi.engine.dispose()
             return []
 
@@ -1675,7 +1677,7 @@ class MappingHistory(Resource):
 
         # object dict
         for model_version in model_versions_query.all():
-            _description = ''
+            # _description = ''
 
             obj = {"version": model_version.version,
                    "type": "object",
@@ -1689,12 +1691,10 @@ class MappingHistory(Resource):
 
         # map dict
         for model_map_version in model_map_versions_query.all():
-            _description = ''
-
             obj = {"version": model_map_version.version,
                    "type": "mapping",
                    "created_at": datetime.datetime.strptime(str(model_map_version.created_at),
-                                                   '%Y-%m-%d %H:%M:%S.%f')}
+                                                            '%Y-%m-%d %H:%M:%S.%f')}
             for k in _model_map_fields:
                 if args['work_item_type'] == 'justification':
                     if k not in ['coverage', 'created_at', 'updated_at']:
@@ -1732,7 +1732,10 @@ class MappingHistory(Resource):
             last_map_version = int(ret[-1]['version'].split(".")[1])
             if staging_array[i]['type'] == 'object' and staging_array[i]['version'] > last_obj_version:
                 ret.append(
-                    get_combined_history_object(staging_array[i], ret[-1]['mapping'], _model_fields, _model_map_fields))
+                    get_combined_history_object(staging_array[i],
+                                                ret[-1]['mapping'],
+                                                _model_fields,
+                                                _model_map_fields))
             elif staging_array[i]['type'] == 'mapping' and staging_array[i]['version'] > last_map_version:
                 ret.append(
                     get_combined_history_object(ret[-1]['object'], staging_array[i], _model_fields, _model_map_fields))
@@ -1847,7 +1850,7 @@ class ApiSpecificationsMapping(Resource):
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
 
-        undesired_keys = ['section', 'offset']
+        # undesired_keys = ['section', 'offset']
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1858,7 +1861,7 @@ class ApiSpecificationsMapping(Resource):
             return "Api not found", 404
 
         api_specification = get_api_specification(api.raw_specification_url)
-        if api_specification == None:
+        if api_specification is None:
             return []
 
         mapped_sections = [{'section': api_specification,
@@ -1889,7 +1892,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
 
-        undesired_keys = ['section', 'offset']
+        # undesired_keys = ['section', 'offset']
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1900,7 +1903,7 @@ class ApiJustificationsMapping(Resource):
             return "Api not found", 404
 
         api_specification = get_api_specification(api.raw_specification_url)
-        if api_specification == None:
+        if api_specification is None:
             return []
 
         justifications = dbi.session.query(ApiJustificationModel).filter(
@@ -1956,8 +1959,8 @@ class ApiJustificationsMapping(Resource):
         else:
             id = request_data['justification']['id']
             if len(dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).filter(
-                    ApiJustificationModel.justification_id == id).filter(
-                ApiJustificationModel.section == section).all()) > 0:
+                        ApiJustificationModel.justification_id == id).filter(
+                    ApiJustificationModel.section == section).all()) > 0:
                 dbi.engine.dispose()
                 return "Justification already associated to the selected api Specification section.", 409
 
@@ -2068,7 +2071,7 @@ class ApiSwRequirementsMapping(Resource):
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
 
-        undesired_keys = ['section', 'offset']
+        # undesired_keys = ['section', 'offset']
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2112,8 +2115,8 @@ class ApiSwRequirementsMapping(Resource):
             description = request_data['sw-requirement']['description']
 
             if len(dbi.session.query(SwRequirementModel).filter(
-                    SwRequirementModel.title == title).filter(
-                SwRequirementModel.description == description).all()) > 0:
+                        SwRequirementModel.title == title).filter(
+                    SwRequirementModel.description == description).all()) > 0:
                 dbi.engine.dispose()
                 return "SW Requirement already associated to the selected api Specification section.", 409
 
@@ -2131,9 +2134,9 @@ class ApiSwRequirementsMapping(Resource):
         else:
             id = request_data['sw-requirement']['id']
             if len(dbi.session.query(ApiSwRequirementModel).filter(
-                    ApiSwRequirementModel.api_id == api.id).filter(
-                ApiSwRequirementModel.sw_requirement_id == id).filter(
-                ApiSwRequirementModel.section == section).all()) > 0:
+                        ApiSwRequirementModel.api_id == api.id).filter(
+                    ApiSwRequirementModel.sw_requirement_id == id).filter(
+                    ApiSwRequirementModel.section == section).all()) > 0:
                 dbi.engine.dispose()
                 return "SW Requirement already associated to the selected api Specification section.", 409
 
@@ -2268,6 +2271,7 @@ class TestSpecification(Resource):
 class SwRequirement(Resource):
     fields = get_model_editable_fields(SwRequirementModel, False)
     fields_hashes = [x.replace('_', '-') for x in fields]
+
     def get(self):
         """
         """
@@ -2337,9 +2341,11 @@ class SwRequirementTestSpecificationsMapping(Resource):
         try:
             sw_requirement = dbi.session.query(SwRequirementModel).filter(
                 SwRequirementModel.id == sw_requirement_id).one()
-        except:
+        except NoResultFound:
             dbi.engine.dispose()
             return "Sw Requirement not found", 400
+
+        del sw_requirement  # Just need to check it exists
 
         # Find ApiModel
         api = get_api_from_request(request_data, dbi.session)
@@ -2401,16 +2407,16 @@ class SwRequirementTestSpecificationsMapping(Resource):
             test_specification_id = request_data['test-specification']['id']
 
             if len(dbi.session.query(SwRequirementTestSpecificationModel).filter(
-                    SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == request_data[
-                        'relation-id']).filter(
-                SwRequirementTestSpecificationModel.test_specification_id == test_specification_id).all()) > 0:
+                        SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == request_data[
+                            'relation-id']).filter(
+                    SwRequirementTestSpecificationModel.test_specification_id == test_specification_id).all()) > 0:
                 dbi.engine.dispose()
                 return "Test Specification already associated to the selected Api and Sw Requirement.", 409
 
             try:
                 test_specification = dbi.session.query(TestSpecificationModel).filter(
                     TestSpecificationModel.id == test_specification_id).one()
-            except:
+            except NoResultFound:
                 return "Unable to find the selected Test Specification", 400
 
             if not isinstance(test_specification, TestSpecificationModel):
@@ -2528,9 +2534,11 @@ class SwRequirementTestCasesMapping(Resource):
         try:
             sw_requirement = dbi.session.query(SwRequirementModel).filter(
                 SwRequirementModel.id == sw_requirement_id).one()
-        except:
+        except NoResultFound:
             dbi.engine.dispose()
             return "Sw Requirement not found", 400
+
+        del sw_requirement  # Just need to check it exists
 
         if 'id' not in request_data['test-case'].keys():
             # Create a new one
@@ -2572,15 +2580,15 @@ class SwRequirementTestCasesMapping(Resource):
             test_case_id = request_data['test-case']['id']
 
             if len(dbi.session.query(SwRequirementTestCaseModel).filter(
-                    SwRequirementTestCaseModel.id == relation_id).filter(
-                SwRequirementTestCaseModel.test_case_id == test_case_id).all()) > 0:
+                        SwRequirementTestCaseModel.id == relation_id).filter(
+                    SwRequirementTestCaseModel.test_case_id == test_case_id).all()) > 0:
                 dbi.engine.dispose()
                 return "Test Case already associated to the selected Api and Sw Requirement.", 409
 
             try:
                 test_case = dbi.session.query(TestCaseModel).filter(
                     TestCaseModel.id == test_case_id).one()
-            except:
+            except NoResultFound:
                 dbi.engine.dispose()
                 return "Bad request.", 400
 
@@ -2709,9 +2717,11 @@ class TestSpecificationTestCasesMapping(Resource):
         try:
             test_specification = dbi.session.query(TestSpecificationModel).filter(
                 TestSpecificationModel.id == test_specification_id).one()
-        except:
+        except NoResultFound:
             dbi.engine.dispose()
             return "Test Specification not found", 400
+
+        del test_specification  # Just need to check it extsts
 
         if 'id' not in request_data['test-case'].keys():
             # Create a new one
@@ -2754,15 +2764,15 @@ class TestSpecificationTestCasesMapping(Resource):
             test_case_id = request_data['test-case']['id']
 
             if len(dbi.session.query(TestSpecificationTestCaseModel).filter(
-                    TestSpecificationTestCaseModel.id == relation_id).filter(
-                TestSpecificationTestCaseModel.test_case_id == test_case_id).all()) > 0:
+                        TestSpecificationTestCaseModel.id == relation_id).filter(
+                    TestSpecificationTestCaseModel.test_case_id == test_case_id).all()) > 0:
                 dbi.engine.dispose()
                 return "Test Case already associated to the selected Api and Test Specification.", 409
 
             try:
                 test_case = dbi.session.query(TestCaseModel).filter(
                     TestCaseModel.id == test_case_id).one()
-            except:
+            except NoResultFound:
                 dbi.engine.dispose()
                 return "Bad request.", 400
 
@@ -2835,7 +2845,6 @@ class TestSpecificationTestCasesMapping(Resource):
 
 class ForkApiSwRequirement(Resource):
     def post(self):
-        ret = False
         request_data = request.get_json(force=True)
 
         mandatory_fields = ['relation-id']
@@ -2848,7 +2857,7 @@ class ForkApiSwRequirement(Resource):
             asr_mapping = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == request_data['relation-id']
             ).one()
-        except:
+        except NoResultFound:
             return 'bad request!!!', 400
 
         new_sr = SwRequirementModel(asr_mapping.sw_requirement.title,
@@ -2871,6 +2880,7 @@ class TestingSupportInitDb(Resource):
             import db.models.init_db as init_db
             init_db.initialization(db_name='test.db')
         return True
+
 
 api.add_resource(Api, '/apis')
 api.add_resource(ApiHistory, '/apis/history')
@@ -2897,7 +2907,7 @@ api.add_resource(MappingHistory, '/mapping/history')
 api.add_resource(CheckSpecification, '/apis/check-specification')
 api.add_resource(FixNewSpecificationWarnings, '/apis/fix-specification-warnings')
 
-#Testing Support
+# Testing Support
 api.add_resource(TestingSupportInitDb, '/test-support/init-db')
 
 # Usage

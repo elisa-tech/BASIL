@@ -1,12 +1,12 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput } from '@patternfly/react-core';
 import {
   DataList,
-  DataListItem,
-  DataListCell,
-  DataListItemRow,
-  DataListItemCells,
   DataListAction,
+  DataListCell,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
   SearchInput,
 } from '@patternfly/react-core';
 
@@ -15,12 +15,8 @@ export interface JustificationSearchProps {
   baseApiUrl: str;
   formDefaultButtons: int;
   formVerb: str;
-  formAction: str;
   formData;
   formMessage: string;
-  parentType: string;
-  modalFormSubmitState: string;
-  setModalFormSubmitState;
   handleModalToggle;
   modalOffset;
   modalSection;
@@ -32,13 +28,9 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
     baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
-    formAction='add',
     formData = {'id': 0,
                 'description': ''},
     formMessage = "",
-    parentType,
-    modalFormSubmitState = "waiting",
-    setModalFormSubmitState,
     handleModalToggle,
     modalOffset,
     modalSection,
@@ -88,6 +80,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
 
     React.useEffect(() => {
         loadJustifications(searchValue);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchValue]);
 
     const handleCoverageValueChange = (_event, value: string) => {
@@ -98,6 +91,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     const loadJustifications = (searchValue) => {
@@ -121,7 +115,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
-                <DataListCell key="primary content">
+                <DataListCell key={jIndex}>
                   <span id={"clickable-action-item-" + justification.id}>{justification.description}</span>
                 </DataListCell>,
               ]}
@@ -155,7 +149,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'justification': {'id': selectedDataListItemId},
           'section': modalSection,

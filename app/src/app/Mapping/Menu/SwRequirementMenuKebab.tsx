@@ -1,13 +1,15 @@
 import React from 'react';
-import { Dropdown, DropdownItem, DropdownList, Divider, MenuToggle, MenuToggleElement } from '@patternfly/react-core';
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  MenuToggleElement } from '@patternfly/react-core';
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon';
 
 export interface SwRequirementMenuKebabProps {
   indirect;
-  setModalInfo;
   srModalShowState;
-  tcModalShowState;
-  tsModalShowState;
   setDetailsModalInfo;
   setHistoryModalInfo;
   setUsageModalInfo;
@@ -17,7 +19,6 @@ export interface SwRequirementMenuKebabProps {
   setTsModalInfo;
   setSrModalInfo;
   api;
-  mappingType;
   mappingParentType;
   mappingParentRelatedToType;
   mappingIndex;
@@ -28,10 +29,6 @@ export interface SwRequirementMenuKebabProps {
 
 export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKebabProps> = ({
   indirect,
-  setModalInfo,
-  tsModalShowState,
-  tcModalShowState,
-  setTcModalShowState,
   setDetailsModalInfo,
   setHistoryModalInfo,
   setUsageModalInfo,
@@ -41,7 +38,6 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
   setTsModalInfo,
   setSrModalInfo,
   api,
-  mappingType,
   mappingParentType,
   mappingParentRelatedToType,
   mappingIndex,
@@ -55,7 +51,7 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
     setIsOpen(!isOpen);
   };
 
-  const onSelect = (_event: React.MouseEvent<Element, MouseEvent> | undefined, value: string | number | undefined) => {
+  const onSelect = () => {
     setIsOpen(false);
   };
 

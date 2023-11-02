@@ -1,20 +1,20 @@
 import React from 'react';
-import { Dropdown, DropdownItem, DropdownList, Divider, MenuToggle, MenuToggleElement } from '@patternfly/react-core';
+import {
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  MenuToggleElement } from '@patternfly/react-core';
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon';
 
 export interface TestSpecificationMenuKebabProps {
   indirect;
-  tsModalShowState;
-  tcModalShowState;
   setHistoryModalInfo;
   setDetailsModalInfo;
   setUsageModalInfo;
   setTcModalInfo;
   setTsModalInfo;
-  setTcModalShowState;
-  setTsModalShowState;
   setDeleteModalInfo;
-  mappingType;
   mappingParentType;
   mappingParentRelatedToType;
   mappingIndex;
@@ -26,17 +26,12 @@ export interface TestSpecificationMenuKebabProps {
 
 export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificationMenuKebabProps> = ({
   indirect,
-  tsModalShowState,
-  tcModalShowState,
   setHistoryModalInfo,
   setDetailsModalInfo,
   setUsageModalInfo,
   setTcModalInfo,
   setTsModalInfo,
-  setTcModalShowState,
-  setTsModalShowState,
   setDeleteModalInfo,
-  mappingType,
   mappingParentType,
   mappingParentRelatedToType,
   mappingIndex,
@@ -51,7 +46,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
     setIsOpen(!isOpen);
   };
 
-  const onSelect = (_event: React.MouseEvent<Element, MouseEvent> | undefined, value: string | number | undefined) => {
+  const onSelect = () => {
     setIsOpen(false);
   };
 
@@ -64,7 +59,6 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
   }
 
   const _TS = 'test-specification';
-  const _A = 'api';
 
   return (
     <Dropdown

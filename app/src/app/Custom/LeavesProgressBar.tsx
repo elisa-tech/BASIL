@@ -17,7 +17,7 @@ const LeavesProgressBar: React.FunctionComponent<LeavesProgressBarProps> = ({
 
   let limited_progress = Math.min(Math.max(0, progressValue), 100);
   limited_progress = Number.parseFloat(limited_progress).toFixed(1);
-  let icon_size = "xl";
+  const icon_size = "xl";
   let leaves = [empty_leaf, empty_leaf, empty_leaf, empty_leaf];
 
   if (limited_progress == 0){

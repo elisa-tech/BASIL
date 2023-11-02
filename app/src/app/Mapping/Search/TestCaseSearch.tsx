@@ -1,12 +1,12 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput} from '@patternfly/react-core';
 import {
   DataList,
-  DataListItem,
-  DataListCell,
-  DataListItemRow,
-  DataListItemCells,
   DataListAction,
+  DataListCell,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
   SearchInput,
 } from '@patternfly/react-core';
 
@@ -15,14 +15,11 @@ export interface TestCaseSearchProps {
   baseApiUrl: str;
   formDefaultButtons: int;
   formVerb: str;
-  formAction: str;
   formData;
   formMessage: string;
   parentData;
   parentType: string;
   parentRelatedToType;
-  modalFormSubmitState: string;
-  setModalFormSubmitState;
   handleModalToggle;
   modalOffset;
   modalSection;
@@ -35,7 +32,6 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
     baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
-    formAction='add',
     formData = {'id': 0,
                 'title': '',
                 'description': '',
@@ -45,8 +41,6 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
     parentData,
     parentType,
     parentRelatedToType,
-    modalFormSubmitState = "waiting",
-    setModalFormSubmitState,
     handleModalToggle,
     modalOffset,
     modalSection,
@@ -65,7 +59,6 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
 
     const _A = 'api';
     const _SR = 'sw-requirement';
-    const _SR_ = 'sw_requirement';
     const _TS = 'test-specification';
     const _TS_ = 'test_specification';
 
@@ -107,11 +100,12 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
 
     React.useEffect(() => {
         loadTestCases(searchValue);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchValue]);
 
 
     const loadTestCases = (searchValue) => {
-      let url = baseApiUrl + '/test-cases';
+      const url = baseApiUrl + '/test-cases';
       if (searchValue != undefined){
         url = url + '?search=' + searchValue;
       }
@@ -131,7 +125,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
-                <DataListCell key="primary content">
+                <DataListCell key={tcIndex}>
                   <span id={"clickable-action-item-" + test_case.id}>{test_case.title}</span>
                 </DataListCell>,
               ]}
@@ -152,6 +146,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     const handleSubmit = () => {
@@ -171,7 +166,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'test-case': {'id': selectedDataListItemId},
           'section': modalSection,

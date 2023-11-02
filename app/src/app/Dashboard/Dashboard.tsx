@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants, SearchInput, Tab, Tabs, TabTitleText } from '@patternfly/react-core';
+import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants, SearchInput, Tab, TabTitleText, Tabs } from '@patternfly/react-core';
 import { APIListingPageSection } from './APIListingPageSection';
-import { APIListingTable } from './APIListingTable';
 
 const Dashboard: React.FunctionComponent = () => {
   const [activeTabKey, setActiveTabKey] = React.useState(0);
@@ -44,7 +43,7 @@ const Dashboard: React.FunctionComponent = () => {
       return;
     }
 
-    let base_url = API_BASE_URL + '/apis?field1=library&filter1=';
+    const base_url = API_BASE_URL + '/apis?field1=library&filter1=';
     let url = "";
     if (searchValue.trim().length > 0){
       url = base_url + currentLibrary + "&search=" + searchValue.trim();
@@ -64,6 +63,7 @@ const Dashboard: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     setActiveTabKey(libraries.indexOf(currentLibrary));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLibrary]);
 
   React.useEffect(() => {
@@ -80,10 +80,12 @@ const Dashboard: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     loadApi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLibrary]);
 
   React.useEffect(() => {
     loadApi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchValue]);
 
   React.useEffect(() => {
@@ -104,6 +106,7 @@ const Dashboard: React.FunctionComponent = () => {
         setActiveTabKey(libraries.indexOf(currentLibrary));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraries]);
 
 
@@ -127,7 +130,7 @@ const Dashboard: React.FunctionComponent = () => {
         <PageSection type="tabs" variant={PageSectionVariants.light} isWidthLimited>
           <Tabs activeKey={activeTabKey} usePageInsets id="open-tabs-example-tabs-list">
             {libraries.map((library, index) => (
-              <Tab eventKey={index} onClick={() => {libraryTabClick(library)}} title={<TabTitleText>{library}</TabTitleText>}></Tab>
+              <Tab key={index} eventKey={index} onClick={() => {libraryTabClick(library)}} title={<TabTitleText>{library}</TabTitleText>}></Tab>
             ))}
           </Tabs>
         </PageSection>

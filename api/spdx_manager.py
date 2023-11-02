@@ -1,12 +1,4 @@
-from spdx_tools.spdx.model import (Document, CreationInfo, Checksum, ChecksumAlgorithm, File,
-                                    Package, FileType, Relationship, RelationshipType, Snippet)
-from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
-from spdx_tools.spdx.writer.write_anything import write_file
-import os, sys
-import hashlib, json
 import datetime
-
-
 from db import db_orm
 from db.models.api import ApiModel
 from db.models.api_sw_requirement import ApiSwRequirementModel
@@ -15,6 +7,13 @@ from db.models.api_test_case import ApiTestCaseModel
 from db.models.api_justification import ApiJustificationModel
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
+import hashlib
+import json
+from spdx_tools.spdx.model import (Document, CreationInfo, Checksum, ChecksumAlgorithm, File,
+                                   FileType, Relationship, RelationshipType, Snippet)
+from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
+from spdx_tools.spdx.writer.write_anything import write_file
+
 
 class SPDXManager():
 
@@ -29,7 +28,6 @@ class SPDXManager():
                           created=datetime.datetime.now())
         self.document = Document(ci)
 
-
     def dict_hash(self, dictionary) -> str:
         """MD5 hash of a dictionary."""
         dhash = hashlib.md5()
@@ -42,73 +40,77 @@ class SPDXManager():
     def ApiSwRequirementSPDX(self, _asr, _dbsession):
         asr_dict = _asr.as_dict(full_data=True, db_session=_dbsession)
         tmp = Snippet(spdx_id=f"API-SR-{asr_dict['relation_id']}",
-                           comment=f"Software Requirement mapping a Snippet of Software Specification",
-                           file_spdx_id=asr_dict['api']['raw_specification_url'],
-                           byte_range=(asr_dict['offset'], asr_dict['offset'] + len(asr_dict['section'])),
-                           name=f"Sw Requirement {asr_dict['sw_requirement']['id']} mapping Api snippet {asr_dict['relation_id']}",
-                           attribution_texts=[f"section: {asr_dict['section']}",
-                                              f"offset: {asr_dict['offset']}",
-                                              f"coverage: {asr_dict['coverage']}"
-                                              f"version: {asr_dict['version']}",
-                                              f"created: {asr_dict['updated_at']}"])
+                      comment="Software Requirement mapping a Snippet of Software Specification",
+                      file_spdx_id=asr_dict['api']['raw_specification_url'],
+                      byte_range=(asr_dict['offset'], asr_dict['offset'] + len(asr_dict['section'])),
+                      name=f"Sw Requirement {asr_dict['sw_requirement']['id']} mapping "
+                      f"Api snippet {asr_dict['relation_id']}",
+                      attribution_texts=[f"section: {asr_dict['section']}",
+                                         f"offset: {asr_dict['offset']}",
+                                         f"coverage: {asr_dict['coverage']}"
+                                         f"version: {asr_dict['version']}",
+                                         f"created: {asr_dict['updated_at']}"])
         return tmp
 
     def ApiTestSpecificationSPDX(self, _ats, _dbsession):
         ats_dict = _ats.as_dict(full_data=True, db_session=_dbsession)
 
         tmp = Snippet(spdx_id=f"API-TS-{ats_dict['relation_id']}",
-                           comment=f"Test Specification mapping a Snippet of Software Specification",
-                           file_spdx_id=ats_dict['api']['raw_specification_url'],
-                           byte_range=(ats_dict['offset'], ats_dict['offset'] + len(ats_dict['section'])),
-                           name=f"Test Specification {ats_dict['test_specification']['id']} mapping Api snippet {ats_dict['relation_id']}",
-                           attribution_texts=[f"section: {ats_dict['section']}",
-                                              f"offset: {ats_dict['offset']}",
-                                              f"coverage: {ats_dict['coverage']}"
-                                              f"version: {ats_dict['version']}",
-                                              f"created: {ats_dict['updated_at']}"])
+                      comment="Test Specification mapping a Snippet of Software Specification",
+                      file_spdx_id=ats_dict['api']['raw_specification_url'],
+                      byte_range=(ats_dict['offset'], ats_dict['offset'] + len(ats_dict['section'])),
+                      name=f"Test Specification {ats_dict['test_specification']['id']} "
+                      f"mapping Api snippet {ats_dict['relation_id']}",
+                      attribution_texts=[f"section: {ats_dict['section']}",
+                                         f"offset: {ats_dict['offset']}",
+                                         f"coverage: {ats_dict['coverage']}"
+                                         f"version: {ats_dict['version']}",
+                                         f"created: {ats_dict['updated_at']}"])
         return tmp
 
     def ApiTestCaseSPDX(self, _atc, _dbsession):
         atc_dict = _atc.as_dict(full_data=True, db_session=_dbsession)
 
         tmp = Snippet(spdx_id=f"API-TC-{atc_dict['relation_id']}",
-                           comment=f"Test Case mapping a Snippet of Software Specification",
-                           file_spdx_id=atc_dict['api']['raw_specification_url'],
-                           byte_range=(atc_dict['offset'], atc_dict['offset'] + len(atc_dict['section'])),
-                           name=f"Test Case {atc_dict['test_case']['id']} mapping Api snippet {atc_dict['relation_id']}",
-                           attribution_texts=[f"section: {atc_dict['section']}",
-                                              f"offset: {atc_dict['offset']}",
-                                              f"coverage: {atc_dict['coverage']}"
-                                              f"version: {atc_dict['version']}",
-                                              f"created: {atc_dict['updated_at']}"])
+                      comment="Test Case mapping a Snippet of Software Specification",
+                      file_spdx_id=atc_dict['api']['raw_specification_url'],
+                      byte_range=(atc_dict['offset'], atc_dict['offset'] + len(atc_dict['section'])),
+                      name=f"Test Case {atc_dict['test_case']['id']} mapping "
+                      f"Api snippet {atc_dict['relation_id']}",
+                      attribution_texts=[f"section: {atc_dict['section']}",
+                                         f"offset: {atc_dict['offset']}",
+                                         f"coverage: {atc_dict['coverage']}"
+                                         f"version: {atc_dict['version']}",
+                                         f"created: {atc_dict['updated_at']}"])
         return tmp
 
     def ApiJustificationSPDX(self, _js, _dbsession):
         js_dict = _js.as_dict(full_data=True, db_session=_dbsession)
 
         tmp = Snippet(spdx_id=f"API-JUST-{js_dict['relation_id']}",
-                      comment=f"Justification mapping a Snippet of Software Specification",
+                      comment="Justification mapping a Snippet of Software Specification",
                       file_spdx_id=js_dict['api']['raw_specification_url'],
                       byte_range=(js_dict['offset'], js_dict['offset'] + len(js_dict['section'])),
-                      name=f"Justification {js_dict['justification']['id']} mapping Api snippet {js_dict['relation_id']}",
+                      name=f"Justification {js_dict['justification']['id']} mapping "
+                           f"Api snippet {js_dict['relation_id']}",
                       attribution_texts=[f"section: {js_dict['section']}",
-                                          f"offset: {js_dict['offset']}",
-                                          f"version: {js_dict['version']}",
-                                          f"created: {js_dict['updated_at']}"])
+                                         f"offset: {js_dict['offset']}",
+                                         f"version: {js_dict['version']}",
+                                         f"created: {js_dict['updated_at']}"])
         return tmp
 
     def SwRequirementSPDX(self, _sr, _dbsession):
         sr_dict = _sr.as_dict(full_data=True, db_session=_dbsession)
 
         tmp = File(spdx_id=f"SR-{sr_dict['id']}",
-                    name=f"{sr_dict['title']}",
-                    checksums=[Checksum(ChecksumAlgorithm.MD5, self.dict_hash(sr_dict))],
-                    attribution_texts=[f"title: {sr_dict['title']}",
-                                       f"description: {sr_dict['description']}",
-                                       f"version: {sr_dict['version']}",
-                                       f"created: {sr_dict['updated_at']}",],
-                    file_types=[FileType.TEXT],
-                    comment="Software Requirement")
+                   name=f"{sr_dict['title']}",
+                   checksums=[Checksum(ChecksumAlgorithm.MD5, self.dict_hash(sr_dict))],
+                   attribution_texts=[f"title: {sr_dict['title']}",
+                                      f"description: {sr_dict['description']}",
+                                      f"version: {sr_dict['version']}",
+                                      f"created: {sr_dict['updated_at']}",],
+                   file_types=[FileType.TEXT],
+                   comment="Software Requirement")
         return tmp
 
     def TestSpecificationSPDX(self, _ts, _dbsession):
@@ -164,9 +166,9 @@ class SPDXManager():
             ApiSwRequirementModel.api_id == api_id
         ).all()
 
-
         spdx_api = File(spdx_id=f"API-{api.id}",
-                        comment=f"Software Component - category: {api.category} - library: {api.library} - library version: {api.library_version}",
+                        comment=f"Software Component - category: {api.category} - "
+                                f"library: {api.library} - library version: {api.library_version}",
                         checksums=[Checksum(ChecksumAlgorithm.MD5, self.dict_hash(api.as_dict()))],
                         name=f"{api.api}")
 
@@ -174,17 +176,17 @@ class SPDXManager():
 
         # ApiSwRequirement
         for asr in api_sw_requirements:
-            #ApiSwRequirement
+            # ApiSwRequirement
             spdx_asr = self.ApiSwRequirementSPDX(asr, dbi.session)
             api_asr_rel = Relationship(f"API-{api.id}",
-                                      RelationshipType.GENERATES,
-                                      f"API-SR-{asr.id}")
+                                       RelationshipType.GENERATES,
+                                       f"API-SR-{asr.id}")
             spdx_sr = self.SwRequirementSPDX(asr.sw_requirement, dbi.session)
             asr_sr_rel = Relationship(f"SR-{asr.sw_requirement.id}",
                                       RelationshipType.REQUIREMENT_DESCRIPTION_FOR,
                                       f"API-SR-{asr.id}")
 
-            #SwRequirementTestSpecification
+            # SwRequirementTestSpecification
             sr_tss = dbi.session.query(SwRequirementTestSpecificationModel).filter(
                 SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == asr.id
             ).all()
@@ -244,6 +246,11 @@ class SPDXManager():
                 self.document.files += [spdx_tc]
                 self.document.relationships += [asr_tc_rel, ts_tc_rel]
 
+            self.document.snippets += [spdx_ats]
+            self.document.files += [spdx_ts]
+            self.document.relationships += [api_ats_rel]
+            self.document.relationships += [ats_ts_rel]
+
         # ApiTestCase
         api_test_cases = dbi.session.query(ApiTestCaseModel).filter(
             ApiTestCaseModel.api_id == api_id
@@ -257,6 +264,8 @@ class SPDXManager():
             atc_tc_rel = Relationship(f"TC-{atc.test_case.id}",
                                       RelationshipType.TEST_CASE_OF,
                                       f"API-TC-{atc.id}")
+
+            self.document.snippets += [spdx_ats]
             self.document.files += [spdx_tc]
             self.document.relationships += [api_atc_rel, atc_tc_rel]
 
@@ -267,12 +276,14 @@ class SPDXManager():
         for aj in api_justifications:
             spdx_aj = self.ApiJustificationSPDX(aj, dbi.session)
             api_js_rel = Relationship(f"API-{api.id}",
-                                       RelationshipType.GENERATES,
-                                       f"API-JUST-{aj.id}")
+                                      RelationshipType.GENERATES,
+                                      f"API-JUST-{aj.id}")
             spdx_j = self.JustificationSPDX(aj.justification, dbi.session)
             aj_j_rel = Relationship(f"JUST-{aj.justification.id}",
-                                      RelationshipType.DESCRIBES,
-                                      f"API-JUST-{aj.id}")
+                                    RelationshipType.DESCRIBES,
+                                    f"API-JUST-{aj.id}")
+
+            self.document.snippets += [spdx_aj]
             self.document.files += [spdx_j]
             self.document.relationships += [api_js_rel, aj_j_rel]
 
@@ -283,5 +294,5 @@ class SPDXManager():
 
         # if there are no validation messages, the document is valid
         # and we can safely serialize it without validating again
-        #if not validation_messages:
+        # if not validation_messages:
         write_file(self.document, filepath, validate=False)

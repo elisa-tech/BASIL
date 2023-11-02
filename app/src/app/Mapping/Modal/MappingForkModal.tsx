@@ -5,11 +5,6 @@ import {
   HintBody,
   Modal,
   ModalVariant,
-  Text,
-  TextContent,
-  TextList,
-  TextListItem,
-  TextVariants,
 } from '@patternfly/react-core';
 
 export interface MappingForkModalProps{
@@ -21,7 +16,6 @@ export interface MappingForkModalProps{
   modalDescription;
   workItemType;
   parentType;
-  parentRelatedToType;
   relationData;
   loadMappingData;
 }
@@ -35,15 +29,14 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   modalDescription = "",
   workItemType,
   parentType,
-  parentRelatedToType,
   relationData,
   loadMappingData,
   }: MappingForkModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [messageValue, setMessageValue] = React.useState('');
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -56,7 +49,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   }, [modalShowState]);
 
   const fork = () => {
-    let data = {'api-id': api.id,
+    const data = {'api-id': api.id,
                 'relation-id': relationData.relation_id};
     fetch(baseApiUrl + '/fork/' + parentType + '/' + workItemType, {
       method: 'POST',
@@ -90,10 +83,16 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
-          <Button variant="primary" onClick={fork}>
+          <Button
+            key="confirm"
+            variant="primary"
+            onClick={fork}>
             Confirm
           </Button>,
-          <Button key="cancel" variant="link" onClick={handleModalToggle}>
+          <Button
+            key="cancel"
+            variant="link"
+            onClick={handleModalToggle}>
             Cancel
           </Button>
         ]}

@@ -1,12 +1,17 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, TextArea, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
-import { Code, CodeBlock, CodeBlockCode } from '@patternfly/react-core';
+import {
+  Button,
+  CodeBlock,
+  CodeBlockCode,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core';
 export interface SectionFormProps {
   api;
-  formVerb;
-  handleModalToggle;
-  baseApiUrl;
-  modalIndirect;
   modalOffset;
   modalSection;
   setModalOffset;
@@ -15,10 +20,6 @@ export interface SectionFormProps {
 
 export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
   api,
-  formVerb,
-  handleModalToggle,
-  baseApiUrl,
-  modalIndirect,
   modalOffset,
   modalSection,
   setModalOffset,
@@ -32,11 +33,6 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
 
     const [offsetValue, setOffsetValue] = React.useState(modalOffset == undefined ? 0 : modalOffset);
     const [validatedOffsetValue, setValidatedOffsetValue] = React.useState<validate>('error');
-
-    const [messageValue, setMessageValue] = React.useState('');
-    const [statusValue, setStatusValue] = React.useState('waiting');
-
-    const _J = 'justification';
 
     React.useEffect(() => {
       if (sectionValue.trim() === '') {
@@ -58,14 +54,8 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
         } else {
           setValidatedOffsetValue('error');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [offsetValue]);
-
-    React.useEffect(() => {
-        if (statusValue == 'submitted'){
-          handleSubmit();
-        }
-    }, [statusValue]);
-
 
     const handleSectionValueChange = () => {
       if (getSelection().toString() != ''){
@@ -83,8 +73,8 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
       const unmatching_offset = 0;
       setSectionValue(unmatching_section);
       setModalSection(unmatching_section);
-      setOffsetValue(0);
-      setModalOffset(0);
+      setOffsetValue(unmatching_offset);
+      setModalOffset(unmatching_offset);
     }
 
     return (
@@ -144,13 +134,6 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
             </CodeBlockCode>
           </CodeBlock>
 
-          { messageValue ? (
-          <Hint>
-            <HintBody>
-              {messageValue}
-            </HintBody>
-          </Hint>
-          ) : (<span></span>)}
       </React.Fragment>
    );
 };

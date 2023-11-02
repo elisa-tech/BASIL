@@ -14,8 +14,6 @@ export interface APIDeleteModalProps{
   setModalShowState;
   modalTitle;
   modalDescription;
-  loadLibraries;
-  loadApi;
 }
 
 export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
@@ -25,14 +23,12 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   setModalShowState,
   modalTitle = "",
   modalDescription = "",
-  loadLibraries,
-  loadApi,
   }: APIDeleteModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [messageValue, setMessageValue] = React.useState('');
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -45,7 +41,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   }, [modalShowState]);
 
   const deleteApi = () => {
-    let data = {'api-id': api.id,
+    const data = {'api-id': api.id,
                 'api': api.api,
                 'library': api.library,
                 'library-version': api.library_version,

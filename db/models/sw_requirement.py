@@ -1,15 +1,11 @@
 from datetime import datetime
-from typing import List
-from typing import Optional
-from sqlalchemy import *
-from sqlalchemy import event
+from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from typing import Optional
 
-from db.models.db_base import Base
 
 class SwRequirementModel(Base):
     __tablename__ = 'sw_requirements'
@@ -53,10 +49,11 @@ class SwRequirementModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+
 @event.listens_for(SwRequirementModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(SwRequirementHistoryModel.version).where( \
-        SwRequirementHistoryModel.id == target.id).order_by( \
+    last_query = select(SwRequirementHistoryModel.version).where(
+        SwRequirementHistoryModel.id == target.id).order_by(
         SwRequirementHistoryModel.version.desc()).limit(1)
     version = -1
     for row in connection.execute(last_query):
@@ -70,6 +67,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(SwRequirementModel, "after_insert")
 def receive_after_insert(mapper, connection, target):

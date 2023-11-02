@@ -1,5 +1,15 @@
-from db.models.api_sw_requirement import *
-from db.models.test_specification import *
+from datetime import datetime
+from db.models.api_sw_requirement import ApiSwRequirementModel
+from db.models.db_base import Base
+from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
+from sqlalchemy import BigInteger, DateTime, Integer
+from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm.exc import NoResultFound
+
 
 class SwRequirementTestSpecificationModel(Base):
     __tablename__ = "test_specification_mapping_sw_requirement"
@@ -7,10 +17,12 @@ class SwRequirementTestSpecificationModel(Base):
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
-    sw_requirement_mapping_api: Mapped["ApiSwRequirementModel"] = relationship("ApiSwRequirementModel", foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id")
-    sw_requirement_mapping_api_id : Mapped[int] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+    sw_requirement_mapping_api: Mapped["ApiSwRequirementModel"] = relationship(
+        "ApiSwRequirementModel", foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id")
+    sw_requirement_mapping_api_id: Mapped[int] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
     test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id"))
-    test_specification: Mapped["TestSpecificationModel"] = relationship("TestSpecificationModel", foreign_keys="SwRequirementTestSpecificationModel.test_specification_id")
+    test_specification: Mapped["TestSpecificationModel"] = relationship(
+        "TestSpecificationModel", foreign_keys="SwRequirementTestSpecificationModel.test_specification_id")
     coverage: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -60,20 +72,20 @@ class SwRequirementTestSpecificationModel(Base):
 
     def test_specification_as_dict(self, db_session):
         try:
-            ts = db_session.query(TestSpecificationModel).filter( \
+            ts = db_session.query(TestSpecificationModel).filter(
                 TestSpecificationModel.id == self.test_specification_id).one()
             return ts.as_dict()
-        except:
+        except NoResultFound:
             return None
 
     def get_waterfall_coverage(self, db_session):
-        if db_session == None:
+        if db_session is None:
             return self.coverage
 
         from db.models.test_specification_test_case import TestSpecificationTestCaseModel
-        #Calc children(TestSpecificationTestCase) coverage
-        #filtering with test_specification_mapping_sw_requirement_id
-        #Return self.coverage * Sum(childrend coverage)
+        # Calc children(TestSpecificationTestCase) coverage
+        # filtering with test_specification_mapping_sw_requirement_id
+        # Return self.coverage * Sum(childrend coverage)
 
         tcs_coverage = 0
 
@@ -95,8 +107,8 @@ class SwRequirementTestSpecificationModel(Base):
 
 @event.listens_for(SwRequirementTestSpecificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(SwRequirementTestSpecificationHistoryModel.version).where( \
-        SwRequirementTestSpecificationHistoryModel.id == target.id).order_by( \
+    last_query = select(SwRequirementTestSpecificationHistoryModel.version).where(
+        SwRequirementTestSpecificationHistoryModel.id == target.id).order_by(
         SwRequirementTestSpecificationHistoryModel.version.desc()).limit(1)
     version = -1
     for row in connection.execute(last_query):
@@ -111,6 +123,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(SwRequirementTestSpecificationModel, "after_insert")
 def receive_after_insert(mapper, connection, target):

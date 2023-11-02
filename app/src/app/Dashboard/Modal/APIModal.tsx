@@ -1,12 +1,15 @@
 import React from 'react';
-import { Modal, ModalVariant, Form, FormGroup, Popover, Button, TextInput} from '@patternfly/react-core';
+import {
+  Button,
+  Modal,
+  ModalVariant,
+} from '@patternfly/react-core';
 import { APIForm } from '../Form/APIForm';
 
 export interface APIModalProps {
   baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
-  modalObject: string;
   modalTitle: string;
   modalDescription: string;
   modalShowState: string;
@@ -24,7 +27,6 @@ export const APIModal: React.FunctionComponent<APIModalProps> = ({
   setCurrentLibrary,
   loadLibraries,
   loadApi,
-  modalObject = "",
   modalAction = "",
   modalVerb = "",
   modalTitle = "",
@@ -32,15 +34,15 @@ export const APIModal: React.FunctionComponent<APIModalProps> = ({
   modalDescription = "",
   }: APIModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  let [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting');
+  const [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting');
 
   const handleModalConfirm = () => {
     setModalFormSubmitState('submitted');
   }
 
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };

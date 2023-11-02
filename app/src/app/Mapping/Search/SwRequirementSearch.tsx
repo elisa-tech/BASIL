@@ -1,12 +1,12 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput } from '@patternfly/react-core';
 import {
   DataList,
-  DataListItem,
-  DataListCell,
-  DataListItemRow,
-  DataListItemCells,
   DataListAction,
+  DataListCell,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
   SearchInput,
 } from '@patternfly/react-core';
 
@@ -15,12 +15,8 @@ export interface SwRequirementSearchProps {
   baseApiUrl: str;
   formDefaultButtons: int;
   formVerb: str;
-  formAction: str;
   formData;
   formMessage: string;
-  parentType: string;
-  modalFormSubmitState: string;
-  setModalFormSubmitState;
   handleModalToggle;
   modalOffset;
   modalSection;
@@ -32,14 +28,10 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
     baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
-    formAction='add',
     formData = {'id': 0,
                 'title': '',
                 'description': ''},
     formMessage = "",
-    parentType = "",
-    modalFormSubmitState = "waiting",
-    setModalFormSubmitState,
     handleModalToggle,
     modalOffset,
     modalSection,
@@ -93,16 +85,18 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
 
     React.useEffect(() => {
         loadSwRequirements(searchValue);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchValue]);
 
     React.useEffect(() => {
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     const loadSwRequirements = (searchValue) => {
-      let url = baseApiUrl + '/sw-requirements?search=' + searchValue;
+      const url = baseApiUrl + '/sw-requirements?search=' + searchValue;
       fetch(url)
         .then((res) => res.json())
         .then((data) => {
@@ -119,7 +113,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
-                <DataListCell key="primary content">
+                <DataListCell key={srIndex}>
                   <span id={"clickable-action-item-" + sw_requirement.id}>{sw_requirement.title}</span>
                 </DataListCell>,
               ]}
@@ -149,15 +143,11 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
             setMessageValue('Section of the software component specification is mandatory.');
             setStatusValue('waiting');
             return;
-        } else if (modalSection.trim().length==0){
-            setMessageValue('Section of the software component specification is mandatory.');
-            setStatusValue('waiting');
-            return;
         }
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'sw-requirement': {'id': selectedDataListItemId},
           'section': modalSection,

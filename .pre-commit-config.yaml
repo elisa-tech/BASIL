@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: flake8
+        name: flake8
+        entry: 'pdm run flake8'
+        pass_filenames: false
+        always_run: true
+        language: system
+      - id: eslint
+        name: eslint
+        entry: 'cd app && npx eslint src'
+        pass_filenames: false
+        always_run: true
+        language: system

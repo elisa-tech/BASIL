@@ -1,14 +1,9 @@
 from datetime import datetime
-from typing import List
-from typing import Optional
-from sqlalchemy import *
-
+from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
 
-from db.models.db_base import Base
 
 class CommentModel(Base):
     __tablename__ = "comments"
@@ -22,7 +17,6 @@ class CommentModel(Base):
     comment: Mapped[str] = mapped_column(String())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
-
 
     def __init__(self, parent_table, parent_id, username, comment):
         self.parent_table = parent_table

@@ -1,5 +1,16 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import {
+  ActionGroup,
+  Button,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Hint,
+  HintBody,
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface APIFormProps {
   baseApiUrl: str;
@@ -10,10 +21,6 @@ export interface APIFormProps {
   formMessage: string;
   modalFormSubmitState: string;
   setModalFormSubmitState;
-  setCurrentLibrary;
-  loadLibraries;
-  loadApi;
-  handleModalToggle;
 }
 
 export const APIForm: React.FunctionComponent<APIFormProps> = ({
@@ -34,10 +41,6 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     formMessage = "",
     modalFormSubmitState = "waiting",
     setModalFormSubmitState,
-    setCurrentLibrary,
-    loadLibraries,
-    loadApi,
-    handleModalToggle,
     }: APIFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -126,12 +129,14 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     React.useEffect(() => {
         if (modalFormSubmitState == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modalFormSubmitState]);
 
     const handleApiValueChange = (_event, value: string) => {
@@ -203,7 +208,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         }
 
         setMessageValue('');
-        let data = {
+        const data = {
           'action': formAction,
           'api-id': formData.id,
           'api': apiValue,

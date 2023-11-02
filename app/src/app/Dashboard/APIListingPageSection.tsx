@@ -44,7 +44,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [SPDXContent, setSPDXContent] = React.useState('');
 
   const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false);
-  const [modalDeleteApiData, setModalDeleteApiData] = React.useState(null);
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const [paginatedRows, setPaginatedRows] = React.useState(rows.slice(0, 10));
@@ -115,16 +114,16 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
     </Toolbar>
   );
 
-  let emptyFormData = {'id': 0,
-                       'api': '',
-                       'library': '',
-                       'library_version': '',
-                       'raw_specification_url': '',
-                       'category': '',
-                       'tags': '',
-                       'implementation_file_from_row': '',
-                       'implementation_file_to_row': '',
-                       'implementation_file': '',},
+  const emptyFormData = {'id': 0,
+                         'api': '',
+                         'library': '',
+                         'library_version': '',
+                         'raw_specification_url': '',
+                         'category': '',
+                         'tags': '',
+                         'implementation_file_from_row': '',
+                         'implementation_file_to_row': '',
+                         'implementation_file': '',},
 
   return (
     <PageSection isFilled>

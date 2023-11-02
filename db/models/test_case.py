@@ -1,15 +1,10 @@
 from datetime import datetime
-from typing import List
-from typing import Optional
-from sqlalchemy import ForeignKey
-from sqlalchemy import *
-from sqlalchemy import event
+from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
-from db.models.db_base import Base
+
 
 class TestCaseModel(Base):
     __tablename__ = "test_cases"
@@ -61,9 +56,10 @@ class TestCaseModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+
 @event.listens_for(TestCaseModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(TestCaseHistoryModel.version).where( \
+    last_query = select(TestCaseHistoryModel.version).where(
         TestCaseHistoryModel.id == target.id).order_by(
         TestCaseHistoryModel.version.desc()).limit(1)
     version = -1
@@ -80,6 +76,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(TestCaseModel, "after_insert")
 def receive_after_insert(mapper, connection, target):

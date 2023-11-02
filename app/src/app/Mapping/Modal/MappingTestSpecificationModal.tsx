@@ -1,6 +1,14 @@
 import React from 'react';
-import { Modal, ModalVariant, Form, FormGroup, Popover, Button, TextInput} from '@patternfly/react-core';
-import { Tabs, Tab, TabTitleText, TabContent, TabContentBody } from '@patternfly/react-core';
+import {
+  Button,
+  Modal,
+  ModalVariant,
+  Tab,
+  TabContent,
+  TabContentBody,
+  TabTitleText,
+  Tabs
+} from '@patternfly/react-core';
 import { SectionForm } from '../Form/SectionForm';
 import { TestSpecificationForm } from '../Form/TestSpecificationForm';
 import { TestSpecificationSearch } from '../Search/TestSpecificationSearch';
@@ -10,7 +18,6 @@ export interface MappingTestSpecificationModalProps {
   baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
-  modalObject: string;
   modalTitle: string;
   modalDescription: string;
   modalShowState: string;
@@ -31,8 +38,6 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   baseApiUrl,
   modalShowState = false,
   setModalShowState,
-  setCurrentLibrary,
-  modalObject = "",
   modalAction = "",
   modalVerb = "",
   modalTitle = "",
@@ -50,15 +55,9 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   setModalSection,
   }: MappingTestSpecificationModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  let [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting');
 
-  const handleModalConfirm = () => {
-    setModalFormSubmitState('submitted');
-  }
-
-
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -71,7 +70,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
   // Toggle currently active tab
   const handleTabClick = (
-  event: React.MouseEvent<any> | React.KeyboardEvent | MouseEvent,
+  event: React.MouseEvent | React.KeyboardEvent | MouseEvent,
   tabIndex: string | number
   ) => {
   setActiveTabKey(tabIndex);
@@ -169,7 +168,6 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
             api={api}
             parentData={parentData}
             formVerb={modalVerb}
-            parentData={parentData}
             parentType={parentType}
             parentRelatedToType={parentRelatedToType}
             handleModalToggle={handleModalToggle}

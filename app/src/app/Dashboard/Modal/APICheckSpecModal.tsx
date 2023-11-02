@@ -1,9 +1,21 @@
 import React from 'react';
-import { Modal, ModalVariant } from '@patternfly/react-core';
-import { Form, FormGroup, Popover, Button, TextInput } from '@patternfly/react-core';
-import { FormHelperText, HelperText, HelperTextItem } from '@patternfly/react-core';
-import { Hint, HintBody  } from '@patternfly/react-core';
-import { DescriptionList, DescriptionListGroup, DescriptionListTerm, DescriptionListDescription }  from '@patternfly/react-core';
+import {
+  Button,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Hint,
+  HintBody,
+  Modal,
+  ModalVariant,
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface checkSpecResultsProps {
   checkResultData;
@@ -47,49 +59,49 @@ export const CheckSpecResults: React.FunctionComponent<checkSpecResultsProps> = 
     if (checkResultData['justifications']['ok'].length > 0){ setShowJustificationsOk(true); }
     if (checkResultData['justifications']['ko'].length > 0){ setShowJustificationsKo(true); }
     if (checkResultData['justifications']['warning'].length > 0){ setShowJustificationsWarning(true); }
-  });
+  }, [checkResultData]);
 
     return (<React.Fragment>
             <DescriptionList>
               <DescriptionListGroup>
                 <DescriptionListTerm>SW Requirements</DescriptionListTerm>
                 { showSwRequirementsOk ? (<DescriptionListTerm> * OK</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['sw-requirements']['ok'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['sw-requirements']['ok'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showSwRequirementsKo ? (<DescriptionListTerm> * KO</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['sw-requirements']['ko'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['sw-requirements']['ko'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showSwRequirementsWarning ? (<DescriptionListTerm> * WARNING</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['sw-requirements']['warning'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['sw-requirements']['warning'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
               </DescriptionListGroup>
 
               <DescriptionListGroup>
                 <DescriptionListTerm>Test Specifications</DescriptionListTerm>
                 { showTestSpecificationsOk ? (<DescriptionListTerm> * OK</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['test-specifications']['ok'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['test-specifications']['ok'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showTestSpecificationsKo ? (<DescriptionListTerm> * KO</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['test-specifications']['ko'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['test-specifications']['ko'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showTestSpecificationsWarning ? (<DescriptionListTerm> * WARNING</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['test-specifications']['warning'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['test-specifications']['warning'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
 
               </DescriptionListGroup>
 
               <DescriptionListGroup>
                 <DescriptionListTerm>Test Cases</DescriptionListTerm>
                 { showTestCasesOk ? (<DescriptionListTerm> * OK</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['test-cases']['ok'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['test-cases']['ok'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showTestCasesKo ? (<DescriptionListTerm> * KO</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['test-cases']['ko'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['test-cases']['ko'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showTestCasesWarning ? (<DescriptionListTerm> * WARNING</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['test-cases']['warning'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['test-cases']['warning'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
               </DescriptionListGroup>
 
               <DescriptionListGroup>
                 <DescriptionListTerm>Other Justifications</DescriptionListTerm>
                 { showJustificationsOk ? (<DescriptionListTerm> * OK</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['justifications']['ok'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['justifications']['ok'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showJustificationsKo ? (<DescriptionListTerm> * KO</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['justifications']['ko'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['justifications']['ko'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
                 { showJustificationsWarning ? (<DescriptionListTerm> * WARNING</DescriptionListTerm>) : (<span></span>) }
-                {checkResultData['justifications']['warning'].map(item => (<DescriptionListDescription>{item.id} - {item.title}</DescriptionListDescription>))}
+                {checkResultData['justifications']['warning'].map((item, index) => (<DescriptionListDescription key={index}>{item.id} - {item.title}</DescriptionListDescription>))}
               </DescriptionListGroup>
             </DescriptionList>
             </React.Fragment>
@@ -117,7 +129,6 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [messageValue, setMessageValue] = React.useState('');
   const [checkResult, setCheckResult] = React.useState(null);
-  let [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting');
 
   const [rawSpecificationUrlValue, setRawSpecificationUrlValue] = React.useState(api != null ? api.raw_specification_url : '');
   const [validatedRawSpecificationUrlValue, setValidatedRawSpecificationUrlValue] = React.useState<validate>('error');
@@ -187,8 +198,8 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
         setRawSpecificationUrlValue(value);
     };
 
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     if (new_state == false){
       setCheckResult(null);
     }

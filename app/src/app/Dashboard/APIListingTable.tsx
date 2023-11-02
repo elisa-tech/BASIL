@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import { ActionGroup, Button, Flex, FlexItem, Form, FormGroup, Text, TextContent, TextInput, TextList, TextListItem, TextVariants } from '@patternfly/react-core';
+import { Button, Flex, FlexItem, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core';
 import { APIForm } from './Form/APIForm';
 import { ApiMenuKebab } from './Menu/ApiMenuKebab';
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar';
@@ -29,8 +29,6 @@ interface DataObject {
 
 export interface APIListingTableProps {
   baseApiUrl: string;
-  currentLibrary: string;
-  searchValue: string;
   setModalInfo;
   apis;
   setModalCheckSpecInfo;
@@ -39,13 +37,10 @@ export interface APIListingTableProps {
 
 const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   baseApiUrl,
-  currentLibrary,
-  searchValue = "",
   setModalInfo,
   setModalCheckSpecInfo,
   setModalDeleteInfo,
   apis,
-  setTotalCoverage,
 }: APIListingTableProps) => {
   const [expandedRepoNames, setExpandedRepoNames] = React.useState<string[]>([]);
   const setRepoExpanded = (repo: DataObject, isExpanding = true) =>
@@ -58,7 +53,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   const [currentApiHistory, setCurrentApiHistory] = React.useState([]);
 
   React.useEffect(() => {
-    let url = baseApiUrl + '/apis/history?api-id=' + currentApiID;
+    const url = baseApiUrl + '/apis/history?api-id=' + currentApiID;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -67,6 +62,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
       .catch((err) => {
         console.log(err.message);
       });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentApiID]);
 
   const columnNames = {
@@ -88,7 +84,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
           <Text component={TextVariants.h3}>Version {version.version} - {version.created_at}</Text>
           <TextList>
             {Object.keys(version.object).map((key, index) => (
-                <TextListItem><em>{key}: </em>{version.object[key]}</TextListItem>
+                <TextListItem key={index}><em>{key}: </em>{version.object[key]}</TextListItem>
             ))}
           </TextList>
         </React.Fragment>
@@ -156,15 +152,6 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
       ));
     }
   }
-
-  const dataHistory =
-    {
-      history: [{
-        version: 1,
-        object: {'prova': 'valore1'},
-        mapping: {}
-      }]
-    }
 
   return (
     <Table id="table-api-listing" aria-label="Api Listing table">

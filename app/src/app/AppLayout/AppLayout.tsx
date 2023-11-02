@@ -27,7 +27,6 @@ interface IAppLayout {
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
-  const [notificationCount, setNotificationCount] = React.useState(0);
 
   const Header = (
     <Masthead>
@@ -44,7 +43,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       </MastheadMain>
       <MastheadContent>
         <HeaderToolbar
-          notificationCount={notificationCount} />
+          notificationCount={0} />
       </MastheadContent>
     </Masthead>
   );

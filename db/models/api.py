@@ -1,17 +1,11 @@
 from datetime import datetime
-from typing import List
-from typing import Optional
-
-from sqlalchemy import *
-from sqlalchemy import event
-
+from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from typing import Optional
 
-from db.models.db_base import Base
 
 class ApiModel(Base):
     __tablename__ = "apis"
@@ -31,8 +25,8 @@ class ApiModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, api, library, library_version, raw_specification_url, \
-                 category, implementation_file, \
+    def __init__(self, api, library, library_version, raw_specification_url,
+                 category, implementation_file,
                  implementation_file_from_row, implementation_file_to_row, tags):
         self.api = api
         self.library = library
@@ -83,7 +77,7 @@ class ApiModel(Base):
             from db.models.api_test_case import ApiTestCaseModel
 
             _dict['version'] = self.current_version(db_session)
-            #Calc coverage
+            # Calc coverage
             srs_query = db_session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.api_id == self.id
             )
@@ -114,9 +108,11 @@ class ApiModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+
 @event.listens_for(ApiModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(ApiHistoryModel.version).where(ApiHistoryModel.id == target.id).order_by(ApiHistoryModel.version.desc()).limit(1)
+    last_query = select(ApiHistoryModel.version).where(ApiHistoryModel.id ==
+                                                       target.id).order_by(ApiHistoryModel.version.desc()).limit(1)
     version = -1
     for row in connection.execute(last_query):
         version = row[0]
@@ -137,6 +133,7 @@ def receive_after_update(mapper, connection, target):
         )
         connection.execute(insert_query)
 
+
 @event.listens_for(ApiModel, "after_insert")
 def receive_after_insert(mapper, connection, target):
     insert_query = insert(ApiHistoryModel).values(
@@ -154,12 +151,13 @@ def receive_after_insert(mapper, connection, target):
     )
     connection.execute(insert_query)
 
+
 class ApiHistoryModel(Base):
     __tablename__ = "apis_history"
     __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+                                        primary_key=True)
     id: Mapped[int] = mapped_column(Integer())
     api: Mapped[str] = mapped_column(String(100))
     library: Mapped[str] = mapped_column(String(100))
@@ -174,9 +172,8 @@ class ApiHistoryModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-
-    def __init__(self, id, api, library, library_version, raw_specification_url, \
-                 category, implementation_file, \
+    def __init__(self, id, api, library, library_version, raw_specification_url,
+                 category, implementation_file,
                  implementation_file_from_row, implementation_file_to_row, tags,
                  version):
         self.id = id

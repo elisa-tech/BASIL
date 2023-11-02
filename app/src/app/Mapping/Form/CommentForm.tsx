@@ -1,28 +1,32 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, TextArea, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import {
+  ActionGroup,
+  Button,
+  Form,
+  FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
+  Hint,
+  HintBody,
+  TextArea,
+  TextInput,
+} from '@patternfly/react-core';
 
 export interface CommentFormProps {
-  api;
   baseApiUrl: str;
   relationData;
   workItemType;
   parentType;
-  parentRelatedToType;
-  setModalShowState;
-  modalShowState;
   handleModalToggle;
   loadMappingData;
 }
 
 export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
-  api,
   baseApiUrl,
   relationData,
   workItemType,
   parentType,
-  parentRelatedToType,
-  setModalShowState,
-  modalShowState,
   handleModalToggle,
   loadMappingData,
     }: CommentFormProps) => {
@@ -37,8 +41,6 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
 
     const [messageValue, setMessageValue] = React.useState();
     const [statusValue, setStatusValue] = React.useState('waiting');
-
-    const [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting');
 
     const _A = 'api';
     const _J = 'justification';
@@ -76,13 +78,8 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
-
-    React.useEffect(() => {
-        if (modalFormSubmitState == 'submitted'){
-          handleSubmit();
-        }
-    }, [modalFormSubmitState]);
 
     const handleCommentValueChange = (_event, value: string) => {
         setCommentValue(value);
@@ -136,7 +133,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'parent_table': parent_table,
           'parent_id': parent_id,
           'comment': commentValue,

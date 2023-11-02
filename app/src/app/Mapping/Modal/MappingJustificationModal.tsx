@@ -1,6 +1,14 @@
 import React from 'react';
-import { Modal, ModalVariant, Form, FormGroup, Popover, Button, TextInput} from '@patternfly/react-core';
-import { Tabs, Tab, TabTitleText, TabContent, TabContentBody } from '@patternfly/react-core';
+import {
+  Button,
+  Modal,
+  ModalVariant,
+  Tab,
+  TabContent,
+  TabContentBody,
+  TabTitleText,
+  Tabs
+} from '@patternfly/react-core';
 import { JustificationForm } from '../Form/JustificationForm';
 import { SectionForm } from '../Form/SectionForm';
 import { JustificationSearch } from '../Search/JustificationSearch';
@@ -11,7 +19,6 @@ export interface MappingJustificationModalProps {
   baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
-  modalObject: string;
   modalTitle: string;
   modalDescription: string;
   modalShowState: string;
@@ -32,8 +39,6 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   baseApiUrl,
   modalShowState = false,
   setModalShowState,
-  setCurrentLibrary,
-  modalObject = "",
   modalAction = "",
   modalVerb = "",
   modalTitle = "",
@@ -51,14 +56,9 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   api,
   }: MappingModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  let [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting');
 
-  const handleModalConfirm = () => {
-    setModalFormSubmitState('submitted');
-  }
-
-  const handleModalToggle = (_event: KeyboardEvent | React.MouseEvent) => {
-    let new_state = !modalShowState;
+  const handleModalToggle = () => {
+    const new_state = !modalShowState;
     setModalShowState(new_state);
     setIsModalOpen(new_state);
   };
@@ -71,7 +71,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
   // Toggle currently active tab
   const handleTabClick = (
-  event: React.MouseEvent<any> | React.KeyboardEvent | MouseEvent,
+  event: React.MouseEvent | React.KeyboardEvent | MouseEvent,
   tabIndex: string | number
   ) => {
   setActiveTabKey(tabIndex);

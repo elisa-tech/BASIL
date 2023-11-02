@@ -1,13 +1,11 @@
 from datetime import datetime
-from typing import List
-from typing import Optional
-from sqlalchemy import *
-from sqlalchemy import event
+from db.models.db_base import Base
+from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import event, insert, select
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import sessionmaker
-from db.models.db_base import Base
+from typing import Optional
+
 
 class JustificationModel(Base):
     __tablename__ = 'justifications'
@@ -47,12 +45,13 @@ class JustificationModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+
 @event.listens_for(JustificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
     print("---------> after update")
     last_query = select(JustificationHistoryModel.version,
-                        JustificationHistoryModel.description).where( \
-        JustificationHistoryModel.id == target.id).order_by( \
+                        JustificationHistoryModel.description).where(
+        JustificationHistoryModel.id == target.id).order_by(
         JustificationHistoryModel.version.desc()).limit(1)
     version = -1
     description = None
@@ -69,6 +68,7 @@ def receive_after_update(mapper, connection, target):
             version=version + 1
         )
         connection.execute(insert_query)
+
 
 @event.listens_for(JustificationModel, "after_insert")
 def receive_after_insert(mapper, connection, target):

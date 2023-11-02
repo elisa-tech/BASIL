@@ -1,12 +1,12 @@
 import React from 'react';
-import { Form, FormGroup, HelperText, HelperTextItem, FormHelperText, Button, TextInput, ActionGroup, Hint, HintBody} from '@patternfly/react-core';
+import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput} from '@patternfly/react-core';
 import {
   DataList,
-  DataListItem,
-  DataListCell,
-  DataListItemRow,
-  DataListItemCells,
   DataListAction,
+  DataListCell,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
   SearchInput,
 } from '@patternfly/react-core';
 
@@ -15,14 +15,10 @@ export interface TestSpecificationSearchProps {
   baseApiUrl: str;
   formDefaultButtons: int;
   formVerb: str;
-  formAction: str;
   formData;
   formMessage: string;
   parentData;
   parentType: string;
-  parentRelatedToType;
-  modalFormSubmitState: string;
-  setModalFormSubmitState;
   handleModalToggle;
   modalOffset;
   modalSection;
@@ -35,7 +31,6 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
-    formAction='add',
     formData = {'id': 0,
                 'title': '',
                 'preconditions': '',
@@ -44,9 +39,6 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     formMessage = "",
     parentData,
     parentType = "",
-    parentRelatedToType,
-    modalFormSubmitState = "waiting",
-    setModalFormSubmitState,
     handleModalToggle,
     modalOffset,
     modalSection,
@@ -101,11 +93,11 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
 
     React.useEffect(() => {
         loadTestSpecifications(searchValue);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchValue]);
 
-
     const loadTestSpecifications = (searchValue) => {
-      let url = baseApiUrl + '/test-specifications?search=' + searchValue;
+      const url = baseApiUrl + '/test-specifications?search=' + searchValue;
       fetch(url)
         .then((res) => res.json())
         .then((data) => {
@@ -122,7 +114,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
-                <DataListCell key="primary content">
+                <DataListCell key={tsIndex}>
                   <span id={"clickable-action-item-" + test_specification.id}>{test_specification.title}</span>
                 </DataListCell>,
               ]}
@@ -143,6 +135,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         if (statusValue == 'submitted'){
           handleSubmit();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
     const handleSubmit = () => {
@@ -162,7 +155,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
 
         setMessageValue('');
 
-        let data = {
+        const data = {
           'api-id': api.id,
           'test-specification': {'id': selectedDataListItemId},
           'sw-requirement': {},

@@ -1,9 +1,14 @@
 .idea/
+.DS_Store
+.pdm-python
 */.DS_Store
 api/test/test.log
 api/test/.pytest_cache
 app/node_modules
 app/public
 db/*.db
+cypress/screenshots/
 docs/build
 examples/
+node_modules/
+_commit_message.txt

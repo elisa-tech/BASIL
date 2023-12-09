@@ -42,12 +42,12 @@ describe('SW Components Dashboard testing', () => {
         cy.get('#td-expand-' + id).find('button').click({force: true});
 
         //Fill form with modified data
-        cy.fill_form(id, 'api', 'edit', api_data.first_mod, true, true);
+        cy.fill_form_api('1', 'edit', api_data.first_mod, true, true);
         cy.get('#btn-api-form-reset').click();
         //Check that reset button works
-        cy.fill_form(id, 'api', 'edit', api_data.first, false, false);
+        cy.fill_form_api('1', 'edit', api_data.first, false, false);
         //Fill form with modified data
-        cy.fill_form(id, 'api', 'edit', api_data.first_mod, true, true);
+        cy.fill_form_api('1', 'edit', api_data.first_mod, true, true);
         cy.get('#btn-api-form-submit').click();
     });
 

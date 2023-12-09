@@ -11,4 +11,4 @@ exclude =
 per-file-ignores =
     api/api.py:E402
     api/test/*.py:E402
-    db/models/init_db.py:E402
+    db/models/init_db.py:E402,F401

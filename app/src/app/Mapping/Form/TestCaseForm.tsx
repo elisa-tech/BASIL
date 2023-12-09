@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   ActionGroup,
   Button,
@@ -76,11 +77,6 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     const [messageValue, setMessageValue] = React.useState(formMessage);
 
     const [statusValue, setStatusValue] = React.useState('waiting');
-
-    const _A = 'api';
-    const _SR = 'sw-requirement';
-    const _TS = 'test-specification';
-    const _TS_ = 'test_specification';
 
     const resetForm = () => {
       setTitleValue("");
@@ -172,6 +168,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
 
     const handleSubmit = () => {
+
         if (validatedTitleValue != 'success'){
             setMessageValue('Test Case Title is mandatory.');
             setStatusValue('waiting');
@@ -214,14 +211,14 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         if ((modalIndirect == true) || (formVerb == 'PUT')){
           data['relation-id'] = parentData.relation_id;
           data['relation-to'] = parentRelatedToType;
-          if (parentType == _TS) {
-            if (parentRelatedToType == _A){
-              data[parentType] = {'id': parentData['id']};
-            } else if (parentRelatedToType == _SR){
-              data[parentType] = {'id': parentData[_TS_]['id']};
+          if (parentType == Constants._TS) {
+            if (parentRelatedToType == Constants._A){
+              data[parentType] = {'id': parentData[Constants._TS_]['id']};
+            } else if (parentRelatedToType == Constants._SR){
+              data[parentType] = {'id': parentData[Constants._TS_]['id']};
             }
-          } else if (parentType == _SR){
-            data[parentType] = {'id': parentData['id']};
+          } else if (parentType == Constants._SR){
+            data[parentType] = {'id': parentData[Constants._SR_]['id']};
           }
         }
 
@@ -241,7 +238,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
               handleModalToggle();
               setMessageValue('');
               setStatusValue('waiting');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {

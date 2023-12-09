@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   ActionGroup,
   Button,
@@ -26,6 +27,7 @@ export interface JustificationFormProps {
   modalFormSubmitState: string;
   modalOffset;
   modalSection;
+  parentData;
 }
 
 export const JustificationForm: React.FunctionComponent<JustificationFormProps> = ({
@@ -43,6 +45,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
     modalFormSubmitState="waiting",
     modalOffset,
     modalSection,
+    parentData,
     }: JustificationFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -136,7 +139,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         }
 
         if ((formVerb == 'PUT') || (formVerb == 'DELETE')){
-          data['relation-id'] = formData.relation_id;
+          data['relation-id'] = parentData.relation_id;
           data['justification']['id'] = formData.id;
         }
 
@@ -156,7 +159,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
               handleModalToggle();
               setMessageValue('');
               setStatusValue('waiting');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {

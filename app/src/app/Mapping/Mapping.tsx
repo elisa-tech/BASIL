@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Constants from '../Constants/constants';
 import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants } from '@patternfly/react-core';
 import { MappingBreadCrumb } from './MappingBreadCrumb';
 import { MappingPageSection } from './MappingPageSection';
@@ -8,7 +9,6 @@ import {
 
 const Mapping: React.FunctionComponent = (api_id) => {
 
-  const API_BASE_URL = 'http://localhost:5000';
   const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('sw-requirements');
   const [num, setNum] = React.useState(0);
   const [apiData, setApiData] = React.useState(null);
@@ -18,7 +18,7 @@ const Mapping: React.FunctionComponent = (api_id) => {
   const { api_id } = useParams();
 
   const loadApiData = () => {
-    const url = API_BASE_URL + '/api-specifications?api-id=' + api_id;
+    const url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id;
 
     fetch(url)
       .then((res) => res.json())
@@ -30,8 +30,14 @@ const Mapping: React.FunctionComponent = (api_id) => {
       });
   }
 
-  const loadMappingData = () => {
-    const url = API_BASE_URL + '/mapping/api/' + mappingViewSelectValue + '?api-id=' + api_id;
+  const loadMappingData = (force_reload) => {
+    if ((force_reload == false) || (force_reload == undefined)){
+      if (num > 0){
+        return;
+      }
+    }
+
+    const url = Constants.API_BASE_URL + '/mapping/api/' + mappingViewSelectValue + '?api-id=' + api_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -46,14 +52,14 @@ const Mapping: React.FunctionComponent = (api_id) => {
   React.useEffect(() => {
     if (num == 0){
       loadApiData();
-      loadMappingData();
+      loadMappingData(false);
     }
     setNum(num + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   React.useEffect(() => {
-    loadMappingData();
+    loadMappingData(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingViewSelectValue]);
 
@@ -64,7 +70,7 @@ const Mapping: React.FunctionComponent = (api_id) => {
       total_len = total_len + mappingData[i]['section'].length;
     }
     for (let i = 0; i<mappingData.length; i++){
-      wa = wa + (mappingData[i]['section'].length / total_len) * (mappingData[i]['coverage'] / 100.0);
+      wa = wa + (mappingData[i]['section'].length / total_len) * (mappingData[i]['covered'] / 100.0);
     }
     const tc = Number.parseFloat(wa*100).toFixed(1);
     setTotalCoverage(tc);
@@ -86,7 +92,7 @@ const Mapping: React.FunctionComponent = (api_id) => {
         </PageSection>
         <PageSection type="tabs" variant={PageSectionVariants.light} isWidthLimited>
           <MappingPageSection
-            baseApiUrl={API_BASE_URL}
+            baseApiUrl={Constants.API_BASE_URL}
             mappingData={mappingData}
             unmappingData={unmappingData}
             loadMappingData={loadMappingData}

@@ -12,17 +12,13 @@ How does it works?
 Software Components
 -------------------
 
+BASIL home page will show the list of Software Components organized by libraries.
+You can move between different libraries and use the search field at the top right of the screen to filter over the proposed list.
+
 .. image:: _static/_images/sw_components.png
   :alt: BASIL Software Components list
   :align: center
   :width: 100%
-
-List Software Components
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-BASIL home page will show the list of Software Components organized by libraries.
-You can move between different libraries and use the search field at the top right of the screen to filter over the proposed list.
-
 
 Add a new Software Component
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -31,6 +27,65 @@ To add a new Software Component click on the **Add Software Component** button a
 A new window will pop up.
 
 To create a new Software Component you have to fill all mandatory fields and click **Confirm**.
+
+The **Specification Url/Path** field define the document that you want to use as reference for you work items.
+In other words you will be able to create a relationship between any work item and a section of your choice of that document.
+The document can be a Sw Specification document or a Source Code file or any other plain text document do you want.
+
+
+-----------------
+Work Item Mapping
+-----------------
+
+
+Create your first Work Item
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Once you have a software component you can start creating work items and defining the mapping relation to the Specification file.
+On doing so, click on the Sw Component name you just created.
+
+.. image:: _static/_images/create_work_item_1.png
+  :alt: BASIL Create your first Work Item Step 1
+  :align: center
+  :width: 100%
+
+You will be redirected to another view where you will se on the left side the Specification document.
+Let's create a Justification work item.
+
+Select a piece of the Specification document as the following example and click on the kebab menu icon on top of the Specification document section.
+Select **Assign a Justification** from the menu.
+
+.. image:: _static/_images/create_work_item_2.png
+  :alt: BASIL Create your first Work Item Step 2
+  :align: center
+  :width: 100%
+
+A modal view will pop up.
+Fill the **description** field with the desired justification you want to assign to the selected section and assign a coverage percentage to this work item.
+
+.. image:: _static/_images/create_work_item_3.png
+  :alt: BASIL Create your first Work Item Step 3
+  :align: center
+  :width: 100%
+
+In the **Mapping Section** tab you can check that the selected section of the Specification assigned to the current work item is as you want and you will be able to edit it before creating the work item.
+
+.. image:: _static/_images/create_work_item_4.png
+  :alt: BASIL Create your first Work Item Step 4
+  :align: center
+  :width: 100%
+
+Once you are ready, go back to the **Justification Data** tab and click **Submit**.
+
+Now the Specification document is divided into different sections.
+One has a Justification assigned to it, and the other one has no work items assigned.
+
+.. image:: _static/_images/create_work_item_5.png
+  :alt: BASIL Create your first Work Item Step 5
+  :align: center
+  :width: 100%
+
+The same way you can define other work items like Software Requirements, Test Specifications, Test Cases.
 
 
 
@@ -86,53 +141,3 @@ Export library data in SPDX format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to export all the information related to a desired library in SPDX (JSON) format clicking the **Export to SPDX** button.
-
-
-----------
-Work Items
-----------
-
-Justification
-^^^^^^^^^^^^^
-
-Default Fields:
-
-+ description
-
-Software Requirement
-^^^^^^^^^^^^^^^^^^^^
-
-Default Fields:
-
-+ title
-+ description
-
-Test Specification
-^^^^^^^^^^^^^^^^^^
-
-Default Fields:
-
-+ title
-+ preconditions
-+ test_description
-+ expected_behavior
-
-Test Case
-^^^^^^^^^
-
-Default Fields:
-
-+ title
-+ description
-+ repository
-+ relative_path
-
-
------------------------------------
-Work Items vs Specification Mapping
------------------------------------
-
-.. image:: _static/_images/work_items_mapping.png
-  :alt: BASIL Work Items vs Specification Mapping
-  :align: center
-  :width: 100%

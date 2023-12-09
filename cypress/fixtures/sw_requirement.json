@@ -2,11 +2,41 @@
   "first": {
     "title": "SR.0001",
     "description": "My first software requirement.",
-    "coverage": 55
+    "coverage": 10
   },
   "first_mod": {
     "title": "SR.0001 - mod",
     "description": "My first software requirement. Modified",
+    "coverage": 15
+  },
+  "second": {
+    "title": "SR.0002",
+    "description": "My second software requirement.",
+    "coverage": 20
+  },
+  "second_mod": {
+    "title": "SR.0002 - mod",
+    "description": "My second software requirement. Modified",
+    "coverage": 25
+  },
+  "third": {
+    "title": "SR.0003",
+    "description": "My third software requirement.",
+    "coverage": 30
+  },
+  "third_mod": {
+    "title": "SR.0003 - mod",
+    "description": "My third software requirement. Modified",
+    "coverage": 35
+  },
+  "fourth": {
+    "title": "SR.0004",
+    "description": "My fourth software requirement.",
     "coverage": 40
+  },
+  "fourth_mod": {
+    "title": "SR.0004 - mod",
+    "description": "My fourth software requirement. Modified",
+    "coverage": 45
   }
 }

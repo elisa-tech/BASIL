@@ -9,5 +9,7 @@
     "select_view_id": "#select-mapping-view",
     "table_matching_id": "#table-matching-sections",
     "table_unmatching_id": "#table-unmatching-sections"
-  }
+  },
+  "long_wait": 1500,
+  "fast_wait": 500
 }

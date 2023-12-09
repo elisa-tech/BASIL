@@ -45,13 +45,19 @@ export const MappingHistoryModal: React.FunctionComponent<MappingModalProps> = (
           <Text component={TextVariants.h3}>Version {version.version} - {version.created_at}</Text>
           <TextList>
             {Object.keys(version.object).map((key, index) => (
-                <TextListItem key={index}><em><b>{key}</b>: </em>{version.object[key]}</TextListItem>
+                <TextListItem key={index}>
+                  <Text component={TextVariants.p} className="work-item-detail-text">
+                    <em><b>{key}</b>: </em>{version.object[key]}
+                  </Text>
+                </TextListItem>
             ))}
           </TextList>
           <TextList>
-            {Object.keys(version.mapping).map((key, index) => (
+            <Text component={TextVariants.p} className="work-item-detail-text">
+              {Object.keys(version.mapping).map((key, index) => (
                 <TextListItem key={index}><em><b>{key}</b>: </em>{version.mapping[key]}</TextListItem>
-            ))}
+              ))}
+            </Text>
           </TextList>
         </TextContent>
         </React.Fragment>

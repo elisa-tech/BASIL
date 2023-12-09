@@ -15,7 +15,7 @@ describe('SW Components Dashboard testing', () => {
     // Since we want to visit the same URL at the start of all our tests,
     // we include it in our beforeEach function so that it runs before each test
     cy.visit(const_data.app_base_url);
-    cy.wait(3000);
+    cy.wait(const_data.long_wait);
   })
 
   it('Add SW Component', () => {
@@ -23,7 +23,7 @@ describe('SW Components Dashboard testing', () => {
     cy.clear_db();
     //Reload Page
     cy.visit(const_data.app_base_url);
-    cy.wait(3000);
+    cy.wait(const_data.long_wait);
     //Add SW Component
     cy.get('#btn-add-sw-component').click();
     cy.fill_form_api('0', 'add', api_data.first, true, false);
@@ -38,10 +38,10 @@ describe('SW Components Dashboard testing', () => {
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').eq(1).invoke('text').then(elem => {
         id = elem;
         cy.visit(const_data.app_base_url + '/mapping/' + id);
-        cy.wait(3000);
+        cy.wait(const_data.long_wait);
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 0);
         cy.get('#btn-mapping-new-justification').click();
-        cy.fill_form('0', 'justification', 'add', j_data.first, true, true);
+        cy.fill_form('justification', 'add', j_data.first, true, true);
         cy.get('#pf-tab-1-tab-btn-justification-mapping-section').click();
         cy.get('#btn-section-set-unmatching').click();
         cy.get('#pf-tab-0-tab-btn-justification-data').click();
@@ -50,7 +50,7 @@ describe('SW Components Dashboard testing', () => {
         //Edit
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').click();
         cy.get('#btn-menu-unmapped-edit-1').click();
-        cy.fill_form('1', 'justification', 'edit', j_data.first_mod, true, true);
+        cy.fill_form('justification', 'edit', j_data.first_mod, true, true);
         cy.get('#btn-mapping-justification-submit').click();
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 1);
         //Delete
@@ -67,23 +67,25 @@ describe('SW Components Dashboard testing', () => {
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').eq(1).invoke('text').then(elem => {
         id = elem;
         cy.visit(const_data.app_base_url + '/mapping/' + id);
-        cy.wait(3000);
-        //Add Sw Requirement
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').should('have.length', 1);
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(0).find('button').click();
-        cy.get('#btn-mapping-section-justification-0').click();
-        cy.fill_form('0', 'justification', 'add', j_data.first, true, true);
-        cy.get('#btn-mapping-justification-submit').click();
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').should('have.length', 1);
-        //Edit Sw Requirement
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').last().click();
-        cy.get('#btn-menu-justification-edit-2').click();
-        cy.fill_form('2', 'justification', 'edit', j_data.first_mod, true, true);
-        cy.get('#btn-mapping-justification-submit').click();
-        //TODO Check Justification Title changed
-        //Edit
-        //Fork
-        //Delete
+        cy.wait(const_data.long_wait);
+        //Add Justification
+        cy.assign_work_item(-1, 0, '', 'justification', j_data.first);
+        cy.edit_work_item(0, 'justification', j_data.first_mod);
+        cy.delete_work_item(0, 'justification');
+    })
+  })
+
+  it('Existing Justification', () => {
+    let id;
+    cy.get(const_data.api.table_listing_id).find('tbody').find('tr').should('have.length', 2);
+    cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').eq(1).invoke('text').then(elem => {
+        id = elem;
+        cy.visit(const_data.app_base_url + '/mapping/' + id);
+        cy.wait(const_data.long_wait);
+        //Add Existing Justification
+        cy.assign_existing_work_item(-1, 0, '', 'justification', 1);
+        cy.edit_work_item(0, 'justification', j_data.first);
+        cy.delete_work_item(0, 'justification');
     })
   })
 

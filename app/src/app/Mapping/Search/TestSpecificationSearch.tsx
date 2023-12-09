@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput} from '@patternfly/react-core';
 import {
   DataList,
@@ -19,11 +20,14 @@ export interface TestSpecificationSearchProps {
   formMessage: string;
   parentData;
   parentType: string;
+  parentRelatedToType;
   handleModalToggle;
   modalOffset;
   modalSection;
   modalIndirect;
   loadMappingData;
+  loadTestSpecifications;
+  testSpecifications;
 }
 
 export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationSearchProps> = ({
@@ -39,17 +43,19 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     formMessage = "",
     parentData,
     parentType = "",
+    parentRelatedToType,
     handleModalToggle,
     modalOffset,
     modalSection,
     modalIndirect,
     loadMappingData,
+    loadTestSpecifications,
+    testSpecifications,
     }: TestSpecificationSearchProps) => {
 
     const [searchValue, setSearchValue] = React.useState(formData.title);
     const [messageValue, setMessageValue] = React.useState(formMessage);
     const [statusValue, setStatusValue] = React.useState('waiting');
-    const [testSpecifications, setTestSpecifications] = React.useState([]);
     const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('');
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
@@ -96,21 +102,13 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchValue]);
 
-    const loadTestSpecifications = (searchValue) => {
-      const url = baseApiUrl + '/test-specifications?search=' + searchValue;
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => {
-            setTestSpecifications(data);
-        })
-        .catch((err) => {
-          console.log(err.message);
-        });
-    }
-
     const getTestSpecificationsTable = (test_specifications) => {
       return test_specifications.map((test_specification, tsIndex) => (
-        <DataListItem key={test_specification.id} aria-labelledby={"clickable-action-item-" + test_specification.id} id={test_specification.id}>
+        <DataListItem
+          key={test_specification.id}
+          aria-labelledby={"clickable-action-item-" + test_specification.id}
+          id={"list-existing-test-specification-item-" + test_specification.id}
+          data-id={test_specification.id}>
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
@@ -154,10 +152,11 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         }
 
         setMessageValue('');
+        const test_specification_id = document.getElementById(selectedDataListItemId).dataset.id;
 
         const data = {
           'api-id': api.id,
-          'test-specification': {'id': selectedDataListItemId},
+          'test-specification': {'id': test_specification_id},
           'sw-requirement': {},
           'section': modalSection,
           'offset': modalOffset,
@@ -173,7 +172,8 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         if (modalIndirect == true){
           console.log("parentData: " + JSON.stringify(parentData));
           data['relation-id'] = parentData.relation_id;
-          data['sw-requirement']['id'] = parentData.id;
+          data['relation-to'] = parentRelatedToType;
+          data['sw-requirement']['id'] = parentData.sw_requirement.id;
         }
 
         fetch(baseApiUrl + '/mapping/' + parentType + '/test-specifications', {
@@ -193,7 +193,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
               setMessageValue('Database updated!');
               handleModalToggle();
               setMessageValue('');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {
@@ -215,6 +215,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         <br />
         <DataList
           isCompact
+          id="list-existing-test-specifications"
           aria-label="clickable data list example"
           selectedDataListItemId={selectedDataListItemId}
           onSelectDataListItem={onSelectDataListItem}
@@ -255,11 +256,13 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-existing-test-specification-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-existing-test-specification-cancel"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

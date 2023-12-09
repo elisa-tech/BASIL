@@ -1,8 +1,10 @@
 {
   "first": {
-    "description": "Justification description"
+    "description": "Justification description",
+    "coverage": 10
   },
   "first_mod": {
-    "description": "Justification description - modified"
+    "description": "Justification description - modified",
+    "coverage": 15
   }
 }

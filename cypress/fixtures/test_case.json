@@ -4,13 +4,83 @@
     "description": "Test Case Description",
     "repository": "Test Repository",
     "relative_path": "path/to/test",
-    "coverage": 40
+    "coverage": 10
   },
   "first_mod": {
     "title": "TC.0001 - modified",
     "description": "Test Case Description - modified",
     "repository": "Test Repository - modified",
-    "relative_path": "path/to/test-mod",
+    "relative_path": "path/to/test/mod",
+    "coverage": 15
+  },
+  "second": {
+    "title": "TC.0002",
+    "description": "Test Case #2 Description",
+    "repository": "Test Repository of test 2",
+    "relative_path": "path/to/test2",
+    "coverage": 20
+  },
+  "second_mod": {
+    "title": "TC.0002 - modified",
+    "description": "Test Case #2 Description - modified",
+    "repository": "Test Repository of test 2 - modified",
+    "relative_path": "path/to/test2/mod",
+    "coverage": 25
+  },
+  "third": {
+    "title": "TC.0003",
+    "description": "Test Case #3 Description",
+    "repository": "Test Repository of test 3",
+    "relative_path": "path/to/test3",
+    "coverage": 30
+  },
+  "third_mod": {
+    "title": "TC.0003 - modified",
+    "description": "Test Case #3 Description - modified",
+    "repository": "Test Repository of test 3 - modified",
+    "relative_path": "path/to/test3/mod",
+    "coverage": 35
+  },
+  "fourth": {
+    "title": "TC.0004",
+    "description": "Test Case #4 Description",
+    "repository": "Test Repository of test 4",
+    "relative_path": "path/to/test4",
+    "coverage": 40
+  },
+  "fourth_mod": {
+    "title": "TC.0004 - modified",
+    "description": "Test Case #4 Description - modified",
+    "repository": "Test Repository of test 4 - modified",
+    "relative_path": "path/to/test4/mod",
+    "coverage": 45
+  },
+  "fifth": {
+    "title": "TC.0005",
+    "description": "Test Case #5 Description",
+    "repository": "Test Repository of test 5",
+    "relative_path": "path/to/test5",
     "coverage": 50
+  },
+  "fifth_mod": {
+    "title": "TC.0005 - modified",
+    "description": "Test Case #5 Description - modified",
+    "repository": "Test Repository of test 5 - modified",
+    "relative_path": "path/to/test5/mod",
+    "coverage": 55
+  },
+  "sixth": {
+    "title": "TC.0006",
+    "description": "Test Case #6 Description",
+    "repository": "Test Repository of test 6",
+    "relative_path": "path/to/test6",
+    "coverage": 60
+  },
+  "sixth_mod": {
+    "title": "TC.0006 - modified",
+    "description": "Test Case #6 Description - modified",
+    "repository": "Test Repository of test 6 - modified",
+    "relative_path": "path/to/test6/mod",
+    "coverage": 65
   }
 }

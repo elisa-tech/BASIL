@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Dropdown,
   DropdownItem,
@@ -42,9 +43,6 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
     setIsOpen(false);
   };
 
-  const _A = 'api';
-  const _J = 'justification';
-
   return (
     <Dropdown
       isOpen={isOpen}
@@ -70,7 +68,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
           key="delete"
           className="danger-text"
           onClick={() => (setDeleteModalInfo(true,
-                                             _J,
+                                             Constants._J,
                                              'api',
                                              '',
                                              mappingList,
@@ -101,8 +99,8 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
           id={"btn-menu-justification-history-" + mappingList[mappingIndex].relation_id}
           key="history"
           onClick={() => (setHistoryModalInfo(true,
-                                              _J,
-                                              _A,
+                                              Constants._J,
+                                              Constants._A,
                                               mappingList[mappingIndex].relation_id))}>
           History
         </DropdownItem>
@@ -111,7 +109,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
           id={"btn-menu-justification-details-" + mappingList[mappingIndex].relation_id}
           key="show-details"
           onClick={() => (setDetailsModalInfo(true,
-                                              _J,
+                                              Constants._J,
                                               mappingList[mappingIndex]['id']))}>
           Show Details
         </DropdownItem>
@@ -120,7 +118,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
           id={"btn-menu-justification-usage-" + mappingList[mappingIndex].relation_id}
           key="usage"
           onClick={() => (setUsageModalInfo(true,
-                                            _J,
+                                            Constants._J,
                                             mappingList[mappingIndex]['id']))}>
           Usage
         </DropdownItem>

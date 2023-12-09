@@ -65,10 +65,26 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
 
   React.useEffect(() => {
     setIsModalOpen(modalShowState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState]);
 
+  const loadJustifications = (searchValue) => {
+    let url = baseApiUrl + '/justifications';
+    if (searchValue != undefined){
+      url = url + '?search=' + searchValue;
+    }
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+          setJustifications(data);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  }
 
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
+  const [justifications, setJustifications] = React.useState([]);
   // Toggle currently active tab
   const handleTabClick = (
   event: React.MouseEvent | React.KeyboardEvent | MouseEvent,
@@ -170,8 +186,10 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
               parentData={parentData}
               parentType={parentType}
               parentRelatedToType={parentRelatedToType}
+              justifications={justifications}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
+              loadJustifications={loadJustifications}
               baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}

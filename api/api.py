@@ -29,6 +29,8 @@ from db.models.api_test_specification import ApiTestSpecificationHistoryModel
 from db.models.api import ApiModel, ApiHistoryModel
 from db.models.comment import CommentModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementHistoryModel
 from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
 from db.models.sw_requirement_test_case import SwRequirementTestCaseHistoryModel
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
@@ -157,26 +159,6 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields):
     return ret
 
 
-def get_work_item_open_html(work_item_type, title, version):
-    work_item_type = work_item_type.replace("_", "-")
-    work_item_desc = work_item_type.replace("-", " ").capitalize()
-
-    tmp = ''
-    # if direct == 1:
-    #    tmp += '<div class="div-work-items-direct">'
-    # else:
-    #    tmp += f'<div name="indirect-{work_item_type}" class="div-work-items-indirect indirect-{nesting}-nesting">'
-    tmp += '<div style="border-bottom:1px solid black">'
-    tmp += '<div class="div-work-item-title">'
-    tmp += '<p>'
-    tmp += f'<span class="meaning_version">v{version}</span>' \
-           f'<span class="meaning_title" title="{work_item_desc}">{title}</span>'
-    tmp += '</p>'
-    tmp += '</div>'
-    tmp += '<div class="div-work-item-action-buttons">'
-    return tmp
-
-
 def get_dict_without_keys(_dict, _undesired_keys):
     current_keys = _dict.keys()
     for k in _undesired_keys:
@@ -213,26 +195,6 @@ def filter_query(_query, _args, _model, _is_history):
             )
 
     return _query
-
-
-def get_work_item_close_html():
-    tmp = '</div>'
-    tmp += '<br clear="all" />'
-    tmp += '</div>'
-    return tmp
-
-
-def get_indirect_work_items_section_open_html(work_item_type, nesting, coverage):
-    work_item_type = work_item_type.replace("_", "-")
-    work_item_desc = work_item_type.replace("-", " ").capitalize()
-
-    tmp = ''
-    tmp += f'<div name="indirect-{work_item_type}" ' \
-           f'class="div-work-items-indirect indirect-{nesting}-nesting">'
-    tmp += f'<span class="span-indirect-title">{work_item_desc}</span> '
-    tmp += f'<progress name="coverage-progress" style="height:20px; width: 100px;" ' \
-           f'value="{coverage}" max="100" title="{coverage}"></progress>'
-    return tmp
 
 
 def get_db():
@@ -280,17 +242,19 @@ def get_api_coverage(_sections):
     total_len = sum([len(x['section']) for x in _sections])
     wa = 0
     for i in range(len(_sections)):
-        wa += (len(_sections[i]['section']) / total_len) * (_sections[i]['coverage'] / 100.0)
+        wa += (len(_sections[i]['section']) / total_len) * (_sections[i]['covered'] / 100.0)
     return int(wa * 100)
 
 
 def split_section(_to_splits, _that_split, _work_item_type):
     sections = []
-    # _work_items = []
-    _current_work_item = _that_split[_work_item_type]
-    _current_work_item['relation_id'] = _that_split['relation_id']
-    _current_work_item['coverage'] = _that_split['coverage'] if 'coverage' in _that_split.keys() else 0
-    _current_work_item['version'] = _that_split['version']
+    _current_work_item = _that_split
+
+    if _work_item_type == _SR:
+        if "indirect_sw_requirement" in _that_split.keys():
+            _current_work_item['parent_mapping_type'] = "sw_requirement_mapping_sw_requirement"
+        else:
+            _current_work_item['parent_mapping_type'] = "sw_requirement_mapping_api"
 
     for _to_split in _to_splits:
         _to_split_range = range(_to_split['offset'],
@@ -301,6 +265,8 @@ def split_section(_to_splits, _that_split, _work_item_type):
             tmp_section = {'section': _to_split['section'],
                            'offset': _to_split['offset'],
                            'coverage': _to_split['coverage'],
+                           'covered': _to_split['covered'],
+                           'gap': _to_split['gap'],
                            'delete': 0,
                            _Js: [],
                            _TCs: [],
@@ -329,6 +295,8 @@ def split_section(_to_splits, _that_split, _work_item_type):
                 tmp_section = {'section': _to_split['section'][idx[i - 1] - idx[0]:idx[i] - idx[0]],
                                'offset': idx[i - 1],
                                'coverage': _to_split['coverage'],
+                               'covered': _to_split['covered'],
+                               'gap': _to_split['gap'],
                                'delete': 0,
                                _Js: [],
                                _TCs: [],
@@ -343,6 +311,7 @@ def split_section(_to_splits, _that_split, _work_item_type):
                     tmp_section[_TSs].append(_to_split[_TSs][j].copy())
                 for j in range(len(_to_split[_Js])):
                     tmp_section[_Js].append(_to_split[_Js][j].copy())
+
                 sections.append(tmp_section)
 
     for iSection in range(len(sections)):
@@ -356,7 +325,7 @@ def split_section(_to_splits, _that_split, _work_item_type):
     return sections
 
 
-def get_splitted_sections(_specification, _mapping, _work_item_types):
+def get_split_sections(_specification, _mapping, _work_item_types):
     """
     _mapping: list of x_y (e.g. ApiSwRequirement) with nested mapping
               each row has its own specification section information
@@ -367,6 +336,8 @@ def get_splitted_sections(_specification, _mapping, _work_item_types):
     mapped_sections = [{'section': _specification,
                         'offset': 0,
                         'coverage': 0,
+                        'covered': 0,
+                        'gap': 100,
                         'delete': 0,
                         _TCs: [],
                         _TSs: [],
@@ -379,6 +350,7 @@ def get_splitted_sections(_specification, _mapping, _work_item_types):
             if not _mapping[_items_key][iMapping]['match']:
                 continue
             mapped_sections = sorted(mapped_sections, key=lambda k: k['offset'])
+
             # get overlapping sections
             overlapping_section_indexes = []
             for j in range(len(mapped_sections)):
@@ -406,16 +378,17 @@ def get_splitted_sections(_specification, _mapping, _work_item_types):
                     len(mapped_sections[iS][_TCs]),
                     len(mapped_sections[iS][_Js])]) == 0:
                 mapped_sections[iS]['delete'] = True
+
         coverage_total = 0
         for j in range(len(mapped_sections[iS][_SRs])):
-            coverage_total += mapped_sections[iS][_SRs][j]['coverage']
+            coverage_total += mapped_sections[iS][_SRs][j]['covered']
         for j in range(len(mapped_sections[iS][_TCs])):
-            coverage_total += mapped_sections[iS][_TCs][j]['coverage']
+            coverage_total += mapped_sections[iS][_TCs][j]['covered']
         for j in range(len(mapped_sections[iS][_TSs])):
-            coverage_total += mapped_sections[iS][_TSs][j]['coverage']
+            coverage_total += mapped_sections[iS][_TSs][j]['covered']
         for j in range(len(mapped_sections[iS][_Js])):
-            coverage_total += mapped_sections[iS][_Js][j]['coverage']
-        mapped_sections[iS]['coverage'] = min(max(coverage_total, 0), 100)
+            coverage_total += mapped_sections[iS][_Js][j]['covered']
+        mapped_sections[iS]['covered'] = min(max(coverage_total, 0), 100)
 
     # Remove Section with section: \n and no work items
     mapped_sections = [x for x in mapped_sections if not x['delete']]
@@ -464,8 +437,65 @@ def get_query_string_args(args):
     return ret
 
 
+def get_sw_requirement_children(_dbi, _srm):
+    """
+
+    """
+    undesired_keys = []
+
+    mapping_field_id = f"{_srm['__tablename__']}_id"
+
+    tmp = _srm
+
+    # Indirect SwRequirement
+    ind_sr_query = _dbi.session.query(SwRequirementSwRequirementModel).filter(
+        getattr(SwRequirementSwRequirementModel, mapping_field_id) == _srm['relation_id']
+    )
+    ind_sr = ind_sr_query.all()
+
+    tmp[_SRs] = [get_dict_without_keys(x.as_dict(db_session=_dbi.session),
+                                       undesired_keys + ['api'])
+                 for x in ind_sr]
+
+    for iSR in range(len(tmp[_SRs])):
+        if "indirect_sw_requirement" in tmp[_SRs][iSR].keys():
+            tmp[_SRs][iSR]['parent_mapping_type'] = "sw_requirement_mapping_sw_requirement"
+        else:
+            tmp[_SRs][iSR]['parent_mapping_type'] = "sw_requirement_mapping_api"
+
+    # Indirect Test Specifications
+    ind_ts = _dbi.session.query(SwRequirementTestSpecificationModel).filter(
+        getattr(SwRequirementTestSpecificationModel, mapping_field_id) == _srm['relation_id']
+    ).all()
+    tmp[_TSs] = [get_dict_without_keys(x.as_dict(db_session=_dbi.session),
+                                       undesired_keys + ['api']) for x in ind_ts]
+
+    for iTS in range(len(tmp[_TSs])):
+        # Indirect Test Cases
+        curr_srts_id = tmp[_TSs][iTS]['relation_id']
+        ind_tc = _dbi.session.query(TestSpecificationTestCaseModel).filter(
+            TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == curr_srts_id
+        ).all()
+
+        tmp[_TSs][iTS][_TS][_TCs] = [get_dict_without_keys(x.as_dict(db_session=_dbi.session),
+                                                           undesired_keys + ['api']) for x in ind_tc]
+
+    # Indirect Test Cases
+    ind_tc = _dbi.session.query(SwRequirementTestCaseModel).filter(
+        getattr(SwRequirementTestCaseModel, mapping_field_id) == _srm['relation_id']
+    ).all()
+    tmp[_TCs] = [get_dict_without_keys(x.as_dict(db_session=_dbi.session),
+                                       undesired_keys + ['api', 'sw_requirement_mapping_api'])
+                 for x in ind_tc]
+
+    # Recursive updating of nested SwRequirements
+    for iNSR in range(len(tmp[_SRs])):
+        tmp[_SRs][iNSR] = get_sw_requirement_children(_dbi, tmp[_SRs][iNSR])
+
+    return tmp
+
+
 def get_api_sw_requirements_mapping_sections(dbi, api):
-    undesired_keys = ['section', 'offset']
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification is None:
         api_specification = "Unable to find the Software Specification. " \
@@ -486,33 +516,6 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
                _SRs: sr_mapping,
                _Js: justifications_mapping}
 
-    for iSR in range(len(mapping[_SRs])):
-        # Indirect Test Specifications
-        curr_asr_id = mapping[_SRs][iSR]['relation_id']
-        ind_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
-            SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == curr_asr_id
-        ).all()
-        mapping[_SRs][iSR][_SR][_TSs] = [get_dict_without_keys(x.as_dict(db_session=dbi.session),
-                                                               undesired_keys + ['api']) for x in ind_ts]
-
-        ind_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
-            SwRequirementTestCaseModel.sw_requirement_mapping_api_id == curr_asr_id
-        ).all()
-        mapping[_SRs][iSR][_SR][_TCs] = [get_dict_without_keys(x.as_dict(db_session=dbi.session),
-                                                               undesired_keys + ['api', 'sw_requirement_mapping_api'])
-                                         for x in ind_tc]
-
-        for iTS in range(len(mapping[_SRs][iSR][_SR][_TSs])):
-            # Indirect Test Cases
-            curr_srts_id = mapping[_SRs][iSR][_SR][_TSs][iTS]['relation_id']
-            ind_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
-                TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == curr_srts_id
-            ).all()
-
-            mapping[_SRs][iSR][_SR][_TSs][iTS][_TS][_TCs] = [get_dict_without_keys(x.as_dict(db_session=dbi.session),
-                                                                                   undesired_keys + ['api']) for x in
-                                                             ind_tc]
-
     for iMapping in range(len(mapping[_SRs])):
         current_offset = mapping[_SRs][iMapping]['offset']
         current_section = mapping[_SRs][iMapping]['section']
@@ -524,12 +527,18 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
         mapping[_Js][iMapping]['match'] = (
                 api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-    mapped_sections = get_splitted_sections(api_specification, mapping, [_SR, _J])
+    mapped_sections = get_split_sections(api_specification, mapping, [_SR, _J])
     unmapped_sections = [x for x in mapping[_SRs] if not x['match']]
     unmapped_sections += [x for x in mapping[_Js] if not x['match']]
 
+    for iMS in range(len(mapped_sections)):
+        for iSR in range(len(mapped_sections[iMS][_SRs])):
+            children_data = get_sw_requirement_children(dbi, mapped_sections[iMS][_SRs][iSR])
+            mapped_sections[iMS][_SRs][iSR] = children_data
+
     ret = {'mapped': mapped_sections,
            'unmapped': unmapped_sections}
+
     dbi.engine.dispose()
     return ret
 
@@ -852,10 +861,7 @@ class Api(Resource):
             if sections is not None:
                 if 'mapped' in sections.keys():
                     total_coverage = get_api_coverage(sections['mapped'])
-                    apis_dict[iApi]['coverage'] = total_coverage
-
-        if total_coverage == -1:
-            total_coverage = 0
+                    apis_dict[iApi]['covered'] = total_coverage
 
         ret = apis_dict
         ret = sorted(ret, key=lambda api: (api['api'], api['library_version']))
@@ -1223,7 +1229,7 @@ class ApiTestSpecificationsMapping(Resource):
             mapping[_Js][iMapping]['match'] = (
                     api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-        mapped_sections = get_splitted_sections(api_specification, mapping, [_TS, _J])
+        mapped_sections = get_split_sections(api_specification, mapping, [_TS, _J])
         unmapped_sections = [x for x in mapping[_TSs] if not x['match']]
         unmapped_sections += [x for x in mapping[_Js] if not x['match']]
         ret = {'mapped': mapped_sections,
@@ -1293,8 +1299,11 @@ class ApiTestSpecificationsMapping(Resource):
                 dbi.engine.dispose()
                 return "Test Specification already associated to the selected api Specification section.", 409
 
-            existing_test_specification = dbi.session.query(TestSpecificationModel).filter(
-                TestSpecificationModel.id == id).one()
+            try:
+                existing_test_specification = dbi.session.query(TestSpecificationModel).filter(
+                    TestSpecificationModel.id == id).one()
+            except NoResultFound:
+                return f"Unable to find the Test Specification id {id}", 400
 
             new_test_specification_mapping_api = ApiTestSpecificationModel(api,
                                                                            existing_test_specification,
@@ -1322,8 +1331,12 @@ class ApiTestSpecificationsMapping(Resource):
             dbi.engine.dispose()
             return "Api not found", 404
 
-        test_specification_mapping_api = dbi.session.query(ApiTestSpecificationModel).filter(
-            ApiTestSpecificationModel.id == request_data["relation-id"]).one()
+        try:
+            test_specification_mapping_api = dbi.session.query(ApiTestSpecificationModel).filter(
+                ApiTestSpecificationModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
+
         test_specification = test_specification_mapping_api.test_specification
 
         # Update only modified fields
@@ -1360,8 +1373,12 @@ class ApiTestSpecificationsMapping(Resource):
             return "Api not found", 404
 
         # check if api ...
-        test_specification_mapping_api = dbi.session.query(ApiTestSpecificationModel).filter(
-            ApiTestSpecificationModel.id == request_data["relation-id"]).one()
+        try:
+            test_specification_mapping_api = dbi.session.query(ApiTestSpecificationModel).filter(
+                ApiTestSpecificationModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
+
         if test_specification_mapping_api.api.id != api.id:
             dbi.engine.dispose()
             return 'bad request!', 401
@@ -1434,7 +1451,7 @@ class ApiTestCasesMapping(Resource):
             mapping[_Js][iMapping]['match'] = (
                     api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-        mapped_sections = get_splitted_sections(api_specification, mapping, [_TC, _J])
+        mapped_sections = get_split_sections(api_specification, mapping, [_TC, _J])
         unmapped_sections = [x for x in mapping[_TCs] if not x['match']]
         unmapped_sections += [x for x in mapping[_Js] if not x['match']]
         ret = {'mapped': mapped_sections,
@@ -1499,7 +1516,11 @@ class ApiTestCasesMapping(Resource):
                 dbi.engine.dispose()
                 return "Test Case already associated to the selected api Specification section.", 409
 
-            existing_test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == id).one()
+            try:
+                existing_test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == id).one()
+            except NoResultFound:
+                return f"Unable to find the Test Case id {id}", 400
+
             new_test_case_mapping_api = ApiTestCaseModel(api,
                                                          existing_test_case,
                                                          section,
@@ -1568,8 +1589,12 @@ class ApiTestCasesMapping(Resource):
             return "Api not found", 404
 
         # check if api ...
-        test_case_mapping_api = dbi.session.query(ApiTestCaseModel).filter(
-            ApiTestCaseModel.id == request_data["relation-id"]).one()
+        try:
+            test_case_mapping_api = dbi.session.query(ApiTestCaseModel).filter(
+                ApiTestCaseModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Api id {request_data['relation-id']}", 400
+
         if test_case_mapping_api.api.id != api.id:
             dbi.engine.dispose()
             return 'bad request!', 401
@@ -1628,7 +1653,12 @@ class MappingHistory(Resource):
                 return []
 
         elif args['mapped_to_type'] == "sw-requirement":
-            if args['work_item_type'] == 'test-specification':
+            if args['work_item_type'] == 'sw-requirement':
+                _model = SwRequirementModel
+                _model_map = SwRequirementSwRequirementModel
+                _model_map_history = SwRequirementSwRequirementHistoryModel
+                _model_history = SwRequirementHistoryModel
+            elif args['work_item_type'] == 'test-specification':
                 _model = TestSpecificationModel
                 _model_map = SwRequirementTestSpecificationModel
                 _model_map_history = SwRequirementTestSpecificationHistoryModel
@@ -1920,7 +1950,7 @@ class ApiJustificationsMapping(Resource):
             mapping[_Js][iMapping]['match'] = (
                     api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-        mapped_sections = get_splitted_sections(api_specification, mapping, [_J])
+        mapped_sections = get_split_sections(api_specification, mapping, [_J])
         unmapped_sections = [x for x in mapping[_Js] if not x['match']]
         ret = {'mapped': mapped_sections,
                'unmapped': unmapped_sections}
@@ -1964,7 +1994,12 @@ class ApiJustificationsMapping(Resource):
                 dbi.engine.dispose()
                 return "Justification already associated to the selected api Specification section.", 409
 
-            existing_justification = dbi.session.query(JustificationModel).filter(JustificationModel.id == id).one()
+            try:
+                existing_justification = dbi.session.query(JustificationModel).filter(
+                    JustificationModel.id == id).one()
+            except NoResultFound:
+                return f"Unable to find the Justification id {id}", 400
+
             new_justification_mapping_api = ApiJustificationModel(api,
                                                                   existing_justification,
                                                                   section,
@@ -1980,7 +2015,7 @@ class ApiJustificationsMapping(Resource):
     def put(self):
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data):
+        if not check_fields_in_request(self.fields + ["relation-id"], request_data):
             return 'bad request!', 400
 
         dbi = db_orm.DbInterface(get_db())
@@ -1992,8 +2027,12 @@ class ApiJustificationsMapping(Resource):
             return "Api not found", 404
 
         # check if api ...
-        justification_mapping_api = dbi.session.query(ApiJustificationModel).filter(
-            ApiJustificationModel.id == request_data["relation-id"]).one()
+        try:
+            justification_mapping_api = dbi.session.query(ApiJustificationModel).filter(
+                ApiJustificationModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Justification mapping to Api id {request_data['relation-id']}", 400
+
         justification = justification_mapping_api.justification
 
         # Update only modified fields
@@ -2140,8 +2179,11 @@ class ApiSwRequirementsMapping(Resource):
                 dbi.engine.dispose()
                 return "SW Requirement already associated to the selected api Specification section.", 409
 
-            existing_sw_requirement = dbi.session.query(SwRequirementModel).filter(
-                SwRequirementModel.id == id).one()
+            try:
+                existing_sw_requirement = dbi.session.query(SwRequirementModel).filter(
+                    SwRequirementModel.id == id).one()
+            except NoResultFound:
+                return f"SW Requirement {id} not found in the database.", 404
 
             new_sw_requirement_mapping_api = ApiSwRequirementModel(api,
                                                                    existing_sw_requirement,
@@ -2168,8 +2210,12 @@ class ApiSwRequirementsMapping(Resource):
             dbi.engine.dispose()
             return "Api not found", 404
 
-        sw_requirement_mapping_api = dbi.session.query(ApiSwRequirementModel).filter(
-            ApiSwRequirementModel.id == request_data["relation-id"]).one()
+        try:
+            sw_requirement_mapping_api = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
+
         sw_requirement = sw_requirement_mapping_api.sw_requirement
 
         # Update only modified fields
@@ -2177,6 +2223,12 @@ class ApiSwRequirementsMapping(Resource):
             if field.replace('_', '-') in request_data["sw-requirement"].keys():
                 if getattr(sw_requirement, field) != request_data["sw-requirement"][field.replace('_', '-')]:
                     setattr(sw_requirement, field, request_data["sw-requirement"][field.replace('_', '-')])
+
+        if sw_requirement_mapping_api.section != request_data["section"]:
+            sw_requirement_mapping_api.section = request_data["section"]
+
+        if sw_requirement_mapping_api.offset != request_data["offset"]:
+            sw_requirement_mapping_api.offset = request_data["offset"]
 
         if sw_requirement_mapping_api.coverage != int(request_data["coverage"]):
             sw_requirement_mapping_api.coverage = int(request_data["coverage"])
@@ -2200,8 +2252,12 @@ class ApiSwRequirementsMapping(Resource):
             return "Api not found", 404
 
         # check if api ...
-        sw_requirement_mapping_api = dbi.session.query(ApiSwRequirementModel).filter(
-            ApiSwRequirementModel.id == request_data["relation-id"]).one()
+        try:
+            sw_requirement_mapping_api = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
+
         if sw_requirement_mapping_api.api.id != api.id:
             dbi.engine.dispose()
             return 'bad request!', 401
@@ -2313,6 +2369,212 @@ class TestCase(Resource):
         return tcs
 
 
+class SwRequirementSwRequirementsMapping(Resource):
+    fields = ['sw-requirement', 'coverage']
+
+    def get(self):
+        """
+        curl http://localhost:5000/mapping/sw-requirement/sw-requirements?field=id&filter=24
+        """
+
+        args = get_query_string_args(request.args)
+        dbi = db_orm.DbInterface(get_db())
+        query = dbi.session.query(SwRequirementSwRequirementModel)
+        query = filter_query(query, args, SwRequirementSwRequirementModel, False)
+        srsrs = [srsr.as_dict(db_session=dbi.session) for srsr in query.all()]
+
+        dbi.engine.dispose()
+        return srsrs
+
+        ret = {}
+        return ret
+
+    def post(self):
+        request_data = request.get_json(force=True)
+        api_sr = None
+        sr_sr = None
+
+        post_mandatory_fields = self.fields + ['relation-id', 'relation-to', 'parent-sw-requirement']
+        if not check_fields_in_request(post_mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        if 'id' not in request_data['parent-sw-requirement'].keys():
+            return 'bad request!!', 400
+
+        relation_id = request_data['relation-id']
+        dbi = db_orm.DbInterface(get_db())
+
+        # Find SwRequirementSwRequirement
+        if request_data['relation-to'] == 'api':
+            relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == relation_id
+            )
+        elif request_data['relation-to'] == 'sw-requirement':
+            relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == relation_id
+            )
+        else:
+            dbi.engine.dispose()
+            return "Bad request!!!", 400
+
+        relation_to_list = relation_to_query.all()
+        if len(relation_to_list) != 1:
+            dbi.engine.dispose()
+            return "Parent mapping not found", 404
+        else:
+            relation_to_item = relation_to_list[0]
+
+        if request_data['relation-to'] == 'api':
+            api_sr = relation_to_item
+        elif request_data['relation-to'] == 'sw-requirement':
+            sr_sr = relation_to_item
+
+        parent_sw_requirement_id = request_data['parent-sw-requirement']['id']
+        coverage = request_data['coverage']
+
+        try:
+            parent_sw_requirement = dbi.session.query(SwRequirementModel).filter(
+                SwRequirementModel.id == parent_sw_requirement_id).one()
+        except NoResultFound:
+            dbi.engine.dispose()
+            return "Sw Requirement not found", 400
+
+        del parent_sw_requirement  # Just need to check it exists
+
+        if 'id' not in request_data['sw-requirement'].keys():
+            # Create a new one
+            for check_field in SwRequirement.fields:
+                if check_field.replace("_", "-") not in request_data['sw-requirement'].keys():
+                    dbi.engine.dispose()
+                    return "Bad request. Not consistent data.", 400
+
+            title = request_data['sw-requirement']['title']
+            description = request_data['sw-requirement']['description']
+
+            existing_sw_requirements = dbi.session.query(SwRequirementModel).filter(
+                SwRequirementModel.title == title).filter(
+                SwRequirementModel.description == description).all()
+
+            for sr in existing_sw_requirements:
+                sr_mapping = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                    SwRequirementSwRequirementModel.id == relation_id).filter(
+                    SwRequirementSwRequirementModel.sw_requirement_id == sr.id).all()
+                if len(sr_mapping) > 0:
+                    dbi.engine.dispose()
+                    return "Sw Requirement already associated to the selected Sw Requirement.", 409
+
+            new_sw_requirement = SwRequirementModel(title, description)
+
+            new_sw_requirement_mapping_sw_requirement = SwRequirementSwRequirementModel(api_sr,
+                                                                                        sr_sr,
+                                                                                        new_sw_requirement,
+                                                                                        coverage)
+
+            dbi.session.add(new_sw_requirement)
+            dbi.session.add(new_sw_requirement_mapping_sw_requirement)
+
+        else:
+            # Map an existing SwRequirement
+            sw_requirement_id = request_data['sw-requirement']['id']
+
+            if len(dbi.session.query(SwRequirementSwRequirementModel).filter(
+                    SwRequirementSwRequirementModel.id == relation_id).filter(
+                      SwRequirementSwRequirementModel.sw_requirement_id == sw_requirement_id).all()) > 0:
+                dbi.engine.dispose()
+                return "Sw Requirement already associated to the selected Sw Requirement.", 409
+
+            try:
+                sw_requirement = dbi.session.query(SwRequirementModel).filter(
+                    SwRequirementModel.id == sw_requirement_id).one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Bad request.", 400
+
+            if not isinstance(sw_requirement, SwRequirementModel):
+                dbi.engine.dispose()
+                return "Bad request.", 400
+
+            new_sw_requirement_mapping_sw_requirement = SwRequirementSwRequirementModel(api_sr,
+                                                                                        sr_sr,
+                                                                                        sw_requirement,
+                                                                                        coverage)
+            dbi.session.add(new_sw_requirement_mapping_sw_requirement)
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return new_sw_requirement_mapping_sw_requirement.as_dict()
+
+    def put(self):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = self.fields + ['relation-id']
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        try:
+            sr_mapping_sr = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            dbi.engine.dispose()
+            return "Sw Requirement mapping not found", 400
+
+        sr = sr_mapping_sr.sw_requirement
+
+        # Update only modified fields
+        for field in SwRequirement.fields:
+            if field.replace('_', '-') in request_data["sw-requirement"].keys():
+                if getattr(sr, field) != request_data["sw-requirement"][field.replace('_', '-')]:
+                    setattr(sr, field, request_data["sw-requirement"][field.replace('_', '-')])
+
+        if sr_mapping_sr.coverage != int(request_data["coverage"]):
+            sr_mapping_sr.coverage = int(request_data["coverage"])
+
+        ret = sr_mapping_sr.as_dict(db_session=dbi.session)
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return ret
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(['relation-id'], request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        """
+        try:
+            sw_requirement = dbi.session.query(SwRequirementModel).filter(
+                SwRequirementModel.id == request_data['sw-requirement-id']).one()
+        except NoResultFound:
+            return 'bad request!', 401
+        """
+
+        # check sw_requirement_mapping_sw_requirement ...
+        try:
+            sw_requirement_mapping_sw_requirement = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == request_data['relation-id']).one()
+        except NoResultFound:
+            return 'bad request!', 401
+
+        """
+        if sw_requirement_mapping_sw_requirement.sw_requirement_id != sw_requirement.id:
+            dbi.engine.dispose()
+            return 'bad request!', 401
+        """
+
+        dbi.session.delete(sw_requirement_mapping_sw_requirement)
+
+        # TODO: Remove work item only user request to do
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return True
+
+
 class SwRequirementTestSpecificationsMapping(Resource):
     fields = ['api-id', 'sw-requirement', 'test-specification', 'coverage']
 
@@ -2325,14 +2587,19 @@ class SwRequirementTestSpecificationsMapping(Resource):
         return ret
 
     def post(self):
-        request_data = request.get_json(force=True)
+        api_sr = None
+        sr_sr = None
 
-        mandatory_fields = self.fields + ['relation-id']
+        request_data = request.get_json(force=True)
+        mandatory_fields = self.fields + ['relation-id', 'relation-to']
         if not check_fields_in_request(mandatory_fields, request_data):
             return 'bad request!', 400
 
         if 'id' not in request_data['sw-requirement'].keys():
             return 'bad request!!', 400
+
+        relation_id = request_data['relation-id']
+        relation_to = request_data['relation-to']
 
         dbi = db_orm.DbInterface(get_db())
         sw_requirement_id = request_data['sw-requirement']['id']
@@ -2353,15 +2620,29 @@ class SwRequirementTestSpecificationsMapping(Resource):
             dbi.engine.dispose()
             return "Api not found", 404
 
-        # Find ApiSwRequirementModel
-        sr_api = None
-        srs_api = dbi.session.query(ApiSwRequirementModel).filter(
-            ApiSwRequirementModel.id == request_data['relation-id']).all()
-        if len(srs_api) != 1:
-            dbi.engine.dispose()
-            return "Api not found", 404
+        if relation_to == 'api':
+            relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == relation_id
+            )
+        elif relation_to == 'sw-requirement':
+            relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == relation_id
+            )
         else:
-            sr_api = srs_api[0]
+            dbi.engine.dispose()
+            return "Bad request!!!", 400
+
+        relation_to_list = relation_to_query.all()
+        if len(relation_to_list) != 1:
+            dbi.engine.dispose()
+            return "Parent mapping not found", 404
+        else:
+            relation_to_item = relation_to_list[0]
+
+        if relation_to == 'api':
+            api_sr = relation_to_item
+        elif relation_to == 'sw-requirement':
+            sr_sr = relation_to_item
 
         if 'id' not in request_data['test-specification'].keys():
             # Create a new one
@@ -2375,6 +2656,9 @@ class SwRequirementTestSpecificationsMapping(Resource):
             test_description = request_data['test-specification']['test-description']
             expected_behavior = request_data['test-specification']['expected-behavior']
 
+            """
+            TODO: Evaluate if the following check is needed
+
             existing_test_specifications = dbi.session.query(TestSpecificationModel).filter(
                 TestSpecificationModel.title == title).filter(
                 TestSpecificationModel.preconditions == preconditions).filter(
@@ -2386,17 +2670,19 @@ class SwRequirementTestSpecificationsMapping(Resource):
                     ApiSwRequirementModel).filter(
                     ApiSwRequirementModel.sw_requirement_id == sw_requirement_id).filter(
                     SwRequirementTestSpecificationModel.test_specification_id == ts.id).filter(
-                    SwRequirementTestSpecificationModel.api_id == api.id).all()
+                    ApiSwRequirementModel.api_id == api.id).all()
                 if len(ts_mapping) > 0:
                     dbi.engine.dispose()
                     return "Test Specification already associated to the selected api Specification section.", 409
+            """
 
             new_test_specification = TestSpecificationModel(title,
                                                             preconditions,
                                                             test_description,
                                                             expected_behavior)
 
-            new_test_specification_mapping_sw_requirement = SwRequirementTestSpecificationModel(sr_api,
+            new_test_specification_mapping_sw_requirement = SwRequirementTestSpecificationModel(api_sr,
+                                                                                                sr_sr,
                                                                                                 new_test_specification,
                                                                                                 coverage)
 
@@ -2423,7 +2709,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 dbi.engine.dispose()
                 return "Bad request.", 400
 
-            new_test_specification_mapping_sw_requirement = SwRequirementTestSpecificationModel(sr_api,
+            new_test_specification_mapping_sw_requirement = SwRequirementTestSpecificationModel(api_sr,
+                                                                                                sr_sr,
                                                                                                 test_specification,
                                                                                                 coverage)
             dbi.session.add(new_test_specification_mapping_sw_requirement)
@@ -2442,9 +2729,13 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        sw_mapping_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
-            SwRequirementTestSpecificationModel.id == request_data['relation-id']
-        ).one()
+        try:
+            sw_mapping_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
+                SwRequirementTestSpecificationModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Test Specification " \
+                   f"mapping to Sw Requirement id {request_data['relation-id']}", 400
 
         test_specification = sw_mapping_ts.test_specification
 
@@ -2473,9 +2764,13 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        sw_mapping_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
-            SwRequirementTestSpecificationModel.id == request_data['relation-id']
-        ).one()
+        try:
+            sw_mapping_ts = dbi.session.query(SwRequirementTestSpecificationModel).filter(
+                SwRequirementTestSpecificationModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Test Specification " \
+                   f"mapping to Sw Requirement id {request_data['relation-id']}", 400
 
         # test_specification = sw_mapping_ts.test_specification
         # dbi.session.delete(test_specification)
@@ -2499,9 +2794,11 @@ class SwRequirementTestCasesMapping(Resource):
         return ret
 
     def post(self):
+        api_sr = None
+        sr_sr = None
         request_data = request.get_json(force=True)
 
-        post_mandatory_fields = self.fields + ['relation-id']
+        post_mandatory_fields = self.fields + ['relation-id', 'relation-to']
         if not check_fields_in_request(post_mandatory_fields, request_data):
             return 'bad request!', 400
 
@@ -2509,6 +2806,8 @@ class SwRequirementTestCasesMapping(Resource):
             return 'bad request!!', 400
 
         relation_id = request_data['relation-id']
+        relation_to = request_data['relation-to']
+
         dbi = db_orm.DbInterface(get_db())
 
         # Find api
@@ -2518,15 +2817,29 @@ class SwRequirementTestCasesMapping(Resource):
             return "Api not found", 404
 
         # Find ApiSwRequirement
-        api_sr_query = dbi.session.query(ApiSwRequirementModel).filter(
-            ApiSwRequirementModel.id == relation_id
-        )
-        api_sr_list = api_sr_query.all()
-        if len(api_sr_list) != 1:
-            dbi.engine.dispose()
-            return "Api not found", 404
+        if relation_to == 'api':
+            relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == relation_id
+            )
+        elif relation_to == 'sw-requirement':
+            relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == relation_id
+            )
         else:
-            api_sr = api_sr_list[0]
+            dbi.engine.dispose()
+            return "Bad request!!!", 400
+
+        relation_to_list = relation_to_query.all()
+        if len(relation_to_list) != 1:
+            dbi.engine.dispose()
+            return "Parent mapping not found", 404
+        else:
+            relation_to_item = relation_to_list[0]
+
+        if relation_to == 'api':
+            api_sr = relation_to_item
+        elif relation_to == 'sw-requirement':
+            sr_sr = relation_to_item
 
         sw_requirement_id = request_data['sw-requirement']['id']
         coverage = request_data['coverage']
@@ -2569,6 +2882,7 @@ class SwRequirementTestCasesMapping(Resource):
             new_test_case = TestCaseModel(repository, relative_path, title, description)
 
             new_test_case_mapping_sw_requirement = SwRequirementTestCaseModel(api_sr,
+                                                                              sr_sr,
                                                                               new_test_case,
                                                                               coverage)
 
@@ -2597,6 +2911,7 @@ class SwRequirementTestCasesMapping(Resource):
                 return "Bad request.", 400
 
             new_test_case_mapping_sw_requirement = SwRequirementTestCaseModel(api_sr,
+                                                                              sr_sr,
                                                                               test_case,
                                                                               coverage)
             dbi.session.add(new_test_case_mapping_sw_requirement)
@@ -2614,9 +2929,12 @@ class SwRequirementTestCasesMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        sw_mapping_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
-            SwRequirementTestCaseModel.id == request_data['relation-id']
-        ).one()
+        try:
+            sw_mapping_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
+                SwRequirementTestCaseModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
 
         test_case = sw_mapping_tc.test_case
 
@@ -2645,9 +2963,12 @@ class SwRequirementTestCasesMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        sw_mapping_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
-            SwRequirementTestCaseModel.id == request_data['relation-id']
-        ).one()
+        try:
+            sw_mapping_tc = dbi.session.query(SwRequirementTestCaseModel).filter(
+                SwRequirementTestCaseModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
 
         # test_case = sw_mapping_tc.test_case
         # dbi.session.delete(test_case)
@@ -2721,7 +3042,7 @@ class TestSpecificationTestCasesMapping(Resource):
             dbi.engine.dispose()
             return "Test Specification not found", 400
 
-        del test_specification  # Just need to check it extsts
+        del test_specification  # Just need to check it exists
 
         if 'id' not in request_data['test-case'].keys():
             # Create a new one
@@ -2799,9 +3120,12 @@ class TestSpecificationTestCasesMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        ts_mapping_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
-            TestSpecificationTestCaseModel.id == request_data['relation-id']
-        ).one()
+        try:
+            ts_mapping_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
+                TestSpecificationTestCaseModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
 
         test_case = ts_mapping_tc.test_case
 
@@ -2829,9 +3153,12 @@ class TestSpecificationTestCasesMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        ts_mapping_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
-            TestSpecificationTestCaseModel.id == request_data['relation-id']
-        ).one()
+        try:
+            ts_mapping_tc = dbi.session.query(TestSpecificationTestCaseModel).filter(
+                TestSpecificationTestCaseModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
 
         # test_case = ts_mapping_tc.test_case
         # dbi.session.delete(test_case)
@@ -2858,7 +3185,7 @@ class ForkApiSwRequirement(Resource):
                 ApiSwRequirementModel.id == request_data['relation-id']
             ).one()
         except NoResultFound:
-            return 'bad request!!!', 400
+            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
 
         new_sr = SwRequirementModel(asr_mapping.sw_requirement.title,
                                     asr_mapping.sw_requirement.description)
@@ -2870,6 +3197,35 @@ class ForkApiSwRequirement(Resource):
         dbi.session.commit()
         dbi.engine.dispose()
         return asr_mapping.as_dict()
+
+
+class ForkSwRequirementSwRequirement(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = ['relation-id']
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        try:
+            sr_sr_mapping = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == request_data['relation-id']
+            ).one()
+        except NoResultFound:
+            return f"Unable to find the Sw Requirement mapping to Sw Requirement id {request_data['relation-id']}", 400
+
+        new_sr = SwRequirementModel(sr_sr_mapping.sw_requirement.title,
+                                    sr_sr_mapping.sw_requirement.description)
+        dbi.session.add(new_sr)
+        dbi.session.commit()
+
+        sr_sr_mapping.sw_requirement_id = new_sr.id
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return sr_sr_mapping.as_dict()
 
 
 class TestingSupportInitDb(Resource):
@@ -2899,6 +3255,7 @@ api.add_resource(ApiSwRequirementsMapping, '/mapping/api/sw-requirements')
 api.add_resource(ApiTestSpecificationsMapping, '/mapping/api/test-specifications')
 api.add_resource(ApiTestCasesMapping, '/mapping/api/test-cases')
 # - Indirect
+api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')
 api.add_resource(SwRequirementTestSpecificationsMapping, '/mapping/sw-requirement/test-specifications')
 api.add_resource(SwRequirementTestCasesMapping, '/mapping/sw-requirement/test-cases')
 api.add_resource(TestSpecificationTestCasesMapping, '/mapping/test-specification/test-cases')
@@ -2916,6 +3273,7 @@ api.add_resource(MappingUsage, '/mapping/usage')
 api.add_resource(Comment, '/comments')
 # Fork
 api.add_resource(ForkApiSwRequirement, '/fork/api/sw-requirement')
+api.add_resource(ForkSwRequirementSwRequirement, '/fork/sw-requirement/sw-requirement')
 # api.add_resource(ForkTestSpecification, '/fork/api/test-specification')
 # api.add_resource(ForkTestCase, '/fork/api/test-case')
 # api.add_resource(ForkJustification, '/fork/api/justification')

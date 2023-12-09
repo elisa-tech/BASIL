@@ -92,7 +92,10 @@ class ApiTestSpecificationModel(Base):
                  'relation_id': self.id,
                  'section': self.section,
                  'offset': self.offset,
-                 'coverage': self.get_waterfall_coverage(db_session)}
+                 'coverage': self.coverage,
+                 'covered': self.get_waterfall_coverage(db_session)}
+
+        _dict['gap'] = _dict['coverage'] - _dict['covered']
 
         if db_session:
             _dict['version'] = self.current_version(db_session)

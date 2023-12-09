@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Constants from '../Constants/constants';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import {
   Badge,
@@ -81,16 +82,11 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   showIndirectTestSpecifications,
 }: MappingListingTableProps) => {
 
-  const _A = 'api';
-  const _SR = 'sw-requirement';
-  const _TS = 'test-specification';
-  const _TC = 'test-case';
-  const _J = 'justification';
-
   const getWorkItemDescription = (_work_item_type) => {
-      const work_item_types = [_A, _J, _SR, _TS, _TC];
-      const work_item_descriptions = ['Api',
-                                      'Justification',
+      const work_item_types = [Constants._A, Constants._J, Constants._SR,
+                               Constants._TS, Constants._TC];
+      const work_item_descriptions = [Constants._A,
+                                      Constants._J,
                                       'Software Requirement',
                                       'Test Specification',
                                       'Test Case'];
@@ -116,10 +112,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   const coverageFormat = (x) => Number.parseFloat(x).toFixed(1);
 
   const getMappedSectionCodeBlockBackgroundColor = (snippet) => {
-    const j_l = snippet['justifications'].length;
-    const sr_l = snippet['sw_requirements'].length;
-    const ts_l = snippet['test_specifications'].length;
-    const tc_l = snippet['test_cases'].length;
+    const j_l = snippet[Constants._Js].length;
+    const sr_l = snippet[Constants._SRs_].length;
+    const ts_l = snippet[Constants._TSs_].length;
+    const tc_l = snippet[Constants._TCs_].length;
 
     if ((j_l > 0) && (sr_l == 0) && (ts_l == 0) && (tc_l == 0)){
       return "code-block-bg-gold";
@@ -131,18 +127,18 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   }
 
   const getWorkItemIcon = (work_item_type, indirect) => {
-    if (work_item_type == _J) {
+    if (work_item_type == Constants._J) {
       return <Flex><FlexItem><Icon iconSize='lg'><BalanceScaleIcon /></Icon></FlexItem></Flex>
-    } else if (work_item_type == _SR) {
+    } else if (work_item_type == Constants._SR) {
       return <Flex><FlexItem><Icon iconSize='lg'><CatalogIcon /></Icon></FlexItem></Flex>
-    } else if (work_item_type == _TS) {
+    } else if (work_item_type == Constants._TS) {
       if (indirect == 1) {
         return (<Flex><FlexItem><Icon iconSize='sm'><MigrationIcon /></Icon> &nbsp;
                 <Icon iconSize='lg'><TaskIcon /></Icon></FlexItem></Flex>)
       } else {
         return <Flex><FlexItem><Icon  iconSize='lg'><TaskIcon /></Icon></FlexItem></Flex>
       }
-    } else if (work_item_type == _TC) {
+    } else if (work_item_type == Constants._TC) {
       if (indirect == 1) {
         return (<Flex><FlexItem><Icon iconSize='sm'><MigrationIcon /></Icon> &nbsp;
                <Icon iconSize='lg'><CodeIcon /></Icon></FlexItem></Flex>)
@@ -174,31 +170,31 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <CardBody>
                 <Flex>
                   <FlexItem>
-                    {getWorkItemIcon('test-case', indirect)}
+                    {getWorkItemIcon(Constants._TC, indirect)}
                   </FlexItem>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h2}>Test Case {indirect == true ? test_case['test_case']['id'] : test_case['id']}</Text>
+                      <Text component={TextVariants.h2}>Test Case {test_case[Constants._TC_]['id']}</Text>
                     </TextContent>
                   </FlexItem>
                   <FlexItem>
                     <Text component={TextVariants.h6}>ver. {test_case['version']}</Text>
                   </FlexItem>
-                  {indirect == true ? (
+                  <FlexItem>
                     <Label variant="outline" isCompact>
                       {coverageFormat(test_case['coverage'])}% Coverage
                     </Label>
-                  ) : ('')}
+                  </FlexItem>
                   <FlexItem align={{ default: 'alignRight' }}>
                     {indirect == false ? (
                       <React.Fragment>
                       <Button
                         variant="plain"
                         icon={<OutlinedCommentsIcon  />}
-                        onClick={() => setCommentModalInfo(true, 'test-case', 'api', '', test_cases, cIndex)}>
+                        onClick={() => setCommentModalInfo(true, Constants._TC, Constants._A, '', test_cases, cIndex)}>
                       </Button>
                       <Badge key={3} screenReaderText="Comments">
-                        {test_case['comment_count']}
+                        {test_case[Constants._TC_]['comment_count']}
                       </Badge>
                       </React.Fragment>
                     ) : ('')}
@@ -211,7 +207,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setTcModalInfo={setTcModalInfo}
                       setTcModalShowState={setTcModalShowState}
                       setDeleteModalInfo={setDeleteModalInfo}
-                      mappingType={'test-case'}
+                      mappingType={Constants._TC}
                       mappingParentType={parent_type}
                       mappingParentRelatedToType={parent_related_to_type}
                       mappingIndex={cIndex}
@@ -225,8 +221,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h5}>{indirect == true ? getLimitedText(test_case['test_case']['title'], 100) : getLimitedText(test_case['title'], 100)}</Text>
-                      <Text component={TextVariants.p}>{indirect == true ? getLimitedText(test_case['test_case']['description'], 200) : getLimitedText(test_case['description'], 200)}</Text>
+                      <Text component={TextVariants.h5}>{getLimitedText(test_case[Constants._TC_]['title'], 100)}</Text>
+                      <Text component={TextVariants.p} className="work-item-detail-text">
+                        {getLimitedText(test_case[Constants._TC_]['description'], 200)}
+                      </Text>
                     </TextContent>
                   </FlexItem>
                 </Flex>
@@ -240,7 +238,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
 
   const getTestSpecifications = (section, offset, test_specs, indirect, parent_type, parent_related_to_type) => {
     if (indirect == false){
-      if (mappingViewSelectValue != 'test-specifications'){
+      if (mappingViewSelectValue != Constants._TSs){
         return "";
       }
     } else {
@@ -260,20 +258,29 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <CardBody>
                 <Flex>
                   <FlexItem>
-                    {getWorkItemIcon('test-specification', indirect)}
+                    {getWorkItemIcon(Constants._TS, indirect)}
                   </FlexItem>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h2}>Test Specification {indirect == true ? test_spec['test_specification']['id'] : test_spec['id']}</Text>
+                      <Text component={TextVariants.h2}>Test Specification {test_spec[Constants._TS_]['id']}</Text>
                     </TextContent>
                   </FlexItem>
                   <FlexItem>
                     <Text component={TextVariants.h6}>ver. {test_spec['version']}</Text>
                   </FlexItem>
-                  {indirect == true ? (
+                  <FlexItem>
                     <Label variant="outline" isCompact>
                       {coverageFormat(test_spec['coverage'])}% Coverage
                     </Label>
+                  </FlexItem>
+                  {test_spec['gap'] != 0 ? (
+                    <React.Fragment>
+                      <FlexItem>
+                        <Label color="red" name="label-sw-requirement-coverage" variant="outline" isCompact>
+                          {coverageFormat(test_spec['gap'])}% Gap
+                        </Label>
+                      </FlexItem>
+                    </React.Fragment>
                   ) : ('')}
                   <FlexItem align={{ default: 'alignRight' }}>
                     {indirect == false ? (
@@ -281,10 +288,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       <Button
                         variant="plain"
                         icon={<OutlinedCommentsIcon  />}
-                        onClick={() => setCommentModalInfo(true, 'test-specification', 'api', '', test_specs, cIndex)}>
+                        onClick={() => setCommentModalInfo(true, 'test-specification', Constants._A, '', test_specs, cIndex)}>
                       </Button>
                       <Badge key={3} screenReaderText="Comments">
-                        {test_spec['comment_count']}
+                        {test_spec[Constants._TS_]['comment_count']}
                       </Badge>
                       </React.Fragment>
                     ) : ('')}
@@ -314,25 +321,21 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h5}>{indirect == true ? getLimitedText(test_spec['test_specification']['title'], 100) : getLimitedText(test_spec['title'], 100)}</Text>
-                      <Text component={TextVariants.p}>{indirect == true ? getLimitedText(test_spec['test_specification']['test_description'], 200) : getLimitedText(test_spec['test_description'], 200)}</Text>
+                      <Text component={TextVariants.h5}>{getLimitedText(test_spec[Constants._TS_]['title'], 100)}</Text>
+                      <Text component={TextVariants.p} className="work-item-detail-text">
+                        {getLimitedText(test_spec[Constants._TS_]['test_description'], 200)}
+                      </Text>
                     </TextContent>
                   </FlexItem>
                 </Flex>
-                </CardBody>
+              </CardBody>
               <CardBody>
-                {indirect == true ? getTestCases(section,
-                                                 offset,
-                                                 test_spec['test_specification']['test_cases'],
-                                                 true,
-                                                 'test-specification',
-                                                 parent_type)
-                                  : getTestCases(section,
-                                                 offset,
-                                                 test_spec['test_cases'],
-                                                 true,
-                                                 'test-specification',
-                                                 parent_type)}
+                {getTestCases(section,
+                              offset,
+                              test_spec[Constants._TS_][Constants._TCs_],
+                              true,
+                              'test-specification',
+                              parent_type)}
               </CardBody>
             </Card>
             <Divider />
@@ -341,8 +344,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     }
   }
 
-  const getSwRequirements = (section, offset, mapping) => {
-    if(mappingViewSelectValue != 'sw-requirements'){
+  const getSwRequirements = (section, offset, mapping, indirect, parent_type, parent_related_to_type) => {
+    if(mappingViewSelectValue != Constants._SRs){
       return "";
     }
     if (mapping == undefined){
@@ -357,28 +360,43 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <CardBody>
                 <Flex>
                   <FlexItem>
-                    {getWorkItemIcon('sw-requirement', false)}
+                    {getWorkItemIcon(Constants._SR, false)}
                   </FlexItem>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h2}>Software Requirement</Text>
+                      <Text component={TextVariants.h2}>Software Requirement {mappedItem[Constants._SR_]['id']}</Text>
                     </TextContent>
                   </FlexItem>
                   <FlexItem>
                     <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
                   </FlexItem>
-                  <Label name="label-sw-requirement-coverage" variant="outline" isCompact>
-                    {coverageFormat(mappedItem['coverage'])}% Coverage
-                  </Label>
+                  <FlexItem>
+                    <Label name="label-sw-requirement-coverage" variant="outline" isCompact>
+                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                    </Label>
+                  </FlexItem>
+                  {mappedItem['gap'] != 0 ? (
+                    <React.Fragment>
+                      <FlexItem>
+                        <Label color="red" name="label-sw-requirement-coverage" variant="outline" isCompact>
+                          {coverageFormat(mappedItem['gap'])}% Gap
+                        </Label>
+                      </FlexItem>
+                    </React.Fragment>
+                  ) : ('')}
                   <FlexItem align={{ default: 'alignRight' }}>
-                    <Button
-                      variant="plain"
-                      icon={<OutlinedCommentsIcon  />}
-                      onClick={() => setCommentModalInfo(true, 'sw-requirement', 'api', '', mapping, mIndex)}>
-                    </Button>
-                    <Badge key={3} screenReaderText="Comments">
-                      {mappedItem['comment_count']}
-                    </Badge>
+                    {indirect == false ? (
+                      <React.Fragment>
+                        <Button
+                          variant="plain"
+                          icon={<OutlinedCommentsIcon  />}
+                          onClick={() => setCommentModalInfo(true, Constants._SR, Constants._A, '', mapping, mIndex)}>
+                        </Button>
+                        <Badge key={3} screenReaderText="Comments">
+                          {mappedItem[Constants._SR_]['comment_count']}
+                        </Badge>
+                      </React.Fragment>
+                    ) : ('')}
                     <SwRequirementMenuKebab
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
@@ -392,9 +410,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setDeleteModalInfo={setDeleteModalInfo}
                       setForkModalInfo={setForkModalInfo}
                       api={api}
-                      mappingType={'sw-requirement'}
-                      mappingParentType={'api'}
-                      mappingParentRelatedToType={''}
+                      indirect={indirect}
+                      mappingType={Constants._SR}
+                      mappingParentType={parent_type}
+                      mappingParentRelatedToType={parent_related_to_type}
                       mappingList={mapping}
                       mappingIndex={mIndex}
                       mappingSection={section}
@@ -405,15 +424,18 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h5}>{getLimitedText(mappedItem['title'], 100)}</Text>
-                      <Text component={TextVariants.p}>{getLimitedText(mappedItem['description'], 200)}</Text>
+                      <Text component={TextVariants.h5}>{getLimitedText(mappedItem[Constants._SR_]['title'], 100)}</Text>
+                      <Text component={TextVariants.p} className="work-item-detail-text">
+                        {getLimitedText(mappedItem[Constants._SR_]['description'], 200)}
+                      </Text>
                     </TextContent>
                   </FlexItem>
                 </Flex>
               </CardBody>
               <CardBody>
-                {getTestSpecifications(section, offset, mappedItem['test_specifications'], true, 'sw-requirement', 'api')}
-                {getTestCases(section, offset, mappedItem['test_cases'], true, 'sw-requirement', 'api')}
+                {getSwRequirements(section, offset, mappedItem[Constants._SRs_], true, Constants._SR, parent_type)}
+                {getTestSpecifications(section, offset, mappedItem[Constants._TSs_], true, Constants._SR, parent_type)}
+                {getTestCases(section, offset, mappedItem[Constants._TCs_], true, Constants._SR, parent_type)}
               </CardBody>
             </Card>
             <Divider />
@@ -435,7 +457,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <CardBody>
                 <Flex>
                   <FlexItem>
-                    {getWorkItemIcon('justification', false)}
+                    {getWorkItemIcon(Constants._J, false)}
                   </FlexItem>
                   <FlexItem>
                     <TextContent>
@@ -452,10 +474,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <Button
                       variant="plain"
                       icon={<OutlinedCommentsIcon  />}
-                      onClick={() => setCommentModalInfo(true, 'justification', 'api', '', mapping, mIndex)}>
+                      onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}>
                     </Button>
                     <Badge key={3} screenReaderText="Comments">
-                      {mappedItem['comment_count']}
+                      {mappedItem[Constants._J]['comment_count']}
                     </Badge>
                     <JustificationMenuKebab
                       jModalShowState={jModalShowState}
@@ -475,7 +497,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h5}>{getLimitedText(mappedItem['description'], 100)}</Text>
+                      <Text component={TextVariants.h5} className="work-item-detail-text">
+                        {getLimitedText(mappedItem[Constants._J]['description'], 100)}
+                      </Text>
                     </TextContent>
                   </FlexItem>
                 </Flex>
@@ -493,21 +517,21 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     let work_item_description = '';
 
     if (Object.prototype.hasOwnProperty.call(snippet, "justification")){
-      work_item_type = 'justification';
-      work_item_description = snippet['justification']['description'];
-      work_item_id = snippet['justification']['id'];
+      work_item_type = Constants._J;
+      work_item_description = snippet[Constants._J]['description'];
+      work_item_id = snippet[Constants._J]['id'];
     } else if (Object.prototype.hasOwnProperty.call(snippet, "sw_requirement")){
-      work_item_type = 'sw-requirement';
-      work_item_description = snippet['sw_requirement']['title'];
-      work_item_id = snippet['sw_requirement']['id'];
+      work_item_type = Constants._SR;
+      work_item_description = snippet[Constants._SR_]['title'];
+      work_item_id = snippet[Constants._SR_]['id'];
     } else if (Object.prototype.hasOwnProperty.call(snippet, "test_specification")){
       work_item_type = 'test-specification';
-      work_item_description = snippet['test_specification']['title'];
-      work_item_id = snippet['test_specification']['id'];
+      work_item_description = snippet[Constants._TS_]['title'];
+      work_item_id = snippet[Constants._TS_]['id'];
     } else if (Object.prototype.hasOwnProperty.call(snippet, "test_case")){
-      work_item_type = 'test-case';
-      work_item_description = snippet['test_case']['title'];
-      work_item_id = snippet['test_case']['id'];
+      work_item_type = Constants._TC;
+      work_item_description = snippet[Constants._TC_]['title'];
+      work_item_id = snippet[Constants._TC_]['id'];
     }
 
     return (<React.Fragment>
@@ -581,7 +605,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem align={{ default: 'alignLeft' }}>
                     <LeavesProgressBar
-                      progressValue={snippet['coverage']}
+                      progressValue={snippet['covered']}
                       progressId={"mapping-section-coverage-" + snippetIndex}
                       />
                   </FlexItem>
@@ -609,10 +633,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               </CodeBlock>
             </Td>
             <Td width={50} dataLabel={columnNames.work_items}>
-              {getSwRequirements(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")])}
-              {getTestSpecifications(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, 'api')}
-              {getTestCases(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, 'api')}
-              {getJustifications(snippet['section'], snippet['offset'], snippet['justifications'])}
+              {getSwRequirements(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A, '')}
+              {getTestSpecifications(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A)}
+              {getTestCases(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A)}
+              {getJustifications(snippet['section'], snippet['offset'], snippet[Constants._Js])}
               {/*getSpecifications*/}
             </Td>
           </Tr>

@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   ActionGroup,
   Button,
@@ -41,16 +42,6 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
 
     const [messageValue, setMessageValue] = React.useState();
     const [statusValue, setStatusValue] = React.useState('waiting');
-
-    const _A = 'api';
-    const _J = 'justification';
-    const _M_ = '_mapping_';
-    const _SR = 'sw-requirement';
-    const _SR_ = 'sw_requirement';
-    const _TS = 'test-specification';
-    const _TS_ = 'test_specification';
-    const _TC = 'test-case';
-    const _TC_ = 'test_case';
 
     const resetForm = () => {
         setCommentValue("");
@@ -103,24 +94,24 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
             return;
         }
 
-        if (workItemType == _J){
-          if (parentType == _A){
-            parent_table = _J + _M_ + _A;
+        if (workItemType == Constants._J){
+          if (parentType == Constants._A){
+            parent_table = Constants._J + Constants._M_ + Constants._A;
             parent_id = relationData.relation_id;
           }
-        }  else if (workItemType == _SR) {
-          if (parentType == _A){
-            parent_table = _SR_ + _M_ + _A;
+        }  else if (workItemType == Constants._SR) {
+          if (parentType == Constants._A){
+            parent_table = Constants._SR_ + Constants._M_ + Constants._A;
             parent_id = relationData.relation_id;
           }
-        } else if (workItemType == _TS) {
-          if (parentType == _A){
-            parent_table = _TS_ + _M_ + _A;
+        } else if (workItemType == Constants._TS) {
+          if (parentType == Constants._A){
+            parent_table = Constants._TS_ + Constants._M_ + Constants._A;
             parent_id = relationData.relation_id;
           }
-        } else if (workItemType == _TC) {
-          if (parentType == _A){
-            parent_table = _TC_ + _M_ + _A;
+        } else if (workItemType == Constants._TC) {
+          if (parentType == Constants._A){
+            parent_table = Constants._TC_ + Constants._M_ + Constants._A;
             parent_id = relationData.relation_id;
           }
         }
@@ -153,7 +144,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
               setMessageValue(response.statusText);
               setStatusValue('waiting');
             } else {
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
               handleModalToggle();
               setMessageValue('');
               setStatusValue('waiting');

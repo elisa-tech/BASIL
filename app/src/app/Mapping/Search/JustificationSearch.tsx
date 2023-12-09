@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput } from '@patternfly/react-core';
 import {
   DataList,
@@ -18,8 +19,10 @@ export interface JustificationSearchProps {
   formData;
   formMessage: string;
   handleModalToggle;
+  justifications;
   modalOffset;
   modalSection;
+  loadJustifications;
   loadMappingData;
 }
 
@@ -32,15 +35,16 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
                 'description': ''},
     formMessage = "",
     handleModalToggle,
+    justifications,
     modalOffset,
     modalSection,
+    loadJustifications,
     loadMappingData,
     }: JustificationSearchProps) => {
 
     const [searchValue, setSearchValue] = React.useState(formData.title);
     const [messageValue, setMessageValue] = React.useState(formMessage);
     const [statusValue, setStatusValue] = React.useState('waiting');
-    const [justifications, setJustifications] = React.useState([]);
     const [selectedDataListItemId, setSelectedDataListItemId] = React.useState(-1);
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
@@ -94,24 +98,13 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
-    const loadJustifications = (searchValue) => {
-      let url = baseApiUrl + '/justifications';
-      if (searchValue != undefined){
-        url = url + '?search=' + searchValue;
-      }
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => {
-            setJustifications(data);
-        })
-        .catch((err) => {
-          console.log(err.message);
-        });
-    }
-
     const getJustificationsTable = (justifications) => {
       return justifications.map((justification, jIndex) => (
-        <DataListItem key={justification.id} aria-labelledby={"clickable-action-item-" + justification.id} id={justification.id}>
+        <DataListItem
+          key={justification.id}
+          aria-labelledby={"clickable-action-item-" + justification.id}
+          id={"list-existing-justification-item-" + justification.id}
+          data-id={justification.id}>
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
@@ -148,10 +141,11 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         }
 
         setMessageValue('');
+        const justification_id = document.getElementById(selectedDataListItemId).dataset.id;
 
         const data = {
           'api-id': api.id,
-          'justification': {'id': selectedDataListItemId},
+          'justification': {'id': justification_id},
           'section': modalSection,
           'offset': modalOffset,
           'coverage': coverageValue,
@@ -180,7 +174,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
               setMessageValue('Database updated!');
               handleModalToggle();
               setMessageValue('');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {
@@ -201,6 +195,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         <br />
         <DataList
           isCompact
+          id="list-existing-justifications"
           aria-label="clickable data list example"
           selectedDataListItemId={selectedDataListItemId}
           onSelectDataListItem={onSelectDataListItem}
@@ -240,11 +235,13 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-existing-justification-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-existing-justification-cancel"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

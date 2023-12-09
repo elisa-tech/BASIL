@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   ActionGroup,
   Button,
@@ -28,6 +29,7 @@ export interface TestSpecificationFormProps {
   modalOffset;
   modalSection;
   parentData;
+  parentRelatedToType;
   parentType;
 }
 
@@ -51,6 +53,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     modalOffset,
     modalSection,
     parentData,
+    parentRelatedToType,
     parentType,
     }: TestSpecificationFormProps) => {
 
@@ -81,8 +84,6 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       setExpectedBehaviorValue("");
       setCoverageValue("0");
     }
-
-
 
     React.useEffect(() => {
       if (titleValue == undefined){
@@ -207,7 +208,10 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
         if ((modalIndirect == true) || (formVerb == 'PUT')){
           data['relation-id'] = parentData.relation_id;
-          data['sw-requirement']['id'] = parentData.id;
+          data['relation-to'] = parentRelatedToType;
+          if (parentType == Constants._SR){
+            data['sw-requirement']['id'] = parentData.sw_requirement.id;
+          }
         }
 
         if (formVerb == 'PUT'){
@@ -230,7 +234,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
               handleModalToggle();
               setMessageValue('');
               setStatusValue('waiting');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {

@@ -29,6 +29,8 @@ API
 Install api dependencies via pdm
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+To know more about how to install pdm, click `here <https://pdm-project.org/latest/#installation>`_.
+
 From BASIL project root directory:
 
 ``pdm install``
@@ -41,14 +43,17 @@ For production it is suggested to use a WSGI server instead.
 
 From BASIL project root directory:
 
-``python3 api/api.py``
+``pdm run python3 api/api.py``
 
-As default configuration the API starts on port 5000 and the server is available in the network if your firewall allow it.
+As default BASIL is configured to work on your local machine and to be used from your machine only.
+API will starts on port 5000 and it will be available in the network if your firewall allow it.
 To be able to edit the port you should edit following files:
 
-+ api/api_url.py
-+ app/src/app/Mapping/Mapping.tsx
-+ app/src/app/Dashboard/Dashboard.tsx
++ api/api_url.py - variable **api_port**
++ app/src/app/Constants/constants.tsx - variable **API_BASE_URL**
+
+**IMPORTANT**
+If you want to configure BASIL to be used from multiple clients, or in general, if you want to host BASIL on a different machine from the one that call it, you should setup above mentioned files with the ip address of the server machine.
 
 -------------
 Front End APP
@@ -117,5 +122,5 @@ Initialize the sqlite database, you will find it in db/basil.db
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:

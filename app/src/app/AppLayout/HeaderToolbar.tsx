@@ -99,7 +99,13 @@ const HeaderToolbar: React.FunctionComponent = (notificationCount) => {
               <Button aria-label="Settings" variant={ButtonVariant.plain} icon={<CogIcon />} />
             </ToolbarItem>
             <ToolbarItem>
-              <Button aria-label="Help" variant={ButtonVariant.plain} icon={<QuestionCircleIcon />} />
+              <Button
+                component="a" 
+                href="https://basil-the-fusa-spice.readthedocs.io/"
+                target="_blank"
+                aria-label="Help"
+                variant={ButtonVariant.plain}
+                icon={<QuestionCircleIcon />} />
             </ToolbarItem>
           </ToolbarGroup>
           <ToolbarItem visibility={{ default: 'hidden', md: 'visible', lg: 'hidden' }}>

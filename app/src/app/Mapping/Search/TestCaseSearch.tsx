@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput} from '@patternfly/react-core';
 import {
   DataList,
@@ -25,6 +26,8 @@ export interface TestCaseSearchProps {
   modalSection;
   modalIndirect;
   loadMappingData;
+  loadTestCases;
+  testCases;
 }
 
 export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
@@ -46,21 +49,17 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
     modalSection,
     modalIndirect,
     loadMappingData,
+    loadTestCases,
+    testCases,
     }: TestCaseSearchProps) => {
 
     const [searchValue, setSearchValue] = React.useState(formData.title);
     const [messageValue, setMessageValue] = React.useState(formMessage);
     const [statusValue, setStatusValue] = React.useState('waiting');
-    const [testCases, setTestCases] = React.useState([]);
     const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('');
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
     const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error');
-
-    const _A = 'api';
-    const _SR = 'sw-requirement';
-    const _TS = 'test-specification';
-    const _TS_ = 'test_specification';
 
     const resetForm = () => {
         setSelectedDataListItemId(-1);
@@ -103,25 +102,13 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchValue]);
 
-
-    const loadTestCases = (searchValue) => {
-      const url = baseApiUrl + '/test-cases';
-      if (searchValue != undefined){
-        url = url + '?search=' + searchValue;
-      }
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => {
-            setTestCases(data);
-        })
-        .catch((err) => {
-          console.log(err.message);
-        });
-    }
-
     const getTestCasesTable = (test_cases) => {
       return test_cases.map((test_case, tcIndex) => (
-        <DataListItem key={test_case.id} aria-labelledby={"clickable-action-item-" + test_case.id} id={test_case.id}>
+        <DataListItem
+          key={test_case.id}
+          aria-labelledby={"clickable-action-item-" + test_case.id}
+          id={"list-existing-test-case-item-" + test_case.id}
+          data-id={test_case.id}>
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
@@ -165,10 +152,11 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
         }
 
         setMessageValue('');
+        const test_case_id = document.getElementById(selectedDataListItemId).dataset.id;
 
         const data = {
           'api-id': api.id,
-          'test-case': {'id': selectedDataListItemId},
+          'test-case': {'id': test_case_id},
           'section': modalSection,
           'offset': modalOffset,
           'coverage': coverageValue,
@@ -177,14 +165,14 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
         if (modalIndirect == true){
           data['relation-id'] = parentData.relation_id;
           data['relation-to'] = parentRelatedToType;
-          if (parentType == _TS) {
-            if (parentRelatedToType == _A){
-              data[parentType] = {'id': parentData['id']};
-            } else if (parentRelatedToType == _SR){
-              data[parentType] = {'id': parentData[_TS_]['id']};
+          if (parentType == Constants._TS) {
+            if (parentRelatedToType == Constants._A){
+              data[parentType] = {'id': parentData[Constants._TS_]['id']};
+            } else if (parentRelatedToType == Constants._SR){
+              data[parentType] = {'id': parentData[Constants._TS_]['id']};
             }
-          } else if (parentType == _SR){
-            data[parentType] = {'id': parentData['id']};
+          } else if (parentType == Constants._SR){
+            data[parentType] = {'id': parentData[Constants._SR_]['id']};
           } else {
             setMessageValue("Wrong data.");
             setStatusValue("waiting");
@@ -215,7 +203,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
               setMessageValue('Database updated!');
               handleModalToggle();
               setMessageValue('');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {
@@ -238,6 +226,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
         <br />
         <DataList
           isCompact
+          id="list-existing-test-cases"
           aria-label="clickable data list example"
           selectedDataListItemId={selectedDataListItemId}
           onSelectDataListItem={onSelectDataListItem}
@@ -276,11 +265,13 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-existing-test-case-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-existing-test-case-cancel"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

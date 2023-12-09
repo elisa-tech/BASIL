@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput } from '@patternfly/react-core';
 import {
   DataList,
@@ -18,9 +19,15 @@ export interface SwRequirementSearchProps {
   formData;
   formMessage: string;
   handleModalToggle;
+  modalIndirect;
   modalOffset;
   modalSection;
   loadMappingData;
+  loadSwRequirements;
+  parentData;
+  parentType;
+  parentRelatedToType;
+  swRequirements;
 }
 
 export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchProps> = ({
@@ -33,15 +40,20 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
                 'description': ''},
     formMessage = "",
     handleModalToggle,
+    modalIndirect,
     modalOffset,
     modalSection,
     loadMappingData,
+    loadSwRequirements,
+    parentData,
+    parentType,
+    parentRelatedToType,
+    swRequirements,
     }: SwRequirementSearchProps) => {
 
     const [searchValue, setSearchValue] = React.useState(formData.title);
     const [messageValue, setMessageValue] = React.useState(formMessage);
     const [statusValue, setStatusValue] = React.useState('waiting');
-    const [swRequirements, setSwRequirements] = React.useState([]);
     const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('');
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
@@ -95,21 +107,15 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusValue]);
 
-    const loadSwRequirements = (searchValue) => {
-      const url = baseApiUrl + '/sw-requirements?search=' + searchValue;
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => {
-            setSwRequirements(data);
-        })
-        .catch((err) => {
-          console.log(err.message);
-        });
-    }
+
 
     const getSwRequirementsTable = (sw_requirements) => {
       return sw_requirements.map((sw_requirement, srIndex) => (
-        <DataListItem key={sw_requirement.id} aria-labelledby={"clickable-action-item-" + sw_requirement.id} id={sw_requirement.id}>
+        <DataListItem
+          key={sw_requirement.id}
+          aria-labelledby={"clickable-action-item-" + sw_requirement.id}
+          id={"list-existing-sw-requirement-item-" + sw_requirement.id}
+          data-id={sw_requirement.id}>
           <DataListItemRow>
             <DataListItemCells
               dataListCells={[
@@ -147,9 +153,10 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
 
         setMessageValue('');
 
+        const sw_requirement_id = document.getElementById(selectedDataListItemId).dataset.id;
+
         const data = {
-          'api-id': api.id,
-          'sw-requirement': {'id': selectedDataListItemId},
+          'sw-requirement': {'id': sw_requirement_id},
           'section': modalSection,
           'offset': modalOffset,
           'coverage': coverageValue,
@@ -161,7 +168,16 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
           return;
         }
 
-        fetch(baseApiUrl + '/mapping/api/sw-requirements', {
+        if (modalIndirect == true){
+          console.log("parentData: " + Object.keys(parentData));
+          data['relation-id'] = parentData.relation_id;
+          data['relation-to'] = parentRelatedToType;
+          data['parent-sw-requirement'] = {'id': parentData[Constants._SR_]['id']};
+        } else {
+          data['api-id'] = api.id;
+        }
+
+        fetch(baseApiUrl + '/mapping/' + parentType + '/sw-requirements', {
           method: formVerb,
           headers: {
             Accept: 'application/json',
@@ -178,7 +194,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
               setMessageValue('Database updated!');
               handleModalToggle();
               setMessageValue('');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {
@@ -199,6 +215,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
         <br />
         <DataList
           isCompact
+          id="list-existing-sw-requirements"
           aria-label="clickable data list example"
           selectedDataListItemId={selectedDataListItemId}
           onSelectDataListItem={onSelectDataListItem}
@@ -237,11 +254,13 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
           {formDefaultButtons ? (
             <ActionGroup>
               <Button
+                id="btn-mapping-existing-sw-requirement-submit"
                 variant="primary"
                 onClick={() => setStatusValue('submitted')}>
               Submit
               </Button>
               <Button
+                id="btn-mapping-existing-sw-requirement-cancel"
                 variant="secondary"
                 onClick={resetForm}>
                 Reset

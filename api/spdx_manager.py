@@ -5,7 +5,9 @@ from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.api_test_specification import ApiTestSpecificationModel
 from db.models.api_test_case import ApiTestCaseModel
 from db.models.api_justification import ApiJustificationModel
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 import hashlib
 import json
@@ -158,6 +160,77 @@ class SPDXManager():
                    comment="Justification")
         return tmp
 
+    def get_x_sr_children(self, xsr, dbi):
+
+        files = []
+        relationships = []
+
+        if isinstance(xsr, ApiSwRequirementModel):
+            mapping_field_id = 'sw_requirement_mapping_api_id'
+            mapping_spdx_id = 'API'
+        elif isinstance(xsr, SwRequirementSwRequirementModel):
+            mapping_field_id = 'sw_requirement_mapping_sw_requirement_id'
+            mapping_spdx_id = 'SR'
+        else:
+            return files, relationships
+
+        # SwRequirementSwRequirementModel
+        sr_srs = dbi.session.query(SwRequirementSwRequirementModel).filter(
+            getattr(SwRequirementSwRequirementModel, mapping_field_id) == xsr.id
+        ).all()
+        for sr_sr in sr_srs:
+            spdx_sr = self.SwRequirementSPDX(sr_sr.sw_requirement, dbi.session)
+            sr_sr_rel = Relationship(f"SR-{sr_sr.sw_requirement.id}",
+                                     RelationshipType.REQUIREMENT_DESCRIPTION_FOR,
+                                     f"{mapping_spdx_id}-SR-{xsr.id}")
+            files += [spdx_sr]
+            relationships += [sr_sr_rel]
+
+            child_files, child_relationships = self.get_x_sr_children(sr_sr, dbi)
+            files += child_files
+            relationships += child_relationships
+
+        # SwRequirementTestSpecificationModel
+        sr_tss = dbi.session.query(SwRequirementTestSpecificationModel).filter(
+            getattr(SwRequirementTestSpecificationModel, mapping_field_id) == xsr.id
+        ).all()
+        for sr_ts in sr_tss:
+            spdx_ts = self.TestSpecificationSPDX(sr_ts.test_specification, dbi.session)
+            asr_ts_rel = Relationship(f"TS-{sr_ts.test_specification.id}",
+                                      RelationshipType.TEST_OF,
+                                      f"{mapping_spdx_id}-SR-{xsr.id}")
+            files += [spdx_ts]
+            relationships += [asr_ts_rel]
+
+            # TestSpecificationTestCaseModel
+            ts_tcs = dbi.session.query(TestSpecificationTestCaseModel).filter(
+                TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == sr_ts.id
+            ).all()
+            for ts_tc in ts_tcs:
+                spdx_tc = self.TestCaseSPDX(ts_tc.test_case, dbi.session)
+                asr_tc_rel = Relationship(f"TC-{ts_tc.test_case.id}",
+                                          RelationshipType.TEST_CASE_OF,
+                                          f"{mapping_spdx_id}-SR-{xsr.id}")
+                ts_tc_rel = Relationship(f"TS-{sr_ts.test_specification.id}",
+                                         RelationshipType.SPECIFICATION_FOR,
+                                         f"TC-{ts_tc.test_case.id}", )
+                files += [spdx_tc]
+                relationships += [asr_tc_rel, ts_tc_rel]
+
+        # SwRequirementTestCaseModel
+        sr_tcs = dbi.session.query(SwRequirementTestCaseModel).filter(
+            getattr(SwRequirementTestCaseModel, mapping_field_id) == xsr.id
+        ).all()
+        for sr_tc in sr_tcs:
+            spdx_tc = self.TestCaseSPDX(sr_tc.test_case, dbi.session)
+            xsr_tc_rel = Relationship(f"TC-{sr_tc.test_case.id}",
+                                      RelationshipType.TEST_CASE_OF,
+                                      f"{mapping_spdx_id}-SR-{xsr.id}")
+            files += [spdx_tc]
+            relationships += [xsr_tc_rel]
+
+        return files, relationships
+
     def add_api_to_export(self, api_id):
         dbi = db_orm.DbInterface()
         api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -186,36 +259,13 @@ class SPDXManager():
                                       RelationshipType.REQUIREMENT_DESCRIPTION_FOR,
                                       f"API-SR-{asr.id}")
 
-            # SwRequirementTestSpecification
-            sr_tss = dbi.session.query(SwRequirementTestSpecificationModel).filter(
-                SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == asr.id
-            ).all()
-            for sr_ts in sr_tss:
-                spdx_ts = self.TestSpecificationSPDX(sr_ts.test_specification, dbi.session)
-                asr_ts_rel = Relationship(f"TS-{sr_ts.test_specification.id}",
-                                          RelationshipType.TEST_OF,
-                                          f"API-SR-{asr.id}")
-                self.document.files += [spdx_ts]
-                self.document.relationships += [asr_ts_rel]
-
-                # TestSpecificationTestCase
-                ts_tcs = dbi.session.query(TestSpecificationTestCaseModel).filter(
-                    TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == sr_ts.id
-                ).all()
-                for ts_tc in ts_tcs:
-                    spdx_tc = self.TestCaseSPDX(ts_tc.test_case, dbi.session)
-                    asr_tc_rel = Relationship(f"TC-{ts_tc.test_case.id}",
-                                              RelationshipType.TEST_CASE_OF,
-                                              f"API-SR-{asr.id}")
-                    ts_tc_rel = Relationship(f"TS-{sr_ts.test_specification.id}",
-                                             RelationshipType.SPECIFICATION_FOR,
-                                             f"TC-{ts_tc.test_case.id}",)
-                    self.document.files += [spdx_tc]
-                    self.document.relationships += [asr_tc_rel, ts_tc_rel]
-
             self.document.snippets += [spdx_asr]
             self.document.files += [spdx_sr]
             self.document.relationships += [api_asr_rel, asr_sr_rel]
+
+            child_files, child_relationships = self.get_x_sr_children(asr, dbi)
+            self.document.files += child_files
+            self.document.relationships += child_relationships
 
         # ApiTestSpecification
         api_test_specifications = dbi.session.query(ApiTestSpecificationModel).filter(

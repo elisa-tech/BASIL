@@ -65,14 +65,23 @@ class TestSpecificationTestCaseModel(Base):
         _dict = {'relation_id': self.id,
                  'test_specification_mapping_api_id': self.test_specification_mapping_api_id,
                  'test_specification_mapping_sw_requirement_id': self.test_specification_mapping_sw_requirement_id,
-                 'coverage': self.coverage}
+                 'coverage': self.coverage,
+                 'covered': self.coverage}
+
+        _dict['gap'] = _dict['coverage'] - _dict['covered']
 
         if self.test_specification_mapping_api_id:
             _dict['api'] = {'id': self.test_specification_mapping_api.api_id}
             _dict['test_specification'] = {'id': self.test_specification_mapping_api.test_specification.id}
         if self.test_specification_mapping_sw_requirement_id:
-            _dict['sw-requirement'] = {
-                'id': self.test_specification_mapping_sw_requirement.sw_requirement_mapping_api.sw_requirement_id}
+            if self.test_specification_mapping_sw_requirement.sw_requirement_mapping_api:
+                _dict['sw_requirement'] = {
+                    'id': self.test_specification_mapping_sw_requirement
+                    .sw_requirement_mapping_api.sw_requirement_id}
+            else:
+                _dict['sw_requirement'] = {
+                    'id': self.test_specification_mapping_sw_requirement
+                    .sw_requirement_mapping_sw_requirement.sw_requirement_id}
             _dict['test_specification'] = {'id': self.test_specification_mapping_sw_requirement.test_specification.id}
 
         if db_session is not None:

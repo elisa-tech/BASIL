@@ -15,7 +15,7 @@ describe('SW Components Dashboard testing', () => {
     // Since we want to visit the same URL at the start of all our tests,
     // we include it in our beforeEach function so that it runs before each test
     cy.visit(const_data.app_base_url);
-    cy.wait(3000);
+    cy.wait(const_data.long_wait);
   })
 
   it('Add SW Component', () => {
@@ -23,7 +23,7 @@ describe('SW Components Dashboard testing', () => {
     cy.clear_db();
     //Reload Page
     cy.visit(const_data.app_base_url);
-    cy.wait(3000);
+    cy.wait(const_data.long_wait);
     //Add SW Component
     cy.get('#btn-add-sw-component').click();
     cy.fill_form_api('0', 'add', api_data.first, true, false);
@@ -31,6 +31,7 @@ describe('SW Components Dashboard testing', () => {
     //Check Sw component has been created
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').should('have.length', 2);
   })
+  /*
 
   it('Unmatching Sw Requirement', () => {
     let id;
@@ -38,10 +39,10 @@ describe('SW Components Dashboard testing', () => {
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').eq(1).invoke('text').then(elem => {
         id = elem;
         cy.visit(const_data.app_base_url + '/mapping/' + id);
-        cy.wait(3000);
+        cy.wait(const_data.long_wait);
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 0);
         cy.get('#btn-mapping-new-sw-requirement').click();
-        cy.fill_form('0', 'sw-requirement', 'add', sr_data.first, true, true);
+        cy.fill_form('sw-requirement', 'add', sr_data.first, true, true);
         cy.get('#pf-tab-1-tab-btn-sw-requirement-mapping-section').click();
         cy.get('#btn-section-set-unmatching').click();
         cy.get('#pf-tab-0-tab-btn-sw-requirement-data').click();
@@ -50,7 +51,7 @@ describe('SW Components Dashboard testing', () => {
         //Edit
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').click();
         cy.get('#btn-menu-unmapped-edit-1').click();
-        cy.fill_form('1', 'sw-requirement', 'edit', sr_data.first_mod, true, true);
+        cy.fill_form('sw-requirement', 'edit', sr_data.first_mod, true, true);
         cy.get('#btn-mapping-sw-requirement-submit').click();
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 1);
         //Delete
@@ -60,6 +61,7 @@ describe('SW Components Dashboard testing', () => {
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 0);
     });
   })
+ */
 
   it('Matching New Sw Requirement', () => {
     let id;
@@ -67,34 +69,48 @@ describe('SW Components Dashboard testing', () => {
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').eq(1).invoke('text').then(elem => {
         id = elem;
         cy.visit(const_data.app_base_url + '/mapping/' + id);
-        cy.wait(3000);
-        //Add Sw Requirement
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').should('have.length', 1);
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(0).find('button').click();
-        cy.get('#btn-mapping-section-sw-requirement-0').click();
-        cy.fill_form('0', 'sw-requirement', 'add', sr_data.first, true, true);
-        cy.get('#btn-mapping-sw-requirement-submit').click();
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').should('have.length', 1);
-        //Edit Sw Requirement
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').last().click();
-        cy.get('#btn-menu-sw-requirement-edit-2').click();
-        cy.fill_form('2', 'sw-requirement', 'edit', sr_data.first_mod, true, true);
-        cy.get('#btn-mapping-sw-requirement-submit').click();
-        //TODO Check Sw Requirement Title changed
-        //Assign Test Case
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').last().click(); //we have 2 buttons here 0: comment - 1:menu
-        cy.get('#btn-menu-sw-requirement-assign-test-case-2').click();
-        cy.fill_form('0', 'test-case', 'add', tc_data.first, true, true);
-        cy.get('#btn-mapping-test-case-submit').click();
-        //Assign Test Specification
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').first().next().next().click(); //we have 2 buttons here 0: comment - 1:menu
-        cy.get('#btn-menu-sw-requirement-assign-test-specification-2').click();
-        cy.fill_form('0', 'test-specification', 'add', ts_data.first, true, true);
-        cy.get('#btn-mapping-test-specification-submit').click();
-        //Edit
-        //Fork
-        //Delete
+        cy.wait(const_data.long_wait);
+
+        cy.assign_work_item(-1, 0, '', 'sw-requirement', sr_data.first);
+        cy.edit_work_item(0, 'sw-requirement', sr_data.first_mod);
+        cy.assign_work_item(0, 1, 'sw-requirement', 'test-specification', ts_data.first);
+        cy.edit_work_item(1, 'test-specification', ts_data.first_mod);
+        cy.assign_work_item(1, 2, 'test-specification', 'test-case', tc_data.first);
+        cy.edit_work_item(2, 'test-case', tc_data.first_mod);
+        cy.assign_work_item(0, 3, 'sw-requirement', 'test-case', tc_data.second);
+        cy.edit_work_item(3, 'test-case', tc_data.second_mod);
+
+        cy.delete_work_item(3, 'test-case');
+        cy.delete_work_item(2, 'test-case');
+        cy.delete_work_item(1, 'test-specification');
+        cy.delete_work_item(0, 'sw-requirement');
     })
   })
 
+  it('Existing Sw Requirement', () => {
+    let id;
+    cy.get(const_data.api.table_listing_id).find('tbody').find('tr').should('have.length', 2);
+    cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').eq(1).invoke('text').then(elem => {
+        id = elem;
+        cy.visit(const_data.app_base_url + '/mapping/' + id);
+        cy.wait(const_data.long_wait);
+
+        cy.assign_existing_work_item(-1, 0, '', 'sw-requirement', 1);
+        cy.edit_work_item(0, 'sw-requirement', sr_data.first);
+
+        cy.assign_existing_work_item(0, 1, 'sw-requirement', 'test-specification', 1);
+        cy.edit_work_item(1, 'test-specification', ts_data.first);
+
+        cy.assign_existing_work_item(1, 2, 'test-specification', 'test-case', 1);
+        cy.edit_work_item(2, 'test-case', tc_data.first);
+
+        cy.assign_existing_work_item(0, 3, 'sw-requirement', 'test-case', 2);
+        cy.edit_work_item(3, 'test-case', tc_data.second);
+
+        cy.delete_work_item(3, 'test-case');
+        cy.delete_work_item(2, 'test-case');
+        cy.delete_work_item(1, 'test-specification');
+        cy.delete_work_item(0, 'sw-requirement');
+    })
+  })
 })

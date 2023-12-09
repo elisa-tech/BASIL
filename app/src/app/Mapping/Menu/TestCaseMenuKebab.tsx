@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Dropdown,
   DropdownItem,
@@ -48,11 +49,9 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
     setIsOpen(false);
   };
 
-  const _TC = 'test-case';
-
   const getTestCase = () => {
     if (indirect == true){
-      return mappingList[mappingIndex]['test_case'];
+      return mappingList[mappingIndex][Constants._TC_];
     } else {
       return mappingList[mappingIndex];
     }
@@ -81,10 +80,11 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
 
         <DropdownItem
           value={0}
+          id={"btn-menu-test-case-delete-" + mappingList[mappingIndex].relation_id}
           key="delete"
           className="danger-text"
           onClick={() => (setDeleteModalInfo(true,
-                                             _TC,
+                                             Constants._TC,
                                              mappingParentType,
                                              mappingParentRelatedToType,
                                              mappingList,
@@ -93,6 +93,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         </DropdownItem>
         <DropdownItem
           value={1}
+          id={"btn-menu-test-case-edit-" + mappingList[mappingIndex].relation_id}
           key="edit"
           onClick={() => (setTcModalInfo(true,
                                          indirect,
@@ -116,7 +117,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           value={3}
           key="history"
           onClick={() => (setHistoryModalInfo(true,
-                                              _TC,
+                                              Constants._TC,
                                               mappingParentType,
                                               mappingList[mappingIndex].relation_id))}>
           History
@@ -125,7 +126,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           value={4}
           key="show-details"
           onClick={() => (setDetailsModalInfo(true,
-                                              _TC,
+                                              Constants._TC,
                                               getTestCase()['id']))}>
           Show Details
         </DropdownItem>
@@ -133,7 +134,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           value={5}
           key="usage"
           onClick={() => (setUsageModalInfo(true,
-                                            _TC,
+                                            Constants._TC,
                                             getTestCase()['id']))}>
           Usage
         </DropdownItem>

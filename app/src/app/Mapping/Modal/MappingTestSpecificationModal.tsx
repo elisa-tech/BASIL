@@ -54,7 +54,9 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   setModalOffset,
   setModalSection,
   }: MappingTestSpecificationModalProps) => {
+
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [testSpecifications, setTestSpecifications] = React.useState([]);
 
   const handleModalToggle = () => {
     const new_state = !modalShowState;
@@ -66,6 +68,17 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
     setIsModalOpen(modalShowState);
   }, [modalShowState]);
 
+  const loadTestSpecifications = (searchValue) => {
+    const url = baseApiUrl + '/test-specifications?search=' + searchValue;
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+          setTestSpecifications(data);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  }
 
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
   // Toggle currently active tab
@@ -172,6 +185,8 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
             parentRelatedToType={parentRelatedToType}
             handleModalToggle={handleModalToggle}
             loadMappingData={loadMappingData}
+            loadTestSpecifications={loadTestSpecifications}
+            testSpecifications={testSpecifications}
             baseApiUrl={baseApiUrl}
             modalIndirect={modalIndirect}
             modalOffset={modalOffset}

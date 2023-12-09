@@ -114,7 +114,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
             <Td dataLabel={columnNames.category}>{dataRow.category}</Td>
             <Td dataLabel={columnNames.coverage}>
               <LeavesProgressBar
-                progressValue={dataRow.coverage}
+                progressValue={dataRow.covered}
                 progressId={"api-coverage-" + dataRow.id}
               />
             </Td>

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Constants from '../Constants/constants';
 import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants, SearchInput, Tab, TabTitleText, Tabs } from '@patternfly/react-core';
 import { APIListingPageSection } from './APIListingPageSection';
 
@@ -10,7 +11,6 @@ const Dashboard: React.FunctionComponent = () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const [libraries, setLibraries] = React.useState([]);
   const [currentLibrary, setCurrentLibrary] = React.useState('');
-  const API_BASE_URL = 'http://localhost:5000';
   const search = window.location.search;
   const params = new URLSearchParams(search);
   const qsCurrentLibrary = params.get('currentLibrary');
@@ -24,7 +24,7 @@ const Dashboard: React.FunctionComponent = () => {
    }
 
   const loadLibraries = (current) => {
-    fetch(API_BASE_URL + '/libraries')
+    fetch(Constants.API_BASE_URL + '/libraries')
       .then((res) => res.json())
       .then((data) => {
         setLibraries(data);
@@ -43,7 +43,7 @@ const Dashboard: React.FunctionComponent = () => {
       return;
     }
 
-    const base_url = API_BASE_URL + '/apis?field1=library&filter1=';
+    const base_url = Constants.API_BASE_URL + '/apis?field1=library&filter1=';
     let url = "";
     if (searchValue.trim().length > 0){
       url = base_url + currentLibrary + "&search=" + searchValue.trim();
@@ -143,7 +143,7 @@ const Dashboard: React.FunctionComponent = () => {
         apis={apis}
         searchValue={searchValue}
         totalCoverage={totalCoverage}
-        baseApiUrl={API_BASE_URL}/>
+        baseApiUrl={Constants.API_BASE_URL}/>
     </React.Fragment>
   )
 }

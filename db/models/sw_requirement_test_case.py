@@ -1,6 +1,7 @@
 from datetime import datetime
 from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.db_base import Base
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 from sqlalchemy import BigInteger, DateTime, Integer
@@ -10,6 +11,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm.exc import NoResultFound
+from typing import Optional
 
 
 class SwRequirementTestCaseModel(Base):
@@ -18,9 +20,14 @@ class SwRequirementTestCaseModel(Base):
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
-    sw_requirement_mapping_api: Mapped["ApiSwRequirementModel"] = relationship(
+    sw_requirement_mapping_api: Mapped[Optional["ApiSwRequirementModel"]] = relationship(
         "ApiSwRequirementModel", foreign_keys="SwRequirementTestCaseModel.sw_requirement_mapping_api_id")
-    sw_requirement_mapping_api_id: Mapped[int] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+    sw_requirement_mapping_sw_requirement: Mapped[Optional["SwRequirementSwRequirementModel"]] = relationship(
+        "SwRequirementSwRequirementModel",
+        foreign_keys="SwRequirementTestCaseModel.sw_requirement_mapping_sw_requirement_id")
+    sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sw_requirement_mapping_sw_requirement.id"))
     test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id"))
     test_case: Mapped["TestCaseModel"] = relationship(
         "TestCaseModel", foreign_keys="SwRequirementTestCaseModel.test_case_id")
@@ -28,9 +35,17 @@ class SwRequirementTestCaseModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, sw_requirement_mapping_api, test_case, coverage):
-        self.sw_requirement_mapping_api = sw_requirement_mapping_api
-        self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
+    def __init__(self,
+                 sw_requirement_mapping_api,
+                 sw_requirement_mapping_sw_requirement,
+                 test_case,
+                 coverage):
+        if sw_requirement_mapping_api:
+            self.sw_requirement_mapping_api = sw_requirement_mapping_api
+            self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
+        if sw_requirement_mapping_sw_requirement:
+            self.sw_requirement_mapping_sw_requirement = sw_requirement_mapping_sw_requirement
+            self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement.id
         self.test_case = test_case
         self.test_case_id = test_case.id
         self.coverage = coverage
@@ -38,10 +53,11 @@ class SwRequirementTestCaseModel(Base):
         self.updated_at = self.created_at
 
     def __repr__(self) -> str:
-        return f"SwRequirementTestCaseModel(id={self.id!r}, " \
-               f"sw_requirement_mapping_api_id={self.sw_requirement_mapping_api_id!r}, " \
-               f"test_case_id={self.test_case_id!r}, " \
-               f"coverage={self.coverage!r})"
+        tmp = "SwRequirementTestCaseModel("
+        for field in self.__table__.columns.keys():
+            tmp += f"{field}={getattr(self, field)}, "
+        tmp += ")"
+        return tmp
 
     def current_version(self, db_session):
         last_mapping = db_session.query(SwRequirementTestCaseHistoryModel).filter(
@@ -54,11 +70,18 @@ class SwRequirementTestCaseModel(Base):
 
     def as_dict(self, full_data=False, db_session=None):
         _dict = {'relation_id': self.id,
-                 'sw_requirement_mapping_api': self.sw_requirement_mapping_api.as_dict(),
-                 'sw_requirement_mapping_api_id': self.sw_requirement_mapping_api_id,
-                 'api': {'id': self.sw_requirement_mapping_api.api_id},
-                 'sw_requirement': {'id': self.sw_requirement_mapping_api.sw_requirement_id},
-                 'coverage': self.coverage}
+                 'coverage': self.coverage,
+                 'covered': self.coverage}
+
+        _dict['gap'] = _dict['coverage'] - _dict['covered']
+
+        if self.sw_requirement_mapping_api_id:
+            _dict['api'] = {'id': self.sw_requirement_mapping_api.api_id}
+            _dict['sw_requirement'] = {'id': self.sw_requirement_mapping_api.sw_requirement.id}
+        if self.sw_requirement_mapping_sw_requirement_id:
+            _dict['direct_sw_requirement'] = {
+                'id': self.sw_requirement_mapping_sw_requirement.get_parent_sw_requirement().id}
+            _dict['sw_requirement'] = {'id': self.sw_requirement_mapping_sw_requirement.sw_requirement.id}
 
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
@@ -117,6 +140,7 @@ def receive_after_update(mapper, connection, target):
         insert_query = insert(SwRequirementTestCaseHistoryModel).values(
             id=target.id,
             sw_requirement_mapping_api_id=target.sw_requirement_mapping_api_id,
+            sw_requirement_mapping_sw_requirement_id=target.sw_requirement_mapping_sw_requirement_id,
             test_case_id=target.test_case_id,
             coverage=target.coverage,
             version=version + 1
@@ -129,6 +153,7 @@ def receive_after_insert(mapper, connection, target):
     insert_query = insert(SwRequirementTestCaseHistoryModel).values(
         id=target.id,
         sw_requirement_mapping_api_id=target.sw_requirement_mapping_api_id,
+        sw_requirement_mapping_sw_requirement_id=target.sw_requirement_mapping_sw_requirement_id,
         test_case_id=target.test_case_id,
         coverage=target.coverage,
         version=1
@@ -143,25 +168,26 @@ class SwRequirementTestCaseHistoryModel(Base):
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())
-    sw_requirement_mapping_api_id: Mapped[int] = mapped_column(Integer())
+    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(Integer())
+    sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(Integer())
     test_case_id: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, sw_requirement_mapping_api_id, test_case_id, coverage, version):
+    def __init__(self, id, sw_requirement_mapping_api_id, sw_requirement_mapping_sw_requirement_id,
+                 test_case_id, coverage, version):
         self.id = id
         self.sw_requirement_mapping_api_id = sw_requirement_mapping_api_id
+        self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement_id
         self.test_case_id = test_case_id
         self.coverage = coverage
         self.version = version
         self.created_at = datetime.now()
 
     def __repr__(self) -> str:
-        return f"SwRequirementTestCaseHistoryModel(row_id={self.row_id!r}, " \
-               f"id={self.id!r}, " \
-               f"version={self.version!r}, " \
-               f"sw_requirement_mapping_api_id={self.sw_requirement_mapping_api_id!r}, " \
-               f"test_case_id={self.test_case_id!r}, " \
-               f"coverage={self.coverage!r}, " \
-               f"version={self.version!r})"
+        tmp = "SwRequirementTestCaseHistoryModel("
+        for field in self.__table__.columns.keys():
+            tmp += f"{field}={getattr(self, field)}, "
+        tmp += ")"
+        return tmp

@@ -1,6 +1,7 @@
 from datetime import datetime
 from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.db_base import Base
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 from sqlalchemy import BigInteger, DateTime, Integer
 from sqlalchemy import event, insert, select
@@ -9,6 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm.exc import NoResultFound
+from typing import Optional
 
 
 class SwRequirementTestSpecificationModel(Base):
@@ -17,9 +19,14 @@ class SwRequirementTestSpecificationModel(Base):
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
-    sw_requirement_mapping_api: Mapped["ApiSwRequirementModel"] = relationship(
+    sw_requirement_mapping_api: Mapped[Optional["ApiSwRequirementModel"]] = relationship(
         "ApiSwRequirementModel", foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id")
-    sw_requirement_mapping_api_id: Mapped[int] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+    sw_requirement_mapping_sw_requirement: Mapped[Optional["SwRequirementSwRequirementModel"]] = relationship(
+        "SwRequirementSwRequirementModel",
+        foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_sw_requirement_id")
+    sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sw_requirement_mapping_sw_requirement.id"))
     test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id"))
     test_specification: Mapped["TestSpecificationModel"] = relationship(
         "TestSpecificationModel", foreign_keys="SwRequirementTestSpecificationModel.test_specification_id")
@@ -27,20 +34,29 @@ class SwRequirementTestSpecificationModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, sw_requirement_mapping_api, test_specification, coverage):
+    def __init__(self,
+                 sw_requirement_mapping_api,
+                 sw_requirement_mapping_sw_requirement,
+                 test_specification,
+                 coverage):
+        if sw_requirement_mapping_api:
+            self.sw_requirement_mapping_api = sw_requirement_mapping_api
+            self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
+        if sw_requirement_mapping_sw_requirement:
+            self.sw_requirement_mapping_sw_requirement = sw_requirement_mapping_sw_requirement
+            self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement.id
         self.test_specification = test_specification
         self.test_specification_id = test_specification.id
-        self.sw_requirement_mapping_api = sw_requirement_mapping_api
-        self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
         self.coverage = coverage
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
     def __repr__(self) -> str:
-        return f"SwRequirementTestSpecificationModel(id={self.id!r}, " \
-               f"test_specification_id={self.test_specification_id!r}, " \
-               f"sw_requirement_mapping_api_id={self.sw_requirement_mapping_api_id!r}, " \
-               f"coverage={self.coverage!r})"
+        tmp = "SwRequirementTestSpecificationModel("
+        for field in self.__table__.columns.keys():
+            tmp += f"{field}={getattr(self, field)}, "
+        tmp += ")"
+        return tmp
 
     def current_version(self, db_session):
         last_mapping = db_session.query(SwRequirementTestSpecificationHistoryModel).filter(
@@ -52,12 +68,20 @@ class SwRequirementTestSpecificationModel(Base):
         return f'{last_item.version}.{last_mapping.version}'
 
     def as_dict(self, full_data=False, db_session=None):
+        print(self)
         _dict = {'relation_id': self.id,
-                 'sw_requirement_mapping_api': self.sw_requirement_mapping_api.as_dict(),
-                 'sw_requirement_mapping_api_id': self.sw_requirement_mapping_api_id,
-                 'api': {'id': self.sw_requirement_mapping_api.api_id},
-                 'sw_requirement': {'id': self.sw_requirement_mapping_api.sw_requirement_id},
-                 'coverage': self.get_waterfall_coverage(db_session)}
+                 'coverage': self.coverage,
+                 'covered': self.get_waterfall_coverage(db_session)}
+
+        _dict['gap'] = _dict['coverage'] - _dict['covered']
+
+        if self.sw_requirement_mapping_api_id:
+            _dict['api'] = {'id': self.sw_requirement_mapping_api.api_id}
+            _dict['sw_requirement'] = {'id': self.sw_requirement_mapping_api.sw_requirement.id}
+        if self.sw_requirement_mapping_sw_requirement_id:
+            _dict['direct_sw_requirement'] = {
+                'id': self.sw_requirement_mapping_sw_requirement.get_parent_sw_requirement().id}
+            _dict['sw_requirement'] = {'id': self.sw_requirement_mapping_sw_requirement.sw_requirement.id}
 
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
@@ -118,6 +142,7 @@ def receive_after_update(mapper, connection, target):
         insert_query = insert(SwRequirementTestSpecificationHistoryModel).values(
             id=target.id,
             sw_requirement_mapping_api_id=target.sw_requirement_mapping_api_id,
+            sw_requirement_mapping_sw_requirement_id=target.sw_requirement_mapping_sw_requirement_id,
             test_specification_id=target.test_specification_id,
             coverage=target.coverage,
             version=version + 1
@@ -130,6 +155,7 @@ def receive_after_insert(mapper, connection, target):
     insert_query = insert(SwRequirementTestSpecificationHistoryModel).values(
         id=target.id,
         sw_requirement_mapping_api_id=target.sw_requirement_mapping_api_id,
+        sw_requirement_mapping_sw_requirement_id=target.sw_requirement_mapping_sw_requirement_id,
         test_specification_id=target.test_specification_id,
         coverage=target.coverage,
         version=1
@@ -144,25 +170,26 @@ class SwRequirementTestSpecificationHistoryModel(Base):
     row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())
-    sw_requirement_mapping_api_id: Mapped[int] = mapped_column(Integer())
+    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(Integer())
+    sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(Integer())
     test_specification_id: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, sw_requirement_mapping_api_id, test_specification_id, coverage, version):
+    def __init__(self, id, sw_requirement_mapping_api_id, sw_requirement_mapping_sw_requirement_id,
+                 test_specification_id, coverage, version):
         self.id = id
         self.sw_requirement_mapping_api_id = sw_requirement_mapping_api_id
+        self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement_id
         self.test_specification_id = test_specification_id
         self.coverage = coverage
         self.version = version
         self.created_at = datetime.now()
 
     def __repr__(self) -> str:
-        return f"SwRequirementTestSpecificationHistoryModel(row_id={self.row_id!r}, " \
-               f"id={self.id!r}, " \
-               f"version={self.version!r}, " \
-               f"test_specification_id={self.test_specification_id!r}, " \
-               f"sw_requirement_mapping_api_id={self.sw_requirement_mapping_api_id!r}, " \
-               f"coverage={self.coverage!r}, " \
-               f"version={self.version!r})"
+        tmp = "SwRequirementTestSpecificationHistoryModel("
+        for field in self.__table__.columns.keys():
+            tmp += f"{field}={getattr(self, field)}, "
+        tmp += ")"
+        return tmp

@@ -11,6 +11,34 @@
     "test_description": "Test Specification Description - modified",
     "preconditions": "Preconditions - modified",
     "expected_behavior": "Expected behavior - modified",
+    "coverage": 15
+  },
+  "second": {
+    "title": "TS.0002",
+    "test_description": "Test Specification 2nd Description",
+    "preconditions": "Preconditions 2nd",
+    "expected_behavior": "Expected behavior 2nd",
     "coverage": 20
+  },
+  "second_mod": {
+    "title": "TS.0002 - mod",
+    "test_description": "Test Specification 2nd Description - modified",
+    "preconditions": "Preconditions 2nd - modified",
+    "expected_behavior": "Expected behavior 2nd - modified",
+    "coverage": 25
+  },
+  "third": {
+    "title": "TS.0003",
+    "test_description": "Test Specification 3rd Description",
+    "preconditions": "Preconditions 3rd",
+    "expected_behavior": "Expected behavior 3rd",
+    "coverage": 30
+  },
+  "third_mod": {
+    "title": "TS.0003 - mod",
+    "test_description": "Test Specification 3rd Description - modified",
+    "preconditions": "Preconditions 3rd - modified",
+    "expected_behavior": "Expected behavior 3rd - modified",
+    "coverage": 35
   }
 }

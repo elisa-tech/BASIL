@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as Constants from '../Constants/constants';
 import { Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core';
 import { MappingListingTable} from './MappingListingTable';
 import { MappingSwRequirementModal } from './Modal/MappingSwRequirementModal';
@@ -70,17 +71,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestSpecifications, setShowIndirectTestSpecifications] = React.useState<boolean>(true);
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true);
 
-  const _A = 'api';
-  const _SR = 'sw-requirement';
-  const _TS = 'test-specification';
-  const _TS_ = 'test_specification';
-  const _TC = 'test-case';
-  const _TC_ = 'test_case';
-  const _J = 'justification';
-
-
   const getWorkItemDescription = (_work_item_type) => {
-      const work_item_types = [_A, _J, _SR, _TS, _TC];
+      const work_item_types = [Constants._A, Constants._J, Constants._SR,
+                               Constants._TS, Constants._TC];
       const work_item_descriptions = ['Api',
                                       'Justification',
                                       'Software Requirement',
@@ -109,33 +102,40 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                       'description': '',
                       'coverage': 100}
 
-  const getTestCaseData = (_list, _index, _parent_type) => {
+  const getSwRequirementData = (_list, _index) => {
+    const sr = {'id': _list[_index][Constants._SR_]['id'],
+              'coverage': _list[_index]['coverage'],
+               'title': _list[_index][Constants._SR_]['title'],
+               'description': _list[_index][Constants._SR_]['description']};
+    return sr;
+  }
+
+  const getTestCaseData = (_list, _index) => {
     let tc = {};
-    if (_parent_type != _A){
-      tc = _list[_index][_TC_];
-      tc['coverage'] = _list[_index]['coverage'];
-    } else {
-      tc = _list[_index];
-    }
+    tc = _list[_index][Constants._TC_];
+    tc['coverage'] = _list[_index]['coverage'];
     return tc;
   }
 
-  const getTestSpecificationData = (_list, _index, _parent_type) => {
+  const getTestSpecificationData = (_list, _index) => {
     let ts = {};
-    if (_parent_type != _A){
-      ts = _list[_index][_TS_];
-      ts['coverage'] = _list[_index]['coverage'];
-    } else {
-      ts = _list[_index];
-    }
+    ts = _list[_index][Constants._TS_];
+    ts['coverage'] = _list[_index]['coverage'];
     return ts;
+  }
+
+  const getJustificationData = (_list, _index) => {
+    let js = {};
+    js = _list[_index][Constants._J];
+    js['coverage'] = _list[_index]['coverage'];
+    return js;
   }
 
   const setSrModalInfo = (show, indirect, action, api,
                           section, offset,
                           parent_type, parent_list, parent_index,
                           parent_related_to_type) => {
-    setModalTitle(getWorkItemDescription(_SR));
+    setModalTitle(getWorkItemDescription(Constants._SR));
     setModalDescription("Work item data and mapping information (section, offset, coverage).");
     setSrModalShowState(show);
     setModalAction(action);
@@ -144,7 +144,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       setModalFormData(srFormEmpty);
     } else if (action == 'edit') {
       setModalVerb('PUT');
-      setModalFormData(parent_list[parent_index]);
+      setModalFormData(getSwRequirementData(parent_list, parent_index));
     }
     setModalParentData(parent_list[parent_index]);
     setModalSection(section);
@@ -159,7 +159,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           parent_type, parent_list, parent_index,
                           parent_related_to_type) => {
 
-    setModalTitle(getWorkItemDescription(_TS));
+    setModalTitle(getWorkItemDescription(Constants._TS));
     setModalDescription("Work item data and mapping information (section, offset, coverage).");
     setModalAction(action);
     if (action == 'add') {
@@ -167,7 +167,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       setModalFormData(tsFormEmpty);
     } else if (action == 'edit') {
       setModalVerb('PUT');
-      setModalFormData(getTestSpecificationData(parent_list, parent_index, parent_type));
+      setModalFormData(getTestSpecificationData(parent_list, parent_index));
     }
     setModalParentData(parent_list[parent_index]);
     setModalSection(section);
@@ -182,8 +182,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           section, offset,
                           parent_type, parent_list, parent_index,
                           parent_related_to_type) => {
-
-    setModalTitle(getWorkItemDescription(_TC));
+    setModalTitle(getWorkItemDescription(Constants._TC));
     setModalDescription("Work item data and mapping information (section, offset, coverage).");
     setTcModalShowState(show);
     setModalAction(action);
@@ -192,7 +191,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       setModalFormData(tcFormEmpty);
     } else if (action == 'edit') {
       setModalVerb('PUT');
-      setModalFormData(getTestCaseData(parent_list, parent_index, parent_type));
+      setModalFormData(getTestCaseData(parent_list, parent_index));
     }
     setModalParentData(parent_list[parent_index]);
     setModalSection(section);
@@ -207,20 +206,22 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           section, offset, parent_list, parent_index) => {
     setJModalShowState(show);
     setModalAction(action);
+
     if (action == 'add') {
       setModalVerb('POST');
       setModalFormData(jFormEmpty);
     } else if (action == 'edit') {
       setModalVerb('PUT');
-      setModalFormData(parent_list[parent_index]);
+      setModalFormData(getJustificationData(parent_list, parent_index));
     }
 
-    setModalTitle(getWorkItemDescription(_J));
+    setModalTitle(getWorkItemDescription(Constants._J));
     setModalDescription("Work item data and mapping information (section, offset, coverage).");
     setModalSection(section);
     setModalOffset(offset);
     setModalIndirect(false);
-    setModalParentType('api');
+    setModalParentData(parent_list[parent_index]);
+    setModalParentType(Constants._A);
     setModalParentRelatedToType('');
   }
 
@@ -246,13 +247,22 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
   const setCommentModalInfo = (show, work_item_type, parent_type, parent_related_to_type, list, index) => {
     let wi_field = 'title';
-    if (work_item_type == _J){
+    if (work_item_type == Constants._J){
       wi_field = 'description';
     }
-    let wi_title = list[index][wi_field].substr(0, 100);
-    if (list[index][wi_field].length > 99){
-      wi_title = wi_title + "...";
+    let wi_title = '';
+    if (work_item_type == Constants._SR){
+      wi_title = list[index][Constants._SR_][wi_field].substr(0, 100);
+      if (list[index][Constants._SR_][wi_field].length > 99){
+        wi_title = wi_title + "...";
+      }
+    } else {
+       wi_title = list[index][wi_field].substr(0, 100);
+       if (list[index][wi_field].length > 99){
+         wi_title = wi_title + "...";
+       }
     }
+
     setModalTitle("Comment a " + getWorkItemDescription(work_item_type));
     setModalDescription(wi_title);
     setCommentModalShowState(show);
@@ -313,7 +323,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   };
 
   React.useEffect(() => {
-    loadMappingData();
+    loadMappingData(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showIndirectTestSpecifications, showIndirectTestCases]);
 
@@ -342,7 +352,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                                                  api,
                                                  '',
                                                  0,
-                                                 'api',
+                                                 Constants._A,
                                                  [],
                                                  -1,
                                                  ''))}
@@ -359,7 +369,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                                                  api,
                                                  '',
                                                  0,
-                                                 'api',
+                                                 Constants._A,
                                                  [],
                                                  -1,
                                                  ''))}
@@ -376,7 +386,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                                                  api,
                                                  '',
                                                  0,
-                                                 'api',
+                                                 Constants._A,
                                                  [],
                                                  -1,
                                                  ''))}
@@ -391,7 +401,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                                                'add',
                                                api,
                                                '',
-                                               0)}
+                                               0,
+                                               [],
+                                               -1)}
                 >Map Justification
                 </Button>
               </FlexItem>
@@ -476,6 +488,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       modalVerb={modalVerb}
       loadMappingData={loadMappingData}
       parentData={modalParentData}
+      parentRelatedToType={modalParentRelatedToType}
       parentType={modalParentType}
       setModalShowState={setSrModalShowState} />
     <MappingTestSpecificationModal

@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   ActionGroup,
   Button,
@@ -24,8 +25,12 @@ export interface SwRequirementFormProps {
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
+  modalIndirect;
   modalOffset;
   modalSection;
+  parentData;
+  parentRelatedToType;
+  parentType;
 }
 
 export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> = ({
@@ -42,8 +47,12 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     handleModalToggle,
     loadMappingData,
     modalFormSubmitState="waiting",
+    modalIndirect,
     modalOffset,
     modalSection,
+    parentData,
+    parentRelatedToType,
+    parentType,
     }: SwRequirementFormProps) => {
 
     type validate = 'success' | 'warning' | 'error' | 'default';
@@ -79,11 +88,15 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     }, [titleValue]);
 
     React.useEffect(() => {
-      if (descriptionValue.trim() === '') {
+      if (descriptionValue == undefined) {
+        setDescriptionValue("");
+      } else {
+        if (descriptionValue.trim() === '') {
           setValidatedDescriptionValue('error');
         } else {
           setValidatedDescriptionValue('success');
         }
+      }
     }, [descriptionValue]);
 
     React.useEffect(() => {
@@ -150,7 +163,6 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
         setMessageValue('');
 
         const data = {
-          'api-id': api.id,
           'sw-requirement': {'title': titleValue,
                              'description': descriptionValue},
           'section': modalSection,
@@ -158,12 +170,19 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
           'coverage': coverageValue,
         }
 
-        if ((formVerb == 'PUT') || (formVerb == 'DELETE')){
-          data['relation-id'] = formData.relation_id;
-          data['sw-requirement']['id'] = formData.id;
+        if (modalIndirect == true){
+          data['relation-id'] = parentData.relation_id;
+          data['relation-to'] = parentRelatedToType;
+          data['parent-sw-requirement'] = {'id': parentData[Constants._SR_]['id']};
+        } else {
+          data['api-id'] = api.id;
+          if ((formVerb == 'PUT') || (formVerb == 'DELETE')){
+            data[Constants._SR]['id'] = formData.id;
+            data['relation-id'] = parentData.relation_id;
+          }
         }
 
-        fetch(baseApiUrl + '/mapping/api/sw-requirements', {
+        fetch(baseApiUrl + '/mapping/' + parentType + '/sw-requirements', {
           method: formVerb,
           headers: {
             Accept: 'application/json',
@@ -179,7 +198,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
               handleModalToggle();
               setMessageValue('');
               setStatusValue('waiting');
-              loadMappingData();
+              loadMappingData(Constants.force_reload);
             }
           })
           .catch((err) => {

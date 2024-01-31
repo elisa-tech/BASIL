@@ -69,7 +69,7 @@ const Dashboard: React.FunctionComponent = () => {
   React.useEffect(() => {
     let tc = 0;
     for (let i = 0; i<apis.length; i++){
-      tc = tc + (apis[i].coverage  / apis.length);
+      tc = tc + (apis[i].covered  / apis.length);
     }
     setTotalCoverage(tc);
   }, [apis]);

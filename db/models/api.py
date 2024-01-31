@@ -99,9 +99,9 @@ class ApiModel(Base):
             tcs_cov = sum([x.as_dict()['coverage'] for x in tcs])
             print(f'tcs_cov: {tcs_cov}')
 
-            coverage = srs_cov + tss_cov + tcs_cov
-            print(f'coverage: {coverage}')
-            _dict['coverage'] = coverage
+            _dict['srs_coverage'] = srs_cov
+            _dict['tss_coverage'] = tss_cov
+            _dict['tcs_coverage'] = tcs_cov
 
         if full_data:
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)

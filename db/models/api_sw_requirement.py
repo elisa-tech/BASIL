@@ -105,7 +105,12 @@ class ApiSwRequirementModel(Base):
                  'relation_id': self.id,
                  'section': self.section,
                  'offset': self.offset,
-                 'coverage': self.get_waterfall_coverage(db_session)}
+                 'direct': True,
+                 'coverage': self.coverage,
+                 'covered': self.get_waterfall_coverage(db_session),
+                 '__tablename__': self.__tablename__}
+
+        _dict['gap'] = _dict['coverage'] - _dict['covered']
 
         if db_session:
             _dict['version'] = self.current_version(db_session)
@@ -123,6 +128,7 @@ class ApiSwRequirementModel(Base):
         return _dict
 
     def get_waterfall_coverage(self, db_session):
+        from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
         from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
         from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
         # Return Api-SR waterfall coverage
@@ -130,8 +136,19 @@ class ApiSwRequirementModel(Base):
         if db_session is None:
             return self.coverage
 
+        srs_coverage = 0
         tss_coverage = 0
         tcs_coverage = 0
+
+        # Sw Requirements
+        sr_query = db_session.query(SwRequirementSwRequirementModel).filter(
+            SwRequirementSwRequirementModel.sw_requirement_mapping_api_id == self.id
+        )
+        srs = sr_query.all()
+        if len(srs) > 0:
+            srs_coverage = sum([x.get_waterfall_coverage(db_session) for x in srs])
+            print(f"srs_coverage: {srs_coverage}")
+
         # Test Specifications
         ts_query = db_session.query(SwRequirementTestSpecificationModel).filter(
             SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == self.id
@@ -148,10 +165,10 @@ class ApiSwRequirementModel(Base):
         if len(tcs) > 0:
             tcs_coverage = sum([x.as_dict()['coverage'] for x in tcs])
 
-        if len(tcs) == len(tss) == 0:
+        if len(tcs) == len(tss) == len(srs) == 0:
             waterfall_coverage = self.coverage
         else:
-            waterfall_coverage = (min(max(0, tss_coverage + tcs_coverage), 100) * self.coverage) / 100.0
+            waterfall_coverage = (min(max(0, srs_coverage + tss_coverage + tcs_coverage), 100) * self.coverage) / 100.0
 
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage

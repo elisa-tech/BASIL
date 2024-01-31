@@ -55,7 +55,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
   setModalSection,
   }: MappingSwRequirementModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-
+  const [swRequirements, setSwRequirements] = React.useState([]);
   const handleModalToggle = () => {
     const new_state = !modalShowState;
     setModalShowState(new_state);
@@ -63,9 +63,24 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
   };
 
   React.useEffect(() => {
+    if (modalShowState == true){
+      loadSwRequirements();
+    }
     setIsModalOpen(modalShowState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState]);
 
+  const loadSwRequirements = (searchValue) => {
+    const url = baseApiUrl + '/sw-requirements?search=' + searchValue;
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+          setSwRequirements(data);
+      })
+      .catch((err) => {
+        console.log(err.message);
+      });
+  }
 
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0);
   // Toggle currently active tab
@@ -98,6 +113,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
       >
 
       <Tabs
+        id="tabs-sw-requirements-modal"
         activeKey={activeTabKey}
         onSelect={handleTabClick}
         aria-label="Add a New/Existing Test Specification"
@@ -171,10 +187,12 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
               parentRelatedToType={parentRelatedToType}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
+              loadSwRequirements={loadSwRequirements}
               baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              swRequirements={swRequirements}
             />
           </TabContentBody>
         </TabContent>

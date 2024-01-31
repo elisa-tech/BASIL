@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Button,
   Hint,
@@ -50,7 +51,8 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
 
   const deleteMapping = () => {
     const data = {'api-id': api.id,
-                'relation-id': relationData.relation_id};
+                  'relation-id': relationData.relation_id};
+
     fetch(baseApiUrl + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',
       headers: {
@@ -63,7 +65,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
         if (response.status !== 200) {
           setMessageValue(response.statusText);
         } else {
-          loadMappingData();
+          loadMappingData(Constants.force_reload);
           handleModalToggle();
         }
       })

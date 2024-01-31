@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Button,
   Hint,
@@ -63,7 +64,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
         if (response.status !== 200) {
           setMessageValue(response.statusText);
         } else {
-          loadMappingData();
+          loadMappingData(Constants.force_reload);
           handleModalToggle();
         }
       })

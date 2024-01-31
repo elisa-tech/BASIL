@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Dropdown,
   DropdownItem,
@@ -52,13 +53,11 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
 
   const getTestSpecification = () => {
     if (indirect == true){
-      return mappingList[mappingIndex]['test_specification'];
+      return mappingList[mappingIndex][Constants._TS_];
     } else {
       return mappingList[mappingIndex];
     }
   }
-
-  const _TS = 'test-specification';
 
   return (
     <Dropdown
@@ -83,6 +82,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
 
         <DropdownItem
           value={0}
+          id={"btn-menu-test-specification-assign-test-case-" + mappingList[mappingIndex].relation_id}
           key="assign-test-case"
           className="success-text"
           onClick={() => (setTcModalInfo(true,
@@ -91,7 +91,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
                                          api,
                                          mappingSection,
                                          mappingOffset,
-                                         _TS,
+                                         Constants._TS,
                                          mappingList,
                                          mappingIndex,
                                          mappingParentType))}>
@@ -99,10 +99,11 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
         </DropdownItem>
         <DropdownItem
           value={1}
+          id={"btn-menu-test-specification-delete-" + mappingList[mappingIndex].relation_id}
           key="delete"
           className="danger-text"
           onClick={() => (setDeleteModalInfo(true,
-                                             _TS,
+                                             Constants._TS,
                                              mappingParentType,
                                              mappingParentRelatedToType,
                                              mappingList,
@@ -111,6 +112,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
         </DropdownItem>
         <DropdownItem
           value={2}
+          id={"btn-menu-test-specification-edit-" + mappingList[mappingIndex].relation_id}
           key="edit"
           onClick={() => (setTsModalInfo(true,
                                          indirect,
@@ -134,7 +136,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
           value={4}
           key="history"
           onClick={() => (setHistoryModalInfo(true,
-                                              _TS,
+                                              Constants._TS,
                                               mappingParentType,
                                               mappingList[mappingIndex].relation_id))}>
           History
@@ -143,7 +145,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
           value={5}
           key="show-details"
           onClick={() => (setDetailsModalInfo(true,
-                                              _TS,
+                                              Constants._TS,
                                               getTestSpecification()['id']))}>
           Show Details
         </DropdownItem>
@@ -151,7 +153,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
           value={6}
           key="usage"
           onClick={() => (setUsageModalInfo(true,
-                                            _TS,
+                                            Constants._TS,
                                             getTestSpecification()['id']))}>
           Usage
         </DropdownItem>

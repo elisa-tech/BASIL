@@ -63,7 +63,10 @@ class ApiJustificationModel(Base):
                  'relation_id': self.id,
                  'section': self.section,
                  'offset': self.offset,
-                 'coverage': self.coverage}
+                 'coverage': self.coverage,
+                 'covered': self.coverage}
+
+        _dict['gap'] = _dict['coverage'] - _dict['covered']
 
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)

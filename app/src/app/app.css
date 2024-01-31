@@ -55,6 +55,10 @@ body,
   color: var(--pf-v5-global--disabled-color--100);
 }
 
+.work-item-detail-text{
+  white-space: pre-line;
+}
+
 tr.row-bottom-sep td{
   border-bottom: 16px solid var(--pf-v5-global--BackgroundColor--200);
 }

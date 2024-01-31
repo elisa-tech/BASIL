@@ -77,6 +77,13 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
       setModalOffset(unmatching_offset);
     }
 
+    const setSectionAsFullDocument = () => {
+      setSectionValue(api['raw_specification']);
+      setModalSection(api['raw_specification']);
+      setOffsetValue(0);
+      setModalOffset(0);
+    }
+
     return (
         <React.Fragment>
           <FormGroup label="Section" fieldId={`input-justification-section`}>
@@ -124,6 +131,15 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
             variant="link"
             onClick={setSectionAsUnmatching}>
             Set as unmatching
+          </Button>
+
+          |
+
+          <Button
+            id="btn-section-set-full-document"
+            variant="link"
+            onClick={setSectionAsFullDocument}>
+            Set as Full Document
           </Button>
 
           <CodeBlock className="code-block-bg-green">

@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Dropdown,
   DropdownItem,
@@ -50,11 +51,6 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
     setIsOpen(false);
   };
 
-  const _J = 'justification';
-  const _SR = 'sw-requirement';
-  const _TS = 'test-specification';
-  const _TC = 'test-case';
-
   const handleDelete = () => {
     setDeleteModalInfo(true,
                        mappingType,
@@ -67,8 +63,8 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
   const handleEdit = () => {
     let list_item = {};
     let list = [];
-    if (mappingType == _J) {
-      list_item = mappingList[mappingIndex]['justification'];
+    if (mappingType == Constants._J) {
+      list_item = mappingList[mappingIndex];
       list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       list = [list_item];
@@ -79,8 +75,8 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
                     mappingOffset,
                     list,
                     mappingIndex);
-    } else if (mappingType == _SR) {
-      list_item = mappingList[mappingIndex]['sw_requirement'];
+    } else if (mappingType == Constants._SR) {
+      list_item = mappingList[mappingIndex];
       list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       list = [list_item];
@@ -94,8 +90,8 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
                       list,
                       mappingIndex,
                       '');
-    } else if (mappingType == _TS){
-      list_item = mappingList[mappingIndex]['test_specification'];
+    } else if (mappingType == Constants._TS){
+      list_item = mappingList[mappingIndex];
       list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       list = [list_item];
@@ -109,8 +105,8 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
                      list,
                      mappingIndex,
                      '');
-    } else if (mappingType == _TC){
-      list_item = mappingList[mappingIndex]['test_case'];
+    } else if (mappingType == Constants._TC){
+      list_item = mappingList[mappingIndex];
       list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       list = [list_item];
@@ -121,7 +117,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
                      mappingSection,
                      mappingOffset,
                      mappingParentType,
-                     [mappingList[mappingIndex]['test_case']],
+                     list,
                      mappingIndex,
                      '');
     }

@@ -91,7 +91,9 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
                                         'add',
                                         api,
                                         getSection(),
-                                        getOffset()))}>
+                                        getOffset(),
+                                        [],
+                                        -1))}>
           Assign Justification
         </DropdownItem>
         <DropdownItem

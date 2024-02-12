@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+
+FROM fedora
+RUN mkdir BASIL-API
+WORKDIR /BASIL-API
+COPY . /BASIL-API
+RUN dnf install -y curl python3 python3-pip wget
+
+RUN curl -sSLO https://pdm-project.org/install-pdm.py
+RUN python3 install-pdm.py -p /pdm
+RUN /pdm/bin/pdm install
+
+# Init the database
+RUN cd db/models && /pdm/bin/pdm run python3 init_db.py && cd .. && cd ..
+
+# Set the public ip in the api/api_url.py
+ARG BASIL_HOSTNAME=localhost
+ARG BASIL_API_PORT=5000
+RUN echo "BASIL HOSTNAME: ${BASIL_HOSTNAME}"
+RUN echo "BASIL API PORT: ${BASIL_API_PORT}"
+RUN sed -i "s/5000/${BASIL_API_PORT}/g" api/api_url.py
+RUN sed -i "s/localhost/${BASIL_HOSTNAME}/g" api/api_url.py
+
+CMD ["/pdm/bin/pdm", "run", "python3", "api/api.py"]

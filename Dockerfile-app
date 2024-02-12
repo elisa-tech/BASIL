@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+
+FROM fedora
+RUN mkdir BASIL-APP
+WORKDIR /BASIL-APP
+COPY . /BASIL-APP
+RUN dnf install -y nodejs wget
+
+# Set the public ip
+ARG BASIL_HOSTNAME=localhost
+ARG BASIL_API_PORT=5000
+RUN echo "BASIL HOSTNAME: ${BASIL_HOSTNAME}"
+RUN echo "BASIL API PORT: ${BASIL_API_PORT}"
+RUN sed -i "s/localhost:5000/localhost:${BASIL_API_PORT}/g" app/src/app/Constants/constants.tsx
+RUN sed -i "s/localhost/${BASIL_HOSTNAME}/g" app/src/app/Constants/constants.tsx
+
+WORKDIR /BASIL-APP/app
+# Move to the app directory
+RUN npm install
+
+CMD ["npm", "run", "start:dev"]

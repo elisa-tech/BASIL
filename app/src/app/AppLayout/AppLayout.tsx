@@ -21,11 +21,16 @@ import { IAppRoute, IAppRouteGroup, routes } from '@app/routes';
 import BarsIcon from '@patternfly/react-icons/dist/esm/icons/bars-icon';
 import { HeaderToolbar } from './HeaderToolbar';
 import logo from '@app/bgimages/basil.svg';
+
 interface IAppLayout {
   children: React.ReactNode;
+  notificationCount: number;
 }
 
-const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
+const AppLayout: React.FunctionComponent<IAppLayout> = ({
+  children,
+  notificationCount,
+}) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   const Header = (

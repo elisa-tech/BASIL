@@ -1,4 +1,5 @@
-import React from 'react';
+import * as React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Button,
   Modal,
@@ -14,29 +15,7 @@ import { SectionForm } from '../Form/SectionForm';
 import { JustificationSearch } from '../Search/JustificationSearch';
 import { MappingModalProps } from './MappingModalProps';
 
-export interface MappingJustificationModalProps {
-  api;
-  baseApiUrl: string;
-  modalAction: string;
-  modalVerb: string;
-  modalTitle: string;
-  modalDescription: string;
-  modalShowState: string;
-  modalFormData;
-  modalIndirect;
-  modalOffset;
-  setModalOffset;
-  modalSection;
-  setModalSection;
-  parentData;
-  parentType;
-  parentRelatedToType;
-  loadMappingData;
-  setModalShowState;
-}
-
 export const MappingJustificationModal: React.FunctionComponent<MappingModalProps> = ({
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalAction = "",
@@ -69,7 +48,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   }, [modalShowState]);
 
   const loadJustifications = (searchValue) => {
-    let url = baseApiUrl + '/justifications';
+    let url = Constants.API_BASE_URL + '/justifications';
     if (searchValue != undefined){
       url = url + '?search=' + searchValue;
     }
@@ -152,14 +131,16 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
               formData={modalFormData}
               formVerb={modalVerb}
               parentData={parentData}
-              parentType={parentType}
-              parentRelatedToType={parentRelatedToType}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
-              baseApiUrl={baseApiUrl}
-              modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              formDefaultButtons={1}
+              formMessage={""}
+              modalFormSubmitState={"waiting"}
+              //modalIndirect={modalIndirect}
+              //parentType={parentType}
+              //parentRelatedToType={parentRelatedToType}
             />
           </TabContentBody>
         </TabContent>
@@ -167,10 +148,9 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
-              formVerb={modalVerb}
-              handleModalToggle={handleModalToggle}
-              baseApiUrl={baseApiUrl}
-              modalIndirect={modalIndirect}
+              //formVerb={modalVerb}
+              //handleModalToggle={handleModalToggle}
+              //modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
               setModalOffset={setModalOffset}
@@ -183,18 +163,21 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
             <JustificationSearch
               api={api}
               formVerb={modalVerb}
-              parentData={parentData}
-              parentType={parentType}
-              parentRelatedToType={parentRelatedToType}
+              //parentData={parentData}
+              //parentType={parentType}
+              //parentRelatedToType={parentRelatedToType}
               justifications={justifications}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
               loadJustifications={loadJustifications}
-              baseApiUrl={baseApiUrl}
-              modalIndirect={modalIndirect}
+              //modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              formDefaultButtons={1}
+              formData={null}
+              formMessage={''}
             />
+
           </TabContentBody>
         </TabContent>
       </div>

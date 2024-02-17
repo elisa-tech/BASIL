@@ -16,12 +16,11 @@ import {
 
 export interface JustificationFormProps {
   api;
-  baseApiUrl: str;
-  formAction: str;
+  formAction: string;
   formData;
-  formDefaultButtons: int;
+  formDefaultButtons: number;
   formMessage: string;
-  formVerb: str;
+  formVerb: string;
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
@@ -32,7 +31,6 @@ export interface JustificationFormProps {
 
 export const JustificationForm: React.FunctionComponent<JustificationFormProps> = ({
     api,
-    baseApiUrl,
     formAction="add",
     formData={'id': 0,
               'description': '',
@@ -143,7 +141,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
           data['justification']['id'] = formData.id;
         }
 
-        fetch(baseApiUrl + '/mapping/api/justifications', {
+        fetch(Constants.API_BASE_URL + '/mapping/api/justifications', {
           method: formVerb,
           headers: {
             Accept: 'application/json',

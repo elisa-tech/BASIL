@@ -16,12 +16,11 @@ import {
 
 export interface SwRequirementFormProps {
   api;
-  baseApiUrl: str;
-  formAction: str;
+  formAction: string;
   formData;
-  formDefaultButtons: int;
+  formDefaultButtons: number;
   formMessage: string;
-  formVerb: str;
+  formVerb: string;
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
@@ -35,7 +34,6 @@ export interface SwRequirementFormProps {
 
 export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> = ({
     api,
-    baseApiUrl,
     formAction="add",
     formData={'id': 0,
               'coverage': '0',
@@ -182,7 +180,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
           }
         }
 
-        fetch(baseApiUrl + '/mapping/' + parentType + '/sw-requirements', {
+        fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/sw-requirements', {
           method: formVerb,
           headers: {
             Accept: 'application/json',

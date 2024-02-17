@@ -16,7 +16,7 @@ const LeavesProgressBar: React.FunctionComponent<LeavesProgressBarProps> = ({
 }: LeavesProgressBarProps) => {
 
   let limited_progress = Math.min(Math.max(0, progressValue), 100);
-  limited_progress = Number.parseFloat(limited_progress).toFixed(1);
+  limited_progress = Math.round(limited_progress * 1e1) / 1e1;;
   const icon_size = "xl";
   let leaves = [empty_leaf, empty_leaf, empty_leaf, empty_leaf];
 
@@ -55,7 +55,7 @@ const LeavesProgressBar: React.FunctionComponent<LeavesProgressBarProps> = ({
             Coverage {limited_progress}%
           </div>
         }
-        triggerRef={() => document.getElementById(progressId)}
+        triggerRef={() => document.getElementById(progressId) as HTMLElement}
         />
     </React.Fragment>
   );

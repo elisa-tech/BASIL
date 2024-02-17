@@ -1,13 +1,14 @@
 import * as React from 'react';
+import * as Constants from '../Constants/constants';
 import { Button, Card, CardBody, Flex, FlexItem, Label, PageSection, Pagination, Title, Toolbar, ToolbarContent, ToolbarItem } from '@patternfly/react-core';
 import { APIListingTable} from '@app/Dashboard/APIListingTable';
 import { APIModal } from './Modal/APIModal';
 import { APICheckSpecModal } from './Modal/APICheckSpecModal';
 import { APIDeleteModal } from './Modal/APIDeleteModal';
 import { APIExportSPDXModal } from './Modal/APIExportSPDXModal';
+import { useAuth } from '@app/User/AuthProvider';
 
 export interface APIListingPageSectionProps {
-  baseApiUrl: string;
   currentLibrary: string;
   setCurrentLibrary;
   loadLibraries;
@@ -18,7 +19,6 @@ export interface APIListingPageSectionProps {
 }
 
 const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps> = ({
-  baseApiUrl,
   currentLibrary,
   setCurrentLibrary,
   loadLibraries,
@@ -27,6 +27,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   totalCoverage,
   searchValue,
   }: APIListingPageSectionProps) => {
+  let auth = useAuth();
   const rows = [];
   const [page, setPage] = React.useState(1);
   const [modalShowState, setModalShowState] = React.useState(false);
@@ -80,7 +81,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   }
 
   const exportSPDX = () => {
-    fetch(baseApiUrl + '/spdx/libraries?library=' + currentLibrary)
+    fetch(Constants.API_BASE_URL + '/spdx/libraries?library=' + currentLibrary)
       .then((res) => res.json())
       .then((data) => {
         setSPDXContent(JSON.stringify(data, null, 2));
@@ -123,8 +124,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
                          'tags': '',
                          'implementation_file_from_row': '',
                          'implementation_file_to_row': '',
-                         'implementation_file': '',},
-
+                         'implementation_file': ''};
   return (
     <PageSection isFilled>
       <Card>
@@ -140,6 +140,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
             </Flex>
             <Flex align={{ default: 'alignRight' }}>
               <FlexItem>
+                {auth.isLogged() ? (
                 <Button
                   id="btn-add-sw-component"
                   variant="primary"
@@ -152,6 +153,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
                                               'Add a new software component')}
                   >Add Software Component
                 </Button>
+                ): ('')}
               </FlexItem>
               <FlexItem>
                 <Button
@@ -166,9 +168,8 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
           </Flex>
           {tableToolbar}
           <APIListingTable
-            currentLibrary={currentLibrary}
-            searchValue={searchValue}
-            baseApiUrl={baseApiUrl}
+            //currentLibrary={currentLibrary}
+            //searchValue={searchValue}
             setModalInfo={setModalInfo}
             setModalCheckSpecInfo={setModalCheckSpecInfo}
             setModalDeleteInfo={setModalDeleteInfo}
@@ -178,7 +179,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
       <APIModal
         modalAction={modalAction}
         modalVerb={modalVerb}
-        modalObject={modalObject}
+        //modalObject={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
         modalFormData={modalFormData}
@@ -186,19 +187,17 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         setModalShowState={setModalShowState}
         setCurrentLibrary={setCurrentLibrary}
         loadLibraries={loadLibraries}
-        loadApi={loadApi}
-        baseApiUrl={baseApiUrl} />
+        loadApi={loadApi} />
       <APIDeleteModal
-        baseApiUrl={baseApiUrl}
         modalShowState={modalDeleteShowState}
         setModalShowState={setModalDeleteShowState}
         api={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
-        loadLibraries={loadLibraries}
-        loadApi={loadApi} />
+        //loadLibraries={loadLibraries}
+        //loadApi={loadApi}
+        />
       <APICheckSpecModal
-        baseApiUrl={baseApiUrl}
         modalShowState={modalCheckSpecShowState}
         setModalShowState={setModalCheckSpecShowState}
         api={modalCheckSpecApiData} />

@@ -13,9 +13,8 @@ import {
 
 export interface JustificationSearchProps {
   api;
-  baseApiUrl: str;
-  formDefaultButtons: int;
-  formVerb: str;
+  formDefaultButtons: number;
+  formVerb: string;
   formData;
   formMessage: string;
   handleModalToggle;
@@ -28,7 +27,6 @@ export interface JustificationSearchProps {
 
 export const JustificationSearch: React.FunctionComponent<JustificationSearchProps> = ({
     api,
-    baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
     formData = {'id': 0,
@@ -45,13 +43,13 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
     const [searchValue, setSearchValue] = React.useState(formData.title);
     const [messageValue, setMessageValue] = React.useState(formMessage);
     const [statusValue, setStatusValue] = React.useState('waiting');
-    const [selectedDataListItemId, setSelectedDataListItemId] = React.useState(-1);
+    const [selectedDataListItemId, setSelectedDataListItemId] = React.useState<string>('');
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
-    const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error');
+    const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error');
 
     const resetForm = () => {
-        setSelectedDataListItemId(-1);
+        setSelectedDataListItemId('');
         setCoverageValue("0");
         setSearchValue("");
     }
@@ -126,7 +124,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
     }
 
     const handleSubmit = () => {
-        if ((selectedDataListItemId == -1) || (selectedDataListItemId == '') || (selectedDataListItemId == undefined)){
+        if ((selectedDataListItemId == '') || (selectedDataListItemId == null)){
             setMessageValue('Please, select an item before submitting the form.');
             setStatusValue('waiting');
             return;
@@ -141,7 +139,12 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         }
 
         setMessageValue('');
-        const justification_id = document.getElementById(selectedDataListItemId).dataset.id;
+        const justification_id = document.getElementById(selectedDataListItemId)?.dataset?.id;
+
+        if (justification_id == null) {
+          setMessageValue('Bad selection.');
+          return;
+        }
 
         const data = {
           'api-id': api.id,
@@ -157,7 +160,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
           return;
         }
 
-        fetch(baseApiUrl + '/mapping/api/justifications', {
+        fetch(Constants.API_BASE_URL + '/mapping/api/justifications', {
           method: formVerb,
           headers: {
             Accept: 'application/json',
@@ -215,7 +218,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
           {validatedCoverageValue !== 'success' && (
             <FormHelperText>
               <HelperText>
-                <HelperTextItem variant={validatedCoverageValue}>
+                <HelperTextItem variant="error">
                   {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
                 </HelperTextItem>
               </HelperText>

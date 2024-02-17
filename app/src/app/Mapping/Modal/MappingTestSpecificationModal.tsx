@@ -1,4 +1,5 @@
-import React from 'react';
+import * as React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Button,
   Modal,
@@ -15,12 +16,11 @@ import { TestSpecificationSearch } from '../Search/TestSpecificationSearch';
 
 export interface MappingTestSpecificationModalProps {
   api;
-  baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
   modalTitle: string;
   modalDescription: string;
-  modalShowState: string;
+  modalShowState: boolean;
   modalFormData;
   modalIndirect;
   modalOffset;
@@ -35,7 +35,6 @@ export interface MappingTestSpecificationModalProps {
 }
 
 export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestSpecificationModalProps> = ({
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalAction = "",
@@ -69,7 +68,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   }, [modalShowState]);
 
   const loadTestSpecifications = (searchValue) => {
-    const url = baseApiUrl + '/test-specifications?search=' + searchValue;
+    const url = Constants.API_BASE_URL + '/test-specifications?search=' + searchValue;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -153,10 +152,12 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
               parentRelatedToType={parentRelatedToType}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
-              baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              formDefaultButtons={1}
+              formMessage={''}
+              modalFormSubmitState={'waiting'}
             />
           </TabContentBody>
         </TabContent>
@@ -164,10 +165,9 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
-              formVerb={modalVerb}
-              handleModalToggle={handleModalToggle}
-              baseApiUrl={baseApiUrl}
-              modalIndirect={modalIndirect}
+              //formVerb={modalVerb}
+              //handleModalToggle={handleModalToggle}
+              //modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
               setModalOffset={setModalOffset}
@@ -178,19 +178,21 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
         <TabContent eventKey={2} id="tabContentTestSpecificationExisting" ref={existingItemsRef} hidden>
           <TabContentBody hasPadding>
             <TestSpecificationSearch
-            api={api}
-            parentData={parentData}
-            formVerb={modalVerb}
-            parentType={parentType}
-            parentRelatedToType={parentRelatedToType}
-            handleModalToggle={handleModalToggle}
-            loadMappingData={loadMappingData}
-            loadTestSpecifications={loadTestSpecifications}
-            testSpecifications={testSpecifications}
-            baseApiUrl={baseApiUrl}
-            modalIndirect={modalIndirect}
-            modalOffset={modalOffset}
-            modalSection={modalSection}
+              api={api}
+              parentData={parentData}
+              formVerb={modalVerb}
+              parentType={parentType}
+              parentRelatedToType={parentRelatedToType}
+              handleModalToggle={handleModalToggle}
+              loadMappingData={loadMappingData}
+              loadTestSpecifications={loadTestSpecifications}
+              testSpecifications={testSpecifications}
+              modalIndirect={modalIndirect}
+              modalOffset={modalOffset}
+              modalSection={modalSection}
+              formDefaultButtons={1}
+              formData={modalFormData}
+              formMessage={''}
             />
           </TabContentBody>
         </TabContent>

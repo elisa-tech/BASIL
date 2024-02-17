@@ -8,15 +8,21 @@ import {
   TextListItem,
 } from '@patternfly/react-core';
 
-import { MappingModalProps } from './MappingModalProps';
+export interface MappingUsageModalProps {
+  modalShowState;
+  setModalShowState;
+  modalTitle: string;
+  modalDescription: string;
+  modalData,
+}
 
-export const MappingUsageModal: React.FunctionComponent<MappingModalProps> = ({
+export const MappingUsageModal: React.FunctionComponent<MappingUsageModalProps> = ({
   modalShowState = false,
   setModalShowState,
   modalTitle = "",
   modalDescription = "",
   modalData,
-  }: MappingModalProps) => {
+  }: MappingUsageModalProps) => {
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import * as Constants from '../../Constants/constants';
 import { ActionGroup, Button, FormGroup, FormHelperText, HelperText, HelperTextItem, Hint, HintBody, TextInput } from '@patternfly/react-core';
 import {
@@ -13,9 +13,8 @@ import {
 
 export interface SwRequirementSearchProps {
   api;
-  baseApiUrl: str;
-  formDefaultButtons: int;
-  formVerb: str;
+  formDefaultButtons: number;
+  formVerb: string;
   formData;
   formMessage: string;
   handleModalToggle;
@@ -32,7 +31,6 @@ export interface SwRequirementSearchProps {
 
 export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchProps> = ({
     api,
-    baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
     formData = {'id': 0,
@@ -57,10 +55,10 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
     const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('');
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
-    const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error');
+    const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error');
 
     const resetForm = () => {
-        setSelectedDataListItemId(-1);
+        setSelectedDataListItemId('');
         setCoverageValue("0");
         setSearchValue("");
     }
@@ -137,7 +135,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
     }
 
     const handleSubmit = () => {
-        if ((selectedDataListItemId == -1) || (selectedDataListItemId == '') || (selectedDataListItemId == undefined)){
+        if ((selectedDataListItemId == '') || (selectedDataListItemId == '') || (selectedDataListItemId == null)){
             setMessageValue('Please, select an item before submitting the form.');
             setStatusValue('waiting');
             return;
@@ -153,7 +151,12 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
 
         setMessageValue('');
 
-        const sw_requirement_id = document.getElementById(selectedDataListItemId).dataset.id;
+        const sw_requirement_id = (document.getElementById(selectedDataListItemId)?.dataset)?.id;
+
+        if (sw_requirement_id == null){
+          setMessageValue('Bad selection.');
+          return;
+        }
 
         const data = {
           'sw-requirement': {'id': sw_requirement_id},
@@ -177,7 +180,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
           data['api-id'] = api.id;
         }
 
-        fetch(baseApiUrl + '/mapping/' + parentType + '/sw-requirements', {
+        fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/sw-requirements', {
           method: formVerb,
           headers: {
             Accept: 'application/json',
@@ -235,7 +238,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
           {validatedCoverageValue !== 'success' && (
             <FormHelperText>
               <HelperText>
-                <HelperTextItem variant={validatedCoverageValue}>
+                <HelperTextItem variant="error">
                   {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
                 </HelperTextItem>
               </HelperText>

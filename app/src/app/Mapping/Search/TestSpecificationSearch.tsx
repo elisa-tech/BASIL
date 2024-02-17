@@ -13,9 +13,8 @@ import {
 
 export interface TestSpecificationSearchProps {
   api;
-  baseApiUrl: str;
-  formDefaultButtons: int;
-  formVerb: str;
+  formDefaultButtons: number;
+  formVerb: string;
   formData;
   formMessage: string;
   parentData;
@@ -32,7 +31,6 @@ export interface TestSpecificationSearchProps {
 
 export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationSearchProps> = ({
     api,
-    baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
     formData = {'id': 0,
@@ -59,10 +57,10 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('');
 
     const [coverageValue, setCoverageValue] = React.useState(formData.coverage);
-    const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error');
+    const [validatedCoverageValue, setValidatedCoverageValue] = React.useState('error');
 
     const resetForm = () => {
-        setSelectedDataListItemId(-1);
+        setSelectedDataListItemId('');
         setCoverageValue("0");
         setSearchValue("");
     }
@@ -137,7 +135,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     }, [statusValue]);
 
     const handleSubmit = () => {
-        if ((selectedDataListItemId == -1) || (selectedDataListItemId == '') || (selectedDataListItemId == undefined)){
+        if ((selectedDataListItemId == '') || (selectedDataListItemId == '') || (selectedDataListItemId == null)){
             setMessageValue('Please, select an item before submitting the form.');
             setStatusValue('waiting');
             return;
@@ -152,7 +150,12 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         }
 
         setMessageValue('');
-        const test_specification_id = document.getElementById(selectedDataListItemId).dataset.id;
+        const test_specification_id = (document.getElementById(selectedDataListItemId)?.dataset)?.id;
+
+        if (test_specification_id == null){
+            setMessageValue('Bad selection.');
+            return;
+        }
 
         const data = {
           'api-id': api.id,
@@ -176,7 +179,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
           data['sw-requirement']['id'] = parentData.sw_requirement.id;
         }
 
-        fetch(baseApiUrl + '/mapping/' + parentType + '/test-specifications', {
+        fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-specifications', {
           method: formVerb,
           headers: {
             Accept: 'application/json',
@@ -235,7 +238,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
           {validatedCoverageValue !== 'success' && (
             <FormHelperText>
               <HelperText>
-                <HelperTextItem variant={validatedCoverageValue}>
+                <HelperTextItem variant="error">
                   {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
                 </HelperTextItem>
               </HelperText>

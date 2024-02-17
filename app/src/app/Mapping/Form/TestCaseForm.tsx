@@ -16,12 +16,11 @@ import {
 
 export interface TestCaseFormProps {
   api;
-  baseApiUrl: str;
-  formAction: str;
+  formAction: string;
   formData;
-  formDefaultButtons: int;
+  formDefaultButtons: number;
   formMessage: string;
-  formVerb: str;
+  formVerb: string;
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
@@ -35,7 +34,6 @@ export interface TestCaseFormProps {
 
 export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     api,
-    baseApiUrl,
     formAction="add",
     formData={'id': 0,
               'coverage': 0,
@@ -222,7 +220,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           }
         }
 
-        fetch(baseApiUrl + '/mapping/' + parentType + '/test-cases', {
+        fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-cases', {
           method: formVerb,
           headers: {
             Accept: 'application/json',

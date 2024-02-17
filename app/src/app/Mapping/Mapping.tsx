@@ -7,7 +7,7 @@ import {
   useParams
 } from "react-router-dom";
 
-const Mapping: React.FunctionComponent = (api_id) => {
+const Mapping: React.FunctionComponent = () => {
 
   const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('sw-requirements');
   const [num, setNum] = React.useState(0);
@@ -15,7 +15,7 @@ const Mapping: React.FunctionComponent = (api_id) => {
   const [mappingData, setMappingData] = React.useState([]);
   const [unmappingData, setUnmappingData] = React.useState([]);
   const [totalCoverage, setTotalCoverage] = React.useState(0);
-  const { api_id } = useParams();
+  const { api_id } = useParams<{ api_id : string }>();
 
   const loadApiData = () => {
     const url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id;
@@ -66,13 +66,13 @@ const Mapping: React.FunctionComponent = (api_id) => {
   React.useEffect(() => {
     let total_len = 0;
     let wa = 0;
-    for (let i = 0; i<mappingData.length; i++){
-      total_len = total_len + mappingData[i]['section'].length;
+    for (let i = 0; i<mappingData['length']; i++){
+      total_len = total_len + mappingData[i]['section']['length'];
     }
-    for (let i = 0; i<mappingData.length; i++){
-      wa = wa + (mappingData[i]['section'].length / total_len) * (mappingData[i]['covered'] / 100.0);
+    for (let i = 0; i<mappingData['length']; i++){
+      wa = wa + (mappingData[i]['section']['length'] / total_len) * (mappingData[i]['covered'] / 100.0);
     }
-    const tc = Number.parseFloat(wa*100).toFixed(1);
+    const tc = Math.round(wa * 100 * 1e1) / 1e1;
     setTotalCoverage(tc);
   }, [mappingData]);
 
@@ -92,7 +92,6 @@ const Mapping: React.FunctionComponent = (api_id) => {
         </PageSection>
         <PageSection type="tabs" variant={PageSectionVariants.light} isWidthLimited>
           <MappingPageSection
-            baseApiUrl={Constants.API_BASE_URL}
             mappingData={mappingData}
             unmappingData={unmappingData}
             loadMappingData={loadMappingData}

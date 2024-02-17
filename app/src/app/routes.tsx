@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { Route, RouteComponentProps, Switch, useLocation } from 'react-router-dom';
 import { Dashboard } from '@app/Dashboard/Dashboard';
+import { Login } from '@app/Login/Login';
 import { Mapping } from '@app/Mapping/Mapping';
 import { NotFound } from '@app/NotFound/NotFound';
+import { Signin } from '@app/Signin/Signin';
 import { useDocumentTitle } from '@app/utils/useDocumentTitle';
 
 let routeFocusTimer: number;
@@ -32,11 +34,25 @@ const routes: AppRouteConfig[] = [
     title: 'BASIL | The Fusa Spice | Software Components',
   },
   {
+    component: Login,
+    exact: true,
+    label: 'Login',
+    path: '/login',
+    title: 'BASIL | The Fusa Spice | Login',
+  },
+  {
     component: Mapping,
     exact: true,
     label: 'SW Specification Mapping',
     path: '/mapping/:api_id',
     title: 'BASIL | The Fusa Spice | Software Component Specification Mapping',
+  },
+  {
+    component: Signin,
+    exact: true,
+    label: 'Sign In',
+    path: '/signin',
+    title: 'BASIL | The Fusa Spice | Sign In',
   },
 ];
 
@@ -96,9 +112,7 @@ const AppRoutes = ({
         exact={exact}
         component={component}
         key={idx}
-        title={title}
-        notificationCount={notificationCount}
-        setNotificationCount={setNotificationCount} />
+        title={title} />
     ))}
     <PageNotFound title="404 Page Not Found" />
   </Switch>

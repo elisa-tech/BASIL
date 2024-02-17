@@ -10,7 +10,6 @@ import {
 
 export interface MappingForkModalProps{
   api;
-  baseApiUrl;
   modalShowState;
   setModalShowState;
   modalTitle;
@@ -23,7 +22,6 @@ export interface MappingForkModalProps{
 
 export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = ({
   api,
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalTitle = "",
@@ -52,7 +50,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   const fork = () => {
     const data = {'api-id': api.id,
                 'relation-id': relationData.relation_id};
-    fetch(baseApiUrl + '/fork/' + parentType + '/' + workItemType, {
+    fetch(Constants.API_BASE_URL + '/fork/' + parentType + '/' + workItemType, {
       method: 'POST',
       headers: {
         Accept: 'application/json',

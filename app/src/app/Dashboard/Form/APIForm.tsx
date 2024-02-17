@@ -11,20 +11,20 @@ import {
   HintBody,
   TextInput,
 } from '@patternfly/react-core';
+import * as Constants from '../../Constants/constants';
+import { useAuth } from '@app/User/AuthProvider';
 
 export interface APIFormProps {
-  baseApiUrl: str;
-  formDefaultButtons: int;
-  formVerb: str;
-  formAction: str;
+  formDefaultButtons?: number;
+  formVerb: string;
+  formAction: string;
   formData;
-  formMessage: string;
-  modalFormSubmitState: string;
-  setModalFormSubmitState;
+  formMessage?: string;
+  modalFormSubmitState?: string;
+  setModalFormSubmitState?;
 }
 
 export const APIForm: React.FunctionComponent<APIFormProps> = ({
-    baseApiUrl,
     formDefaultButtons= 1,
     formVerb='POST',
     formAction='add',
@@ -37,25 +37,26 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
                 'tags': '',
                 'implementation_file_from_row': '',
                 'implementation_file_to_row': '',
-                'implementation_file': '',},
+                'implementation_file': '',
+                'user-id': '',
+                'token': ''},
     formMessage = "",
     modalFormSubmitState = "waiting",
     setModalFormSubmitState,
     }: APIFormProps) => {
 
-    type validate = 'success' | 'warning' | 'error' | 'default';
-
+    let auth = useAuth();
     const [apiValue, setApiValue] = React.useState(formData.api);
-    const [validatedApiValue, setValidatedApiValue] = React.useState<validate>('error');
+    const [validatedApiValue, setValidatedApiValue] = React.useState<Constants.validate>('error');
 
     const [libraryValue, setLibraryValue] = React.useState(formData.library);
-    const [validatedLibraryValue, setValidatedLibraryValue] = React.useState<validate>('error');
+    const [validatedLibraryValue, setValidatedLibraryValue] = React.useState<Constants.validate>('error');
 
     const [libraryVersionValue, setLibraryVersionValue] = React.useState(formAction == 'fork' ? '' : formData.library_version);
-    const [validatedLibraryVersionValue, setValidatedLibraryVersionValue] = React.useState<validate>('error');
+    const [validatedLibraryVersionValue, setValidatedLibraryVersionValue] = React.useState<Constants.validate>('error');
 
     const [rawSpecificationUrlValue, setRawSpecificationUrlValue] = React.useState(formData.raw_specification_url);
-    const [validatedRawSpecificationUrlValue, setValidatedRawSpecificationUrlValue] = React.useState<validate>('error');
+    const [validatedRawSpecificationUrlValue, setValidatedRawSpecificationUrlValue] = React.useState<Constants.validate>('error');
 
     const [categoryValue, setCategoryValue] = React.useState(formData.category);
 
@@ -64,10 +65,10 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     const [implementationFileValue, setImplementationFileValue] = React.useState(formData.implementation_file);
 
     const [implementationFileFromRowValue, setImplementationFileFromRowValue] = React.useState(formData.implementation_file_from_row);
-    const [validatedImplementationFileFromRowValue, setValidatedImplementationFileFromRowValue] = React.useState<validate>('error');
+    const [validatedImplementationFileFromRowValue, setValidatedImplementationFileFromRowValue] = React.useState<Constants.validate>('error');
 
     const [implementationFileToRowValue, setImplementationFileToRowValue] = React.useState(formData.implementation_file_to_row);
-    const [validatedImplementationFileToRowValue, setValidatedImplementationFileToRowValue] = React.useState<validate>('error');
+    const [validatedImplementationFileToRowValue, setValidatedImplementationFileToRowValue] = React.useState<Constants.validate>('error');
 
     const [messageValue, setMessageValue] = React.useState(formMessage);
 
@@ -163,7 +164,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         setImplementationFileFromRowValue(value);
     };
 
-    const handleImplementationFileToRowValueChange = (_event, value: int) => {
+    const handleImplementationFileToRowValueChange = (_event, value: string) => {
         setImplementationFileToRowValue(value);
     };
 
@@ -188,6 +189,11 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     }
 
     const handleSubmit = () => {
+
+        if (!auth.isLogged()){
+          setMessageValue('Session expired, please login.'); return;
+        }
+
         if (formVerb=='POST'){
           {/*Only post handled in modal window*/}
           setModalFormSubmitState('waiting');
@@ -220,9 +226,11 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           'implementation-file-from-row': implementationFileFromRowValue,
           'implementation-file-to-row': implementationFileToRowValue,
           'raw-specification-url': rawSpecificationUrlValue,
+          'user-id': auth.userId,
+          'token': auth.token,
         }
 
-        fetch(baseApiUrl + '/apis', {
+        fetch(Constants.API_BASE_URL + '/apis', {
           method: formVerb,
           headers: {
             Accept: 'application/json',
@@ -236,7 +244,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
               setModalFormSubmitState('waiting');
             } else {
               setMessageValue('Database updated!');
-              window.location = "/?currentLibrary=" + libraryValue;
+              window.location.href = "/?currentLibrary=" + libraryValue;
             }
           })
           .catch((err) => {
@@ -259,7 +267,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             {validatedApiValue !== 'success' && (
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem variant={validatedApiValue}>
+                  <HelperTextItem variant="error">
                     {validatedApiValue === 'error' ? 'This field is mandatory' : ''}
                   </HelperTextItem>
                 </HelperText>
@@ -277,7 +285,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             {validatedLibraryValue !== 'success' && (
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem variant={validatedLibraryValue}>
+                  <HelperTextItem variant="error">
                     {validatedLibraryValue === 'error' ? 'This field is mandatory' : ''}
                   </HelperTextItem>
                 </HelperText>
@@ -295,7 +303,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             {validatedLibraryVersionValue !== 'success' && (
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem variant={validatedLibraryVersionValue}>
+                  <HelperTextItem variant="error">
                     {validatedLibraryVersionValue === 'error' ? 'This field is mandatory' : ''}
                   </HelperTextItem>
                 </HelperText>
@@ -313,7 +321,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             {validatedRawSpecificationUrlValue !== 'success' && (
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem variant={validatedRawSpecificationUrlValue}>
+                  <HelperTextItem variant="error">
                     {validatedRawSpecificationUrlValue === 'error' ? 'This field is mandatory' : ''}
                   </HelperTextItem>
                 </HelperText>
@@ -348,7 +356,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             {validatedImplementationFileFromRowValue !== 'success' && (
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem variant={validatedImplementationFileFromRowValue}>
+                  <HelperTextItem variant="error">
                     {validatedImplementationFileFromRowValue === 'error' ? 'Must be a number' : ''}
                   </HelperTextItem>
                 </HelperText>
@@ -365,7 +373,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             {validatedImplementationFileToRowValue !== 'success' && (
               <FormHelperText>
                 <HelperText>
-                  <HelperTextItem variant={validatedImplementationFileToRowValue}>
+                  <HelperTextItem variant="error">
                     {validatedImplementationFileToRowValue === 'error' ? 'Must be a number' : ''}
                   </HelperTextItem>
                 </HelperText>

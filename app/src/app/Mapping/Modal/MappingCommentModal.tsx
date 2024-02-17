@@ -8,7 +8,6 @@ import { CommentForm } from '../Form/CommentForm';
 
 export interface MappingCommentModalProps {
   api;
-  baseApiUrl;
   modalDescription;
   modalTitle;
   relationData;
@@ -16,13 +15,12 @@ export interface MappingCommentModalProps {
   parentType;
   parentRelatedToType;
   setModalShowState;
-  modalShowState;
+  modalShowState: boolean;
   loadMappingData;
 }
 
 export const MappingCommentModal: React.FunctionComponent<MappingCommentModalProps> = ({
   api,
-  baseApiUrl,
   modalDescription,
   modalTitle,
   relationData,
@@ -87,7 +85,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
 
 
   const loadComments = (parent_table, parent_id) => {
-    fetch(baseApiUrl + '/comments?parent_table=' +  parent_table + '&parent_id=' + parent_id)
+    fetch(Constants.API_BASE_URL + '/comments?parent_table=' +  parent_table + '&parent_id=' + parent_id)
       .then((res) => res.json())
       .then((data) => {
         setComments(data);
@@ -101,9 +99,9 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
     return comments.map((comment, index) => (
                 <TextListItem key={index}>
 
-                  <em><b>{comment.username}</b></em><span className="date-text"> on {comment.created_at}</span>
+                  <em><b>{comment['username']}</b></em><span className="date-text"> on {comment['created_at']}</span>
                   <br />
-                  {comment.comment}
+                  {comment['comment']}
 
 
                 </TextListItem>
@@ -151,17 +149,17 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
                 </Td>
                 <Td>
                   <CommentForm
-                    api={api}
-                    baseApiUrl={baseApiUrl}
+                    //api={api}
                     relationData={relationData}
                     workItemType={workItemType}
                     parentType={parentType}
-                    parentRelatedToType={parentRelatedToType}
-                    setModalShowState={setModalShowState}
-                    modalShowState={modalShowState}
+                    //parentRelatedToType={parentRelatedToType}
+                    //setModalShowState={setModalShowState}
+                    //modalShowState={modalShowState}
                     handleModalToggle={handleModalToggle}
                     loadMappingData={loadMappingData}
-                    loadComments={loadComments} />
+                    //loadComments={loadComments}
+                    />
                 </Td>
               </Tr>
 

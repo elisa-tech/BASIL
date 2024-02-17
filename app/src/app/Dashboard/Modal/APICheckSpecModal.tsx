@@ -16,6 +16,7 @@ import {
   ModalVariant,
   TextInput,
 } from '@patternfly/react-core';
+import * as Constants from '../../Constants/constants';
 
 export interface checkSpecResultsProps {
   checkResultData;
@@ -111,14 +112,12 @@ export const CheckSpecResults: React.FunctionComponent<checkSpecResultsProps> = 
 
 
 export interface APICheckSpecModalProps {
-  baseApiUrl: string;
   modalShowState;
   setModalShowState;
   api;
 }
 
 export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> = ({
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   api = null,
@@ -153,7 +152,7 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
       return;
     } else {
       setMessageValue('');
-      fetch(baseApiUrl + '/apis/check-specification?id=' + api.id + '&url=' + rawSpecificationUrlValue, {
+      fetch(Constants.API_BASE_URL + '/apis/check-specification?id=' + api.id + '&url=' + rawSpecificationUrlValue, {
           method: 'GET',
           headers: {
             Accept: 'application/json',
@@ -174,7 +173,7 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
 
   const handleFixWarnings = () => {
     setMessageValue('');
-    fetch(baseApiUrl + '/apis/fix-specification-warnings?id=' + api.id, {
+    fetch(Constants.API_BASE_URL + '/apis/fix-specification-warnings?id=' + api.id, {
         method: 'GET',
         headers: {
           Accept: 'application/json',

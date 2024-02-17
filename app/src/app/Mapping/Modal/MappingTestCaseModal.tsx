@@ -1,4 +1,5 @@
-import React from 'react';
+import * as React from 'react';
+import * as Constants from '../../Constants/constants';
 import {
   Button,
   Modal,
@@ -15,12 +16,11 @@ import { TestCaseSearch } from '../Search/TestCaseSearch';
 
 export interface MappingTestCaseModalProps {
   api;
-  baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
   modalTitle: string;
   modalDescription: string;
-  modalShowState: string;
+  modalShowState: boolean;
   modalFormData;
   modalSection;
   modalIndirect;
@@ -35,7 +35,6 @@ export interface MappingTestCaseModalProps {
 }
 
 export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalProps> = ({
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalAction = "",
@@ -58,6 +57,12 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [testCases, setTestCases] = React.useState([]);
 
+  const testCaseSearchFormDataDefault = {'id': 0,
+                                         'title': '',
+                                         'description': '',
+                                         'repository': '',
+                                         'relative_path': ''};
+
   const handleModalToggle = () => {
     const new_state = !modalShowState;
     setModalShowState(new_state);
@@ -69,7 +74,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
   }, [modalShowState]);
 
   const loadTestCases = (searchValue) => {
-    const url = baseApiUrl + '/test-cases';
+    let url = Constants.API_BASE_URL + '/test-cases';
     if (searchValue != undefined){
       url = url + '?search=' + searchValue;
     }
@@ -156,10 +161,12 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
               parentRelatedToType={parentRelatedToType}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
-              baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              formDefaultButtons={1}
+              formMessage={''}
+              modalFormSubmitState={'waiting'}
             />
           </TabContentBody>
         </TabContent>
@@ -167,10 +174,9 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
-              formVerb={modalVerb}
-              handleModalToggle={handleModalToggle}
-              baseApiUrl={baseApiUrl}
-              modalIndirect={modalIndirect}
+              //formVerb={modalVerb}
+              //handleModalToggle={handleModalToggle}
+              //modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
               setModalOffset={setModalOffset}
@@ -190,10 +196,12 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
               loadMappingData={loadMappingData}
               loadTestCases={loadTestCases}
               testCases={testCases}
-              baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              formMessage={''}
+              formDefaultButtons={1}
+              formData={testCaseSearchFormDataDefault}
             />
           </TabContentBody>
         </TabContent>

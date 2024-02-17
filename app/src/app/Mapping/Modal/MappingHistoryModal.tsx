@@ -10,15 +10,21 @@ import {
   TextVariants,
 } from '@patternfly/react-core';
 
-import { MappingModalProps } from './MappingModalProps';
+export interface MappingHistoryModalProps {
+  modalShowState;
+  setModalShowState;
+  modalTitle: string;
+  modalDescription: string;
+  modalData,
+}
 
-export const MappingHistoryModal: React.FunctionComponent<MappingModalProps> = ({
+export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalProps> = ({
   modalShowState = false,
   setModalShowState,
   modalTitle = "",
   modalDescription = "",
   modalData,
-  }: MappingModalProps) => {
+  }: MappingHistoryModalProps) => {
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 

@@ -17,7 +17,6 @@ import { MappingViewSelect } from './MappingViewSelect';
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar';
 
 export interface MappingPageSectionProps {
-  baseApiUrl: string;
   mappingData;
   unmappingData;
   loadMappingData;
@@ -28,7 +27,6 @@ export interface MappingPageSectionProps {
 }
 
 const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
-  baseApiUrl,
   mappingData=[],
   unmappingData=[],
   loadMappingData,
@@ -40,7 +38,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
   const [modalAction, setModalAction] = React.useState('');
   const [modalVerb, setModalVerb] = React.useState('');
-  const [modalFormData, setModalFormData] = React.useState('');
+  const [modalFormData, setModalFormData] = React.useState<any>('');
   const [modalTitle, setModalTitle] = React.useState('');
   const [modalIndirect, setModalIndirect] = React.useState<boolean>(false);
   const [modalDescription, setModalDescription] = React.useState('');
@@ -273,7 +271,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setHistoryModalInfo = (show, work_item_type, mapped_to_type, relation_id) => {
-    const url = baseApiUrl + "/mapping/history?work_item_type=" + work_item_type + "&mapped_to_type=" + mapped_to_type + "&relation_id=" + relation_id;
+    const url = Constants.API_BASE_URL + "/mapping/history?work_item_type=" + work_item_type + "&mapped_to_type=" + mapped_to_type + "&relation_id=" + relation_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -286,7 +284,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setDetailsModalInfo = (show, work_item_type, work_item_id) => {
-    const url = baseApiUrl + "/" + work_item_type + "s?field1=id&filter1=" + work_item_id;
+    const url = Constants.API_BASE_URL + "/" + work_item_type + "s?field1=id&filter1=" + work_item_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -301,7 +299,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setUsageModalInfo = (show, work_item_type, work_item_id) => {
-    const url = baseApiUrl + "/mapping/usage?work_item_type=" + work_item_type + "&id=" + work_item_id;
+    const url = Constants.API_BASE_URL + "/mapping/usage?work_item_type=" + work_item_type + "&id=" + work_item_id;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -446,18 +444,17 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     </PageSection>
 
     <MappingListingTable
-      baseApiUrl={baseApiUrl}
       mappingData={mappingData}
       unmappingData={unmappingData}
       api={api}
       srModalShowState={srModalShowState}
-      setSrModalShowState={setSrModalShowState}
+      //setSrModalShowState={setSrModalShowState}
       tsModalShowState={tsModalShowState}
       setTsModalShowState={setTsModalShowState}
       tcModalShowState={tcModalShowState}
       setTcModalShowState={setTcModalShowState}
       jModalShowState={jModalShowState}
-      setJModalShowState={setJModalShowState}
+      //setJModalShowState={setJModalShowState}
       setTsModalInfo={setTsModalInfo}
       setTcModalInfo={setTcModalInfo}
       setSrModalInfo={setSrModalInfo}
@@ -474,7 +471,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       />
     <MappingSwRequirementModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalAction={modalAction}
       modalDescription={modalDescription}
       modalFormData={modalFormData}
@@ -493,7 +489,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       setModalShowState={setSrModalShowState} />
     <MappingTestSpecificationModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalAction={modalAction}
       modalDescription={modalDescription}
       modalFormData={modalFormData}
@@ -512,7 +507,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       setModalShowState={setTsModalShowState} />
     <MappingTestCaseModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalAction={modalAction}
       modalDescription={modalDescription}
       modalFormData={modalFormData}
@@ -531,7 +525,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       setModalShowState={setTcModalShowState} />
     <MappingJustificationModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalAction={modalAction}
       modalDescription={modalDescription}
       modalFormData={modalFormData}
@@ -546,7 +539,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       loadMappingData={loadMappingData}
       parentData={modalParentData}
       parentType={modalParentType}
-      setModalShowState={setJModalShowState}/>
+      setModalShowState={setJModalShowState}
+      modalData={{}}
+      modalHistoryData={currentMappingHistory}
+      parentRelatedToType={modalParentRelatedToType}
+      />
     <MappingDetailsModal
       modalDescription={modalDescription}
       modalTitle={modalTitle}
@@ -568,7 +565,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       />
     <MappingCommentModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalDescription={modalDescription}
       modalTitle={modalTitle}
       relationData={modalRelationData}
@@ -581,26 +577,24 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       />
     <MappingDeleteModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalTitle={modalTitle}
       modalDescription={modalDescription}
       setModalShowState={setDeleteModalShowState}
       modalShowState={deleteModalShowState}
       workItemType={modalWorkItemType}
       parentType={modalParentType}
-      parentRelatedToType={modalParentRelatedToType}
+      //parentRelatedToType={modalParentRelatedToType}
       relationData={modalRelationData}
       loadMappingData={loadMappingData}/>
     <MappingForkModal
       api={api}
-      baseApiUrl={baseApiUrl}
       modalTitle={modalTitle}
       modalDescription={modalDescription}
       setModalShowState={setForkModalShowState}
       modalShowState={forkModalShowState}
       workItemType={modalWorkItemType}
       parentType={modalParentType}
-      parentRelatedToType={modalParentRelatedToType}
+      //parentRelatedToType={modalParentRelatedToType}
       relationData={modalRelationData}
       loadMappingData={loadMappingData}/>
     </React.Fragment>

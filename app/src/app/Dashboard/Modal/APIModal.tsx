@@ -7,12 +7,11 @@ import {
 import { APIForm } from '../Form/APIForm';
 
 export interface APIModalProps {
-  baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
   modalTitle: string;
   modalDescription: string;
-  modalShowState: string;
+  modalShowState: boolean;
   modalFormData;
   setCurrentLibrary;
   loadLibraries;
@@ -21,7 +20,6 @@ export interface APIModalProps {
 }
 
 export const APIModal: React.FunctionComponent<APIModalProps> = ({
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   setCurrentLibrary,
@@ -79,17 +77,16 @@ export const APIModal: React.FunctionComponent<APIModalProps> = ({
         ]}
       >
         <APIForm
-          baseApiUrl={baseApiUrl}
           formAction={modalAction}
           formVerb={modalVerb}
           formDefaultButtons={0}
           formData={modalFormData}
           modalFormSubmitState={modalFormSubmitState}
           setModalFormSubmitState={setModalFormSubmitState}
-          setCurrentLibrary={setCurrentLibrary}
-          loadLibraries={loadLibraries}
-          loadApi={loadApi}
-          handleModalToggle={handleModalToggle}
+          //setCurrentLibrary={setCurrentLibrary}
+          //loadLibraries={loadLibraries}
+          //loadApi={loadApi}
+          //handleModalToggle={handleModalToggle}
           />
       </Modal>
     </React.Fragment>

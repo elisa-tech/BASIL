@@ -16,12 +16,11 @@ import {
 
 export interface TestSpecificationFormProps {
   api;
-  baseApiUrl: str;
-  formAction: str;
+  formAction: string;
   formData;
-  formDefaultButtons: int;
+  formDefaultButtons: number;
   formMessage: string;
-  formVerb: str;
+  formVerb: string;
   handleModalToggle;
   loadMappingData;
   modalFormSubmitState: string;
@@ -35,7 +34,6 @@ export interface TestSpecificationFormProps {
 
 export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFormProps> = ({
     api,
-    baseApiUrl,
     formAction="add",
     formData={'id': 0,
               'coverage': 0,
@@ -218,7 +216,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
           data['test-specification']['id'] = formData.id;
         }
 
-        fetch(baseApiUrl + '/mapping/' + parentType + '/test-specifications', {
+        fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-specifications', {
           method: formVerb,
           headers: {
             Accept: 'application/json',

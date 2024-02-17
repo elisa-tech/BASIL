@@ -1,9 +1,11 @@
 import * as React from 'react';
+import * as Constants from '../Constants/constants';
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { Button, Flex, FlexItem, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core';
 import { APIForm } from './Form/APIForm';
 import { ApiMenuKebab } from './Menu/ApiMenuKebab';
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar';
+import { useAuth } from '@app/User/AuthProvider';
 
 interface APIHistoryData {
   versionNumber: number;
@@ -28,7 +30,6 @@ interface DataObject {
 }
 
 export interface APIListingTableProps {
-  baseApiUrl: string;
   setModalInfo;
   apis;
   setModalCheckSpecInfo;
@@ -36,12 +37,12 @@ export interface APIListingTableProps {
 }
 
 const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
-  baseApiUrl,
   setModalInfo,
   setModalCheckSpecInfo,
   setModalDeleteInfo,
   apis,
 }: APIListingTableProps) => {
+  let auth = useAuth();
   const [expandedRepoNames, setExpandedRepoNames] = React.useState<string[]>([]);
   const setRepoExpanded = (repo: DataObject, isExpanding = true) =>
     setExpandedRepoNames(prevExpanded => {
@@ -53,7 +54,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   const [currentApiHistory, setCurrentApiHistory] = React.useState([]);
 
   React.useEffect(() => {
-    const url = baseApiUrl + '/apis/history?api-id=' + currentApiID;
+    const url = Constants.API_BASE_URL + '/apis/history?api-id=' + currentApiID;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -81,10 +82,10 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     } else {
       return currentApiHistory.map((version, versionIndex) => (
         <React.Fragment key={versionIndex}>
-          <Text component={TextVariants.h3}>Version {version.version} - {version.created_at}</Text>
+          <Text component={TextVariants.h3}>Version {version['version']} - {version['created_at']}</Text>
           <TextList>
-            {Object.keys(version.object).map((key, index) => (
-                <TextListItem key={index}><em>{key}: </em>{version.object[key]}</TextListItem>
+            {Object.keys(version['object']).map((key, index) => (
+                <TextListItem key={index}><em>{key}: </em>{version['object'][key]}</TextListItem>
             ))}
           </TextList>
         </React.Fragment>
@@ -137,12 +138,12 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                     </TextContent>
                   </FlexItem>
                   <FlexItem flex={{ default: 'flex_1' }}>
+                    { auth.isLogged() ? (
                     <APIForm
-                        baseApiUrl={baseApiUrl}
                         formAction={'edit'}
                         formVerb={'PUT'}
                         formData={dataRow}
-                         />
+                         />) : ('') }
                   </FlexItem>
                 </Flex>
               </ExpandableRowContent>

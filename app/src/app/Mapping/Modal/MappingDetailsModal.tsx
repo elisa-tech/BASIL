@@ -7,15 +7,22 @@ import {
   TextList,
   TextListItem,
 } from '@patternfly/react-core';
-import { MappingModalProps } from './MappingModalProps';
 
-export const MappingDetailsModal: React.FunctionComponent<MappingModalProps> = ({
+export interface MappingDeleteModalProps {
+  modalShowState;
+  setModalShowState;
+  modalTitle: string;
+  modalDescription: string;
+  modalData,
+}
+
+export const MappingDetailsModal: React.FunctionComponent<MappingDeleteModalProps> = ({
   modalShowState = false,
   setModalShowState,
   modalTitle = "",
   modalDescription = "",
   modalData,
-  }: MappingModalProps) => {
+  }: MappingDeleteModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   const handleModalToggle = () => {

@@ -9,7 +9,7 @@ const Dashboard: React.FunctionComponent = () => {
   const [apis, setApis] = React.useState([]);
   const [totalCoverage, setTotalCoverage] = React.useState(0);
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  const [libraries, setLibraries] = React.useState([]);
+  const [libraries, setLibraries] = React.useState<string[]>([]);
   const [currentLibrary, setCurrentLibrary] = React.useState('');
   const search = window.location.search;
   const params = new URLSearchParams(search);
@@ -69,7 +69,7 @@ const Dashboard: React.FunctionComponent = () => {
   React.useEffect(() => {
     let tc = 0;
     for (let i = 0; i<apis.length; i++){
-      tc = tc + (apis[i].covered  / apis.length);
+      tc = tc + (apis[i]['covered']  / apis.length);
     }
     setTotalCoverage(tc);
   }, [apis]);
@@ -142,8 +142,7 @@ const Dashboard: React.FunctionComponent = () => {
         loadApi={loadApi}
         apis={apis}
         searchValue={searchValue}
-        totalCoverage={totalCoverage}
-        baseApiUrl={Constants.API_BASE_URL}/>
+        totalCoverage={totalCoverage} />
     </React.Fragment>
   )
 }

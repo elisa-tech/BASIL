@@ -6,6 +6,7 @@ import {
   MenuToggle,
   MenuToggleElement,
 } from '@patternfly/react-core';
+import { useAuth } from '@app/User/AuthProvider';
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon';
 
 export interface ApiMenuKebabProps {
@@ -21,6 +22,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
   setModalDeleteInfo,
   apiData,
 }: ApiMenuKebabProps) => {
+  let auth = useAuth();
   const [isOpen, setIsOpen] = React.useState(false);
 
   const onToggleClick = () => {
@@ -51,6 +53,8 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     >
 
       <DropdownList>
+
+        { auth.isLogged() ? (
         <DropdownItem
           value={0}
           id={"btn-menu-api-check-spec-" + apiData.id}
@@ -58,7 +62,9 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
           onClick={() => setModalCheckSpecInfo(apiData, true)}
         >
           Check Spec
-        </DropdownItem>
+        </DropdownItem>) : ('') }
+
+        { auth.isLogged() ? (
         <DropdownItem
           value={1}
           id={"btn-menu-api-delete-" + apiData.id}
@@ -69,7 +75,9 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
                                             'Delete ' + apiData.api + ' and all related work items and mapping information?',
                                             'Do you want to delete selected api and all related work items and mapping information?')}>
           Delete
-        </DropdownItem>
+        </DropdownItem>) : ('') }
+
+        { auth.isLogged() ? (
         <DropdownItem
           value={2}
           id={"btn-menu-api-new-version-" + apiData.id}
@@ -83,7 +91,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
                                       'Information are prepopulated with the current version')}
           >
           New Version
-        </DropdownItem>
+        </DropdownItem>) : ('') }
 
       </DropdownList>
     </Dropdown>

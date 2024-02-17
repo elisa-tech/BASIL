@@ -39,9 +39,10 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   };
 
   const getSection = () => {
-    if (getSelection().toString() != ''){
-      if (getSelection().anchorNode.parentNode.id == "snippet-" + sectionIndex){
-        return getSelection().toString();
+    let currentSelection = getSelection()?.toString() as string | '';
+    if (currentSelection != ''){
+      if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == "snippet-" + sectionIndex){
+        return currentSelection;
       } else {
         return section;
       }
@@ -51,9 +52,10 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   }
 
   const getOffset = () => {
-    if (getSelection().toString() != ''){
-      if (getSelection().anchorNode.parentNode.id == "snippet-" + sectionIndex){
-        return offset + Math.min(getSelection().baseOffset, getSelection().extentOffset);
+    let currentSelection = getSelection()?.toString() as string | '';
+    if (currentSelection != ''){
+      if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == "snippet-" + sectionIndex){
+        return offset + Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset);
       } else {
         return offset;
       }

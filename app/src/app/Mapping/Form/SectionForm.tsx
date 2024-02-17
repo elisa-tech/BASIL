@@ -58,12 +58,13 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
     }, [offsetValue]);
 
     const handleSectionValueChange = () => {
-      if (getSelection().toString() != ''){
-        if (getSelection().anchorNode.parentNode.id == "input-raw-specification"){
-          setModalSection(getSelection().toString());
-          setModalOffset(Math.min(getSelection().baseOffset, getSelection().extentOffset));
-          setSectionValue(getSelection().toString());
-          setOffsetValue(Math.min(getSelection().baseOffset, getSelection().extentOffset));
+      let currentSelection = getSelection()?.toString() as string | '';
+      if (currentSelection != ''){
+        if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == "input-raw-specification"){
+          setModalSection(currentSelection);
+          setModalOffset(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset));
+          setSectionValue(currentSelection);
+          setOffsetValue(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset));
         }
       }
     }
@@ -94,7 +95,7 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
               id={`input-justification-section`}
               name={`input-justification-section`}
               value={sectionValue || ''}
-              onChange={(_ev, value) => handleSectionValueChange(_ev, value)}
+              onChange={(_ev, value) => handleSectionValueChange()}
             />
             {validatedSectionValue !== 'success' && (
               <FormHelperText>
@@ -113,7 +114,7 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
               id={`input-justification-offset`}
               name={`input-justification-offset`}
               value={offsetValue}
-              onChange={(_ev, value) => handleOffsetValueChange(_ev, value)}
+              //onChange={(_ev, value) => handleOffsetValueChange(_ev, value)}
             />
             {validatedOffsetValue !== 'success' && (
               <FormHelperText>

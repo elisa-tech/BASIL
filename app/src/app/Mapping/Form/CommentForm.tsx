@@ -15,7 +15,6 @@ import {
 } from '@patternfly/react-core';
 
 export interface CommentFormProps {
-  baseApiUrl: str;
   relationData;
   workItemType;
   parentType;
@@ -24,7 +23,6 @@ export interface CommentFormProps {
 }
 
 export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
-  baseApiUrl,
   relationData,
   workItemType,
   parentType,
@@ -40,7 +38,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
     const [commentValue, setCommentValue] = React.useState('');
     const [validatedCommentValue, setValidatedCommentValue] = React.useState<validate>('error');
 
-    const [messageValue, setMessageValue] = React.useState();
+    const [messageValue, setMessageValue] = React.useState('');
     const [statusValue, setStatusValue] = React.useState('waiting');
 
     const resetForm = () => {
@@ -131,7 +129,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
           'username': usernameValue,
         }
 
-        fetch(baseApiUrl + '/comments', {
+        fetch(Constants.API_BASE_URL + '/comments', {
           method: 'POST',
           headers: {
             Accept: 'application/json',

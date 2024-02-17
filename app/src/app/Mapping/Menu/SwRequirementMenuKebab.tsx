@@ -10,7 +10,7 @@ import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-ico
 
 export interface SwRequirementMenuKebabProps {
   indirect;
-  srModalShowState;
+  //srModalShowState;
   setDetailsModalInfo;
   setHistoryModalInfo;
   setUsageModalInfo;

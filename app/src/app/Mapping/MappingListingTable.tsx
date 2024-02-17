@@ -145,6 +145,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       } else {
         return <Flex><FlexItem><Icon iconSize='lg'><CodeIcon /></Icon></FlexItem></Flex>
       }
+    } else {
+      return '';
     }
   }
 
@@ -166,7 +168,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     } else {
       return test_cases.map((test_case, cIndex) => (
           <React.Fragment key={cIndex}>
-            <Card pl="10">
+            <Card> //pl=10
               <CardBody>
                 <Flex>
                   <FlexItem>
@@ -203,11 +205,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
-                      tcModalShowState={tcModalShowState}
                       setTcModalInfo={setTcModalInfo}
-                      setTcModalShowState={setTcModalShowState}
                       setDeleteModalInfo={setDeleteModalInfo}
-                      mappingType={Constants._TC}
                       mappingParentType={parent_type}
                       mappingParentRelatedToType={parent_related_to_type}
                       mappingIndex={cIndex}
@@ -215,6 +214,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       mappingSection={section}
                       mappingOffset={offset}
                       api={api}
+                      //setTcModalShowState={setTcModalShowState}
+                      //mappingType={Constants._TC}
+                      //tcModalShowState={tcModalShowState}
                       />
                   </FlexItem>
                 </Flex>
@@ -254,7 +256,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     } else {
       return test_specs.map((test_spec, cIndex) => (
           <React.Fragment key={cIndex}>
-            <Card pl="10">
+            <Card> //pl="10"
               <CardBody>
                 <Flex>
                   <FlexItem>
@@ -300,14 +302,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
-                      tsModalShowState={tsModalShowState}
-                      tcModalShowState={tcModalShowState}
                       setTcModalInfo={setTcModalInfo}
                       setTsModalInfo={setTsModalInfo}
-                      setTcModalShowState={setTcModalShowState}
-                      setTsModalShowState={setTsModalShowState}
                       setDeleteModalInfo={setDeleteModalInfo}
-                      mappingType={'test-specification'}
                       mappingParentType={parent_type}
                       mappingParentRelatedToType={parent_related_to_type}
                       mappingIndex={cIndex}
@@ -315,6 +312,11 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       mappingSection={section}
                       mappingOffset={offset}
                       api={api}
+                      //setTcModalShowState={setTcModalShowState}
+                      //setTsModalShowState={setTsModalShowState}
+                      //mappingType={'test-specification'}
+                      //tsModalShowState={tsModalShowState}
+                      //tcModalShowState={tcModalShowState}
                       />
                   </FlexItem>
                 </Flex>
@@ -401,9 +403,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
-                      tsModalShowState={tsModalShowState}
-                      setTsModalShowState={setTsModalShowState}
-                      tcModalShowState={tcModalShowState}
                       setSrModalInfo={setSrModalInfo}
                       setTsModalInfo={setTsModalInfo}
                       setTcModalInfo={setTcModalInfo}
@@ -411,13 +410,16 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setForkModalInfo={setForkModalInfo}
                       api={api}
                       indirect={indirect}
-                      mappingType={Constants._SR}
                       mappingParentType={parent_type}
                       mappingParentRelatedToType={parent_related_to_type}
                       mappingList={mapping}
                       mappingIndex={mIndex}
                       mappingSection={section}
                       mappingOffset={offset}
+                      //tsModalShowState={tsModalShowState}
+                      //setTsModalShowState={setTsModalShowState}
+                      //tcModalShowState={tcModalShowState}
+                      //mappingType={Constants._SR}
                     />
                   </FlexItem>
                 </Flex>
@@ -480,7 +482,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       {mappedItem[Constants._J]['comment_count']}
                     </Badge>
                     <JustificationMenuKebab
-                      jModalShowState={jModalShowState}
                       setJModalInfo={setJModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
@@ -491,6 +492,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       mappingSection={section}
                       mappingOffset={offset}
                       api={api}
+                      //jModalShowState={jModalShowState}
                     />
                   </FlexItem>
                 </Flex>
@@ -555,10 +557,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem align={{ default: 'alignRight' }}>
                     <UnmappedMenuKebab
                       api={api}
-                      jModalShowState={jModalShowState}
                       srModalShowState={srModalShowState}
-                      tcModalShowState={tcModalShowState}
-                      tsModalShowState={tsModalShowState}
                       setDeleteModalInfo={setDeleteModalInfo}
                       setTcModalInfo={setTcModalInfo}
                       setTsModalInfo={setTsModalInfo}
@@ -570,6 +569,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       mappingList={[snippet]}
                       mappingSection={snippet['section']}
                       mappingOffset={snippet['offset']}
+                      //jModalShowState={jModalShowState}
+                      //tcModalShowState={tcModalShowState}
+                      //tsModalShowState={tsModalShowState}
                       />
                   </FlexItem>
                 </Flex>
@@ -611,14 +613,16 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem align={{ default: 'alignRight' }}>
                     <MappingSectionMenuKebab
+                      api={api}
                       offset={snippet['offset']}
                       section={snippet['section']}
                       sectionIndex={snippetIndex}
-                      isMatchingSection={true}
                       setTcModalInfo={setTcModalInfo}
                       setTsModalInfo={setTsModalInfo}
                       setSrModalInfo={setSrModalInfo}
-                      setJModalInfo={setJModalInfo} />
+                      setJModalInfo={setJModalInfo}
+                      //isMatchingSection={true}
+                    />
                   </FlexItem>
                 </Flex>
                 </CardBody>
@@ -634,8 +638,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             </Td>
             <Td width={50} dataLabel={columnNames.work_items}>
               {getSwRequirements(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A, '')}
-              {getTestSpecifications(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A)}
-              {getTestCases(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A)}
+              {getTestSpecifications(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A, '')}
+              {getTestCases(snippet['section'], snippet['offset'], snippet[mappingViewSelectValue.replaceAll("-", "_")], false, Constants._A, '')}
               {getJustifications(snippet['section'], snippet['offset'], snippet[Constants._Js])}
               {/*getSpecifications*/}
             </Td>

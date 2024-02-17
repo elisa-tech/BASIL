@@ -6,10 +6,10 @@ import {
   Modal,
   ModalVariant,
 } from '@patternfly/react-core';
+import * as Constants from '../../Constants/constants';
 
 export interface APIDeleteModalProps{
   api;
-  baseApiUrl;
   modalShowState;
   setModalShowState;
   modalTitle;
@@ -18,7 +18,6 @@ export interface APIDeleteModalProps{
 
 export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   api,
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalTitle = "",
@@ -51,7 +50,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
                 'implementation-file-from-row': api.implementation_file_from_row,
                 'implementation-file-to-row': api.implementation_file_to_row,
                 'tags': api.tags};
-    fetch(baseApiUrl + '/apis', {
+    fetch(Constants.API_BASE_URL + '/apis', {
       method: 'DELETE',
       headers: {
         Accept: 'application/json',

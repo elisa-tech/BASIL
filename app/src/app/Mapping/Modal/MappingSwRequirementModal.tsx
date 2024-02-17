@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import {
   Button,
   Modal,
@@ -9,18 +9,18 @@ import {
   TabTitleText,
   Tabs
 } from '@patternfly/react-core';
+import * as Constants from '../../Constants/constants';
 import { SectionForm } from '../Form/SectionForm';
 import { SwRequirementForm } from '../Form/SwRequirementForm';
 import { SwRequirementSearch } from '../Search/SwRequirementSearch';
 
 export interface MappingSwRequirementModalProps {
   api;
-  baseApiUrl: string;
   modalAction: string;
   modalVerb: string;
   modalTitle: string;
   modalDescription: string;
-  modalShowState: string;
+  modalShowState: boolean;
   modalFormData;
   modalSection;
   modalIndirect;
@@ -35,7 +35,6 @@ export interface MappingSwRequirementModalProps {
 }
 
 export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequirementModalProps> = ({
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalAction = "",
@@ -64,14 +63,14 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
 
   React.useEffect(() => {
     if (modalShowState == true){
-      loadSwRequirements();
+      loadSwRequirements('');
     }
     setIsModalOpen(modalShowState);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState]);
 
   const loadSwRequirements = (searchValue) => {
-    const url = baseApiUrl + '/sw-requirements?search=' + searchValue;
+    const url = Constants.API_BASE_URL + '/sw-requirements?search=' + searchValue;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -155,10 +154,12 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
               parentRelatedToType={parentRelatedToType}
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
-              baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
+              formDefaultButtons={1}
+              formMessage={''}
+              modalFormSubmitState={'waiting'}
             />
           </TabContentBody>
         </TabContent>
@@ -166,10 +167,9 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
           <TabContentBody hasPadding>
             <SectionForm
               api={api}
-              formVerb={modalVerb}
-              handleModalToggle={handleModalToggle}
-              baseApiUrl={baseApiUrl}
-              modalIndirect={modalIndirect}
+              //formVerb={modalVerb}
+              //handleModalToggle={handleModalToggle}
+              //modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
               setModalOffset={setModalOffset}
@@ -188,11 +188,13 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
               handleModalToggle={handleModalToggle}
               loadMappingData={loadMappingData}
               loadSwRequirements={loadSwRequirements}
-              baseApiUrl={baseApiUrl}
               modalIndirect={modalIndirect}
               modalOffset={modalOffset}
               modalSection={modalSection}
               swRequirements={swRequirements}
+              formDefaultButtons={1}
+              formMessage={''}
+              formData={null}
             />
           </TabContentBody>
         </TabContent>

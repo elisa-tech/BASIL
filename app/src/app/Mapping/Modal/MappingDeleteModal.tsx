@@ -10,8 +10,7 @@ import {
 
 export interface MappingDeleteModalProps{
   api;
-  baseApiUrl;
-  modalShowState;
+  modalShowState: boolean;
   setModalShowState;
   modalTitle;
   modalDescription;
@@ -23,7 +22,6 @@ export interface MappingDeleteModalProps{
 
 export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps> = ({
   api,
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
   modalTitle = "",
@@ -53,7 +51,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
     const data = {'api-id': api.id,
                   'relation-id': relationData.relation_id};
 
-    fetch(baseApiUrl + '/mapping/' + parentType + '/' + workItemType + 's', {
+    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',
       headers: {
         Accept: 'application/json',

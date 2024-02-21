@@ -19,4 +19,4 @@ export const _TSs = 'test-specifications'
 export const _TS_ = 'test_specification'
 export const _TSs_ = 'test_specifications'
 
-export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined';
+export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'

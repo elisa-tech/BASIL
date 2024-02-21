@@ -1,3 +1,4 @@
+import base64
 from flask_cors import CORS
 from flask import Flask, request, send_file
 from flask_restful import Resource, Api, reqparse
@@ -9,6 +10,7 @@ from sqlalchemy.orm.exc import NoResultFound
 import sys
 import urllib
 from urllib.error import HTTPError, URLError
+from uuid import uuid4
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
@@ -19,6 +21,26 @@ sys.path.insert(1, os.path.dirname(currentdir))
 JOIN_APIS_TABLE = "apis"
 JOIN_SW_REQUIREMENTS_TABLE = "sw-requirements"
 JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
+MAX_LOGIN_ATTEMPTS = 5
+MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 15  # 15 minutes
+
+USER_ROLES_DELETE_PERMISSIONS = ['ADMIN', 'USER']
+USER_ROLES_EDIT_PERMISSIONS = ['ADMIN', 'USER']
+USER_ROLES_WRITE_PERMISSIONS = ['ADMIN', 'USER']
+USER_ROLES_MANAGE_PERMISSIONS = ['ADMIN',]
+
+BAD_REQUEST_MESSAGE = 'Bad request'
+BAD_REQUEST_STATUS = 400
+UNAUTHORIZED_MESSAGE = 'User not authorized'
+UNAUTHORIZED_STATUS = 401
+FORBIDDEN_MESSAGE = 'Forbidden'
+FORBIDDEN_STATUS = 403
+NOT_FOUND_MESSAGE = 'Not found'
+NOT_FOUND_STATUS = 404
+CONFLICT_MESSAGE = 'Conflict with existing data'
+CONFLICT_STATUS = 409
+PRECONDITION_FAILED_MESSAGE = 'Same precondition failed'
+PRECONDITION_FAILED_STATUS = 412
 
 from db import db_orm
 from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
@@ -40,10 +62,13 @@ from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
+from db.models.user import UserModel
 
 app = Flask("BASIL-API")
 api = Api(app)
 CORS(app)
+
+login_attempt_cache = {}
 
 token_parser = reqparse.RequestParser()
 token_parser.add_argument('token', location="form")
@@ -67,12 +92,50 @@ def get_api_from_request(_request, _db_session):
     query = _db_session.query(ApiModel).filter(
         ApiModel.id == _request['api-id']
     )
-    apis = query.all()
 
-    if len(apis) == 1:
-        return apis[0]
+    try:
+        api = query.one()
+        return api
+    except NoResultFound:
+        return None
 
-    return None
+
+def get_user_from_request(_request, _db_session):
+    print("\nget_user_from_request")
+    print(f"request: {_request}")
+    mandatory_fields = ['user-id', 'token']
+    for field in mandatory_fields:
+        if field not in _request.keys():
+            return None
+
+    query = _db_session.query(UserModel).filter(
+        UserModel.id == _request['user-id']
+    ).filter(
+        UserModel.token == _request['token']
+    )
+
+    try:
+        user = query.one()
+        return user
+    except NoResultFound:
+        return None
+
+
+def get_api_user_permissions(_api, _user_id, _dbi_session):
+    # Permissions
+    permissions = ''
+    if f"[{_user_id}]" not in _api.read_denials:
+        permissions += 'r'
+    else:
+        return permissions
+
+    if f"[{_user_id}]" in _api.manage_permissions:
+        permissions += 'm'
+    if f"[{_user_id}]" in _api.write_permissions:
+        permissions += 'w'
+    if f"[{_user_id}]" in _api.edit_permissions:
+        permissions += 'e'
+    return permissions
 
 
 def get_combined_history_object(_obj, _map, _obj_fields, _map_fields):
@@ -168,8 +231,15 @@ def get_dict_without_keys(_dict, _undesired_keys):
 
 
 def get_model_editable_fields(_model, _is_history):
-    not_editable_model_fields = ['id', 'created_at', 'updated_at']
-    not_editable_model_history_fields = ['row_id', 'created_at', 'updated_at']
+    not_editable_model_fields = ['id', 'created_at', 'updated_at',
+                                 'created_by_id', 'edited_by_id',
+                                 'delete_permissions', 'edit_permissions', 'manage_permissions',
+                                 'read_denials', 'write_permissions']
+
+    not_editable_model_history_fields = ['row_id', 'created_at', 'updated_at',
+                                         'delete_permissions', 'edit_permissions', 'manage_permissions',
+                                         'read_denials', 'write_permissions']
+
     all_fields = _model.__table__.columns.keys()
     if not _is_history:
         return [x for x in all_fields if x not in not_editable_model_fields]
@@ -409,9 +479,10 @@ def get_query_string_args(args):
     order_by = args.get("order_by", default="", type=str)
     order_how = args.get("order_how", default="", type=str)
 
-    permitted_keys = ["id", "api-id", "work_item_type", "mapped_to_type",
-                      "relation_id", "mode", "search", "library",
-                      "parent_table", "parent_id", "url"]
+    permitted_keys = ["api-id", "id", "library", "mapped_to_type", "mode",
+                      "parent_id", "parent_table", "relation_id", "search",
+                      "token", "url", "user-id", "work_item_type"]
+
     ret = {"db": db,
            "limit": limit,
            "order_by": order_by,
@@ -847,10 +918,21 @@ class Api(Resource):
         apis_dict = []
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
+        user_id = 0
+
+        # User permission
+        user = get_user_from_request(request.args, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
+        else:
+            user_id = 0
 
         query = dbi.session.query(ApiModel)
         query = filter_query(query, args, ApiModel, False)
         apis = query.all()
+
+        # Remove from the list api that are hidden to the current user
+        apis = [x for x in apis if f"[{user_id}]" not in x.read_denials]
 
         if len(apis):
             apis_dict = [x.as_dict(db_session=dbi.session) for x in apis]
@@ -862,6 +944,10 @@ class Api(Resource):
                 if 'mapped' in sections.keys():
                     total_coverage = get_api_coverage(sections['mapped'])
                     apis_dict[iApi]['covered'] = total_coverage
+
+            # Permissions
+            permissions = get_api_user_permissions(apis[iApi], user_id, dbi.session)
+            apis_dict[iApi]['permissions'] = permissions
 
         ret = apis_dict
         ret = sorted(ret, key=lambda api: (api['api'], api['library_version']))
@@ -893,6 +979,14 @@ class Api(Resource):
             dbi.engine.dispose()
             return 'Api is already in the db for the selected library', 409
 
+        user = get_user_from_request(request_data, dbi.session)
+        if not user:
+            return 'Unable to find the user', 401
+        if not user.enabled:
+            return 'Selected user is disabled', 401
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return 'Current user have no writing permissions', 401
+
         if request_data['action'] == 'fork':
             source_api = dbi.session.query(ApiModel).filter(
                 ApiModel.id == request_data['api-id']
@@ -912,7 +1006,8 @@ class Api(Resource):
                            request_data['implementation-file'],
                            request_data['implementation-file-from-row'],
                            request_data['implementation-file-to-row'],
-                           request_data['tags'], )
+                           request_data['tags'],
+                           user)
 
         dbi.session.add(new_api)
 
@@ -980,7 +1075,7 @@ class Api(Resource):
         put_fields = self.fields_hashes.copy()
         put_fields.append('api-id')
         if not check_fields_in_request(put_fields, request_data):
-            return 'bad request!', 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -989,7 +1084,19 @@ class Api(Resource):
 
         if not api:
             dbi.engine.dispose()
-            return 'Api not in the db', 404
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # User permission
+        user = get_user_from_request(request_data, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
+        else:
+            user_id = 0
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'e' not in permissions:
+            return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
 
         # Check that the new api+library+library_version is not already in the db
         same_existing_apis = dbi.session.query(ApiModel).filter(
@@ -3238,6 +3345,318 @@ class TestingSupportInitDb(Resource):
         return True
 
 
+class UserLogin(Resource):
+    def post(self):
+        DATE_FORMAT = "%m/%d/%Y, %H:%M:%S"
+        mandatory_fields = ['email', 'password']
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        cache_key = f"{request_data['email']}|{request.remote_addr}"
+
+        print(f"\n\n{login_attempt_cache}")
+        if cache_key in login_attempt_cache.keys():
+            if login_attempt_cache[cache_key]["attempts"] >= MAX_LOGIN_ATTEMPTS:
+                # check last attempt date
+                last_attempt_str = login_attempt_cache[cache_key]['last_attempt_dt']
+                last_attempt_dt = datetime.datetime.strptime(last_attempt_str, DATE_FORMAT)
+                delta_sec = (datetime.datetime.now() - last_attempt_dt).total_seconds()
+                if delta_sec <= MAX_LOGIN_ATTEMPTS_TIMEOUT:
+                    return f"Too many attempts for user {request_data['email']}. Retry in 15 minutes.", 400
+                else:
+                    login_attempt_cache[cache_key]["attempts"] = 1
+
+        try:
+            str_encoded_password = base64.b64encode(request_data['password'].encode('utf-8')).decode('utf-8')
+            dbi = db_orm.DbInterface(get_db())
+            user = dbi.session.query(UserModel).filter(
+                    UserModel.email == request_data['email']).one()
+            if not user.enabled:
+                return "This user has been disabled, please contact your BASIL admin.", 400
+            if user.pwd != str_encoded_password:
+                if cache_key in login_attempt_cache.keys():
+                    login_attempt_cache[cache_key]['attempts'] = \
+                        login_attempt_cache[cache_key]['attempts'] + 1
+                else:
+                    login_attempt_cache[cache_key] = {'attempts': 1}
+
+                login_attempt_cache[cache_key]['last_attempt_dt'] = \
+                    datetime.datetime.now().strftime(DATE_FORMAT)
+
+                return f"Wrong credentials for user {request_data['email']}", 400
+
+        except NoResultFound:
+            return "Email not assigned to any user, consider to sign in.", 400
+
+        # Login success, clear login attempt cache for that ip
+        if cache_key in login_attempt_cache.keys():
+            del login_attempt_cache[cache_key]
+
+        # Refresh user token
+        user.token = str(uuid4())
+        dbi.session.add(user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return {"id": user.id,
+                "role": user.role,
+                "email": user.email,
+                "token": user.token}
+
+
+class UserSignin(Resource):
+    def post(self):
+        mandatory_fields = ['email', 'password']
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        same_email = dbi.session.query(UserModel).filter(
+                     UserModel.email == request_data['email']).all()
+        if len(same_email) > 0:
+            return "Email already in use.", 400
+
+        user = UserModel(request_data['email'].strip(),
+                         request_data['password'],
+                         "USER")
+
+        dbi.session.add(user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return {"id": user.id,
+                "email": user.email,
+                "token": user.token}
+
+
+class UserPermissionsApi(Resource):
+    def get(self):
+        # Requester identified by id and toekn
+        # Email is related to the user for who I need to know api permissions
+        mandatory_fields = ['api-id', 'email', 'token', 'user-id']
+        request_data = request.args
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_user_from_request(request_data, dbi.session)
+        if not user:
+            return "Bad credentials.", 401
+
+        # api
+        try:
+            api = dbi.session.query(ApiModel).filter(
+                ApiModel.id == request_data["api-id"]
+            ).one()
+        except NoResultFound:
+            return "Software component not found.", 402
+
+        # check requester user api permission
+        user_permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'm' not in user_permissions:
+            return f"Operation not allowed for user {user.email}", 405
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.email == request_data["email"]
+            ).one()
+        except NoResultFound:
+            return f"User {request_data['email']} not found.", 403
+
+        target_user_permissions = get_api_user_permissions(api, target_user.id, dbi.session)
+        dbi.engine.dispose()
+        return {"email": request_data["email"],
+                "api": request_data["api-id"],
+                "permissions": target_user_permissions}
+
+    def put(self):
+        # Requester identified by id and toekn
+        # Email is related to the user for who I need to know api permissions
+        mandatory_fields = ['api-id', 'email', 'token', 'user-id']
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_user_from_request(request_data, dbi.session)
+        if not user:
+            return "Bad credentials.", 401
+
+        # api
+        try:
+            api = dbi.session.query(ApiModel).filter(
+                ApiModel.id == request_data["api-id"]
+            ).one()
+        except NoResultFound:
+            return "Software component not found.", 402
+
+        # check requester user api permission
+        user_permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'm' not in user_permissions:
+            return f"Operation not allowed for user {user.email}", 405
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.email == request_data["email"]
+            ).one()
+        except NoResultFound:
+            return f"User {request_data['email']} not found.", 403
+
+        permission_string = f"[{target_user.id}]"
+
+        # Edit Permission
+        if 'e' in request_data['permissions']:
+            if permission_string not in api.edit_permissions:
+                api.edit_permissions += permission_string
+        else:
+            if permission_string in api.edit_permissions:
+                api.edit_permissions = api.edit_permissions.replace(permission_string, "")
+
+        # Manage Permission
+        if 'm' in request_data['permissions']:
+            if permission_string not in api.manage_permissions:
+                api.manage_permissions += permission_string
+        else:
+            if permission_string in api.manage_permissions:
+                api.manage_permissions = api.manage_permissions.replace(permission_string, "")
+
+        # Read Permission
+        if 'r' in request_data['permissions']:
+            if permission_string in api.read_denials:
+                api.read_denials = api.read_denials.replace(permission_string, "")
+                if api.read_denials == '[0]':
+                    api.read_denials = ''
+        else:
+            if permission_string not in api.read_denials:
+                api.read_denials += permission_string
+                if '[0]' not in api.read_denials:
+                    api.read_denials += '[0]'
+
+        # Write Permission
+        if 'w' in request_data['permissions']:
+            if permission_string not in api.write_permissions:
+                api.write_permissions += permission_string
+        else:
+            if permission_string in api.write_permissions:
+                api.write_permissions = api.write_permissions.replace(permission_string, "")
+
+        target_user_permissions = get_api_user_permissions(api, target_user.id, dbi.session)
+
+        dbi.session.add(api)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return {"email": request_data["email"],
+                "api": request_data["api-id"],
+                "permissions": target_user_permissions}
+
+
+class UserEnable(Resource):
+
+    def put(self):
+        # Requester identified by id and toekn
+        # Email is related to the user for who I need to change the status
+        mandatory_fields = ['email', 'token', 'user-id', 'enabled']
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_user_from_request(request_data, dbi.session)
+        if not user:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role != 'ADMIN':
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.email == request_data["email"]
+            ).one()
+        except NoResultFound:
+            return f"User {request_data['email']} not found.", 403
+
+        target_user.enabled = int(request_data['enabled'])
+
+        dbi.session.add(target_user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return {"email": request_data["email"],
+                "enabled": target_user.enabled}
+
+
+class User(Resource):
+
+    def get(self):
+        # Requester identified by id and toekn
+        mandatory_fields = ['user-id', 'token']
+        request_data = request.args
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_user_from_request(request_data, dbi.session)
+        if not user:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role != 'ADMIN':
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        users = dbi.session.query(UserModel).all()
+        # users = [{k: v for k, v in user.as_dict().items() if k not in ['pwd']} for user in users]
+
+        dbi.engine.dispose()
+
+        return [x.as_dict(full_data=True) for x in users]
+
+
+class UserResetPassword(Resource):
+
+    def put(self):
+        # Requester identified by id and toekn
+        # Email is related to the user for who I need to change the status
+        mandatory_fields = ['email', 'token', 'user-id', 'password']
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_user_from_request(request_data, dbi.session)
+        if not user:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role != 'ADMIN':
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.email == request_data["email"]
+            ).one()
+        except NoResultFound:
+            return f"User {request_data['email']} not found.", 403
+
+        target_user.pwd = request_data['password']
+        dbi.session.add(target_user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return {"email": request_data["email"]}
+
+
 api.add_resource(Api, '/apis')
 api.add_resource(ApiHistory, '/apis/history')
 api.add_resource(ApiSpecification, '/api-specifications')
@@ -3277,6 +3696,12 @@ api.add_resource(ForkSwRequirementSwRequirement, '/fork/sw-requirement/sw-requir
 # api.add_resource(ForkTestSpecification, '/fork/api/test-specification')
 # api.add_resource(ForkTestCase, '/fork/api/test-case')
 # api.add_resource(ForkJustification, '/fork/api/justification')
+api.add_resource(User, '/user')
+api.add_resource(UserEnable, '/user/enable')
+api.add_resource(UserLogin, '/user/login')
+api.add_resource(UserPermissionsApi, '/user/permissions/api')
+api.add_resource(UserResetPassword, '/user/reset-password')
+api.add_resource(UserSignin, '/user/signin')
 
 if __name__ == "__main__":
     import api_url

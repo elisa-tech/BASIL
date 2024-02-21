@@ -1,9 +1,12 @@
 from datetime import datetime
 from db.models.db_base import Base
+from db.models.user import UserModel
 from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 from typing import Optional
 
 
@@ -22,12 +25,24 @@ class ApiModel(Base):
     implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer())
     raw_specification_url: Mapped[str] = mapped_column(String())
     tags: Mapped[str] = mapped_column(String())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="ApiModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="ApiModel.edited_by_id")
+    delete_permissions: Mapped[str] = mapped_column(String())
+    edit_permissions: Mapped[str] = mapped_column(String())
+    manage_permissions: Mapped[str] = mapped_column(String())
+    read_denials: Mapped[str] = mapped_column(String())
+    write_permissions: Mapped[str] = mapped_column(String())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __init__(self, api, library, library_version, raw_specification_url,
                  category, implementation_file,
-                 implementation_file_from_row, implementation_file_to_row, tags):
+                 implementation_file_from_row, implementation_file_to_row, tags,
+                 created_by):
         self.api = api
         self.library = library
         self.library_version = library_version
@@ -37,6 +52,15 @@ class ApiModel(Base):
         self.implementation_file_from_row = implementation_file_from_row
         self.implementation_file_to_row = implementation_file_to_row
         self.tags = tags
+        self.created_by = created_by
+        self.created_by_id = created_by.id
+        self.edited_by = created_by
+        self.edited_by_id = created_by.id
+        self.delete_permissions = f"{[created_by.id]}"
+        self.edit_permissions = f"{[created_by.id]}"
+        self.manage_permissions = f"{[created_by.id]}"
+        self.read_denials = ""
+        self.write_permissions = f"{[created_by.id]}"
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -50,6 +74,8 @@ class ApiModel(Base):
                f"implementation_file={self.implementation_file!r}, " \
                f"implementation_file_from_row={self.implementation_file_from_row!r}, " \
                f"implementation_file_to_row={self.implementation_file_to_row!r}," \
+               f"created_by={self.created_by.email!r}," \
+               f"edited_by={self.edited_by.email!r}," \
                f"tags={self.tags!r})"
 
     def current_version(self, db_session):
@@ -69,6 +95,8 @@ class ApiModel(Base):
                  "implementation_file": self.implementation_file,
                  "implementation_file_from_row": self.implementation_file_from_row,
                  "implementation_file_to_row": self.implementation_file_to_row,
+                 "created_by": self.created_by.email,
+                 "edited_by": self.edited_by.email,
                  "tags": self.tags}
 
         if db_session is not None:
@@ -129,6 +157,13 @@ def receive_after_update(mapper, connection, target):
             implementation_file_from_row=target.implementation_file_from_row,
             implementation_file_to_row=target.implementation_file_to_row,
             tags=target.tags,
+            created_by_id=target.created_by_id,
+            edited_by_id=target.edited_by_id,
+            delete_permissions=target.delete_permissions,
+            edit_permissions=target.edit_permissions,
+            manage_permissions=target.manage_permissions,
+            read_denials=target.read_denials,
+            write_permissions=target.write_permissions,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -147,6 +182,13 @@ def receive_after_insert(mapper, connection, target):
         implementation_file_from_row=target.implementation_file_from_row,
         implementation_file_to_row=target.implementation_file_to_row,
         tags=target.tags,
+        created_by_id=target.created_by_id,
+        edited_by_id=target.edited_by_id,
+        delete_permissions=target.delete_permissions,
+        edit_permissions=target.edit_permissions,
+        manage_permissions=target.manage_permissions,
+        read_denials=target.read_denials,
+        write_permissions=target.write_permissions,
         version=1
     )
     connection.execute(insert_query)
@@ -168,6 +210,17 @@ class ApiHistoryModel(Base):
     implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer())
     raw_specification_url: Mapped[str] = mapped_column(String())
     tags: Mapped[str] = mapped_column(String())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="ApiHistoryModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="ApiHistoryModel.edited_by_id")
+    delete_permissions: Mapped[str] = mapped_column(String())
+    edit_permissions: Mapped[str] = mapped_column(String())
+    manage_permissions: Mapped[str] = mapped_column(String())
+    read_denials: Mapped[str] = mapped_column(String())
+    write_permissions: Mapped[str] = mapped_column(String())
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -175,7 +228,8 @@ class ApiHistoryModel(Base):
     def __init__(self, id, api, library, library_version, raw_specification_url,
                  category, implementation_file,
                  implementation_file_from_row, implementation_file_to_row, tags,
-                 version):
+                 created_by_id, edited_by_id, delete_permissions, edit_permissions,
+                 manage_permissions, read_denials, write_permissions, version):
         self.id = id
         self.api = api
         self.library = library
@@ -186,6 +240,13 @@ class ApiHistoryModel(Base):
         self.implementation_file_from_row = implementation_file_from_row
         self.implementation_file_to_row = implementation_file_to_row
         self.tags = tags
+        self.created_by_id = created_by_id
+        self.edited_by_id = edited_by_id
+        self.delete_permissions = delete_permissions
+        self.edit_permissions = edit_permissions
+        self.manage_permissions = manage_permissions
+        self.read_denials = read_denials
+        self.write_permissions = write_permissions
         self.version = version
         self.created_at = datetime.now()
         self.updated_at = self.created_at
@@ -200,5 +261,6 @@ class ApiHistoryModel(Base):
                f"implementation_file={self.implementation_file!r}, " \
                f"implementation_file_from_row={self.implementation_file_from_row!r}, " \
                f"implementation_file_to_row={self.implementation_file_to_row!r}," \
+               f"edited_by_id={self.edited_by_id!r}, " \
                f"tags={self.tags!r}, " \
                f"version={self.version!r})"

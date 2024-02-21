@@ -1,68 +1,64 @@
-import React from 'react';
-import {
-  Button,
-  Modal,
-  ModalVariant,
-  TextContent,
-  TextList,
-  TextListItem,
-} from '@patternfly/react-core';
+import React from 'react'
+import { Button, Modal, ModalVariant, TextContent, TextList, TextListItem } from '@patternfly/react-core'
 
 export interface MappingUsageModalProps {
-  modalShowState;
-  setModalShowState;
-  modalTitle: string;
-  modalDescription: string;
-  modalData,
+  modalShowState
+  setModalShowState
+  modalTitle: string
+  modalDescription: string
+  modalData
 }
 
 export const MappingUsageModal: React.FunctionComponent<MappingUsageModalProps> = ({
   modalShowState = false,
   setModalShowState,
-  modalTitle = "",
-  modalDescription = "",
-  modalData,
-  }: MappingUsageModalProps) => {
-
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  modalTitle = '',
+  modalDescription = '',
+  modalData
+}: MappingUsageModalProps) => {
+  const [isModalOpen, setIsModalOpen] = React.useState(false)
 
   React.useEffect(() => {
-    setIsModalOpen(modalShowState);
-  }, [modalShowState]);
-
+    setIsModalOpen(modalShowState)
+  }, [modalShowState])
 
   const handleModalToggle = () => {
-    const new_state = !modalShowState;
-    setModalShowState(new_state);
-    setIsModalOpen(new_state);
-  };
+    const new_state = !modalShowState
+    setModalShowState(new_state)
+    setIsModalOpen(new_state)
+  }
 
   const getApiUsage = () => {
-    if (modalData == undefined){
-      return "";
+    if (modalData == undefined) {
+      return ''
     }
-    if (modalData['api'] == undefined){
-      return "";
+    if (modalData['api'] == undefined) {
+      return ''
     }
-    if (modalData['api'].length == 0){
-      return "";
+    if (modalData['api'].length == 0) {
+      return ''
     } else {
       return modalData['api'].map((api, apiIndex) => (
         <React.Fragment key={apiIndex}>
           <TextContent>
-          <TextList>
-            <TextListItem><em><b>{api.api}</b></em> from library {api.library} ver. {api.library_version}</TextListItem>
-          </TextList>
+            <TextList>
+              <TextListItem>
+                <em>
+                  <b>{api.api}</b>
+                </em>{' '}
+                from library {api.library} ver. {api.library_version}
+              </TextListItem>
+            </TextList>
           </TextContent>
         </React.Fragment>
-      ));
+      ))
     }
   }
 
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel="Scrollable modal content"
+        bodyAriaLabel='Scrollable modal content'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}
@@ -70,14 +66,13 @@ export const MappingUsageModal: React.FunctionComponent<MappingUsageModalProps> 
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
-          <Button key="cancel" variant="link" onClick={handleModalToggle}>
+          <Button key='cancel' variant='link' onClick={handleModalToggle}>
             Close
           </Button>
-        ]}>
-
-       {getApiUsage()}
-
+        ]}
+      >
+        {getApiUsage()}
       </Modal>
     </React.Fragment>
-  );
-};
+  )
+}

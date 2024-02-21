@@ -1,121 +1,121 @@
-import * as React from 'react';
-import { Route, RouteComponentProps, Switch, useLocation } from 'react-router-dom';
-import { Dashboard } from '@app/Dashboard/Dashboard';
-import { Login } from '@app/Login/Login';
-import { Mapping } from '@app/Mapping/Mapping';
-import { NotFound } from '@app/NotFound/NotFound';
-import { Signin } from '@app/Signin/Signin';
-import { useDocumentTitle } from '@app/utils/useDocumentTitle';
+import * as React from 'react'
+import { Route, RouteComponentProps, Switch, useLocation } from 'react-router-dom'
+import { Dashboard } from '@app/Dashboard/Dashboard'
+import { Admin } from '@app/Admin/Admin'
+import { Login } from '@app/Login/Login'
+import { Mapping } from '@app/Mapping/Mapping'
+import { NotFound } from '@app/NotFound/NotFound'
+import { Signin } from '@app/Signin/Signin'
+import { useDocumentTitle } from '@app/utils/useDocumentTitle'
 
-let routeFocusTimer: number;
+let routeFocusTimer: number
 export interface IAppRoute {
-  label?: string; // Excluding the label will exclude the route from the nav sidebar in AppLayout
+  label?: string // Excluding the label will exclude the route from the nav sidebar in AppLayout
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  component: React.ComponentType<RouteComponentProps<any>> | React.ComponentType<any>;
+  component: React.ComponentType<RouteComponentProps<any>> | React.ComponentType<any>
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  exact?: boolean;
-  path: string;
-  title: string;
-  routes?: undefined;
+  exact?: boolean
+  path: string
+  title: string
+  routes?: undefined
 }
 
 export interface IAppRouteGroup {
-  label: string;
-  routes: IAppRoute[];
+  label: string
+  routes: IAppRoute[]
 }
 
-export type AppRouteConfig = IAppRoute | IAppRouteGroup;
+export type AppRouteConfig = IAppRoute | IAppRouteGroup
 const routes: AppRouteConfig[] = [
   {
     component: Dashboard,
     exact: true,
     label: 'SW Components',
     path: '/',
-    title: 'BASIL | The Fusa Spice | Software Components',
+    title: 'BASIL | The Fusa Spice | Software Components'
   },
   {
     component: Login,
     exact: true,
     label: 'Login',
     path: '/login',
-    title: 'BASIL | The Fusa Spice | Login',
+    title: 'BASIL | The Fusa Spice | Login'
   },
   {
     component: Mapping,
     exact: true,
     label: 'SW Specification Mapping',
     path: '/mapping/:api_id',
-    title: 'BASIL | The Fusa Spice | Software Component Specification Mapping',
+    title: 'BASIL | The Fusa Spice | Software Component Specification Mapping'
   },
   {
     component: Signin,
     exact: true,
     label: 'Sign In',
     path: '/signin',
-    title: 'BASIL | The Fusa Spice | Sign In',
+    title: 'BASIL | The Fusa Spice | Sign In'
   },
-];
+  {
+    component: Admin,
+    exact: true,
+    label: 'User Management',
+    path: '/admin',
+    title: 'BASIL | The Fusa Spice | Admin | User Management'
+  }
+]
 
 // a custom hook for sending focus to the primary content container
 // after a view has loaded so that subsequent press of tab key
 // sends focus directly to relevant content
 // may not be necessary if https://github.com/ReactTraining/react-router/issues/5210 is resolved
 const useA11yRouteChange = () => {
-  const { pathname } = useLocation();
+  const { pathname } = useLocation()
   React.useEffect(() => {
     routeFocusTimer = window.setTimeout(() => {
-      const mainContainer = document.getElementById('primary-app-container');
+      const mainContainer = document.getElementById('primary-app-container')
       if (mainContainer) {
-        mainContainer.focus();
+        mainContainer.focus()
       }
-    }, 50);
+    }, 50)
     return () => {
-      window.clearTimeout(routeFocusTimer);
-    };
-  }, [pathname]);
-};
+      window.clearTimeout(routeFocusTimer)
+    }
+  }, [pathname])
+}
 
 const RouteWithTitleUpdates = ({ component: Component, title, ...rest }: IAppRoute) => {
-  useA11yRouteChange();
-  useDocumentTitle(title);
+  useA11yRouteChange()
+  useDocumentTitle(title)
 
   function routeWithTitle(routeProps: RouteComponentProps) {
-    return <Component {...rest} {...routeProps} />;
+    return <Component {...rest} {...routeProps} />
   }
 
-  return <Route render={routeWithTitle} {...rest} />;
-};
+  return <Route render={routeWithTitle} {...rest} />
+}
 
 const PageNotFound = ({ title }: { title: string }) => {
-  useDocumentTitle(title);
-  return <Route component={NotFound} />;
-};
+  useDocumentTitle(title)
+  return <Route component={NotFound} />
+}
 
 const flattenedRoutes: IAppRoute[] = routes.reduce(
   (flattened, route) => [...flattened, ...(route.routes ? route.routes : [route])],
-  [] as IAppRoute[],
-);
+  [] as IAppRoute[]
+)
 
 export interface AppRoutesProps {
-  notificationCount;
-  setNotificationCount;
+  notificationCount
+  setNotificationCount
 }
 
-const AppRoutes = ({
-    notificationCount,
-    setNotificationCount,
-    }: AppRoutesProps): React.ReactElement => (
+const AppRoutes = ({ notificationCount, setNotificationCount }: AppRoutesProps): React.ReactElement => (
   <Switch>
     {flattenedRoutes.map(({ path, exact, component, title }, idx) => (
-      <RouteWithTitleUpdates
-        path={path}
-        exact={exact}
-        component={component}
-        key={idx}
-        title={title} />
+      <RouteWithTitleUpdates path={path} exact={exact} component={component} key={idx} title={title} />
     ))}
-    <PageNotFound title="404 Page Not Found" />
+    <PageNotFound title='404 Page Not Found' />
   </Switch>
-);
+)
 
-export { AppRoutes, routes };
+export { AppRoutes, routes }

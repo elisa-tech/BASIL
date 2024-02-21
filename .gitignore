@@ -11,4 +11,4 @@ cypress/screenshots/
 docs/build
 examples/
 node_modules/
-_commit_message.txt
+commit_message.txt

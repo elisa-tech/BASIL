@@ -4,8 +4,10 @@ import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants } from '@pa
 import { MappingBreadCrumb } from './MappingBreadCrumb'
 import { MappingPageSection } from './MappingPageSection'
 import { useParams } from 'react-router-dom'
+import { useAuth } from '@app/User/AuthProvider'
 
 const Mapping: React.FunctionComponent = () => {
+  let auth = useAuth();
   const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('sw-requirements')
   const [num, setNum] = React.useState(0)
   const [apiData, setApiData] = React.useState(null)
@@ -16,6 +18,10 @@ const Mapping: React.FunctionComponent = () => {
 
   const loadApiData = () => {
     const url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
+
+    if (auth.isLogged()) {
+      url += '&user-id=' + auth.userId + '&token=' + auth.token
+    }
 
     fetch(url)
       .then((res) => res.json())
@@ -34,7 +40,14 @@ const Mapping: React.FunctionComponent = () => {
       }
     }
 
-    const url = Constants.API_BASE_URL + '/mapping/api/' + mappingViewSelectValue + '?api-id=' + api_id
+    const url;
+    url = Constants.API_BASE_URL + '/mapping/api/' + mappingViewSelectValue
+    url += '?api-id=' + api_id
+
+    if (auth.isLogged()) {
+      url += '&user-id=' + auth.userId + '&token=' + auth.token
+    }
+
     fetch(url)
       .then((res) => res.json())
       .then((data) => {

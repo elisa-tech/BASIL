@@ -65,6 +65,9 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
+
+        { api?.permissions.indexOf('w') >= 0 ? (
+        <React.Fragment>
         <DropdownItem
           value={0}
           id={'btn-menu-test-case-delete-' + mappingList[mappingIndex].relation_id}
@@ -98,6 +101,9 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         <DropdownItem value={2} key='fork' isDisabled>
           Fork
         </DropdownItem>
+        </React.Fragment>
+        ) : ('') }
+
         <DropdownItem
           value={3}
           key='history'

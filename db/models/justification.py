@@ -1,9 +1,12 @@
 from datetime import datetime
 from db.models.db_base import Base
+from db.models.user import UserModel
 from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 from typing import Optional
 
 
@@ -14,16 +17,27 @@ class JustificationModel(Base):
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
     description: Mapped[Optional[str]] = mapped_column(String())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="JustificationModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="JustificationModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, description):
+    def __init__(self, description, created_by):
         self.description = description
+        self.created_by = created_by
+        self.created_by_id = created_by.id
+        self.edited_by = created_by
+        self.edited_by_id = created_by.id
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
     def __repr__(self) -> str:
         return f"JustificationModel(id={self.id!r}, " \
+               f"created_by={self.created_by.email!r}, " \
                f"description={self.description!r})"
 
     def current_version(self, db_session):
@@ -35,6 +49,7 @@ class JustificationModel(Base):
     def as_dict(self, full_data=False, db_session=None):
         _dict = {"id": self.id,
                  "description": self.description,
+                 'created_by': self.created_by.email,
                  }
 
         if db_session:
@@ -65,6 +80,8 @@ def receive_after_update(mapper, connection, target):
         insert_query = insert(JustificationHistoryModel).values(
             id=target.id,
             description=target.description,
+            created_by_id=target.created_by_id,
+            edited_by_id=target.edited_by_id,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -76,6 +93,8 @@ def receive_after_insert(mapper, connection, target):
     insert_query = insert(JustificationHistoryModel).values(
         id=target.id,
         description=target.description,
+        created_by_id=target.created_by_id,
+        edited_by_id=target.edited_by_id,
         version=1
     )
     connection.execute(insert_query)
@@ -89,17 +108,26 @@ class JustificationHistoryModel(Base):
                                         primary_key=True)
     id: Mapped[int] = mapped_column(Integer())
     description: Mapped[Optional[str]] = mapped_column(String())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="JustificationHistoryModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="JustificationHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, description, version):
+    def __init__(self, id, description, created_by_id, edited_by_id, version):
         self.id = id
         self.description = description
+        self.created_by_id = created_by_id
+        self.edited_by_id = edited_by_id
         self.version = version
         self.created_at = datetime.now()
 
     def __repr__(self) -> str:
         return f"JustificationHistoryModel(row_id={self.row_id!r}, " \
                f"id={self.id!r}, " \
-               f"version={self.version!r}, " \
-               f"description={self.description!r})"
+               f"created_by={self.created_by.email!r}, " \
+               f"description={self.description!r}), " \
+               f"version={self.version!r}"

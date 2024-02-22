@@ -48,12 +48,12 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
   loadJustifications,
   loadMappingData
 }: JustificationSearchProps) => {
-  const [searchValue, setSearchValue] = React.useState(formData.title)
+  const [searchValue, setSearchValue] = React.useState(formData?.title || '')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState<string>('')
 
-  const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
+  const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
   const resetForm = () => {
@@ -215,11 +215,11 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         {getJustificationsTable(justifications)}
       </DataList>
       <br />
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-justification-coverage-${formData.id}`}>
+      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-justification-coverage-${formData?.id}`}>
         <TextInput
           isRequired
-          id={`input-justification-coverage-${formData.id}`}
-          name={`input-justification-coverage-${formData.id}`}
+          id={`input-justification-coverage-${formData?.id}`}
+          name={`input-justification-coverage-${formData?.id}`}
           value={coverageValue || ''}
           onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
         />
@@ -239,9 +239,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         <Hint>
           <HintBody>{messageValue}</HintBody>
         </Hint>
-      ) : (
-        <span></span>
-      )}
+      ) : ('')}
 
       {formDefaultButtons ? (
         <ActionGroup>
@@ -252,9 +250,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
             Reset
           </Button>
         </ActionGroup>
-      ) : (
-        <span></span>
-      )}
+      ) : ('')}
     </React.Fragment>
   )
 }

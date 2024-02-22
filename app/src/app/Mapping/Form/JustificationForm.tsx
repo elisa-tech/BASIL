@@ -13,6 +13,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface JustificationFormProps {
   api
@@ -43,13 +44,13 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
   modalSection,
   parentData
 }: JustificationFormProps) => {
-  type validate = 'success' | 'warning' | 'error' | 'default'
 
+  let auth = useAuth()
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
-  const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<validate>('error')
+  const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
-  const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error')
+  const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
@@ -130,7 +131,9 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
       justification: { description: descriptionValue },
       section: modalSection,
       offset: modalOffset,
-      coverage: coverageValue
+      coverage: coverageValue,
+      'user-id': auth.userId,
+      token: auth.token
     }
 
     if (formVerb == 'PUT' || formVerb == 'DELETE') {
@@ -178,7 +181,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedDescriptionValue}>
+              <HelperTextItem variant='error'>
                 {validatedDescriptionValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -197,7 +200,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         {validatedCoverageValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedCoverageValue}>
+              <HelperTextItem variant='error'>
                 {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
               </HelperTextItem>
             </HelperText>

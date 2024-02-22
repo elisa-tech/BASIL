@@ -67,6 +67,9 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
       shouldFocusToggleOnSelect
     >
       <DropdownList>
+
+        { api?.permissions.indexOf('w') >= 0 ? (
+        <React.Fragment>
         <DropdownItem
           value={0}
           id={'btn-menu-test-specification-assign-test-case-' + mappingList[mappingIndex].relation_id}
@@ -122,6 +125,9 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
         <DropdownItem value={3} key='fork' isDisabled>
           Fork
         </DropdownItem>
+        </React.Fragment>
+      ) : ('') }
+
         <DropdownItem
           value={4}
           key='history'

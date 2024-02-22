@@ -64,6 +64,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
       shouldFocusToggleOnSelect
     >
       <DropdownList>
+
+        { api?.permissions.indexOf('w') >= 0 ? (
+        <React.Fragment>
         <DropdownItem
           value={0}
           id={'btn-menu-sw-requirement-assign-sw-requirement-' + mappingList[mappingIndex].relation_id}
@@ -171,6 +174,9 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
         >
           Fork
         </DropdownItem>
+        </React.Fragment>
+      ) : ('') }
+
         <DropdownItem
           value={6}
           id={'btn-menu-sw-requirement-history-' + mappingList[mappingIndex].relation_id}

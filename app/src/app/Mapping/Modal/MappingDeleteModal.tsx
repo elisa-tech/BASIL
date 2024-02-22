@@ -1,6 +1,7 @@
 import React from 'react'
 import * as Constants from '../../Constants/constants'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface MappingDeleteModalProps {
   api
@@ -25,6 +26,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   relationData,
   loadMappingData
 }: MappingDeleteModalProps) => {
+  let auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [messageValue, setMessageValue] = React.useState('')
 
@@ -42,7 +44,10 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   }, [modalShowState])
 
   const deleteMapping = () => {
-    const data = { 'api-id': api.id, 'relation-id': relationData.relation_id }
+    const data = {'api-id': api.id,
+                  'relation-id': relationData.relation_id,
+                  'user-id': auth.userId,
+                  'token': auth.token }
 
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',

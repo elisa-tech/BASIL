@@ -31,6 +31,7 @@ import CatalogIcon from '@patternfly/react-icons/dist/esm/icons/catalog-icon'
 import TaskIcon from '@patternfly/react-icons/dist/esm/icons/task-icon'
 import BalanceScaleIcon from '@patternfly/react-icons/dist/esm/icons/balance-scale-icon'
 import MigrationIcon from '@patternfly/react-icons/dist/esm/icons/migration-icon'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface MappingListingTableProps {
   api
@@ -81,6 +82,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   showIndirectTestCases,
   showIndirectTestSpecifications
 }: MappingListingTableProps) => {
+  let auth = useAuth();
+
   const getWorkItemDescription = (_work_item_type) => {
     const work_item_types = [Constants._A, Constants._J, Constants._SR, Constants._TS, Constants._TC]
     const work_item_descriptions = [Constants._A, Constants._J, 'Software Requirement', 'Test Specification', 'Test Case']
@@ -218,7 +221,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         <React.Fragment key={cIndex}>
           <Card>
             {' '}
-            //pl=10
             <CardBody>
               <Flex>
                 <FlexItem>{getWorkItemIcon(Constants._TC, indirect)}</FlexItem>
@@ -236,7 +238,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </Label>
                 </FlexItem>
                 <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false ? (
+                  {indirect == false && auth.isGuest() == false ? (
                     <React.Fragment>
                       <Button
                         variant='plain'
@@ -308,7 +310,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         <React.Fragment key={cIndex}>
           <Card>
             {' '}
-            //pl="10"
             <CardBody>
               <Flex>
                 <FlexItem>{getWorkItemIcon(Constants._TS, indirect)}</FlexItem>
@@ -337,7 +338,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   ''
                 )}
                 <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false ? (
+                  {indirect == false && auth.isGuest() == false ? (
                     <React.Fragment>
                       <Button
                         variant='plain'
@@ -436,7 +437,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   ''
                 )}
                 <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false ? (
+                  {indirect == false && auth.isGuest() == false ? (
                     <React.Fragment>
                       <Button
                         variant='plain'
@@ -521,6 +522,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Label variant='outline' isCompact>
                   {coverageFormat(mappedItem['coverage'])}% Coverage
                 </Label>
+                {auth.isGuest() == false ? (
                 <FlexItem align={{ default: 'alignRight' }}>
                   <Button
                     variant='plain'
@@ -544,6 +546,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     //jModalShowState={jModalShowState}
                   />
                 </FlexItem>
+              ) : ('')}
               </Flex>
               <Flex>
                 <FlexItem>
@@ -657,6 +660,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <LeavesProgressBar progressValue={snippet['covered']} progressId={'mapping-section-coverage-' + snippetIndex} />
                   </FlexItem>
                   <FlexItem align={{ default: 'alignRight' }}>
+                    { api?.permissions?.indexOf('w') >= 0 ? (
                     <MappingSectionMenuKebab
                       api={api}
                       offset={snippet['offset']}
@@ -665,9 +669,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       setTcModalInfo={setTcModalInfo}
                       setTsModalInfo={setTsModalInfo}
                       setSrModalInfo={setSrModalInfo}
-                      setJModalInfo={setJModalInfo}
-                      //isMatchingSection={true}
-                    />
+                      setJModalInfo={setJModalInfo}/>
+                  ) : ('') }
                   </FlexItem>
                 </Flex>
               </CardBody>

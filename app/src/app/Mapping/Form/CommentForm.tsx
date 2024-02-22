@@ -13,6 +13,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface CommentFormProps {
   relationData
@@ -29,29 +30,17 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
   handleModalToggle,
   loadMappingData
 }: CommentFormProps) => {
-  type validate = 'success' | 'warning' | 'error' | 'default'
 
-  const [usernameValue, setUsernameValue] = React.useState('')
-  const [validatedUsernameValue, setValidatedUsernameValue] = React.useState<validate>('error')
-
+  let auth = useAuth();
   const [commentValue, setCommentValue] = React.useState('')
-  const [validatedCommentValue, setValidatedCommentValue] = React.useState<validate>('error')
+  const [validatedCommentValue, setValidatedCommentValue] = React.useState<Constants.validate>('error')
 
   const [messageValue, setMessageValue] = React.useState('')
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   const resetForm = () => {
     setCommentValue('')
-    setUsernameValue('')
   }
-
-  React.useEffect(() => {
-    if (usernameValue.trim() === '') {
-      setValidatedUsernameValue('error')
-    } else {
-      setValidatedUsernameValue('success')
-    }
-  }, [usernameValue])
 
   React.useEffect(() => {
     if (commentValue.trim() === '') {
@@ -72,20 +61,12 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
     setCommentValue(value)
   }
 
-  const handleUsernameValueChange = (_event, value: string) => {
-    setUsernameValue(value)
-  }
-
   const handleSubmit = () => {
     let parent_table = ''
     let parent_id = ''
 
     if (validatedCommentValue != 'success') {
       setMessageValue('Comment is mandatory.')
-      setStatusValue('waiting')
-      return
-    } else if (validatedUsernameValue != 'success') {
-      setMessageValue('Username is mandatory.')
       setStatusValue('waiting')
       return
     }
@@ -121,10 +102,11 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
     setMessageValue('')
 
     const data = {
-      parent_table: parent_table,
-      parent_id: parent_id,
-      comment: commentValue,
-      username: usernameValue
+      'parent_table': parent_table,
+      'parent_id': parent_id,
+      'comment': commentValue,
+      'user-id': auth.userId,
+      'token': auth.token
     }
 
     fetch(Constants.API_BASE_URL + '/comments', {
@@ -154,25 +136,6 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
 
   return (
     <Form>
-      <FormGroup label='Username:' isRequired fieldId={`input-comment-username`}>
-        <TextInput
-          isRequired
-          id={`input-comment-username`}
-          name={`input-comment-username`}
-          value={usernameValue || ''}
-          onChange={(_ev, value) => handleUsernameValueChange(_ev, value)}
-        />
-        {validatedUsernameValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant={validatedUsernameValue}>
-                {validatedUsernameValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
-
       <FormGroup label='Comment' isRequired fieldId={`input-comment-comment`}>
         <TextArea
           isRequired
@@ -186,7 +149,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
         {validatedCommentValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedCommentValue}>
+              <HelperTextItem variant='error'>
                 {validatedCommentValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>

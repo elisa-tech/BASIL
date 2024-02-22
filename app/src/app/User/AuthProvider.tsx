@@ -106,6 +106,18 @@ const AuthProvider = ({ children }) => {
     }
   }
 
+  const isGuest = () => {
+    if (isLogged()) {
+      if (userRole == 'GUEST') {
+        return true
+      } else {
+        return false
+      }
+    } else {
+      return true
+    }
+  }
+
   const isAdmin = () => {
     if (isLogged()) {
       if (userRole == 'ADMIN') {
@@ -119,7 +131,7 @@ const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ token, userEmail, userId, userRole, loginAction, logOut, isLogged, isAdmin }}>
+    <AuthContext.Provider value={{ token, userEmail, userId, userRole, loginAction, logOut, isLogged, isAdmin, isGuest }}>
       {children}
     </AuthContext.Provider>
   )

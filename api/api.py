@@ -100,6 +100,15 @@ def get_api_from_request(_request, _db_session):
         return None
 
 
+def get_user_id_from_request(_request, _db_session):
+    user = get_user_from_request(_request, _db_session)
+    if isinstance(user, UserModel):
+        user_id = user.id
+    else:
+        user_id = 0
+    return user_id
+
+
 def get_user_from_request(_request, _db_session):
     print("\nget_user_from_request")
     print(f"request: {_request}")
@@ -750,7 +759,7 @@ class SPDXLibrary(Resource):
 
 
 class Comment(Resource):
-    fields = ["comment", "parent_table", "username"]
+    fields = ["comment", "parent_table", "user-id", "token"]
 
     def get(self):
         # mandatory_fields = ["parent_table", "parent_id"]
@@ -760,6 +769,7 @@ class Comment(Resource):
             return 'bad request!', 400
 
         dbi = db_orm.DbInterface(get_db())
+
         query = dbi.session.query(CommentModel).filter(
             CommentModel.parent_table == args["parent_table"]
         ).filter(
@@ -769,7 +779,7 @@ class Comment(Resource):
         if "search" in args:
             query = query.filter(or_(
                 CommentModel.comment.like(f'%{args["search"]}%'),
-                CommentModel.username.like(f'%{args["search"]}%')))
+            ))
 
         query = query.order_by(CommentModel.created_at.asc())
         comments = [c.as_dict() for c in query.all()]
@@ -785,6 +795,11 @@ class Comment(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user = get_user_from_request(request_data, dbi.session)
+        if user.id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
         parent_table = request_data['parent_table'].strip()
         if parent_table == "":
             return 'bad request!', 400
@@ -797,11 +812,7 @@ class Comment(Resource):
         if comment == "":
             return 'bad request!', 400
 
-        username = request_data['username'].strip()
-        if username == "":
-            return 'bad request!', 400
-
-        new_comment = CommentModel(parent_table, parent_id, username, comment)
+        new_comment = CommentModel(parent_table, parent_id, user, comment)
         dbi.session.add(new_comment)
 
         dbi.session.commit()
@@ -1263,6 +1274,9 @@ class ApiSpecification(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
         api = get_api_from_request(args, dbi.session)
         if not api:
             dbi.engine.dispose()
@@ -1270,8 +1284,14 @@ class ApiSpecification(Resource):
 
         spec = get_api_specification(api.raw_specification_url)
 
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
         ret = api.as_dict()
         ret['raw_specification'] = spec
+        ret['permissions'] = permissions
         dbi.engine.dispose()
         return ret
 
@@ -1291,11 +1311,19 @@ class ApiTestSpecificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
@@ -1523,11 +1551,19 @@ class ApiTestCasesMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
@@ -1991,11 +2027,19 @@ class ApiSpecificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
@@ -2008,8 +2052,8 @@ class ApiSpecificationsMapping(Resource):
                             _TSs: [],
                             _SRs: [],
                             _Js: []}]
-
         unmapped_sections = []
+
         ret = {'mapped': mapped_sections,
                'unmapped': unmapped_sections}
 
@@ -2033,11 +2077,19 @@ class ApiJustificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
@@ -2073,11 +2125,19 @@ class ApiJustificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(request_data, dbi.session)
+
         # Find api
         api = get_api_from_request(request_data, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'w' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         section = request_data['section']
         offset = request_data['offset']
@@ -2127,11 +2187,19 @@ class ApiJustificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(request_data, dbi.session)
+
         # Find api
         api = get_api_from_request(request_data, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'w' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         try:
@@ -2169,11 +2237,19 @@ class ApiJustificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(request_data, dbi.session)
+
         # Find api
         api = get_api_from_request(request_data, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'w' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         justification_mapping_api = dbi.session.query(ApiJustificationModel).filter(
@@ -2221,11 +2297,19 @@ class ApiSwRequirementsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         ret = get_api_sw_requirements_mapping_sections(dbi, api)
         dbi.engine.dispose()
@@ -2239,17 +2323,26 @@ class ApiSwRequirementsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user = get_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
         # Find api
         api = get_api_from_request(request_data, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
 
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
         section = request_data['section']
         coverage = request_data['coverage']
         offset = request_data['offset']
 
-        # Re using existing test case
         if 'id' not in request_data['sw-requirement'].keys():
             # Create a new one
             for check_field in SwRequirement.fields:
@@ -2267,17 +2360,20 @@ class ApiSwRequirementsMapping(Resource):
                 return "SW Requirement already associated to the selected api Specification section.", 409
 
             new_sw_requirement = SwRequirementModel(request_data['sw-requirement']['title'],
-                                                    request_data['sw-requirement']['description'])
+                                                    request_data['sw-requirement']['description'],
+                                                    user)
             new_sw_requirement_mapping_api = ApiSwRequirementModel(api,
                                                                    new_sw_requirement,
                                                                    section,
                                                                    offset,
-                                                                   coverage)
+                                                                   coverage,
+                                                                   user)
 
             dbi.session.add(new_sw_requirement)
             dbi.session.add(new_sw_requirement_mapping_api)
 
         else:
+            # Re using existing sw requirement
             id = request_data['sw-requirement']['id']
             if len(dbi.session.query(ApiSwRequirementModel).filter(
                         ApiSwRequirementModel.api_id == api.id).filter(
@@ -2296,7 +2392,8 @@ class ApiSwRequirementsMapping(Resource):
                                                                    existing_sw_requirement,
                                                                    section,
                                                                    offset,
-                                                                   coverage)
+                                                                   coverage,
+                                                                   user)
             dbi.session.add(new_sw_requirement_mapping_api)
 
         dbi.session.commit()
@@ -2311,11 +2408,21 @@ class ApiSwRequirementsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
+        # User
+        user = get_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
         # Find api
         api = get_api_from_request(request_data, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
             sw_requirement_mapping_api = dbi.session.query(ApiSwRequirementModel).filter(
@@ -2325,20 +2432,33 @@ class ApiSwRequirementsMapping(Resource):
 
         sw_requirement = sw_requirement_mapping_api.sw_requirement
 
-        # Update only modified fields
+        # Software Requirement: Update only modified fields
+        modified_sr = False
         for field in SwRequirement.fields:
             if field.replace('_', '-') in request_data["sw-requirement"].keys():
                 if getattr(sw_requirement, field) != request_data["sw-requirement"][field.replace('_', '-')]:
+                    modified_sr = True
                     setattr(sw_requirement, field, request_data["sw-requirement"][field.replace('_', '-')])
 
+        if modified_sr:
+            setattr(sw_requirement, 'edited_by_id', user.id)
+
+        # Software Requirement Mapping: Update only modified fields
+        modified_srm = False
         if sw_requirement_mapping_api.section != request_data["section"]:
+            modified_srm = True
             sw_requirement_mapping_api.section = request_data["section"]
 
         if sw_requirement_mapping_api.offset != request_data["offset"]:
+            modified_srm = True
             sw_requirement_mapping_api.offset = request_data["offset"]
 
         if sw_requirement_mapping_api.coverage != int(request_data["coverage"]):
+            modified_srm = True
             sw_requirement_mapping_api.coverage = int(request_data["coverage"])
+
+        if modified_srm:
+            sw_requirement_mapping_api.edited_by_id = user.id
 
         dbi.session.commit()
         dbi.engine.dispose()
@@ -2348,15 +2468,25 @@ class ApiSwRequirementsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(['relation-id', 'api-id'], request_data):
-            return 'bad request!', 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
         if not api:
             dbi.engine.dispose()
             return "Api not found", 404
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         try:
@@ -2367,7 +2497,7 @@ class ApiSwRequirementsMapping(Resource):
 
         if sw_requirement_mapping_api.api.id != api.id:
             dbi.engine.dispose()
-            return 'bad request!', 401
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi.session.delete(sw_requirement_mapping_api)
 
@@ -3440,13 +3570,13 @@ class UserPermissionsApi(Resource):
         request_data = request.args
 
         if not check_fields_in_request(mandatory_fields, request_data):
-            return 'bad request!', 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
         user = get_user_from_request(request_data, dbi.session)
         if not user:
-            return "Bad credentials.", 401
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # api
         try:

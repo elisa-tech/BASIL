@@ -98,7 +98,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
     return comments.map((comment, index) => (
       <TextListItem key={index}>
         <em>
-          <b>{comment['username']}</b>
+          <b>{comment['created_by']}</b>
         </em>
         <span className='date-text'> on {comment['created_at']}</span>
         <br />

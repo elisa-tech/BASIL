@@ -56,12 +56,12 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
   parentRelatedToType,
   swRequirements
 }: SwRequirementSearchProps) => {
-  const [searchValue, setSearchValue] = React.useState(formData.title)
+  const [searchValue, setSearchValue] = React.useState(formData?.title || '')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
 
-  const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
+  const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
   const resetForm = () => {
@@ -232,11 +232,11 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
         {getSwRequirementsTable(swRequirements)}
       </DataList>
       <br />
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-sw-requirement-coverage-${formData.id}`}>
+      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-sw-requirement-coverage-${formData?.id}`}>
         <TextInput
           isRequired
-          id={`input-sw-requirement-coverage-${formData.id}`}
-          name={`input-sw-requirement-coverage-${formData.id}`}
+          id={`input-sw-requirement-coverage-${formData?.id}`}
+          name={`input-sw-requirement-coverage-${formData?.id}`}
           value={coverageValue || ''}
           onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
         />

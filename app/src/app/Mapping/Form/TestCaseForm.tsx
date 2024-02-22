@@ -13,6 +13,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestCaseFormProps {
   api
@@ -49,22 +50,22 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
   parentRelatedToType,
   parentType
 }: TestCaseFormProps) => {
-  type validate = 'success' | 'warning' | 'error' | 'default'
+  let auth = useAuth()
 
   const [titleValue, setTitleValue] = React.useState(formData.title)
-  const [validatedTitleValue, setValidatedTitleValue] = React.useState<validate>('error')
+  const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')
 
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
-  const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<validate>('error')
+  const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
 
   const [repositoryValue, setRepositoryValue] = React.useState(formData.repository)
-  const [validatedRepositoryValue, setValidatedRepositoryValue] = React.useState<validate>('error')
+  const [validatedRepositoryValue, setValidatedRepositoryValue] = React.useState<Constants.validate>('error')
 
   const [relativePathValue, setRelativePathValue] = React.useState(formData.relative_path)
-  const [validatedRelativePathValue, setValidatedRelativePathValue] = React.useState<validate>('error')
+  const [validatedRelativePathValue, setValidatedRelativePathValue] = React.useState<Constants.validate>('error')
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '0')
-  const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error')
+  const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
@@ -192,7 +193,9 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       'test-case': { title: titleValue, description: descriptionValue, repository: repositoryValue, 'relative-path': relativePathValue },
       section: modalSection,
       offset: modalOffset,
-      coverage: coverageValue
+      coverage: coverageValue,
+      'user-id': auth.userId,
+      token: auth.token
     }
 
     if (modalIndirect == true || formVerb == 'PUT') {
@@ -246,7 +249,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedTitleValue}>
+              <HelperTextItem variant='error'>
                 {validatedTitleValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -266,7 +269,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedDescriptionValue}>
+              <HelperTextItem variant='error'>
                 {validatedDescriptionValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -284,7 +287,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedRepositoryValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedRepositoryValue}>
+              <HelperTextItem variant='error'>
                 {validatedRepositoryValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -302,7 +305,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedRelativePathValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedRelativePathValue}>
+              <HelperTextItem variant='error'>
                 {validatedRelativePathValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -321,7 +324,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedCoverageValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedCoverageValue}>
+              <HelperTextItem variant='error'>
                 {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
               </HelperTextItem>
             </HelperText>

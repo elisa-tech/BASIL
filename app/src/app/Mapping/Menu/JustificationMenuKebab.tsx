@@ -51,6 +51,9 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
       shouldFocusToggleOnSelect
     >
       <DropdownList>
+
+        { api?.permissions.indexOf('w') >= 0 ? (
+        <React.Fragment>
         <DropdownItem
           value={0}
           id={'btn-menu-justification-delete-' + mappingList[mappingIndex].relation_id}
@@ -71,6 +74,9 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
         <DropdownItem value={2} key='fork' isDisabled>
           Fork
         </DropdownItem>
+        </React.Fragment>
+        ) : ('') }
+
         <DropdownItem
           value={3}
           id={'btn-menu-justification-history-' + mappingList[mappingIndex].relation_id}

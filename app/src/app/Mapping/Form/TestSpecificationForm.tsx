@@ -13,6 +13,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestSpecificationFormProps {
   api
@@ -49,21 +50,22 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
   parentRelatedToType,
   parentType
 }: TestSpecificationFormProps) => {
-  type validate = 'success' | 'warning' | 'error' | 'default'
+
+  let auth = useAuth()
 
   const [titleValue, setTitleValue] = React.useState(formData.title)
-  const [validatedTitleValue, setValidatedTitleValue] = React.useState<validate>('error')
+  const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')
 
   const [preconditionsValue, setPreconditionsValue] = React.useState(formData.preconditions)
 
   const [testDescriptionValue, setTestDescriptionValue] = React.useState(formData.test_description)
-  const [validatedTestDescriptionValue, setValidatedTestDescriptionValue] = React.useState<validate>('error')
+  const [validatedTestDescriptionValue, setValidatedTestDescriptionValue] = React.useState<Constants.validate>('error')
 
   const [expectedBehaviorValue, setExpectedBehaviorValue] = React.useState(formData.expected_behavior)
-  const [validatedExpectedBehaviorValue, setValidatedExpectedBehaviorValue] = React.useState<validate>('error')
+  const [validatedExpectedBehaviorValue, setValidatedExpectedBehaviorValue] = React.useState<Constants.validate>('error')
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '0')
-  const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<validate>('error')
+  const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
@@ -197,7 +199,9 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       'sw-requirement': {},
       section: modalSection,
       offset: modalOffset,
-      coverage: coverageValue
+      coverage: coverageValue,
+      'user-id': auth.userId,
+      token: auth.token
     }
 
     if (modalIndirect == true || formVerb == 'PUT') {
@@ -250,7 +254,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedTitleValue}>
+              <HelperTextItem variant='error'>
                 {validatedTitleValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -281,7 +285,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedTestDescriptionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedTestDescriptionValue}>
+              <HelperTextItem variant='error'>
                 {validatedTestDescriptionValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -301,7 +305,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedExpectedBehaviorValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedExpectedBehaviorValue}>
+              <HelperTextItem variant='error'>
                 {validatedExpectedBehaviorValue === 'error' ? 'This field is mandatory' : ''}
               </HelperTextItem>
             </HelperText>
@@ -320,7 +324,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedCoverageValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant={validatedCoverageValue}>
+              <HelperTextItem variant='error'>
                 {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
               </HelperTextItem>
             </HelperText>

@@ -1,6 +1,7 @@
 from datetime import datetime
 from db.models.api import ApiModel
 from db.models.db_base import Base
+from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from db.models.comment import CommentModel
 from sqlalchemy import BigInteger, DateTime, Integer, String
@@ -25,10 +26,16 @@ class ApiSwRequirementModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="ApiSwRequirementModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="ApiSwRequirementModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, api, sw_requirement, section, offset, coverage):
+    def __init__(self, api, sw_requirement, section, offset, coverage, created_by):
         self.api = api
         self.api_id = api.id
         self.sw_requirement = sw_requirement
@@ -36,13 +43,21 @@ class ApiSwRequirementModel(Base):
         self.section = section
         self.offset = offset
         self.coverage = coverage
+        self.created_by = created_by
+        self.created_by_id = created_by.id
+        self.edited_by = created_by
+        self.edited_by_id = created_by.id
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
     def __repr__(self) -> str:
-        return f"ApiSwRequirementModel(id={self.id!r}, section={self.section!r}, " \
-               f"offset={self.offset!r}, coverage={self.coverage!r}," \
-               f"api_id={self.api_id!r}, sw_requirement_id={self.sw_requirement_id!r}) - {str(self.api)!r} " \
+        return f"ApiSwRequirementModel(id={self.id!r}, " \
+               f"section={self.section!r}, " \
+               f"offset={self.offset!r}, " \
+               f"coverage={self.coverage!r}," \
+               f"api_id={self.api_id!r}, " \
+               f"created_by={self.created_by.email!r}, " \
+               f"sw_requirement_id={self.sw_requirement_id!r}) - {str(self.api)!r} " \
                f"- {str(self.sw_requirement)!r}"
 
     def get_indirect_test_cases(self, db_session):
@@ -107,6 +122,7 @@ class ApiSwRequirementModel(Base):
                  'offset': self.offset,
                  'direct': True,
                  'coverage': self.coverage,
+                 'created_by': self.created_by.email,
                  'covered': self.get_waterfall_coverage(db_session),
                  '__tablename__': self.__tablename__}
 
@@ -191,6 +207,8 @@ def receive_after_update(mapper, connection, target):
             section=target.section,
             offset=target.offset,
             coverage=target.coverage,
+            created_by_id=target.created_by_id,
+            edited_by_id=target.edited_by_id,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -205,6 +223,8 @@ def receive_after_insert(mapper, connection, target):
         section=target.section,
         offset=target.offset,
         coverage=target.coverage,
+        created_by_id=target.created_by_id,
+        edited_by_id=target.edited_by_id,
         version=1
     )
     connection.execute(insert_query)
@@ -222,20 +242,35 @@ class ApiSwRequirementHistoryModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="ApiSwRequirementHistoryModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="ApiSwRequirementHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, api_id, sw_requirement_id, section, offset, coverage, version):
+    def __init__(self, id, api_id, sw_requirement_id, section,
+                 offset, coverage, created_by_id, edited_by_id, version):
         self.id = id
         self.api_id = api_id
         self.sw_requirement_id = sw_requirement_id
         self.section = section
         self.offset = offset
         self.coverage = coverage
+        self.created_by_id = created_by_id
+        self.edited_by_id = edited_by_id
         self.version = version
         self.created_at = datetime.now()
 
     def __repr__(self) -> str:
-        return f"ApiSwRequirementHistoryModel(row_id={self.row_id!r}, id={self.id!r}, version={self.version!r}, " \
-               f"api_id={self.api_id!r}, sw_requirement_id={self.sw_requirement_id!r}, " \
-               f"coverage={self.coverage!r}, offset={self.offset!r}, version={self.version!r})"
+        return f"ApiSwRequirementHistoryModel(row_id={self.row_id!r}, " \
+               f"id={self.id!r}, " \
+               f"version={self.version!r}, " \
+               f"api_id={self.api_id!r}, " \
+               f"sw_requirement_id={self.sw_requirement_id!r}, " \
+               f"coverage={self.coverage!r}, " \
+               f"offset={self.offset!r}, " \
+               f"created_by={self.created_by.email!r}, " \
+               f"version={self.version!r})"

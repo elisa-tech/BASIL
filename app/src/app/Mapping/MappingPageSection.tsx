@@ -214,20 +214,26 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
   const setCommentModalInfo = (show, work_item_type, parent_type, parent_related_to_type, list, index) => {
     let wi_field = 'title'
+    let wi_title = ''
+    let wi_type = ''
+
     if (work_item_type == Constants._J) {
       wi_field = 'description'
     }
-    let wi_title = ''
+
     if (work_item_type == Constants._SR) {
-      wi_title = list[index][Constants._SR_][wi_field].substr(0, 100)
-      if (list[index][Constants._SR_][wi_field].length > 99) {
-        wi_title = wi_title + '...'
-      }
-    } else {
-      wi_title = list[index][wi_field].substr(0, 100)
-      if (list[index][wi_field].length > 99) {
-        wi_title = wi_title + '...'
-      }
+      wi_type =Constants._SR_
+    } else if (work_item_type == Constants._TS) {
+      wi_type =Constants._TS_
+    } else if (work_item_type == Constants._TC) {
+      wi_type =Constants._TC_
+    } else if (work_item_type == Constants._J) {
+      wi_type =Constants._J
+    }
+
+    wi_title = list[index][wi_type][wi_field].substr(0, 100)
+    if (list[index][wi_type][wi_field].length > 99) {
+      wi_title = wi_title + '...'
     }
 
     setModalTitle('Comment a ' + getWorkItemDescription(work_item_type))
@@ -315,6 +321,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                   <LeavesProgressBar progressValue={totalCoverage} progressId='api-mapping-coverage' />
                 </FlexItem>
               </Flex>
+              { api?.permissions?.indexOf('w') >= 0 ? (
               <Flex align={{ default: 'alignRight' }}>
                 <FlexItem>
                   <Button
@@ -353,6 +360,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                   </Button>
                 </FlexItem>
               </Flex>
+            ) : ('')}
             </Flex>
           </CardBody>
         </Card>

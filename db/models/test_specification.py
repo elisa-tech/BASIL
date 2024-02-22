@@ -1,9 +1,12 @@
 from datetime import datetime
 from db.models.db_base import Base
+from db.models.user import UserModel
 from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy import event, insert, select
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 from typing import Optional
 
 
@@ -17,20 +20,34 @@ class TestSpecificationModel(Base):
     preconditions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     test_description: Mapped[str] = mapped_column(String())
     expected_behavior: Mapped[str] = mapped_column(String())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="TestSpecificationModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="TestSpecificationModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, title, preconditions, test_description, expected_behavior):
+    def __init__(self, title, preconditions, test_description, expected_behavior, created_by):
         self.title = title
         self.preconditions = preconditions
         self.test_description = test_description
         self.expected_behavior = expected_behavior
+        self.created_by = created_by
+        self.created_by_id = created_by.id
+        self.edited_by = created_by
+        self.edited_by_id = created_by.id
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
     def __repr__(self) -> str:
-        return f"TestSpecificationModel(id={self.id!r}, title={self.title!r}, preconditions={self.preconditions!r}, " \
-               f"test_description={self.test_description!r}, expected_behavior={self.expected_behavior!r})"
+        return f"TestSpecificationModel(id={self.id!r}, " \
+               f"title={self.title!r}, " \
+               f"preconditions={self.preconditions!r}, " \
+               f"test_description={self.test_description!r}, " \
+               f"expected_behavior={self.expected_behavior!r}), " \
+               f"created_by={self.created_by.email!r}"
 
     def current_version(self, db_session):
         last_item = db_session.query(TestSpecificationHistoryModel).filter(
@@ -44,6 +61,7 @@ class TestSpecificationModel(Base):
                  "preconditions": self.preconditions,
                  "test_description": self.test_description,
                  "expected_behavior": self.expected_behavior,
+                 'created_by': self.created_by.email,
                  }
 
         if db_session:
@@ -71,6 +89,8 @@ def receive_after_update(mapper, connection, target):
             preconditions=target.preconditions,
             test_description=target.test_description,
             expected_behavior=target.expected_behavior,
+            created_by_id=target.created_by_id,
+            edited_by_id=target.edited_by_id,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -84,6 +104,8 @@ def receive_after_insert(mapper, connection, target):
         preconditions=target.preconditions,
         test_description=target.test_description,
         expected_behavior=target.expected_behavior,
+        created_by_id=target.created_by_id,
+        edited_by_id=target.edited_by_id,
         version=1
     )
     connection.execute(insert_query)
@@ -100,23 +122,33 @@ class TestSpecificationHistoryModel(Base):
     preconditions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     test_description: Mapped[str] = mapped_column(String())
     expected_behavior: Mapped[str] = mapped_column(String())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="TestSpecificationHistoryModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="TestSpecificationHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, title, preconditions, test_description, expected_behavior, version):
+    def __init__(self, id, title, preconditions, test_description,
+                 expected_behavior, created_by_id, edited_by_id, version):
         self.id = id
         self.title = title
         self.preconditions = preconditions
         self.test_description = test_description
         self.expected_behavior = expected_behavior
+        self.created_by_id = created_by_id
+        self.edited_by_id = edited_by_id
         self.version = version
         self.created_at = datetime.now()
 
     def __repr__(self) -> str:
         return f"TestSpecificationHistoryModel(row_id={self.row_id!r}, " \
                f"id={self.id!r}, " \
-               f"version={self.version!r}, " \
                f"title={self.title!r}, " \
                f"preconditions={self.preconditions!r}, " \
                f"test_description={self.test_description!r}, " \
-               f"expected_behavior={self.expected_behavior!r})"
+               f"expected_behavior={self.expected_behavior!r}), " \
+               f"created_by={self.created_by.email!r}, " \
+               f"version={self.version!r}"

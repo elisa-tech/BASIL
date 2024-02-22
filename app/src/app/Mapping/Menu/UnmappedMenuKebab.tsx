@@ -97,6 +97,9 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
+
+        { api?.permissions.indexOf('w') >= 0 ? (
+        <React.Fragment>
         <DropdownItem
           value={2}
           key='delete'
@@ -109,6 +112,9 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
         <DropdownItem value={0} key='edit' id={'btn-menu-unmapped-edit-' + mappingList[mappingIndex].relation_id} onClick={handleEdit}>
           Edit
         </DropdownItem>
+        </React.Fragment>
+      ) : ('') }
+
       </DropdownList>
     </Dropdown>
   )

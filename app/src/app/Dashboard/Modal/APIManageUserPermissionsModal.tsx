@@ -171,16 +171,19 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
       permissions += 'w'
     }
 
-    let url = Constants.API_BASE_URL + '/user/permissions/api?api-id=' + api.id
-    url += '&user-id=' + auth.userId + '&token=' + auth.token
-    url += '&email=' + userEmailSearchValue
-    url += '&permissions=' + permissions
+    let url = Constants.API_BASE_URL + '/user/permissions/api'
+    let data = {'api-id': api.id,
+                'user-id': auth.userId,
+                'token': auth.token,
+                'email': userEmailSearchValue,
+                'permissions': permissions}
     fetch(url, {
       method: 'PUT',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify(data)
     })
       .then((response) => {
         response_status = response.status

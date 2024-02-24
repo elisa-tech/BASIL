@@ -115,6 +115,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
           <Tab
             id='tab-btn-sw-requirement-mapping-section'
             eventKey={1}
+            isDisabled={modalIndirect}
             title={<TabTitleText>Mapping Section</TabTitleText>}
             tabContentId='tabSection'
             tabContentRef={sectionItemsRef}

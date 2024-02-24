@@ -6,6 +6,7 @@ import { APIForm } from './Form/APIForm'
 import { ApiMenuKebab } from './Menu/ApiMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 import { useAuth } from '@app/User/AuthProvider'
+import { AttentionBellIcon } from '@patternfly/react-icons/dist/esm/icons/attention-bell-icon'
 
 interface APIHistoryData {
   versionNumber: number
@@ -75,6 +76,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     created_by: 'Owner',
     category: 'Category',
     coverage: 'Coverage',
+    notifications: 'Notifications',
     actions: 'Actions'
   }
 
@@ -131,6 +133,11 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
             <Td dataLabel={columnNames.coverage}>
               <LeavesProgressBar progressValue={dataRow.covered} progressId={'api-coverage-' + dataRow.id} />
             </Td>
+            <Td dataLabel={columnNames.notifications}>
+              { dataRow.notifications == 1 ? (
+              <AttentionBellIcon />
+            ) : ('')}
+            </Td>
             <Td dataLabel={columnNames.actions}>
               <ApiMenuKebab
                 setModalInfo={setModalInfo}
@@ -178,6 +185,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
           <Th>{columnNames.created_by}</Th>
           <Th>{columnNames.category}</Th>
           <Th>{columnNames.coverage}</Th>
+          <Th>{columnNames.notifications}</Th>
           <Th>{columnNames.actions}</Th>
         </Tr>
       </Thead>

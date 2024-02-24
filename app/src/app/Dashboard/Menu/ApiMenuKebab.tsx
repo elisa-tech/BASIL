@@ -1,4 +1,5 @@
 import React from 'react'
+import * as Constants from '../../Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import { useAuth } from '@app/User/AuthProvider'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
@@ -29,8 +30,41 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     setIsOpen(false)
   }
 
-  console.log('permissions: ')
-  console.log(apiData['permissions'].indexOf('m'))
+  const toggleUserNotifications = (api_id) => {
+    let response_status
+    let response_data
+
+    let url = Constants.API_BASE_URL + '/user/notifications'
+    let data = {'api-id': api_id,
+                'notifications': 1 - apiData.notifications,
+                'user-id': auth.userId,
+                'token': auth.token,}
+    fetch(url, {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        response_status = response.status
+        response_data = response.json()
+        if (response.status !== 200) {
+          return
+        } else {
+          location.reload()
+        }
+        return response_data
+      })
+      .catch((err) => {
+        console.log('----> ' + Object.keys(err))
+        setMessageValue(err.toString())
+        console.log(err.message)
+      })
+
+  }
+
   return (
     <Dropdown
       isOpen={isOpen}
@@ -113,6 +147,20 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
         ) : (
           ''
         )}
+
+        {auth.isLogged() ? (
+          <DropdownItem
+            value={0}
+            id={'btn-menu-api-toggle-notifications-' + apiData.id}
+            key='action manage user notifications'
+            onClick={() => toggleUserNotifications(apiData.id)}
+          >
+            { apiData.notifications == 1 ? 'Disable notifications' : 'Enable notifications' }
+          </DropdownItem>
+        ) : (
+          ''
+        )}
+
       </DropdownList>
     </Dropdown>
   )

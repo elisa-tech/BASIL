@@ -15,6 +15,7 @@ from db.models.api_test_specification import ApiTestSpecificationModel, ApiTestS
 from db.models.comment import CommentModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
 from db.models.note import NoteModel
+from db.models.notification import NotificationModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementHistoryModel
 from db.models.sw_requirement_test_case import SwRequirementTestCaseModel

@@ -4,6 +4,7 @@ from db.models.db_base import Base
 from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from typing import Optional
 from uuid import uuid4
 
 
@@ -18,6 +19,7 @@ class UserModel(Base):
     enabled: Mapped[int] = mapped_column(Integer)
     role: Mapped[str] = mapped_column(String(100))
     token: Mapped[str] = mapped_column(String(255))
+    api_notifications: Mapped[Optional[str]] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -40,7 +42,8 @@ class UserModel(Base):
         _dict = {"id": self.id,
                  "email": self.email,
                  "enabled": self.enabled,
-                 "role": self.role}
+                 "role": self.role,
+                 "api_notifications": self.api_notifications}
 
         if full_data:
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)

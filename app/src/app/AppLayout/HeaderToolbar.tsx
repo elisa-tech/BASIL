@@ -27,9 +27,15 @@ import { Redirect, useLocation } from 'react-router-dom'
 
 export interface HeaderToolbarProps {
   notificationCount: number
+  notificationDrawerExpanded
+  setNotificationDrawerExpanded
 }
 
-const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({ notificationCount = 0 }: HeaderToolbarProps) => {
+const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
+  notificationCount = 0,
+  notificationDrawerExpanded,
+  setNotificationDrawerExpanded,
+}: HeaderToolbarProps) => {
   let auth = useAuth()
   let location = useLocation()
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
@@ -40,6 +46,10 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({ notificati
     isRead: false,
     count: notificationCount,
     className: 'custom-badge-unread'
+  }
+
+  const toggleNotificationDrawer = () => {
+    setNotificationDrawerExpanded(!notificationDrawerExpanded)
   }
 
   const onDropdownToggle = () => {
@@ -137,7 +147,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({ notificati
       <ToolbarContent>
         <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
           <ToolbarItem>
-            <Button aria-label='Notifications' variant={ButtonVariant.plain} icon={<BellIcon />} countOptions={badgeCountObjectNotRead} />
+            <Button aria-label='Notifications'
+                    variant={ButtonVariant.plain}
+                    icon={<BellIcon />}
+                    onClick={toggleNotificationDrawer}
+                    countOptions={badgeCountObjectNotRead} />
           </ToolbarItem>
           <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
             <ToolbarItem>

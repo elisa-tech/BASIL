@@ -58,29 +58,29 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       //list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       //list = list_item;
-      list = mappingList[mappingIndex]
-      setJModalInfo(true, 'edit', api, mappingSection, mappingOffset, list, mappingIndex)
+      //list = mappingList[mappingIndex]
+      setJModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)
     } else if (mappingType == Constants._SR) {
       //list_item = mappingList[mappingIndex];
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       //list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       //list = [list_item];
-      list = mappingList[mappingIndex]
-      setSrModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, list, mappingIndex, '')
+      //list = mappingList[mappingIndex]
+      setSrModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, mappingList, mappingIndex, '')
     } else if (mappingType == Constants._TS) {
       //list_item = mappingList[mappingIndex];
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       //list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       //list = [list_item];
-      list = mappingList[mappingIndex]
-      setTsModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, list, mappingIndex, '')
+      //list = mappingList[mappingIndex]
+      setTsModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, mappingList, mappingIndex, '')
     } else if (mappingType == Constants._TC) {
       //list_item = mappingList[mappingIndex];
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];
       //list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       //list = [list_item];
-      list = mappingList[mappingIndex]
-      setTcModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, list, mappingIndex, '')
+      //list = mappingList[mappingIndex]
+      setTcModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, mappingList, mappingIndex, '')
     }
   }
 

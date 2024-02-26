@@ -40,8 +40,10 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
 }: ManageUserPermissionsProps) => {
   let auth = useAuth()
   const UNSET_USER_EMAIL = ''
+  const UNSET_USER_ROLE = ''
   const [userEmailSearchValue, setUserEmailSearchValue] = React.useState('lpellecc@redhat.com')
   const [userEmail, setUserEmail] = React.useState(UNSET_USER_EMAIL)
+  const [userRole, setUserRole] = React.useState(UNSET_USER_ROLE)
   const [userEditPermission, setUserEditPermission] = React.useState(false)
   const [userManagePermission, setUserManagePermission] = React.useState(false)
   const [userReadPermission, setUserReadPermission] = React.useState(false)
@@ -90,6 +92,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     //Reset Default
     setMessageValue('')
     setUserEmail(UNSET_USER_EMAIL)
+    setUserRole(UNSET_USER_ROLE)
     setUserEditPermission(false)
     setUserManagePermission(false)
     setUserReadPermission(false)
@@ -133,6 +136,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
       })
       .then((response_data) => {
         setUserEmail(response_data['email'])
+        setUserRole(response_data['role'])
         if (response_data['permissions'].indexOf('e') >= 0) {
           setUserEditPermission(true)
         }
@@ -147,7 +151,6 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
         }
       })
       .catch((err) => {
-        console.log('----> ' + Object.keys(err))
         setMessageValue(err.toString())
         console.log(err.message)
       })
@@ -276,6 +279,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
               name='user-permission-check-write'
               label='Write permission'
               isChecked={userWritePermission}
+              isDisabled={userRole == 'GUEST' || userRole == UNSET_USER_ROLE}
               onChange={handlePermissionChanges}
               description='Permission to add and edit work items and relationships of the selected software component.'
             />
@@ -284,6 +288,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
               name='user-permission-check-edit'
               label='Edit permission'
               isChecked={userEditPermission}
+              isDisabled={userRole == 'GUEST' || userRole == UNSET_USER_ROLE}
               onChange={handlePermissionChanges}
               description='Permission to edit parameters of the selected software component.'
             />
@@ -292,6 +297,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
               name='user-permission-check-manage'
               label='Owner permission'
               isChecked={userManagePermission}
+              isDisabled={userRole == 'GUEST' || userRole == UNSET_USER_ROLE}
               onChange={handlePermissionChanges}
               description='Manage user permissions to the selected software component.'
             />

@@ -4503,7 +4503,7 @@ class UserSignin(Resource):
 
         user = UserModel(request_data['email'].strip(),
                          request_data['password'],
-                         "USER")
+                         "GUEST")
         dbi.session.add(user)
         dbi.session.commit()  # To have the user id
 
@@ -4564,6 +4564,7 @@ class UserPermissionsApi(Resource):
         dbi.engine.dispose()
         return {"email": request_data["email"],
                 "api": request_data["api-id"],
+                "role": target_user.role,
                 "permissions": target_user_permissions}
 
     def put(self):
@@ -4748,7 +4749,46 @@ class UserResetPassword(Resource):
             return f"User {request_data['email']} not found.", 403
 
         target_user.pwd = request_data['password']
-        dbi.session.add(target_user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return {"email": request_data["email"]}
+
+
+class UserRole(Resource):
+
+    def put(self):
+        # Requester identified by id and token
+        # Email is related to the user for who I need to change the role
+        mandatory_fields = ['email', 'token', 'user-id', 'role']
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if not request_data['role'] in ['ADMIN', 'GUEST', 'USER']:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.email == request_data["email"]
+            ).one()
+        except NoResultFound:
+            dbi.engine.dispose()
+            return f"User {request_data['email']} not found.", 403
+
+        target_user.role = request_data['role']
         dbi.session.commit()
         dbi.engine.dispose()
 
@@ -4813,8 +4853,10 @@ class UserNotifications(Resource):
             dbi.engine.dispose()
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        user_api_notifications = user.api_notifications.replace(' ', '').split(',')
-        user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
+        user_api_notifications = []
+        if user.api_notifications:
+            user_api_notifications = user.api_notifications.replace(' ', '').split(',')
+            user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
 
         NoneVar = None  # To avoid flake8 warning comparing with None with `==` instead of `is`
         notifications = dbi.session.query(NotificationModel).filter(or_(
@@ -4928,6 +4970,7 @@ api.add_resource(UserLogin, '/user/login')
 api.add_resource(UserNotifications, '/user/notifications')
 api.add_resource(UserPermissionsApi, '/user/permissions/api')
 api.add_resource(UserResetPassword, '/user/reset-password')
+api.add_resource(UserRole, '/user/role')
 api.add_resource(UserSignin, '/user/signin')
 api.add_resource(Testing, '/testing')
 

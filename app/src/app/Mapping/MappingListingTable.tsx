@@ -238,7 +238,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </Label>
                 </FlexItem>
                 <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false && auth.isGuest() == false ? (
+                  {indirect == false && auth.isLogged() ? (
                     <React.Fragment>
                       <Button
                         variant='plain'
@@ -338,7 +338,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   ''
                 )}
                 <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false && auth.isGuest() == false ? (
+                  {indirect == false && auth.isLogged() ? (
                     <React.Fragment>
                       <Button
                         variant='plain'
@@ -437,7 +437,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   ''
                 )}
                 <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false && auth.isGuest() == false ? (
+                  {indirect == false && auth.isLogged() ? (
                     <React.Fragment>
                       <Button
                         variant='plain'
@@ -522,7 +522,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Label variant='outline' isCompact>
                   {coverageFormat(mappedItem['coverage'])}% Coverage
                 </Label>
-                {auth.isGuest() == false ? (
+                {auth.isLogged() ? (
                 <FlexItem align={{ default: 'alignRight' }}>
                   <Button
                     variant='plain'

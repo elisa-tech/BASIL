@@ -120,7 +120,8 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   }
 
   const getNotifications = () => {
-    if (notifications == null){
+    console.log("notifications: " + notifications);
+    if ((notifications == null) || (notifications == undefined)){
       return ''
     }
     if (notifications?.length == 0) {

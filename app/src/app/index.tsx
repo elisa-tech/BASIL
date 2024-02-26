@@ -6,12 +6,11 @@ import { AppRoutes } from '@app/routes'
 import '@app/app.css'
 
 const App: React.FunctionComponent = () => {
-  const [notificationCount, setNotificationCount] = React.useState(0)
 
   return (
     <Router>
-      <AppLayout notificationCount={notificationCount}>
-        <AppRoutes notificationCount={notificationCount} setNotificationCount={setNotificationCount} />
+      <AppLayout>
+        <AppRoutes />
       </AppLayout>
     </Router>
   )

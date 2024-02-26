@@ -16,6 +16,11 @@ const Mapping: React.FunctionComponent = () => {
   const [totalCoverage, setTotalCoverage] = React.useState(0)
   const { api_id } = useParams<{ api_id: string }>()
 
+  //view
+  const search = window.location.search
+  const params = new URLSearchParams(search)
+  const queryView = params.get('view')
+
   const loadApiData = () => {
     const url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
 

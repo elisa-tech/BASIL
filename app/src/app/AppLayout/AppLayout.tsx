@@ -11,6 +11,7 @@ import {
   Nav,
   NavExpandable,
   NavItem,
+  NavItemSeparator,
   NavList,
   Page,
   PageSidebar,
@@ -27,16 +28,30 @@ import { useAuth } from '@app/User/AuthProvider'
 
 interface IAppLayout {
   children: React.ReactNode
-  notificationCount: number
 }
 
-const AppLayout: React.FunctionComponent<IAppLayout> = ({ children, notificationCount }) => {
+const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   let auth = useAuth();
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
   const [notificationDrawerExpanded, setNotificationDrawerExpanded] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification>([]);
+  const [activeGroup, setActiveGroup] = React.useState('');
+  const [activeItem, setActiveItem] = React.useState('ungrouped_item-1');
+  const [libraries, setLibraries] = React.useState([]);
+
+  const onNavigationSelect = (
+    _event: React.FormEvent<HTMLInputElement>,
+    result: { itemId: number | string; groupId: number | string | null }
+  ) => {
+    setActiveGroup(result.groupId as string);
+    setActiveItem(result.itemId as string);
+  };
+
   React.useEffect(() => {
     loadNotifications()
+    if (libraries.length == 0){
+      loadLibraries();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -44,6 +59,17 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children, notification
     console.log("notifications: " + notifications.length)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications])
+
+  const loadLibraries = (current) => {
+    fetch(Constants.API_BASE_URL + '/libraries')
+      .then((res) => res.json())
+      .then((data) => {
+        setLibraries(data)
+      })
+      .catch((err) => {
+        console.log(err.message)
+      })
+  }
 
   const loadNotifications = () => {
 
@@ -87,29 +113,142 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children, notification
 
   const location = useLocation()
 
-  const renderNavItem = (route: IAppRoute, index: number) => (
-    <NavItem key={`${route.label}-${index}`} id={`${route.label}-${index}`} isActive={route.path === location.pathname}>
-      <NavLink exact={route.exact} to={route.path}>
-        {route.label}
-      </NavLink>
-    </NavItem>
-  )
+  const navigate = (url) => {
+    window.open(url, "_blank", "noreferrer");
+  }
 
-  const renderNavGroup = (group: IAppRouteGroup, groupIndex: number) => (
-    <NavExpandable
-      key={`${group.label}-${groupIndex}`}
-      id={`${group.label}-${groupIndex}`}
-      title={group.label}
-      isActive={group.routes.some((route) => route.path === location.pathname)}
-    >
-      {group.routes.map((route, idx) => route.label && renderNavItem(route, idx))}
-    </NavExpandable>
-  )
+  const redirect = (url) => {
+    window.location.href = url;
+  }
+
+  const getLibrariesNavItems = () => {
+    console.log("getLibrariesNavItems")
+    return libraries.map((library, index) => (
+      <NavItem
+        key={"nav-group-libraries-item-1" + index}
+        preventDefault
+        id="mixed-1"
+        to="#mixed-1"
+        onClick={() => redirect('/?currentLibrary=' + library)}
+        itemId={"nav-group-libraries-item-1" + index}
+        isActive={false}
+      >
+        {library}
+      </NavItem>
+    ))
+  }
 
   const Navigation = (
-    <Nav id='nav-primary-simple' theme='dark'>
-      <NavList id='nav-list-simple'>
-        {routes.map((route, idx) => route.label && (!route.routes ? renderNavItem(route, idx) : renderNavGroup(route, idx)))}
+    <Nav onSelect={onNavigationSelect} aria-label="Mixed global">
+      <NavList>
+
+        <NavItem
+          preventDefault
+          id="nav-item-home"
+          to="#nav-item-home"
+          onClick={() => redirect('/')}
+          itemId="ungrouped-item-1"
+          isActive={false}
+        >
+          Home
+        </NavItem>
+
+        { !auth.isLogged() ? (
+        <NavItem
+          preventDefault
+          id="nav-item-login"
+          to="#nav-item-login"
+          onClick={() => redirect('/login')}
+          itemId="ungrouped-item-2"
+          isActive={false}
+        >
+          Login
+        </NavItem>
+        ) : ('')}
+
+        { !auth.isLogged() ? (
+        <NavItem
+          preventDefault
+          id="nav-item-signin"
+          to="#nav-item-signin"
+          onClick={() => redirect('/signin')}
+          itemId="ungrouped-item-3"
+          isActive={false}
+        >
+          Sign In
+        </NavItem>
+        ) : ('')}
+
+        { auth.isLogged() && auth.isAdmin() ? (
+        <NavItem
+          preventDefault
+          id="nav-item-user-management"
+          to="#nav-item-user-management"
+          onClick={() => redirect('/admin')}
+          itemId="ungrouped-item-4"
+          isActive={false}
+        >
+          User Management
+        </NavItem>
+        ) : ('')}
+
+        <NavExpandable
+          title="Libraries"
+          groupId="nav-group-libraries"
+          isActive={false}
+        >
+          {getLibrariesNavItems()}
+        </NavExpandable>
+        <NavExpandable
+          title="Useful Links"
+          groupId="nav-useful-links"
+          isActive={false}
+        >
+          <NavItem
+            preventDefault
+            id="nav-useful-links-elisa"
+            to="#nav-useful-links-elisa"
+            onClick={() => navigate("https://elisa.tech/")}
+            groupId="nav-useful-links"
+            itemId="nav-useful-links-item-1"
+            isActive={false}
+          >
+            ELISA
+          </NavItem>
+          <NavItem
+            preventDefault
+            id="nav-useful-links-documentation"
+            to="#nav-useful-links-documentation"
+            onClick={() => navigate("https://basil-the-fusa-spice.readthedocs.io/")}
+            groupId="nav-useful-links"
+            itemId="nav-useful-links-item-2"
+            isActive={false}
+          >
+            Documentation
+          </NavItem>
+          <NavItem
+            preventDefault
+            id="nav-useful-links-basil-github"
+            to="#nav-useful-links-basil-github"
+            onClick={() => navigate("https://github.com/elisa-tech/BASIL")}
+            groupId="nav-useful-links"
+            itemId="nav-useful-links-item-3"
+            isActive={false}
+          >
+            BASIL github
+          </NavItem>
+          <NavItem
+            preventDefault
+            id="nav-useful-links-report-a-bug"
+            to="#nav-useful-links-report-a-bug"
+            onClick={() => navigate("https://github.com/elisa-tech/BASIL/issues/new")}
+            groupId="nav-useful-links"
+            itemId="nav-useful-links-item-4"
+            isActive={false}
+          >
+            Report a bug
+          </NavItem>
+        </NavExpandable>
       </NavList>
     </Nav>
   )

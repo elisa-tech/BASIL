@@ -118,6 +118,9 @@ def get_parent_api_id(_mapping, _dbisession):
         parent_model = SwRequirementSwRequirementModel
         parent_mapping_field_id = 'sw_requirement_mapping_sw_requirement_id'
         parent_mapping_api_field_id = 'sw_requirement_mapping_api_id'
+    else:
+        print(f"\n WARNING: mapping is instance of {type(_mapping)}")
+        return None
 
     api_mapping_id = getattr(_mapping, parent_mapping_api_field_id)
     parent_mapping_id = getattr(_mapping, parent_mapping_field_id)
@@ -1566,7 +1569,7 @@ class ApiTestSpecificationsMapping(Resource):
             for check_field in TestSpecification.fields:
                 if check_field.replace("_", "-") not in request_data['test-specification'].keys():
                     dbi.engine.dispose()
-                    return "Bad request. Unconsistend data.", 400
+                    return "Bad request. Unconsistent data.", 400
 
             title = request_data['test-specification']['title']
             preconditions = request_data['test-specification']['preconditions']
@@ -1622,12 +1625,14 @@ class ApiTestSpecificationsMapping(Resource):
         dbi.session.commit()  # To have the id
 
         # Add Notifications
-        notification = f'{user.email} added Test Specification {new_test_specification_mapping_api.test_case.id} ' \
+        notification = f'{user.email} added Test Specification ' \
+                       f'{new_test_specification_mapping_api.test_specification.id} ' \
                        f'mapped to ' \
                        f'{api.api} as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_NEW,
-                                          f'Test Specification mapping {new_test_specification_mapping_api.id} '
+                                          f'{api.api} - Test Specification mapping '
+                                          f'{new_test_specification_mapping_api.id} '
                                           f'has been added',
                                           notification,
                                           str(user.id),
@@ -1940,7 +1945,8 @@ class ApiTestCasesMapping(Resource):
                        f'{api.api} as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_NEW,
-                                          f'Test Case mapping {new_test_case_mapping_api.id} has been added',
+                                          f'{api.api} - Test Case mapping '
+                                          f'{new_test_case_mapping_api.id} has been added',
                                           notification,
                                           str(user.id),
                                           f'/mapping/{api.id}')
@@ -2012,11 +2018,11 @@ class ApiTestCasesMapping(Resource):
 
         if modified_tc or modified_tca:
             # Add Notifications
-            notification = f'{user.email} added a test case ' \
+            notification = f'{user.email} modified a test case mapped ' \
                            f'to {api.api}'
             notifications = NotificationModel(api,
-                                              NOTIFICATION_CATEGORY_NEW,
-                                              f'{api.api} - Test Case has been added',
+                                              NOTIFICATION_CATEGORY_EDIT,
+                                              f'{api.api} - Test Case has been modified',
                                               notification,
                                               str(user.id),
                                               f'/mapping/{api.id}')
@@ -3419,10 +3425,13 @@ class SwRequirementTestSpecificationsMapping(Resource):
         except NoResultFound:
             return "Unable to find parent element", 404
 
-        api_id = get_parent_api_id(relation_to_item, dbi.session)
-        if not api_id:
-            dbi.engine.dispose()
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        if relation_to == 'api':
+            api_id = relation_to_item.api.id
+        elif relation_to == 'sw-requirement':
+            api_id = get_parent_api_id(relation_to_item, dbi.session)
+            if not api_id:
+                dbi.engine.dispose()
+                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -4517,7 +4526,7 @@ class UserSignin(Resource):
 
 class UserPermissionsApi(Resource):
     def get(self):
-        # Requester identified by id and toekn
+        # Requester identified by id and token
         # Email is related to the user for who I need to know api permissions
         mandatory_fields = ['api-id', 'email', 'token', 'user-id']
         request_data = request.args
@@ -4558,7 +4567,7 @@ class UserPermissionsApi(Resource):
                 "permissions": target_user_permissions}
 
     def put(self):
-        # Requester identified by id and toekn
+        # Requester identified by id and token
         # Email is related to the user for who I need to know api permissions
         mandatory_fields = ['api-id', 'email', 'token', 'user-id']
         request_data = request.get_json(force=True)
@@ -4644,7 +4653,7 @@ class UserPermissionsApi(Resource):
 class UserEnable(Resource):
 
     def put(self):
-        # Requester identified by id and toekn
+        # Requester identified by id and token
         # Email is related to the user for who I need to change the status
         mandatory_fields = ['email', 'token', 'user-id', 'enabled']
         request_data = request.get_json(force=True)
@@ -4684,7 +4693,7 @@ class UserEnable(Resource):
 class User(Resource):
 
     def get(self):
-        # Requester identified by id and toekn
+        # Requester identified by id and token
         mandatory_fields = ['user-id', 'token']
         request_data = request.args
 
@@ -4711,7 +4720,7 @@ class User(Resource):
 class UserResetPassword(Resource):
 
     def put(self):
-        # Requester identified by id and toekn
+        # Requester identified by id and token
         # Email is related to the user for who I need to change the status
         mandatory_fields = ['email', 'token', 'user-id', 'password']
         request_data = request.get_json(force=True)
@@ -4748,6 +4757,51 @@ class UserResetPassword(Resource):
 
 class UserNotifications(Resource):
 
+    def delete(self):
+        mandatory_fields = ['token', 'user-id']
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # It should be possible to delete 1 notification filtering with `id`
+        # It should be possible to clear all the notifications if `id` is not defined
+        if 'id' in request_data.keys():
+            try:
+                notifications = dbi.session.query(NotificationModel).filter(
+                    NotificationModel.id == request_data['id']
+                ).all()
+            except NoResultFound:
+                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        else:
+
+            user_api_notifications = user.api_notifications.replace(' ', '').split(',')
+            user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
+
+            NoneVar = None  # To avoid flake8 warning comparing with None with `==` instead of `is`
+            notifications = dbi.session.query(NotificationModel).filter(or_(
+                NotificationModel.api_id.in_(user_api_notifications),
+                NotificationModel.api_id == NoneVar)
+            ).order_by(
+                NotificationModel.created_at.desc()
+            ).all()
+
+        for i in range(len(notifications)):
+            read_by = notifications[i].read_by.split(',')
+            if user.id not in read_by:
+                read_by.append(user.id)
+            notifications[i].read_by = ",".join([str(x) for x in read_by])
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return "Notification updated"
+
     def get(self):
         undesired_keys = ['ready_by']
         request_data = request.args
@@ -4759,14 +4813,10 @@ class UserNotifications(Resource):
             dbi.engine.dispose()
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        notifications = []
-        if not user.api_notifications:
-            user_api_notifications = []
-        else:
-            user_api_notifications = user.api_notifications.replace(' ', '').split(',')
-            user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
+        user_api_notifications = user.api_notifications.replace(' ', '').split(',')
+        user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
 
-        NoneVar = None  # To avoid flake8 warning comparning with None with `==` instead of `is`
+        NoneVar = None  # To avoid flake8 warning comparing with None with `==` instead of `is`
         notifications = dbi.session.query(NotificationModel).filter(or_(
             NotificationModel.api_id.in_(user_api_notifications),
             NotificationModel.api_id == NoneVar)

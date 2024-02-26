@@ -16,7 +16,6 @@ import {
   ToolbarGroup,
   ToolbarItem
 } from '@patternfly/react-core'
-import CogIcon from '@patternfly/react-icons/dist/esm/icons/cog-icon'
 import HelpIcon from '@patternfly/react-icons/dist/esm/icons/help-icon'
 import BellIcon from '@patternfly/react-icons/dist/esm/icons/bell-icon'
 import QuestionCircleIcon from '@patternfly/react-icons/dist/esm/icons/question-circle-icon'
@@ -75,17 +74,6 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   const onFullKebabDropdownSelect = () => {
     setIsFullKebabDropdownOpen(false)
   }
-
-  const kebabDropdownItems = (
-    <>
-      <DropdownItem>
-        <CogIcon /> Settings
-      </DropdownItem>
-      <DropdownItem>
-        <HelpIcon /> Help
-      </DropdownItem>
-    </>
-  )
 
   const adminDropdownItems = (
     <>
@@ -155,9 +143,6 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
           </ToolbarItem>
           <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
             <ToolbarItem>
-              <Button aria-label='Settings' variant={ButtonVariant.plain} icon={<CogIcon />} />
-            </ToolbarItem>
-            <ToolbarItem>
               <Button
                 component='a'
                 href='https://basil-the-fusa-spice.readthedocs.io/'
@@ -168,52 +153,6 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
               />
             </ToolbarItem>
           </ToolbarGroup>
-          <ToolbarItem visibility={{ default: 'hidden', md: 'visible', lg: 'hidden' }}>
-            <Dropdown
-              isOpen={isKebabDropdownOpen}
-              onSelect={onKebabDropdownSelect}
-              onOpenChange={(isOpen: boolean) => setIsKebabDropdownOpen(isOpen)}
-              popperProps={{ position: 'right' }}
-              toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                <MenuToggle
-                  ref={toggleRef}
-                  onClick={onKebabDropdownToggle}
-                  isExpanded={isKebabDropdownOpen}
-                  variant='plain'
-                  aria-label='Settings and help'
-                >
-                  <EllipsisVIcon aria-hidden='true' />
-                </MenuToggle>
-              )}
-            >
-              <DropdownList>{kebabDropdownItems}</DropdownList>
-            </Dropdown>
-          </ToolbarItem>
-          <ToolbarItem visibility={{ md: 'hidden' }}>
-            <Dropdown
-              isOpen={isFullKebabDropdownOpen}
-              onSelect={onFullKebabDropdownSelect}
-              onOpenChange={(isOpen: boolean) => setIsFullKebabDropdownOpen(isOpen)}
-              popperProps={{ position: 'right' }}
-              toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-                <MenuToggle
-                  ref={toggleRef}
-                  onClick={onFullKebabDropdownToggle}
-                  isExpanded={isFullKebabDropdownOpen}
-                  variant='plain'
-                  aria-label='Toolbar menu'
-                >
-                  <EllipsisVIcon aria-hidden='true' />
-                </MenuToggle>
-              )}
-            >
-              <DropdownGroup key='group 2' aria-label='User actions'>
-                <DropdownList>{getUserDropdownItems()}</DropdownList>
-              </DropdownGroup>
-              <Divider />
-              <DropdownList>{kebabDropdownItems}</DropdownList>
-            </Dropdown>
-          </ToolbarItem>
         </ToolbarGroup>
         <ToolbarItem visibility={{ default: 'hidden', md: 'visible' }}>
           <Dropdown

@@ -38,7 +38,8 @@ class NotificationModel(Base):
         self.updated_at = self.created_at
 
     def as_dict(self, full_data=False):
-        tmp = {"category": self.category,
+        tmp = {"id": self.id,
+               "category": self.category,
                "title": self.title,
                "description": self.description,
                "read_by": self.read_by.split(","),  # Return a list

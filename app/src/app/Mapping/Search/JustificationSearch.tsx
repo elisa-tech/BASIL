@@ -11,15 +11,7 @@ import {
   HintBody,
   TextInput
 } from '@patternfly/react-core'
-import {
-  DataList,
-  DataListAction,
-  DataListCell,
-  DataListItem,
-  DataListItemCells,
-  DataListItemRow,
-  SearchInput
-} from '@patternfly/react-core'
+import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
 
 export interface JustificationSearchProps {
   api
@@ -120,12 +112,6 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
               </DataListCell>
             ]}
           />
-          <DataListAction
-            aria-labelledby={'clickable-action-item-' + justification.id + ' clickable-action-action-' + justification.id}
-            id={'clickable-action-action-' + justification.id}
-            aria-label='Actions'
-            isPlainButtonAction
-          ></DataListAction>
         </DataListItemRow>
       </DataListItem>
     ))
@@ -239,7 +225,9 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         <Hint>
           <HintBody>{messageValue}</HintBody>
         </Hint>
-      ) : ('')}
+      ) : (
+        ''
+      )}
 
       {formDefaultButtons ? (
         <ActionGroup>
@@ -250,7 +238,9 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
             Reset
           </Button>
         </ActionGroup>
-      ) : ('')}
+      ) : (
+        ''
+      )}
     </React.Fragment>
   )
 }

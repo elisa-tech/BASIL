@@ -11,15 +11,7 @@ import {
   HintBody,
   TextInput
 } from '@patternfly/react-core'
-import {
-  DataList,
-  DataListAction,
-  DataListCell,
-  DataListItem,
-  DataListItemCells,
-  DataListItemRow,
-  SearchInput
-} from '@patternfly/react-core'
+import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
 
 export interface SwRequirementSearchProps {
   api
@@ -128,12 +120,6 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
               </DataListCell>
             ]}
           />
-          <DataListAction
-            aria-labelledby={'clickable-action-item-' + sw_requirement.id + ' clickable-action-action-' + sw_requirement.id}
-            id={'clickable-action-action-' + sw_requirement.id}
-            aria-label='Actions'
-            isPlainButtonAction
-          ></DataListAction>
         </DataListItemRow>
       </DataListItem>
     ))
@@ -177,7 +163,6 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
     }
 
     if (modalIndirect == true) {
-      console.log('parentData: ' + Object.keys(parentData))
       data['relation-id'] = parentData.relation_id
       data['relation-to'] = parentRelatedToType
       data['parent-sw-requirement'] = { id: parentData[Constants._SR_]['id'] }

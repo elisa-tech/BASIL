@@ -11,15 +11,7 @@ import {
   HintBody,
   TextInput
 } from '@patternfly/react-core'
-import {
-  DataList,
-  DataListAction,
-  DataListCell,
-  DataListItem,
-  DataListItemCells,
-  DataListItemRow,
-  SearchInput
-} from '@patternfly/react-core'
+import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
 
 export interface TestCaseSearchProps {
   api
@@ -121,12 +113,6 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
               </DataListCell>
             ]}
           />
-          <DataListAction
-            aria-labelledby={'clickable-action-item-' + test_case.id + ' clickable-action-action-' + test_case.id}
-            id={'clickable-action-action-' + test_case.id}
-            aria-label='Actions'
-            isPlainButtonAction
-          ></DataListAction>
         </DataListItemRow>
       </DataListItem>
     ))

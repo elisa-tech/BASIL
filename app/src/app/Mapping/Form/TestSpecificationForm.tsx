@@ -50,7 +50,6 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
   parentRelatedToType,
   parentType
 }: TestSpecificationFormProps) => {
-
   let auth = useAuth()
 
   const [titleValue, setTitleValue] = React.useState(formData.title)
@@ -254,9 +253,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedTitleValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedTitleValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -285,9 +282,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedTestDescriptionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedTestDescriptionValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedTestDescriptionValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -305,9 +300,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         {validatedExpectedBehaviorValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedExpectedBehaviorValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedExpectedBehaviorValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}

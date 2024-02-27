@@ -26,7 +26,6 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
   setModalOffset,
   setModalSection
 }: SectionFormProps) => {
-
   const [sectionValue, setSectionValue] = React.useState(modalSection == undefined ? '' : modalSection)
   const [validatedSectionValue, setValidatedSectionValue] = React.useState<Constants.validate>('error')
 
@@ -99,9 +98,7 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
         {validatedSectionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedSectionValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedSectionValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -117,9 +114,7 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
         {validatedOffsetValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedOffsetValue === 'error' ? 'Must be an integer number' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedOffsetValue === 'error' ? 'Must be an integer number' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}

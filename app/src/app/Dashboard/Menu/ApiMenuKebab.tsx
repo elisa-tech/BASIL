@@ -35,10 +35,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     let response_data
 
     let url = Constants.API_BASE_URL + '/user/notifications'
-    let data = {'api-id': api_id,
-                'notifications': 1 - apiData.notifications,
-                'user-id': auth.userId,
-                'token': auth.token,}
+    let data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
       headers: {
@@ -58,11 +55,8 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
         return response_data
       })
       .catch((err) => {
-        console.log('----> ' + Object.keys(err))
-        setMessageValue(err.toString())
         console.log(err.message)
       })
-
   }
 
   return (
@@ -155,12 +149,11 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
             key='action manage user notifications'
             onClick={() => toggleUserNotifications(apiData.id)}
           >
-            { apiData.notifications == 1 ? 'Disable notifications' : 'Enable notifications' }
+            {apiData.notifications == 1 ? 'Disable notifications' : 'Enable notifications'}
           </DropdownItem>
         ) : (
           ''
         )}
-
       </DropdownList>
     </Dropdown>
   )

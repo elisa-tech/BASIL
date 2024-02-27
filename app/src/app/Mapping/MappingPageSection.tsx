@@ -222,13 +222,13 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     }
 
     if (work_item_type == Constants._SR) {
-      wi_type =Constants._SR_
+      wi_type = Constants._SR_
     } else if (work_item_type == Constants._TS) {
-      wi_type =Constants._TS_
+      wi_type = Constants._TS_
     } else if (work_item_type == Constants._TC) {
-      wi_type =Constants._TC_
+      wi_type = Constants._TC_
     } else if (work_item_type == Constants._J) {
-      wi_type =Constants._J
+      wi_type = Constants._J
     }
 
     wi_title = list[index][wi_type][wi_field].substr(0, 100)
@@ -321,46 +321,48 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                   <LeavesProgressBar progressValue={totalCoverage} progressId='api-mapping-coverage' />
                 </FlexItem>
               </Flex>
-              { api?.permissions?.indexOf('w') >= 0 ? (
-              <Flex align={{ default: 'alignRight' }}>
-                <FlexItem>
-                  <Button
-                    variant='secondary'
-                    id='btn-mapping-new-sw-requirement'
-                    onClick={() => setSrModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
-                  >
-                    Map Software Req.
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button
-                    variant='secondary'
-                    id='btn-mapping-new-test-specification'
-                    onClick={() => setTsModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
-                  >
-                    Map Test Specification
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button
-                    variant='secondary'
-                    id='btn-mapping-new-test-case'
-                    onClick={() => setTcModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
-                  >
-                    Map Test Case
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button
-                    variant='secondary'
-                    id='btn-mapping-new-justification'
-                    onClick={() => setJModalInfo(true, 'add', api, '', 0, [], -1)}
-                  >
-                    Map Justification
-                  </Button>
-                </FlexItem>
-              </Flex>
-            ) : ('')}
+              {api?.permissions?.indexOf('w') >= 0 ? (
+                <Flex align={{ default: 'alignRight' }}>
+                  <FlexItem>
+                    <Button
+                      variant='secondary'
+                      id='btn-mapping-new-sw-requirement'
+                      onClick={() => setSrModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
+                    >
+                      Map Software Req.
+                    </Button>
+                  </FlexItem>
+                  <FlexItem>
+                    <Button
+                      variant='secondary'
+                      id='btn-mapping-new-test-specification'
+                      onClick={() => setTsModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
+                    >
+                      Map Test Specification
+                    </Button>
+                  </FlexItem>
+                  <FlexItem>
+                    <Button
+                      variant='secondary'
+                      id='btn-mapping-new-test-case'
+                      onClick={() => setTcModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
+                    >
+                      Map Test Case
+                    </Button>
+                  </FlexItem>
+                  <FlexItem>
+                    <Button
+                      variant='secondary'
+                      id='btn-mapping-new-justification'
+                      onClick={() => setJModalInfo(true, 'add', api, '', 0, [], -1)}
+                    >
+                      Map Justification
+                    </Button>
+                  </FlexItem>
+                </Flex>
+              ) : (
+                ''
+              )}
             </Flex>
           </CardBody>
         </Card>

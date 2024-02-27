@@ -30,8 +30,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
   handleModalToggle,
   loadMappingData
 }: CommentFormProps) => {
-
-  let auth = useAuth();
+  let auth = useAuth()
   const [commentValue, setCommentValue] = React.useState('')
   const [validatedCommentValue, setValidatedCommentValue] = React.useState<Constants.validate>('error')
 
@@ -102,11 +101,11 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
     setMessageValue('')
 
     const data = {
-      'parent_table': parent_table,
-      'parent_id': parent_id,
-      'comment': commentValue,
+      parent_table: parent_table,
+      parent_id: parent_id,
+      comment: commentValue,
       'user-id': auth.userId,
-      'token': auth.token
+      token: auth.token
     }
 
     fetch(Constants.API_BASE_URL + '/comments', {
@@ -149,9 +148,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
         {validatedCommentValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCommentValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedCommentValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}

@@ -44,10 +44,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   }, [modalShowState])
 
   const deleteMapping = () => {
-    const data = {'api-id': api.id,
-                  'relation-id': relationData.relation_id,
-                  'user-id': auth.userId,
-                  'token': auth.token }
+    const data = { 'api-id': api.id, 'relation-id': relationData.relation_id, 'user-id': auth.userId, token: auth.token }
 
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',

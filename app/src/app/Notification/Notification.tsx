@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   NotificationDrawer,
   NotificationDrawerBody,
@@ -12,16 +12,16 @@ import {
   DropdownItem,
   MenuToggle,
   MenuToggleElement
-} from '@patternfly/react-core';
+} from '@patternfly/react-core'
 import * as Constants from '../Constants/constants'
-import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon';
+import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import { useAuth } from '@app/User/AuthProvider'
 
 interface Notification {
-  api: string;
-  notification: string;
-  read_by?: string;
-  url: string;
+  api: string
+  notification: string
+  read_by?: string
+  url: string
 }
 
 export interface NotificationDrawerBasicProps {
@@ -32,19 +32,19 @@ export interface NotificationDrawerBasicProps {
 export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawerBasicProps> = ({
   notifications,
   notificationDrawerExpanded,
-  setNotificationDrawerExpanded,
-}:NotificationDrawerBasicProps) => {
-  let auth = useAuth();
-  const [isOpenHeaderDropdown, setIsOpenHeaderDropdown] = React.useState(false);
-  const [isOpenMap, setIsOpenMap] = React.useState(new Array(notifications.length).fill(false));
+  setNotificationDrawerExpanded
+}: NotificationDrawerBasicProps) => {
+  let auth = useAuth()
+  const [isOpenHeaderDropdown, setIsOpenHeaderDropdown] = React.useState(false)
+  const [isOpenMap, setIsOpenMap] = React.useState(new Array(notifications.length).fill(false))
 
   const onToggle = (index: number) => () => {
-    let currentState = isOpenMap[index];
+    let currentState = isOpenMap[index]
     let newStates = new Array(notifications.length).fill(false)
-    newStates[index] = !currentState;
-    setIsOpenHeaderDropdown(false);
+    newStates[index] = !currentState
+    setIsOpenHeaderDropdown(false)
     setIsOpenMap(newStates)
-  };
+  }
 
   const toggleNotificationDrawer = () => {
     setNotificationDrawerExpanded(!notificationDrawerExpanded)
@@ -52,32 +52,21 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
 
   const toggleHeaderDropdown = () => {
     setIsOpenMap(new Array(notifications.length).fill(false))
-    setIsOpenHeaderDropdown(!isOpenHeaderDropdown);
+    setIsOpenHeaderDropdown(!isOpenHeaderDropdown)
   }
 
   const onSelect = (notification_id) => {
     setIsOpenMap(new Array(notifications.length).fill(false))
-    console.log("notification id" + notification_id)
-  };
-
-  const onSelectHeaderDropdown = () => {
-    console.log("all notifications")
   }
 
-  const onDrawerClose = (_event: React.MouseEvent<Element, MouseEvent> | KeyboardEvent) => {
-    console.log("close drawer")
-    toggleNotificationDrawer()
-    setIsOpenMap(new Array(notifications.length).fill(false));
-  };
+  const onSelectHeaderDropdown = () => {}
 
-  const closeMenuItems = () => {
-    console.log("here")
-    //setIsOpenMap(new Array(notifications.length).fill(false))
-    //setIsOpenHeaderDropdown(false);
+  const onDrawerClose = (_event: React.MouseEvent<Element, MouseEvent> | KeyboardEvent) => {
+    toggleNotificationDrawer()
+    setIsOpenMap(new Array(notifications.length).fill(false))
   }
 
   const onNotificationSelect = (notification) => {
-    closeMenuItems()
     location.href = notification['url']
   }
 
@@ -86,11 +75,10 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
     let response_data
 
     let url = Constants.API_BASE_URL + '/user/notifications'
-    let data = {'user-id': auth.userId,
-                'token': auth.token,}
+    let data = { 'user-id': auth.userId, token: auth.token }
 
-    if (notification_id != null){
-      data['id'] = notification_id;
+    if (notification_id != null) {
+      data['id'] = notification_id
     }
 
     fetch(url, {
@@ -112,16 +100,12 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
         return response_data
       })
       .catch((err) => {
-        console.log('----> ' + Object.keys(err))
-        setMessageValue(err.toString())
         console.log(err.message)
       })
-
   }
 
   const getNotifications = () => {
-    console.log("notifications: " + notifications);
-    if ((notifications == null) || (notifications == undefined)){
+    if (notifications == null || notifications == undefined) {
       return ''
     }
     if (notifications?.length == 0) {
@@ -130,13 +114,10 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
       return notifications.map((notification, notificationIndex) => (
         <NotificationDrawerListItem
           onClick={(ev: any) => ev.preventDefault()}
-          key={"notification-drawer-list-item-" + notification['id']}
-          variant={notification['category']}>
-          <NotificationDrawerListItemHeader
-            variant={notification['category']}
-            title={notification['title']}
-            srTitle="Info notification:"
-          >
+          key={'notification-drawer-list-item-' + notification['id']}
+          variant={notification['category']}
+        >
+          <NotificationDrawerListItemHeader variant={notification['category']} title={notification['title']} srTitle='Info notification:'>
             <Dropdown
               onSelect={() => onSelect(notification['id'])}
               isOpen={isOpenMap[notificationIndex]}
@@ -147,40 +128,39 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
                   ref={toggleRef}
                   isExpanded={isOpenMap[notificationIndex]}
                   onClick={onToggle(notificationIndex)}
-                  variant="plain"
+                  variant='plain'
                   aria-label={`Basic example notification 1 kebab toggle`}
                 >
-                  <EllipsisVIcon aria-hidden="true" />
+                  <EllipsisVIcon aria-hidden='true' />
                 </MenuToggle>
               )}
             >
               <DropdownList>
                 <DropdownItem
-                  to="#default-link2"
+                  to='#default-link2'
                   // Prevent the default onClick functionality for example purposes
                   onClick={() => clearNotification(notification['id'])}
                 >
                   Mark as read
                 </DropdownItem>
-                { notification['url'] != '' ? (
-                <DropdownItem
-                  to="#default-link2"
-                  // Prevent the default onClick functionality for example purposes
-                  onClick={() => onNotificationSelect(notification)}
-                >
-                  Open url
-                </DropdownItem>
-              ) : ('')}
+                {notification['url'] != '' ? (
+                  <DropdownItem
+                    to='#default-link2'
+                    // Prevent the default onClick functionality for example purposes
+                    onClick={() => onNotificationSelect(notification)}
+                  >
+                    Open url
+                  </DropdownItem>
+                ) : (
+                  ''
+                )}
               </DropdownList>
             </Dropdown>
           </NotificationDrawerListItemHeader>
-          <NotificationDrawerListItemBody
-            timestamp={notification.created_at}>
-            {notification.description}
-          </NotificationDrawerListItemBody>
+          <NotificationDrawerListItemBody timestamp={notification.created_at}>{notification.description}</NotificationDrawerListItemBody>
         </NotificationDrawerListItem>
-      )
-    )}
+      ))
+    }
   }
 
   return (
@@ -196,16 +176,16 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
               ref={toggleRef}
               isExpanded={isOpenHeaderDropdown}
               onClick={toggleHeaderDropdown}
-              variant="plain"
+              variant='plain'
               aria-label={`Basic example header kebab toggle`}
             >
-              <EllipsisVIcon aria-hidden="true" />
+              <EllipsisVIcon aria-hidden='true' />
             </MenuToggle>
           )}
         >
           <DropdownList>
             <DropdownItem
-              to="#default-link2"
+              to='#default-link2'
               // Prevent the default onClick functionality for example purposes
               onClick={() => clearNotification(null)}
             >
@@ -215,10 +195,8 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
         </Dropdown>
       </NotificationDrawerHeader>
       <NotificationDrawerBody>
-        <NotificationDrawerList aria-label="Notifications in the basic example">
-          {getNotifications()}
-        </NotificationDrawerList>
+        <NotificationDrawerList aria-label='Notifications in the basic example'>{getNotifications()}</NotificationDrawerList>
       </NotificationDrawerBody>
     </NotificationDrawer>
-  );
-};
+  )
+}

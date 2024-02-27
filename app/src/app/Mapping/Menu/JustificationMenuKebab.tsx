@@ -51,31 +51,32 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-
-        { api?.permissions.indexOf('w') >= 0 ? (
-        <React.Fragment>
-        <DropdownItem
-          value={0}
-          id={'btn-menu-justification-delete-' + mappingList[mappingIndex].relation_id}
-          key='delete'
-          className='danger-text'
-          onClick={() => setDeleteModalInfo(true, Constants._J, 'api', '', mappingList, mappingIndex)}
-        >
-          Delete
-        </DropdownItem>
-        <DropdownItem
-          value={1}
-          id={'btn-menu-justification-edit-' + mappingList[mappingIndex].relation_id}
-          key='edit'
-          onClick={() => setJModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)}
-        >
-          Edit
-        </DropdownItem>
-        <DropdownItem value={2} key='fork' isDisabled>
-          Fork
-        </DropdownItem>
-        </React.Fragment>
-        ) : ('') }
+        {api?.permissions.indexOf('w') >= 0 ? (
+          <React.Fragment>
+            <DropdownItem
+              value={0}
+              id={'btn-menu-justification-delete-' + mappingList[mappingIndex].relation_id}
+              key='delete'
+              className='danger-text'
+              onClick={() => setDeleteModalInfo(true, Constants._J, 'api', '', mappingList, mappingIndex)}
+            >
+              Delete
+            </DropdownItem>
+            <DropdownItem
+              value={1}
+              id={'btn-menu-justification-edit-' + mappingList[mappingIndex].relation_id}
+              key='edit'
+              onClick={() => setJModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)}
+            >
+              Edit
+            </DropdownItem>
+            <DropdownItem value={2} key='fork' isDisabled>
+              Fork
+            </DropdownItem>
+          </React.Fragment>
+        ) : (
+          ''
+        )}
 
         <DropdownItem
           value={3}

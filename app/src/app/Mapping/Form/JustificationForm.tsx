@@ -44,7 +44,6 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
   modalSection,
   parentData
 }: JustificationFormProps) => {
-
   let auth = useAuth()
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
   const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
@@ -181,9 +180,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedDescriptionValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedDescriptionValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}

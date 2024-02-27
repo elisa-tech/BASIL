@@ -24,7 +24,6 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
   let auth = useAuth()
 
   const generatePassword = () => {
-    console.log('generate password')
     let charset = ''
     let newPasswordValue = ''
     let passwordLength = 20
@@ -39,7 +38,6 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
     }
 
     setNewPassword(newPasswordValue)
-    console.log('value: <' + newPasswordValue + '>')
     return newPasswordValue
   }
 

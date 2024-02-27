@@ -33,7 +33,7 @@ export interface HeaderToolbarProps {
 const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   notificationCount = 0,
   notificationDrawerExpanded,
-  setNotificationDrawerExpanded,
+  setNotificationDrawerExpanded
 }: HeaderToolbarProps) => {
   let auth = useAuth()
   let location = useLocation()
@@ -135,11 +135,13 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
       <ToolbarContent>
         <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
           <ToolbarItem>
-            <Button aria-label='Notifications'
-                    variant={ButtonVariant.plain}
-                    icon={<BellIcon />}
-                    onClick={toggleNotificationDrawer}
-                    countOptions={badgeCountObjectNotRead} />
+            <Button
+              aria-label='Notifications'
+              variant={ButtonVariant.plain}
+              icon={<BellIcon />}
+              onClick={toggleNotificationDrawer}
+              countOptions={badgeCountObjectNotRead}
+            />
           </ToolbarItem>
           <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
             <ToolbarItem>

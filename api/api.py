@@ -4710,7 +4710,9 @@ class User(Resource):
         if user.role != 'ADMIN':
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        users = dbi.session.query(UserModel).all()
+        users = dbi.session.query(UserModel).filter(
+            UserModel.id != request_data['user-id']
+        ).all()
         # users = [{k: v for k, v in user.as_dict().items() if k not in ['pwd']} for user in users]
 
         dbi.engine.dispose()

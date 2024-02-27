@@ -11,15 +11,7 @@ import {
   HintBody,
   TextInput
 } from '@patternfly/react-core'
-import {
-  DataList,
-  DataListAction,
-  DataListCell,
-  DataListItem,
-  DataListItemCells,
-  DataListItemRow,
-  SearchInput
-} from '@patternfly/react-core'
+import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
 
 export interface TestSpecificationSearchProps {
   api
@@ -121,12 +113,6 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
               </DataListCell>
             ]}
           />
-          <DataListAction
-            aria-labelledby={'clickable-action-item-' + test_specification.id + ' clickable-action-action-' + test_specification.id}
-            id={'clickable-action-action-' + test_specification.id}
-            aria-label='Actions'
-            isPlainButtonAction
-          ></DataListAction>
         </DataListItemRow>
       </DataListItem>
     ))
@@ -178,7 +164,6 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     }
 
     if (modalIndirect == true) {
-      console.log('parentData: ' + JSON.stringify(parentData))
       data['relation-id'] = parentData.relation_id
       data['relation-to'] = parentRelatedToType
       data['sw-requirement']['id'] = parentData.sw_requirement.id

@@ -13,13 +13,10 @@ const Admin: React.FunctionComponent = () => {
   const [users, setUsers] = React.useState([])
 
   const loadUsers = () => {
-    console.log('1')
     if (!auth.isLogged() || !auth.isAdmin()) {
-      console.log('2')
       return
     }
-    console.log('3')
-    const url
+    let url
     url = Constants.API_BASE_URL + '/user'
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token

@@ -82,7 +82,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   showIndirectTestCases,
   showIndirectTestSpecifications
 }: MappingListingTableProps) => {
-  let auth = useAuth();
+  let auth = useAuth()
 
   const getWorkItemDescription = (_work_item_type) => {
     const work_item_types = [Constants._A, Constants._J, Constants._SR, Constants._TS, Constants._TC]
@@ -523,30 +523,32 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   {coverageFormat(mappedItem['coverage'])}% Coverage
                 </Label>
                 {auth.isLogged() ? (
-                <FlexItem align={{ default: 'alignRight' }}>
-                  <Button
-                    variant='plain'
-                    icon={<OutlinedCommentsIcon />}
-                    onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}
-                  ></Button>
-                  <Badge key={3} screenReaderText='Comments'>
-                    {mappedItem[Constants._J]['comment_count']}
-                  </Badge>
-                  <JustificationMenuKebab
-                    setJModalInfo={setJModalInfo}
-                    setDetailsModalInfo={setDetailsModalInfo}
-                    setHistoryModalInfo={setHistoryModalInfo}
-                    setUsageModalInfo={setUsageModalInfo}
-                    setDeleteModalInfo={setDeleteModalInfo}
-                    mappingList={mapping}
-                    mappingIndex={mIndex}
-                    mappingSection={section}
-                    mappingOffset={offset}
-                    api={api}
-                    //jModalShowState={jModalShowState}
-                  />
-                </FlexItem>
-              ) : ('')}
+                  <FlexItem align={{ default: 'alignRight' }}>
+                    <Button
+                      variant='plain'
+                      icon={<OutlinedCommentsIcon />}
+                      onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}
+                    ></Button>
+                    <Badge key={3} screenReaderText='Comments'>
+                      {mappedItem[Constants._J]['comment_count']}
+                    </Badge>
+                    <JustificationMenuKebab
+                      setJModalInfo={setJModalInfo}
+                      setDetailsModalInfo={setDetailsModalInfo}
+                      setHistoryModalInfo={setHistoryModalInfo}
+                      setUsageModalInfo={setUsageModalInfo}
+                      setDeleteModalInfo={setDeleteModalInfo}
+                      mappingList={mapping}
+                      mappingIndex={mIndex}
+                      mappingSection={section}
+                      mappingOffset={offset}
+                      api={api}
+                      //jModalShowState={jModalShowState}
+                    />
+                  </FlexItem>
+                ) : (
+                  ''
+                )}
               </Flex>
               <Flex>
                 <FlexItem>
@@ -660,17 +662,20 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <LeavesProgressBar progressValue={snippet['covered']} progressId={'mapping-section-coverage-' + snippetIndex} />
                   </FlexItem>
                   <FlexItem align={{ default: 'alignRight' }}>
-                    { api?.permissions?.indexOf('w') >= 0 ? (
-                    <MappingSectionMenuKebab
-                      api={api}
-                      offset={snippet['offset']}
-                      section={snippet['section']}
-                      sectionIndex={snippetIndex}
-                      setTcModalInfo={setTcModalInfo}
-                      setTsModalInfo={setTsModalInfo}
-                      setSrModalInfo={setSrModalInfo}
-                      setJModalInfo={setJModalInfo}/>
-                  ) : ('') }
+                    {api?.permissions?.indexOf('w') >= 0 ? (
+                      <MappingSectionMenuKebab
+                        api={api}
+                        offset={snippet['offset']}
+                        section={snippet['section']}
+                        sectionIndex={snippetIndex}
+                        setTcModalInfo={setTcModalInfo}
+                        setTsModalInfo={setTsModalInfo}
+                        setSrModalInfo={setSrModalInfo}
+                        setJModalInfo={setJModalInfo}
+                      />
+                    ) : (
+                      ''
+                    )}
                   </FlexItem>
                 </Flex>
               </CardBody>

@@ -155,7 +155,6 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
           ''
         )}
       </DropdownList>
-
     </Dropdown>
   )
 }

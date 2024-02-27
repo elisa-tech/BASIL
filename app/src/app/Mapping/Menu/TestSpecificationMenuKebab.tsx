@@ -67,66 +67,69 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-
-        { api?.permissions.indexOf('w') >= 0 ? (
-        <React.Fragment>
-        <DropdownItem
-          value={0}
-          id={'btn-menu-test-specification-assign-test-case-' + mappingList[mappingIndex].relation_id}
-          key='assign-test-case'
-          className='success-text'
-          onClick={() =>
-            setTcModalInfo(
-              true,
-              true,
-              'add',
-              api,
-              mappingSection,
-              mappingOffset,
-              Constants._TS,
-              mappingList,
-              mappingIndex,
-              mappingParentType
-            )
-          }
-        >
-          Assign Test Case
-        </DropdownItem>
-        <DropdownItem
-          value={1}
-          id={'btn-menu-test-specification-delete-' + mappingList[mappingIndex].relation_id}
-          key='delete'
-          className='danger-text'
-          onClick={() => setDeleteModalInfo(true, Constants._TS, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
-        >
-          Delete
-        </DropdownItem>
-        <DropdownItem
-          value={2}
-          id={'btn-menu-test-specification-edit-' + mappingList[mappingIndex].relation_id}
-          key='edit'
-          onClick={() =>
-            setTsModalInfo(
-              true,
-              indirect,
-              'edit',
-              api,
-              mappingSection,
-              mappingOffset,
-              mappingParentType,
-              mappingList,
-              mappingIndex,
-              mappingParentRelatedToType
-            )
-          }
-        >
-          Edit
-        </DropdownItem>
-        <DropdownItem value={3} key='fork' isDisabled>
-          Fork
-        </DropdownItem>
-        </React.Fragment>
-      ) : ('') }
+        {api?.permissions.indexOf('w') >= 0 ? (
+          <React.Fragment>
+            <DropdownItem
+              value={0}
+              id={'btn-menu-test-specification-assign-test-case-' + mappingList[mappingIndex].relation_id}
+              key='assign-test-case'
+              className='success-text'
+              onClick={() =>
+                setTcModalInfo(
+                  true,
+                  true,
+                  'add',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  Constants._TS,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentType
+                )
+              }
+            >
+              Assign Test Case
+            </DropdownItem>
+            <DropdownItem
+              value={1}
+              id={'btn-menu-test-specification-delete-' + mappingList[mappingIndex].relation_id}
+              key='delete'
+              className='danger-text'
+              onClick={() =>
+                setDeleteModalInfo(true, Constants._TS, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)
+              }
+            >
+              Delete
+            </DropdownItem>
+            <DropdownItem
+              value={2}
+              id={'btn-menu-test-specification-edit-' + mappingList[mappingIndex].relation_id}
+              key='edit'
+              onClick={() =>
+                setTsModalInfo(
+                  true,
+                  indirect,
+                  'edit',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  mappingParentType,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentRelatedToType
+                )
+              }
+            >
+              Edit
+            </DropdownItem>
+            <DropdownItem value={3} key='fork' isDisabled>
+              Fork
+            </DropdownItem>
+          </React.Fragment>
+        ) : (
+          ''
+        )}
 
         <DropdownItem
           value={4}

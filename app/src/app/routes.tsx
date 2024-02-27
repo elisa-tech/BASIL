@@ -104,12 +104,7 @@ const flattenedRoutes: IAppRoute[] = routes.reduce(
   [] as IAppRoute[]
 )
 
-export interface AppRoutesProps {
-  notificationCount
-  setNotificationCount
-}
-
-const AppRoutes = ({ notificationCount, setNotificationCount }: AppRoutesProps): React.ReactElement => (
+const AppRoutes = (): React.ReactElement => (
   <Switch>
     {flattenedRoutes.map(({ path, exact, component, title }, idx) => (
       <RouteWithTitleUpdates path={path} exact={exact} component={component} key={idx} title={title} />

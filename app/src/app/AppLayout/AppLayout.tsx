@@ -31,36 +31,31 @@ interface IAppLayout {
 }
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
-  let auth = useAuth();
+  let auth = useAuth()
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
   const [notificationDrawerExpanded, setNotificationDrawerExpanded] = React.useState(false)
-  const [notifications, setNotifications] = React.useState<Notification>([]);
-  const [activeGroup, setActiveGroup] = React.useState('');
-  const [activeItem, setActiveItem] = React.useState('ungrouped_item-1');
-  const [libraries, setLibraries] = React.useState([]);
+  const [notifications, setNotifications] = React.useState<Notification[]>([])
+  const [activeGroup, setActiveGroup] = React.useState('')
+  const [activeItem, setActiveItem] = React.useState('ungrouped_item-1')
+  const [libraries, setLibraries] = React.useState([])
 
   const onNavigationSelect = (
     _event: React.FormEvent<HTMLInputElement>,
     result: { itemId: number | string; groupId: number | string | null }
   ) => {
-    setActiveGroup(result.groupId as string);
-    setActiveItem(result.itemId as string);
-  };
+    setActiveGroup(result.groupId as string)
+    setActiveItem(result.itemId as string)
+  }
 
   React.useEffect(() => {
     loadNotifications()
-    if (libraries.length == 0){
-      loadLibraries();
+    if (libraries.length == 0) {
+      loadLibraries()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  React.useEffect(() => {
-    console.log("notifications: " + notifications.length)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifications])
-
-  const loadLibraries = (current) => {
+  const loadLibraries = () => {
     fetch(Constants.API_BASE_URL + '/libraries')
       .then((res) => res.json())
       .then((data) => {
@@ -72,9 +67,8 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   }
 
   const loadNotifications = () => {
-
-    if (!auth.isLogged()){
-      return;
+    if (!auth.isLogged()) {
+      return
     }
 
     let url = Constants.API_BASE_URL + '/user/notifications?'
@@ -106,7 +100,8 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         <HeaderToolbar
           notificationCount={notifications.length}
           notificationDrawerExpanded={notificationDrawerExpanded}
-          setNotificationDrawerExpanded={setNotificationDrawerExpanded} />
+          setNotificationDrawerExpanded={setNotificationDrawerExpanded}
+        />
       </MastheadContent>
     </Masthead>
   )
@@ -114,23 +109,22 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const location = useLocation()
 
   const navigate = (url) => {
-    window.open(url, "_blank", "noreferrer");
+    window.open(url, '_blank', 'noreferrer')
   }
 
   const redirect = (url) => {
-    window.location.href = url;
+    window.location.href = url
   }
 
   const getLibrariesNavItems = () => {
-    console.log("getLibrariesNavItems")
     return libraries.map((library, index) => (
       <NavItem
-        key={"nav-group-libraries-item-1" + index}
+        key={'nav-group-libraries-item-1' + index}
         preventDefault
-        id="mixed-1"
-        to="#mixed-1"
+        id='mixed-1'
+        to='#mixed-1'
         onClick={() => redirect('/?currentLibrary=' + library)}
-        itemId={"nav-group-libraries-item-1" + index}
+        itemId={'nav-group-libraries-item-1' + index}
         isActive={false}
       >
         {library}
@@ -139,111 +133,108 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   }
 
   const Navigation = (
-    <Nav onSelect={onNavigationSelect} aria-label="Mixed global">
+    <Nav onSelect={onNavigationSelect} aria-label='Mixed global'>
       <NavList>
-
         <NavItem
           preventDefault
-          id="nav-item-home"
-          to="#nav-item-home"
+          id='nav-item-home'
+          to='#nav-item-home'
           onClick={() => redirect('/')}
-          itemId="ungrouped-item-1"
+          itemId='ungrouped-item-1'
           isActive={false}
         >
           Home
         </NavItem>
 
-        { !auth.isLogged() ? (
-        <NavItem
-          preventDefault
-          id="nav-item-login"
-          to="#nav-item-login"
-          onClick={() => redirect('/login')}
-          itemId="ungrouped-item-2"
-          isActive={false}
-        >
-          Login
-        </NavItem>
-        ) : ('')}
-
-        { !auth.isLogged() ? (
-        <NavItem
-          preventDefault
-          id="nav-item-signin"
-          to="#nav-item-signin"
-          onClick={() => redirect('/signin')}
-          itemId="ungrouped-item-3"
-          isActive={false}
-        >
-          Sign In
-        </NavItem>
-        ) : ('')}
-
-        { auth.isLogged() && auth.isAdmin() ? (
-        <NavItem
-          preventDefault
-          id="nav-item-user-management"
-          to="#nav-item-user-management"
-          onClick={() => redirect('/admin')}
-          itemId="ungrouped-item-4"
-          isActive={false}
-        >
-          User Management
-        </NavItem>
-        ) : ('')}
-
-        <NavExpandable
-          title="Libraries"
-          groupId="nav-group-libraries"
-          isActive={false}
-        >
-          {getLibrariesNavItems()}
-        </NavExpandable>
-        <NavExpandable
-          title="Useful Links"
-          groupId="nav-useful-links"
-          isActive={false}
-        >
+        {!auth.isLogged() ? (
           <NavItem
             preventDefault
-            id="nav-useful-links-elisa"
-            to="#nav-useful-links-elisa"
-            onClick={() => navigate("https://elisa.tech/")}
-            groupId="nav-useful-links"
-            itemId="nav-useful-links-item-1"
+            id='nav-item-login'
+            to='#nav-item-login'
+            onClick={() => redirect('/login')}
+            itemId='ungrouped-item-2'
+            isActive={false}
+          >
+            Login
+          </NavItem>
+        ) : (
+          ''
+        )}
+
+        {!auth.isLogged() ? (
+          <NavItem
+            preventDefault
+            id='nav-item-signin'
+            to='#nav-item-signin'
+            onClick={() => redirect('/signin')}
+            itemId='ungrouped-item-3'
+            isActive={false}
+          >
+            Sign In
+          </NavItem>
+        ) : (
+          ''
+        )}
+
+        {auth.isLogged() && auth.isAdmin() ? (
+          <NavItem
+            preventDefault
+            id='nav-item-user-management'
+            to='#nav-item-user-management'
+            onClick={() => redirect('/admin')}
+            itemId='ungrouped-item-4'
+            isActive={false}
+          >
+            User Management
+          </NavItem>
+        ) : (
+          ''
+        )}
+
+        <NavExpandable title='Libraries' groupId='nav-group-libraries' isActive={false}>
+          {getLibrariesNavItems()}
+        </NavExpandable>
+        <NavExpandable title='Useful Links' groupId='nav-useful-links' isActive={false}>
+          <NavItem
+            preventDefault
+            id='nav-useful-links-elisa'
+            to='#nav-useful-links-elisa'
+            onClick={() => navigate('https://elisa.tech/')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-1'
             isActive={false}
           >
             ELISA
           </NavItem>
           <NavItem
             preventDefault
-            id="nav-useful-links-documentation"
-            to="#nav-useful-links-documentation"
-            onClick={() => navigate("https://basil-the-fusa-spice.readthedocs.io/")}
-            groupId="nav-useful-links"
-            itemId="nav-useful-links-item-2"
+            id='nav-useful-links-documentation'
+            to='#nav-useful-links-documentation'
+            onClick={() => navigate('https://basil-the-fusa-spice.readthedocs.io/')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-2'
             isActive={false}
           >
             Documentation
           </NavItem>
           <NavItem
             preventDefault
-            id="nav-useful-links-basil-github"
-            to="#nav-useful-links-basil-github"
-            onClick={() => navigate("https://github.com/elisa-tech/BASIL")}
-            groupId="nav-useful-links"
-            itemId="nav-useful-links-item-3"
+            id='nav-useful-links-basil-github'
+            to='#nav-useful-links-basil-github'
+            onClick={() => navigate('https://github.com/elisa-tech/BASIL')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-3'
             isActive={false}
           >
             BASIL github
           </NavItem>
           <NavItem
             preventDefault
-            id="nav-useful-links-report-a-bug"
-            to="#nav-useful-links-report-a-bug"
-            onClick={() => navigate("https://github.com/elisa-tech/BASIL/issues/new")}
-            groupId="nav-useful-links"
-            itemId="nav-useful-links-item-4"
+            id='nav-useful-links-report-a-bug'
+            to='#nav-useful-links-report-a-bug'
+            onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues/new')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-4'
             isActive={false}
           >
             Report a bug
@@ -258,7 +249,6 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       <PageSidebarBody>{Navigation}</PageSidebarBody>
     </PageSidebar>
   )
-
 
   const pageId = 'primary-app-container'
 
@@ -275,15 +265,20 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     </SkipToContent>
   )
   return (
-    <Page mainContainerId={pageId}
-          header={Header}
-          notificationDrawer={<NotificationDrawerBasic
-                                notifications={notifications}
-                                notificationDrawerExpanded={notificationDrawerExpanded}
-                                setNotificationDrawerExpanded={setNotificationDrawerExpanded} />}
-          sidebar={sidebarOpen && Sidebar}
-          isNotificationDrawerExpanded={notificationDrawerExpanded}
-          skipToContent={PageSkipToContent}>
+    <Page
+      mainContainerId={pageId}
+      header={Header}
+      notificationDrawer={
+        <NotificationDrawerBasic
+          notifications={notifications}
+          notificationDrawerExpanded={notificationDrawerExpanded}
+          setNotificationDrawerExpanded={setNotificationDrawerExpanded}
+        />
+      }
+      sidebar={sidebarOpen && Sidebar}
+      isNotificationDrawerExpanded={notificationDrawerExpanded}
+      skipToContent={PageSkipToContent}
+    >
       {children}
     </Page>
   )

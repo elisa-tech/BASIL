@@ -36,17 +36,22 @@ def initialization(db_name='basil.db'):
     if db_name == 'test.db':
         if os.path.exists(db_path):
             os.unlink(db_path)
+
     engine = create_engine(f"sqlite:///{db_path}", echo=True)
     Base.metadata.create_all(bind=engine)
 
     dbi = db_orm.DbInterface(db_name)
-    guest = UserModel("dummy_guest", "dummy_guest", "GUEST")
-    dbi.session.add(guest)
+
     if os.getenv('BASIL_ADMIN_PASSWORD', '') != '':
         admin = UserModel("admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
         dbi.session.add(admin)
-    test_user = UserModel("dummy_user", "dummy_user", "USER")
-    dbi.session.add(test_user)
+
+    if db_name == 'test.db':
+        guest = UserModel("dummy_guest", "dummy_guest", "GUEST")
+        dbi.session.add(guest)
+        test_user = UserModel("dummy_user", "dummy_user", "USER")
+        dbi.session.add(test_user)
+
     dbi.session.commit()
     dbi.engine.dispose()
 

@@ -73,8 +73,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
         setUserWritePermission(checked)
         break
       default:
-        // eslint-disable-next-line no-console
-        console.log(name)
+        break
     }
   }
 
@@ -108,8 +107,6 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
       return
     }
 
-    console.log('<' + search_string + '>')
-    console.log('<' + auth.userEmai + '>')
     if (search_string == auth.userEmai) {
       setMessageValue('This is the Email of the logged user!')
       return
@@ -175,11 +172,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     }
 
     let url = Constants.API_BASE_URL + '/user/permissions/api'
-    let data = {'api-id': api.id,
-                'user-id': auth.userId,
-                'token': auth.token,
-                'email': userEmailSearchValue,
-                'permissions': permissions}
+    let data = { 'api-id': api.id, 'user-id': auth.userId, token: auth.token, email: userEmailSearchValue, permissions: permissions }
     fetch(url, {
       method: 'PUT',
       headers: {
@@ -200,7 +193,6 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
         return response_data
       })
       .catch((err) => {
-        console.log('----> ' + Object.keys(err))
         setMessageValue(err.toString())
         console.log(err.message)
       })

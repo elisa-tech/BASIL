@@ -65,44 +65,47 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-
-        { api?.permissions.indexOf('w') >= 0 ? (
-        <React.Fragment>
-        <DropdownItem
-          value={0}
-          id={'btn-menu-test-case-delete-' + mappingList[mappingIndex].relation_id}
-          key='delete'
-          className='danger-text'
-          onClick={() => setDeleteModalInfo(true, Constants._TC, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
-        >
-          Delete
-        </DropdownItem>
-        <DropdownItem
-          value={1}
-          id={'btn-menu-test-case-edit-' + mappingList[mappingIndex].relation_id}
-          key='edit'
-          onClick={() =>
-            setTcModalInfo(
-              true,
-              indirect,
-              'edit',
-              api,
-              mappingSection,
-              mappingOffset,
-              mappingParentType,
-              mappingList,
-              mappingIndex,
-              mappingParentRelatedToType
-            )
-          }
-        >
-          Edit
-        </DropdownItem>
-        <DropdownItem value={2} key='fork' isDisabled>
-          Fork
-        </DropdownItem>
-        </React.Fragment>
-        ) : ('') }
+        {api?.permissions.indexOf('w') >= 0 ? (
+          <React.Fragment>
+            <DropdownItem
+              value={0}
+              id={'btn-menu-test-case-delete-' + mappingList[mappingIndex].relation_id}
+              key='delete'
+              className='danger-text'
+              onClick={() =>
+                setDeleteModalInfo(true, Constants._TC, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)
+              }
+            >
+              Delete
+            </DropdownItem>
+            <DropdownItem
+              value={1}
+              id={'btn-menu-test-case-edit-' + mappingList[mappingIndex].relation_id}
+              key='edit'
+              onClick={() =>
+                setTcModalInfo(
+                  true,
+                  indirect,
+                  'edit',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  mappingParentType,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentRelatedToType
+                )
+              }
+            >
+              Edit
+            </DropdownItem>
+            <DropdownItem value={2} key='fork' isDisabled>
+              Fork
+            </DropdownItem>
+          </React.Fragment>
+        ) : (
+          ''
+        )}
 
         <DropdownItem
           value={3}

@@ -249,9 +249,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedTitleValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedTitleValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -269,9 +267,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedDescriptionValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedDescriptionValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -287,9 +283,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedRepositoryValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedRepositoryValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedRepositoryValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -305,9 +299,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         {validatedRelativePathValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedRelativePathValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedRelativePathValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}

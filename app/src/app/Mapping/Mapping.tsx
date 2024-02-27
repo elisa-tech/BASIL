@@ -7,7 +7,7 @@ import { useParams } from 'react-router-dom'
 import { useAuth } from '@app/User/AuthProvider'
 
 const Mapping: React.FunctionComponent = () => {
-  let auth = useAuth();
+  let auth = useAuth()
   const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('sw-requirements')
   const [num, setNum] = React.useState(0)
   const [apiData, setApiData] = React.useState(null)
@@ -22,7 +22,7 @@ const Mapping: React.FunctionComponent = () => {
   const queryView = params.get('view')
 
   const loadApiData = () => {
-    const url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
+    let url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
 
     if (auth.isLogged()) {
       url += '&user-id=' + auth.userId + '&token=' + auth.token
@@ -45,7 +45,7 @@ const Mapping: React.FunctionComponent = () => {
       }
     }
 
-    const url;
+    let url
     url = Constants.API_BASE_URL + '/mapping/api/' + mappingViewSelectValue
     url += '?api-id=' + api_id
 

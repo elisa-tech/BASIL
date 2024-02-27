@@ -164,7 +164,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
             </Flex>
             <Flex align={{ default: 'alignRight' }}>
               <FlexItem>
-                { !auth.isGuest() ? (
+                {!auth.isGuest() ? (
                   <Button
                     id='btn-add-sw-component'
                     variant='primary'

@@ -133,11 +133,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
             <Td dataLabel={columnNames.coverage}>
               <LeavesProgressBar progressValue={dataRow.covered} progressId={'api-coverage-' + dataRow.id} />
             </Td>
-            <Td dataLabel={columnNames.notifications}>
-              { dataRow.notifications == 1 ? (
-              <AttentionBellIcon />
-            ) : ('')}
-            </Td>
+            <Td dataLabel={columnNames.notifications}>{dataRow.notifications == 1 ? <AttentionBellIcon /> : ''}</Td>
             <Td dataLabel={columnNames.actions}>
               <ApiMenuKebab
                 setModalInfo={setModalInfo}

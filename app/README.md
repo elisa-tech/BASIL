@@ -7,6 +7,7 @@ This repository folder host the source code of the BASIL Front End Web Applicati
 The UI was built using the [patternfly-react-seed](https://github.com/patternfly/patternfly-react-seed).
 
 ## Development scripts (run from this directory)
+
 ```sh
 # Install development/build dependencies
 npm install

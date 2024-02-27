@@ -64,118 +64,123 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-
-        { api?.permissions.indexOf('w') >= 0 ? (
-        <React.Fragment>
-        <DropdownItem
-          value={0}
-          id={'btn-menu-sw-requirement-assign-sw-requirement-' + mappingList[mappingIndex].relation_id}
-          name={'btn-menu-sw-requirement-assign-sw-requirement'}
-          key='assign sw requirement'
-          onClick={() =>
-            setSrModalInfo(
-              true,
-              true,
-              'add',
-              api,
-              mappingSection,
-              mappingOffset,
-              Constants._SR,
-              mappingList,
-              mappingIndex,
-              mappingParentType
-            )
-          }
-        >
-          Assign Sw Requirement
-        </DropdownItem>
-        <DropdownItem
-          value={1}
-          id={'btn-menu-sw-requirement-assign-test-case-' + mappingList[mappingIndex].relation_id}
-          name={'btn-menu-sw-requirement-assign-test-case'}
-          key='assign test case'
-          onClick={() =>
-            setTcModalInfo(
-              true,
-              true,
-              'add',
-              api,
-              mappingSection,
-              mappingOffset,
-              Constants._SR,
-              mappingList,
-              mappingIndex,
-              mappingParentType
-            )
-          }
-        >
-          Assign Test Case
-        </DropdownItem>
-        <DropdownItem
-          value={2}
-          id={'btn-menu-sw-requirement-assign-test-specification-' + mappingList[mappingIndex].relation_id}
-          name={'btn-menu-sw-requirement-assign-test-specification'}
-          key='assign test specification'
-          onClick={() =>
-            setTsModalInfo(
-              true,
-              true,
-              'add',
-              api,
-              mappingSection,
-              mappingOffset,
-              Constants._SR,
-              mappingList,
-              mappingIndex,
-              mappingParentType
-            )
-          }
-        >
-          Assign Test Specification
-        </DropdownItem>
-        <DropdownItem
-          value={3}
-          id={'btn-menu-sw-requirement-delete-' + mappingList[mappingIndex].relation_id}
-          name={'btn-menu-sw-requirement-delete'}
-          key='delete'
-          className='danger-text'
-          onClick={() => setDeleteModalInfo(true, Constants._SR, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
-        >
-          Delete
-        </DropdownItem>
-        <DropdownItem
-          value={4}
-          id={'btn-menu-sw-requirement-edit-' + mappingList[mappingIndex].relation_id}
-          name={'btn-menu-sw-requirement-edit'}
-          key='edit'
-          onClick={() =>
-            setSrModalInfo(
-              true,
-              indirect,
-              'edit',
-              api,
-              mappingSection,
-              mappingOffset,
-              mappingParentType,
-              mappingList,
-              mappingIndex,
-              mappingParentRelatedToType
-            )
-          }
-        >
-          Edit
-        </DropdownItem>
-        <DropdownItem
-          value={5}
-          id={'btn-menu-sw-requirement-fork-' + mappingList[mappingIndex].relation_id}
-          name={'btn-menu-sw-requirement-fork'}
-          key='fork'
-          onClick={() => setForkModalInfo(true, Constants._SR, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
-        >
-          Fork
-        </DropdownItem>
-        </React.Fragment>
-      ) : ('') }
+        {api?.permissions.indexOf('w') >= 0 ? (
+          <React.Fragment>
+            <DropdownItem
+              value={0}
+              id={'btn-menu-sw-requirement-assign-sw-requirement-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-sw-requirement-assign-sw-requirement'}
+              key='assign sw requirement'
+              onClick={() =>
+                setSrModalInfo(
+                  true,
+                  true,
+                  'add',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  Constants._SR,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentType
+                )
+              }
+            >
+              Assign Sw Requirement
+            </DropdownItem>
+            <DropdownItem
+              value={1}
+              id={'btn-menu-sw-requirement-assign-test-case-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-sw-requirement-assign-test-case'}
+              key='assign test case'
+              onClick={() =>
+                setTcModalInfo(
+                  true,
+                  true,
+                  'add',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  Constants._SR,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentType
+                )
+              }
+            >
+              Assign Test Case
+            </DropdownItem>
+            <DropdownItem
+              value={2}
+              id={'btn-menu-sw-requirement-assign-test-specification-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-sw-requirement-assign-test-specification'}
+              key='assign test specification'
+              onClick={() =>
+                setTsModalInfo(
+                  true,
+                  true,
+                  'add',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  Constants._SR,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentType
+                )
+              }
+            >
+              Assign Test Specification
+            </DropdownItem>
+            <DropdownItem
+              value={3}
+              id={'btn-menu-sw-requirement-delete-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-sw-requirement-delete'}
+              key='delete'
+              className='danger-text'
+              onClick={() =>
+                setDeleteModalInfo(true, Constants._SR, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)
+              }
+            >
+              Delete
+            </DropdownItem>
+            <DropdownItem
+              value={4}
+              id={'btn-menu-sw-requirement-edit-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-sw-requirement-edit'}
+              key='edit'
+              onClick={() =>
+                setSrModalInfo(
+                  true,
+                  indirect,
+                  'edit',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  mappingParentType,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentRelatedToType
+                )
+              }
+            >
+              Edit
+            </DropdownItem>
+            <DropdownItem
+              value={5}
+              id={'btn-menu-sw-requirement-fork-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-sw-requirement-fork'}
+              key='fork'
+              onClick={() =>
+                setForkModalInfo(true, Constants._SR, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)
+              }
+            >
+              Fork
+            </DropdownItem>
+          </React.Fragment>
+        ) : (
+          ''
+        )}
 
         <DropdownItem
           value={6}

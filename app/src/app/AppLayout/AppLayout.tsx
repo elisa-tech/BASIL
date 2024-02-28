@@ -38,6 +38,8 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const [activeGroup, setActiveGroup] = React.useState('')
   const [activeItem, setActiveItem] = React.useState('ungrouped_item-1')
   const [libraries, setLibraries] = React.useState([])
+  const [fetchNotificationCount, setFetchNotificationCount] = React.useState(0)
+  const [fetchLibrariesCount, setFetchLibrariesCount] = React.useState(0)
 
   const onNavigationSelect = (
     _event: React.FormEvent<HTMLInputElement>,
@@ -56,6 +58,10 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   }, [])
 
   const loadLibraries = () => {
+    if (fetchLibrariesCount > 1) {
+      return
+    }
+    setFetchLibrariesCount(fetchLibrariesCount + 1)
     fetch(Constants.API_BASE_URL + '/libraries')
       .then((res) => res.json())
       .then((data) => {
@@ -67,6 +73,11 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   }
 
   const loadNotifications = () => {
+    if (fetchNotificationCount > 1) {
+      return
+    }
+    setFetchNotificationCount(fetchNotificationCount + 1)
+
     if (!auth.isLogged()) {
       return
     }

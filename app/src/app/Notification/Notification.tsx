@@ -166,33 +166,37 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   return (
     <NotificationDrawer>
       <NotificationDrawerHeader count={notifications?.length | 0} onClose={onDrawerClose}>
-        <Dropdown
-          onSelect={onSelectHeaderDropdown}
-          isOpen={isOpenHeaderDropdown}
-          onOpenChange={() => setIsOpenHeaderDropdown(false)}
-          popperProps={{ position: 'right' }}
-          toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-            <MenuToggle
-              ref={toggleRef}
-              isExpanded={isOpenHeaderDropdown}
-              onClick={toggleHeaderDropdown}
-              variant='plain'
-              aria-label={`Basic example header kebab toggle`}
-            >
-              <EllipsisVIcon aria-hidden='true' />
-            </MenuToggle>
-          )}
-        >
-          <DropdownList>
-            <DropdownItem
-              to='#default-link2'
-              // Prevent the default onClick functionality for example purposes
-              onClick={() => clearNotification(null)}
-            >
-              Mark all as read
-            </DropdownItem>
-          </DropdownList>
-        </Dropdown>
+        {notifications?.length > 0 ? (
+          <Dropdown
+            onSelect={onSelectHeaderDropdown}
+            isOpen={isOpenHeaderDropdown}
+            onOpenChange={() => setIsOpenHeaderDropdown(false)}
+            popperProps={{ position: 'right' }}
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <MenuToggle
+                ref={toggleRef}
+                isExpanded={isOpenHeaderDropdown}
+                onClick={toggleHeaderDropdown}
+                variant='plain'
+                aria-label={`Basic example header kebab toggle`}
+              >
+                <EllipsisVIcon aria-hidden='true' />
+              </MenuToggle>
+            )}
+          >
+            <DropdownList>
+              <DropdownItem
+                to='#default-link2'
+                // Prevent the default onClick functionality for example purposes
+                onClick={() => clearNotification(null)}
+              >
+                Mark all as read
+              </DropdownItem>
+            </DropdownList>
+          </Dropdown>
+        ) : (
+          ''
+        )}
       </NotificationDrawerHeader>
       <NotificationDrawerBody>
         <NotificationDrawerList aria-label='Notifications in the basic example'>{getNotifications()}</NotificationDrawerList>

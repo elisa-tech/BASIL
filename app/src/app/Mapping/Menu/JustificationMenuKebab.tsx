@@ -90,7 +90,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
           value={4}
           id={'btn-menu-justification-details-' + mappingList[mappingIndex].relation_id}
           key='show-details'
-          onClick={() => setDetailsModalInfo(true, Constants._J, mappingList[mappingIndex]['id'])}
+          onClick={() => setDetailsModalInfo(true, Constants._J, mappingList[mappingIndex][Constants._J]['id'])}
         >
           Show Details
         </DropdownItem>
@@ -98,7 +98,7 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
           value={5}
           id={'btn-menu-justification-usage-' + mappingList[mappingIndex].relation_id}
           key='usage'
-          onClick={() => setUsageModalInfo(true, Constants._J, mappingList[mappingIndex]['id'])}
+          onClick={() => setUsageModalInfo(true, Constants._J, mappingList[mappingIndex][Constants._J]['id'])}
         >
           Usage
         </DropdownItem>

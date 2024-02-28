@@ -133,7 +133,7 @@ const Signin: React.FunctionComponent = () => {
           setAlertMessage(response.statusText)
         } else {
           setAlertMessage('User configured!')
-          window.location.href = '/'
+          window.location.href = '/login'
         }
       })
       .catch((err) => {

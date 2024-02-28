@@ -36,9 +36,25 @@ Move to the db/models directory
 
 ``cd db && cd models``
 
+Defining the environment variable BASIL_ADMIN_PASSWORD you will be able to create an ADMIN user, during the database initialization, with the desired credentials.
+
 Initialize the sqlite database, you will find it in db/basil.db
 
 ``python3 init_db.py``
+
+
+Navigate the database
+^^^^^^^^^^^^^^^^^^^^^
+
+To be able to read the database you need a tool like **sqlite3**.
+
+Here following some useful sqlite commands:
+
+- List all the tables:
+``.table``
+
+- Analyze a table schema
+``.schema <table>``
 
 
 ----------
@@ -135,7 +151,7 @@ Before building your container, if you need to access BASIL from a machine diffe
 
 You can build the API project using the Dockerfile-api with the following command
 
-``docker build --build-arg BASIL_HOSTNAME=basil.server.com --build-arg BASIL_API_PORT=1234 -f Dockerfile-api -t basil-api-image .``
+``docker build --build-arg BASIL_ADMIN_PASSWORD=your-desired-password --build-arg BASIL_HOSTNAME=basil.server.com --build-arg BASIL_API_PORT=1234 -f Dockerfile-api -t basil-api-image .``
 
 At the same way you can build the APP project using Dockerfile-app
 

@@ -623,9 +623,9 @@ def get_sw_requirement_children(_dbi, _srm):
 def get_api_sw_requirements_mapping_sections(dbi, api):
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification is None:
-        api_specification = "Unable to find the Software Specification. " \
-                            "Please check the value in the Software Component properties" \
-                            " or check your internet connection (If file is remote)."
+        api_specification = "WARNING: Unable to load the Reference Document. " \
+                            "Please check the url/path value in the Software Component properties" \
+                            " and that the file still exists in the expected location."
 
     sr = dbi.session.query(ApiSwRequirementModel).filter(
         ApiSwRequirementModel.api_id == api.id).order_by(
@@ -863,25 +863,25 @@ class Comment(Resource):
         dbi.session.commit()
 
         add_notification = True
-        if parent_table == ApiSwRequirementModel.__table__:
+        if parent_table == ApiSwRequirementModel.__tablename__:
             notification_obj = "Sw Requirement"
             query = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == parent_id
             )
             query_obj = "asr"
-        elif parent_table == ApiTestSpecificationModel.__table__:
+        elif parent_table == ApiTestSpecificationModel.__tablename__:
             notification_obj = "Test Specification"
             query = dbi.session.query(ApiTestSpecificationModel).filter(
                 ApiTestSpecificationModel.id == parent_id
             )
             query_obj = "atc"
-        elif parent_table == ApiTestCaseModel.__table__:
+        elif parent_table == ApiTestCaseModel.__tablename__:
             notification_obj = "Test Case"
             query = dbi.session.query(ApiTestCaseModel).filter(
                 ApiTestCaseModel.id == parent_id
             )
             query_obj = "ats"
-        elif parent_table == ApiJustificationModel.__table__:
+        elif parent_table == ApiJustificationModel.__tablename__:
             notification_obj = "Justification"
             query = dbi.session.query(ApiJustificationModel).filter(
                 ApiJustificationModel.id == parent_id
@@ -901,12 +901,12 @@ class Comment(Resource):
             notification = f'{user.email} added a Comment to {notification_obj} ' \
                            f'mapped to ' \
                            f'{mapping.api.api} as part of the library {mapping.api.library}'
-            notifications = NotificationModel(api,
+            notifications = NotificationModel(mapping.api,
                                               'success',
                                               f'Comment to {mapping.api.api} has been added',
                                               notification,
                                               str(user.id),
-                                              f'/mapping/{api.id}?{query_obj}={parent_id}&view=comments')
+                                              f'/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments')
             dbi.session.add(notifications)
             dbi.session.commit()
 

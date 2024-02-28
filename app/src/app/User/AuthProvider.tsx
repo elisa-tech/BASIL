@@ -54,6 +54,7 @@ const AuthProvider = ({ children }) => {
               setUserRole(response_data['role'])
               setToken(response_data['token'])
               setLoginState('done')
+              window.location.href = '/'
             } else {
               setLoginMessage(response_message + 'Invalid credentials')
               setLoginState('error')

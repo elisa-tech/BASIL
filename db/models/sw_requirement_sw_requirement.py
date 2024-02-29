@@ -2,6 +2,7 @@ from datetime import datetime
 from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.db_base import Base
 from db.models.comment import CommentModel
+from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from sqlalchemy import BigInteger, DateTime, Integer
 from sqlalchemy import event, insert, select
@@ -31,6 +32,12 @@ class SwRequirementSwRequirementModel(Base):
         "SwRequirementModel",
         foreign_keys="SwRequirementSwRequirementModel.sw_requirement_id")
     coverage: Mapped[int] = mapped_column(Integer())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="SwRequirementSwRequirementModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="SwRequirementSwRequirementModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -38,7 +45,8 @@ class SwRequirementSwRequirementModel(Base):
                  sw_requirement_mapping_api,
                  sw_requirement_mapping_sw_requirement,
                  sw_requirement,
-                 coverage):
+                 coverage,
+                 created_by):
         if sw_requirement_mapping_api:
             self.sw_requirement_mapping_api = sw_requirement_mapping_api
             self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
@@ -48,6 +56,10 @@ class SwRequirementSwRequirementModel(Base):
         self.sw_requirement = sw_requirement
         self.sw_requirement_id = sw_requirement.id
         self.coverage = coverage
+        self.created_by = created_by
+        self.created_by_id = created_by.id
+        self.edited_by = created_by
+        self.edited_by_id = created_by.id
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -80,6 +92,7 @@ class SwRequirementSwRequirementModel(Base):
                  'sw_requirement_mapping_sw_requirement_id': self.sw_requirement_mapping_api_id,
                  'coverage': self.coverage,
                  'covered': self.get_waterfall_coverage(db_session),
+                 'created_by': self.created_by.email,
                  '__tablename__': self.__tablename__}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
@@ -174,6 +187,8 @@ def receive_after_update(mapper, connection, target):
             sw_requirement_mapping_sw_requirement_id=target.sw_requirement_mapping_sw_requirement_id,
             sw_requirement_id=target.sw_requirement_id,
             coverage=target.coverage,
+            created_by_id=target.created_by_id,
+            edited_by_id=target.edited_by_id,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -187,6 +202,8 @@ def receive_after_insert(mapper, connection, target):
         sw_requirement_mapping_sw_requirement_id=target.sw_requirement_mapping_sw_requirement_id,
         sw_requirement_id=target.sw_requirement_id,
         coverage=target.coverage,
+        created_by_id=target.created_by_id,
+        edited_by_id=target.edited_by_id,
         version=1
     )
     connection.execute(insert_query)
@@ -203,6 +220,12 @@ class SwRequirementSwRequirementHistoryModel(Base):
     sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(Integer())
     sw_requirement_id: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="SwRequirementSwRequirementHistoryModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="SwRequirementSwRequirementHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
@@ -212,12 +235,16 @@ class SwRequirementSwRequirementHistoryModel(Base):
                  sw_requirement_mapping_sw_requirement_id,
                  sw_requirement_id,
                  coverage,
+                 created_by_id,
+                 edited_by_id,
                  version):
         self.id = id
         self.sw_requirement_mapping_api_id = sw_requirement_mapping_api_id
         self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement_id
         self.sw_requirement_id = sw_requirement_id
         self.coverage = coverage
+        self.created_by_id = created_by_id
+        self.edited_by_id = edited_by_id
         self.version = version
         self.created_at = datetime.now()
 

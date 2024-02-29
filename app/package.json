@@ -9,7 +9,7 @@
   "scripts": {
     "prebuild": "npm run type-check && npm run clean",
     "build": "webpack --config webpack.prod.js",
-    "start": "sirv dist --cors --single --host --port 8080",
+    "start": "sirv dist --cors --single --host --port 9000",
     "start:dev": "webpack serve --color --progress --config webpack.dev.js",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -46,7 +46,7 @@
     "jest-environment-jsdom": "^29.6.1",
     "mini-css-extract-plugin": "^2.7.6",
     "postcss": "^8.4.25",
-    "prettier": "^3.0.0",
+    "prettier": "3.2.5",
     "prop-types": "^15.8.1",
     "raw-loader": "^4.0.2",
     "react-axe": "^3.5.4",
@@ -74,8 +74,10 @@
     "@patternfly/react-icons": "^5.0.0",
     "@patternfly/react-styles": "^5.0.0",
     "@patternfly/react-table": "^5.0.0",
+    "base-64": "^1.0.0",
     "react": "^18",
     "react-dom": "^18",
+    "react-markdown": "^9.0.1",
     "sirv-cli": "^2.0.2"
   }
 }

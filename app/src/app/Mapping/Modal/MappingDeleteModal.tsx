@@ -1,83 +1,76 @@
-import React from 'react';
-import * as Constants from '../../Constants/constants';
-import {
-  Button,
-  Hint,
-  HintBody,
-  Modal,
-  ModalVariant
-} from '@patternfly/react-core';
+import React from 'react'
+import * as Constants from '../../Constants/constants'
+import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
+import { useAuth } from '@app/User/AuthProvider'
 
-export interface MappingDeleteModalProps{
-  api;
-  baseApiUrl;
-  modalShowState;
-  setModalShowState;
-  modalTitle;
-  modalDescription;
-  workItemType;
-  parentType;
-  relationData;
-  loadMappingData;
+export interface MappingDeleteModalProps {
+  api
+  modalShowState: boolean
+  setModalShowState
+  modalTitle
+  modalDescription
+  workItemType
+  parentType
+  relationData
+  loadMappingData
 }
 
 export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps> = ({
   api,
-  baseApiUrl,
   modalShowState = false,
   setModalShowState,
-  modalTitle = "",
-  modalDescription = "",
+  modalTitle = '',
+  modalDescription = '',
   workItemType,
   parentType,
   relationData,
-  loadMappingData,
-  }: MappingDeleteModalProps) => {
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [messageValue, setMessageValue] = React.useState('');
+  loadMappingData
+}: MappingDeleteModalProps) => {
+  let auth = useAuth()
+  const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [messageValue, setMessageValue] = React.useState('')
 
   const handleModalToggle = () => {
-    const new_state = !modalShowState;
-    setModalShowState(new_state);
-    setIsModalOpen(new_state);
-  };
+    const new_state = !modalShowState
+    setModalShowState(new_state)
+    setIsModalOpen(new_state)
+  }
 
   React.useEffect(() => {
-    setIsModalOpen(modalShowState);
-    if (modalShowState == false){
-      setMessageValue("");
+    setIsModalOpen(modalShowState)
+    if (modalShowState == false) {
+      setMessageValue('')
     }
-  }, [modalShowState]);
+  }, [modalShowState])
 
   const deleteMapping = () => {
-    const data = {'api-id': api.id,
-                  'relation-id': relationData.relation_id};
+    const data = { 'api-id': api.id, 'relation-id': relationData.relation_id, 'user-id': auth.userId, token: auth.token }
 
-    fetch(baseApiUrl + '/mapping/' + parentType + '/' + workItemType + 's', {
+    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(data)
     })
       .then((response) => {
         if (response.status !== 200) {
-          setMessageValue(response.statusText);
+          setMessageValue(response.statusText)
         } else {
-          loadMappingData(Constants.force_reload);
-          handleModalToggle();
+          loadMappingData(Constants.force_reload)
+          handleModalToggle()
         }
       })
       .catch((err) => {
-        setMessageValue(err.toString());
-      });
+        setMessageValue(err.toString())
+      })
   }
 
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel="Scrollable modal content"
+        bodyAriaLabel='Scrollable modal content'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}
@@ -85,32 +78,22 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
-          <Button
-            id="btn-mapping-delete-confirm"
-            key="confirm"
-            variant="primary"
-            onClick={deleteMapping}>
+          <Button id='btn-mapping-delete-confirm' key='confirm' variant='primary' onClick={deleteMapping}>
             Confirm
           </Button>,
-          <Button
-            id="btn-mapping-delete-cancel"
-            key="cancel"
-            variant="link"
-            onClick={handleModalToggle}>
+          <Button id='btn-mapping-delete-cancel' key='cancel' variant='link' onClick={handleModalToggle}>
             Cancel
           </Button>
         ]}
       >
-
-      { messageValue ? (
-      <Hint>
-        <HintBody>
-          {messageValue}
-        </HintBody>
-      </Hint>
-      ) : (<span></span>)}
-
+        {messageValue ? (
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+        ) : (
+          <span></span>
+        )}
       </Modal>
     </React.Fragment>
-  );
-};
+  )
+}

@@ -1,19 +1,21 @@
 export interface MappingModalProps {
-  api;
-  baseApiUrl: string;
-  modalAction: string;
-  modalVerb: string;
-  modalTitle: string;
-  modalDescription: string;
-  modalShowState: string;
-  modalFormData;
-  modalData;
-  modalSection;
-  modalIndirect;
-  modalOffset;
-  modalHistoryData;
-  parentType;
-  parentRelatedToType;
-  loadMappingData;
-  setModalShowState;
+  api
+  modalAction: string
+  modalVerb: string
+  modalTitle: string
+  modalDescription: string
+  modalShowState: boolean
+  modalFormData
+  modalData
+  modalSection
+  setModalSection
+  modalIndirect
+  modalOffset
+  setModalOffset
+  modalHistoryData
+  parentType
+  parentData
+  parentRelatedToType
+  loadMappingData
+  setModalShowState
 }

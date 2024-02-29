@@ -17,5 +17,6 @@ RUN sed -i "s/localhost/${BASIL_HOSTNAME}/g" app/src/app/Constants/constants.tsx
 # Install packages
 WORKDIR /BASIL-APP/app
 RUN npm install -d --verbose
+RUN npm run build
 
-CMD ["npm", "run", "start:dev"]
+CMD ["npm", "run", "start"]

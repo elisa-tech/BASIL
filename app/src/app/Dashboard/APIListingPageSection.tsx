@@ -1,94 +1,115 @@
-import * as React from 'react';
-import { Button, Card, CardBody, Flex, FlexItem, Label, PageSection, Pagination, Title, Toolbar, ToolbarContent, ToolbarItem } from '@patternfly/react-core';
-import { APIListingTable} from '@app/Dashboard/APIListingTable';
-import { APIModal } from './Modal/APIModal';
-import { APICheckSpecModal } from './Modal/APICheckSpecModal';
-import { APIDeleteModal } from './Modal/APIDeleteModal';
-import { APIExportSPDXModal } from './Modal/APIExportSPDXModal';
+import * as React from 'react'
+import * as Constants from '../Constants/constants'
+import {
+  Button,
+  Card,
+  CardBody,
+  Flex,
+  FlexItem,
+  Label,
+  PageSection,
+  Pagination,
+  Title,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem
+} from '@patternfly/react-core'
+import { APIListingTable } from '@app/Dashboard/APIListingTable'
+import { APIModal } from './Modal/APIModal'
+import { APICheckSpecModal } from './Modal/APICheckSpecModal'
+import { APIDeleteModal } from './Modal/APIDeleteModal'
+import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
+import { APIManageUserPermissionsModal } from './Modal/APIManageUserPermissionsModal'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface APIListingPageSectionProps {
-  baseApiUrl: string;
-  currentLibrary: string;
-  setCurrentLibrary;
-  loadLibraries;
-  loadApi;
-  apis;
-  totalCoverage;
-  searchValue: string;
+  currentLibrary: string
+  setCurrentLibrary
+  loadLibraries
+  loadApi
+  apis
+  totalCoverage
+  searchValue: string
 }
 
 const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps> = ({
-  baseApiUrl,
   currentLibrary,
   setCurrentLibrary,
   loadLibraries,
   loadApi,
   apis,
   totalCoverage,
-  searchValue,
-  }: APIListingPageSectionProps) => {
-  const rows = [];
-  const [page, setPage] = React.useState(1);
-  const [modalShowState, setModalShowState] = React.useState(false);
+  searchValue
+}: APIListingPageSectionProps) => {
+  let auth = useAuth()
+  const rows = []
+  const [page, setPage] = React.useState(1)
+  const [modalShowState, setModalShowState] = React.useState(false)
 
-  const [modalCheckSpecShowState, setModalCheckSpecShowState] = React.useState(false);
-  const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false);
-  const [modalCheckSpecApiData, setModalCheckSpecApiData] = React.useState(null);
-  const [modalObject, setModalObject] = React.useState('');
-  const [modalAction, setModalAction] = React.useState('');
-  const [modalVerb, setModalVerb] = React.useState('');
-  const [modalFormData, setModalFormData] = React.useState('');
-  const [modalTitle, setModalTitle] = React.useState('');
-  const [modalDescription, setModalDescription] = React.useState('');
-  const [perPage, setPerPage] = React.useState(10);
-  const [SPDXContent, setSPDXContent] = React.useState('');
+  const [modalCheckSpecShowState, setModalCheckSpecShowState] = React.useState(false)
+  const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false)
+  const [modalCheckSpecApiData, setModalCheckSpecApiData] = React.useState(null)
+  const [modalObject, setModalObject] = React.useState('')
+  const [modalAction, setModalAction] = React.useState('')
+  const [modalVerb, setModalVerb] = React.useState('')
+  const [modalFormData, setModalFormData] = React.useState('')
+  const [modalTitle, setModalTitle] = React.useState('')
+  const [modalDescription, setModalDescription] = React.useState('')
+  const [perPage, setPerPage] = React.useState(10)
+  const [SPDXContent, setSPDXContent] = React.useState('')
 
-  const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false);
-
+  const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false)
+  const [modalManageUserPermissionsApiData, setModalManageUserPermissionsApiData] = React.useState(null)
+  const [modalManageUserPermissionsShowState, setModalManageUserPermissionsShowState] = React.useState(false)
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  const [paginatedRows, setPaginatedRows] = React.useState(rows.slice(0, 10));
+  const [paginatedRows, setPaginatedRows] = React.useState(rows.slice(0, 10))
   const handleSetPage = (_evt, newPage, perPage, startIdx, endIdx) => {
-    setPaginatedRows(rows.slice(startIdx, endIdx));
-    setPage(newPage);
-  };
+    setPaginatedRows(rows.slice(startIdx, endIdx))
+    setPage(newPage)
+  }
   const handlePerPageSelect = (_evt, newPerPage, newPage, startIdx, endIdx) => {
-    setPaginatedRows(rows.slice(startIdx, endIdx));
-    setPage(newPage);
-    setPerPage(newPerPage);
-  };
+    setPaginatedRows(rows.slice(startIdx, endIdx))
+    setPage(newPage)
+    setPerPage(newPerPage)
+  }
 
   const setModalInfo = (_modalData, _modalShowState, _modalObject, _modalVerb, _modalAction, _modalTitle, _modalDescription) => {
-    setModalFormData(_modalData);
-    setModalShowState(_modalShowState);
-    setModalObject(_modalObject);
-    setModalVerb(_modalVerb);
-    setModalAction(_modalAction);
-    setModalTitle(_modalTitle);
-    setModalDescription(_modalDescription);
+    setModalFormData(_modalData)
+    setModalShowState(_modalShowState)
+    setModalObject(_modalObject)
+    setModalVerb(_modalVerb)
+    setModalAction(_modalAction)
+    setModalTitle(_modalTitle)
+    setModalDescription(_modalDescription)
   }
 
   const setModalDeleteInfo = (_modalObject, _modalShowState, _modalTitle, _modalDescription) => {
-    setModalDeleteShowState(_modalShowState);
-    setModalObject(_modalObject);
-    setModalTitle(_modalTitle);
-    setModalDescription(_modalDescription);
+    setModalDeleteShowState(_modalShowState)
+    setModalObject(_modalObject)
+    setModalTitle(_modalTitle)
+    setModalDescription(_modalDescription)
   }
 
   const setModalCheckSpecInfo = (_api, _modalShowState) => {
-    setModalCheckSpecShowState(_modalShowState);
-    setModalCheckSpecApiData(_api);
+    setModalCheckSpecShowState(_modalShowState)
+    setModalCheckSpecApiData(_api)
+  }
+
+  const setModalManageUserPermissionsInfo = (_api, _modalShowState) => {
+    setModalManageUserPermissionsShowState(_modalShowState)
+    setModalManageUserPermissionsApiData(_api)
   }
 
   const exportSPDX = () => {
-    fetch(baseApiUrl + '/spdx/libraries?library=' + currentLibrary)
+    fetch(Constants.API_BASE_URL + '/spdx/libraries?library=' + currentLibrary)
       .then((res) => res.json())
       .then((data) => {
-        setSPDXContent(JSON.stringify(data, null, 2));
-        setModalSPDXExportShowState(true);
+        setSPDXContent(JSON.stringify(data, null, 2))
+        setModalSPDXExportShowState(true)
       })
       .catch((err) => {
-        console.log(err.message);
-      });
+        console.log(err.message)
+      })
   }
 
   const renderPagination = (variant, isCompact) => (
@@ -104,27 +125,28 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         paginationAriaLabel: `${variant} pagination`
       }}
     />
-  );
+  )
 
   const tableToolbar = (
-    <Toolbar usePageInsets id="compact-toolbar">
+    <Toolbar usePageInsets id='compact-toolbar'>
       <ToolbarContent>
-        <ToolbarItem variant="pagination">{renderPagination('top', true)}</ToolbarItem>
+        <ToolbarItem variant='pagination'>{renderPagination('top', true)}</ToolbarItem>
       </ToolbarContent>
     </Toolbar>
-  );
+  )
 
-  const emptyFormData = {'id': 0,
-                         'api': '',
-                         'library': '',
-                         'library_version': '',
-                         'raw_specification_url': '',
-                         'category': '',
-                         'tags': '',
-                         'implementation_file_from_row': '',
-                         'implementation_file_to_row': '',
-                         'implementation_file': '',},
-
+  const emptyFormData = {
+    id: 0,
+    api: '',
+    library: '',
+    library_version: '',
+    raw_specification_url: '',
+    category: '',
+    tags: '',
+    implementation_file_from_row: '',
+    implementation_file_to_row: '',
+    implementation_file: ''
+  }
   return (
     <PageSection isFilled>
       <Card>
@@ -132,53 +154,58 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
           <Flex>
             <Flex>
               <FlexItem>
-                <Title headingLevel="h1">API Listing for {currentLibrary}</Title>
+                <Title headingLevel='h1'>API Listing for {currentLibrary}</Title>
               </FlexItem>
               <FlexItem>
-                <Label color="green" isCompact>Covered {totalCoverage}%</Label>
+                <Label color='green' isCompact>
+                  Covered {totalCoverage}%
+                </Label>
               </FlexItem>
             </Flex>
             <Flex align={{ default: 'alignRight' }}>
               <FlexItem>
-                <Button
-                  id="btn-add-sw-component"
-                  variant="primary"
-                  onClick={() => setModalInfo(emptyFormData,
-                                              true,
-                                              'api',
-                                              'POST',
-                                              'add',
-                                              'Software Component',
-                                              'Add a new software component')}
-                  >Add Software Component
+                {!auth.isGuest() ? (
+                  <Button
+                    id='btn-add-sw-component'
+                    variant='primary'
+                    onClick={() =>
+                      setModalInfo(emptyFormData, true, 'api', 'POST', 'add', 'Software Component', 'Add a new software component')
+                    }
+                  >
+                    Add Software Component
+                  </Button>
+                ) : (
+                  ''
+                )}
+              </FlexItem>
+              <FlexItem>
+                <Button id='btn-export-sw-components-to-spdx' variant='secondary' onClick={() => exportSPDX()}>
+                  Export to SPDX
                 </Button>
               </FlexItem>
               <FlexItem>
-                <Button
-                  id="btn-export-sw-components-to-spdx"
-                  variant="secondary"
-                  onClick={() => exportSPDX()}
-                >Export to SPDX
+                <Button variant='secondary' isDisabled>
+                  Baseline
                 </Button>
               </FlexItem>
-              <FlexItem><Button variant="secondary" isDisabled>Baseline</Button></FlexItem>
             </Flex>
           </Flex>
           {tableToolbar}
           <APIListingTable
-            currentLibrary={currentLibrary}
-            searchValue={searchValue}
-            baseApiUrl={baseApiUrl}
+            //currentLibrary={currentLibrary}
+            //searchValue={searchValue}
             setModalInfo={setModalInfo}
             setModalCheckSpecInfo={setModalCheckSpecInfo}
             setModalDeleteInfo={setModalDeleteInfo}
-            apis={apis}/>
+            setModalManageUserPermissionsInfo={setModalManageUserPermissionsInfo}
+            apis={apis}
+          />
         </CardBody>
       </Card>
       <APIModal
         modalAction={modalAction}
         modalVerb={modalVerb}
-        modalObject={modalObject}
+        //modalObject={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
         modalFormData={modalFormData}
@@ -187,28 +214,34 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         setCurrentLibrary={setCurrentLibrary}
         loadLibraries={loadLibraries}
         loadApi={loadApi}
-        baseApiUrl={baseApiUrl} />
+      />
       <APIDeleteModal
-        baseApiUrl={baseApiUrl}
         modalShowState={modalDeleteShowState}
         setModalShowState={setModalDeleteShowState}
         api={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
-        loadLibraries={loadLibraries}
-        loadApi={loadApi} />
+        //loadLibraries={loadLibraries}
+        //loadApi={loadApi}
+      />
       <APICheckSpecModal
-        baseApiUrl={baseApiUrl}
+        api={modalCheckSpecApiData}
         modalShowState={modalCheckSpecShowState}
         setModalShowState={setModalCheckSpecShowState}
-        api={modalCheckSpecApiData} />
+      />
       <APIExportSPDXModal
         SPDXContent={SPDXContent}
         setSPDXContent={setSPDXContent}
         modalShowState={modalSPDXExportShowState}
-        setModalShowState={setModalSPDXExportShowState}/>
+        setModalShowState={setModalSPDXExportShowState}
+      />
+      <APIManageUserPermissionsModal
+        api={modalManageUserPermissionsApiData}
+        modalShowState={modalManageUserPermissionsShowState}
+        setModalShowState={setModalManageUserPermissionsShowState}
+      />
     </PageSection>
   )
 }
 
-export { APIListingPageSection };
+export { APIListingPageSection }

@@ -1,7 +1,7 @@
 {
   "app_base_url": "http://localhost:9000",
   "api_base_url": "http://localhost:5000",
-  "api":{
+  "api": {
     "modal_button_confirm_id": "#btn-modal-api-confirm",
     "table_listing_id": "#table-api-listing"
   },

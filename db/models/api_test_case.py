@@ -3,6 +3,7 @@ from db.models.api import ApiModel
 from db.models.db_base import Base
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.comment import CommentModel
+from db.models.user import UserModel
 from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy import event, insert, select
 from sqlalchemy import ForeignKey
@@ -24,10 +25,16 @@ class ApiTestCaseModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="ApiTestCaseModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="ApiTestCaseModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, api, test_case, section, offset, coverage):
+    def __init__(self, api, test_case, section, offset, coverage, created_by):
         self.api = api
         self.api_id = api.id
         self.test_case = test_case
@@ -35,12 +42,21 @@ class ApiTestCaseModel(Base):
         self.section = section
         self.offset = offset
         self.coverage = coverage
+        self.created_by = created_by
+        self.created_by_id = created_by.id
+        self.edited_by = created_by
+        self.edited_by_id = created_by.id
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
     def __repr__(self) -> str:
-        return f"ApiTestCaseModel(id={self.id!r}, api_id={self.api_id!r}, test_case_id={self.test_case_id!r}, " \
-               f"section={self.section!r}, coverage={self.coverage!r}), offset={self.offset!r})  - " \
+        return f"ApiTestCaseModel(id={self.id!r}, " \
+               f"api_id={self.api_id!r}, " \
+               f"test_case_id={self.test_case_id!r}, " \
+               f"section={self.section!r}, " \
+               f"coverage={self.coverage!r}), " \
+               f"offset={self.offset!r})  - " \
+               f"created_by={self.created_by.email!r}, " \
                f"{str(self.api)!r} - " \
                f"{str(self.test_case)!r}"
 
@@ -59,7 +75,8 @@ class ApiTestCaseModel(Base):
                  'section': self.section,
                  'offset': self.offset,
                  'coverage': self.coverage,
-                 'covered': self.coverage}
+                 'covered': self.coverage,
+                 'created_by': self.created_by.email}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 
@@ -96,6 +113,8 @@ def receive_after_update(mapper, connection, target):
             section=target.section,
             offset=target.offset,
             coverage=target.coverage,
+            created_by_id=target.created_by_id,
+            edited_by_id=target.edited_by_id,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -110,6 +129,8 @@ def receive_after_insert(mapper, connection, target):
         section=target.section,
         offset=target.offset,
         coverage=target.coverage,
+        created_by_id=target.created_by_id,
+        edited_by_id=target.edited_by_id,
         version=1
     )
     connection.execute(insert_query)
@@ -127,20 +148,35 @@ class ApiTestCaseHistoryModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["UserModel"] = relationship("UserModel",
+                                                   foreign_keys="ApiTestCaseHistoryModel.created_by_id")
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by: Mapped["UserModel"] = relationship("UserModel",
+                                                  foreign_keys="ApiTestCaseHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, api_id, test_case_id, section, offset, coverage, version):
+    def __init__(self, id, api_id, test_case_id, section, offset,
+                 coverage, created_by_id, edited_by_id, version):
         self.id = id
         self.api_id = api_id
         self.test_case_id = test_case_id
         self.section = section
         self.offset = offset
         self.coverage = coverage
+        self.created_by_id = created_by_id
+        self.edited_by_id = edited_by_id
         self.version = version
         self.created_at = datetime.now()
 
     def __repr__(self) -> str:
-        return f"ApiTestCaseHistoryModel(row_id={self.row_id!r}, id={self.id!r}, version={self.version!r}, " \
-               f"api_id={self.api_id!r}, test_case_id={self.test_case_id!r}, " \
-               f"coverage={self.coverage!r}, offset={self.offset!r}, version={self.version!r})"
+        return f"ApiTestCaseHistoryModel(row_id={self.row_id!r}, " \
+               f"id={self.id!r}, " \
+               f"version={self.version!r}, " \
+               f"api_id={self.api_id!r}, " \
+               f"test_case_id={self.test_case_id!r}, " \
+               f"coverage={self.coverage!r}, " \
+               f"offset={self.offset!r}, " \
+               f"created_by={self.created_by.email!r}, " \
+               f"version={self.version!r})"

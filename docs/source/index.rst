@@ -22,6 +22,7 @@ It comes also with a REST web api to simplify the integration in other toolchain
    how_to_run_it
    functional_safety
    e2e_testing
+   user_management
    work_items
 
 

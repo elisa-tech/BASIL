@@ -33,7 +33,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   loadMappingData
 }: MappingCommentModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [comments, setComments] = React.useState([])
+  const [comments, setComments] = React.useState<any[]>([])
 
   const handleModalToggle = () => {
     const new_state = !modalShowState

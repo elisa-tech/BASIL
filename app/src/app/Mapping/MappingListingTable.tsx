@@ -215,14 +215,12 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       label_color = 'green'
     } else if (status_lc == 'rejected') {
       label_color = 'red'
-    } else {
-      label_color = 'orange'
     }
 
     return (
       <React.Fragment>
         <FlexItem>
-          <Label color={label_color} name='label-status' isCompact>
+          <Label color={label_color as any} name='label-status' isCompact>
             {status.toLowerCase()}
           </Label>
         </FlexItem>

@@ -31,7 +31,7 @@ export const status_options = [
 ]
 
 export const capitalizeFirstWithoutHashes = (_string: string) => {
-  let tmp = _string.replaceAll('-', ' ')
-  tmp = tmp.replaceAll('_', ' ')
+  let tmp = _string.split('-').join(' ')
+  tmp = tmp.split('_').join(' ')
   return tmp.charAt(0).toUpperCase() + tmp.slice(1)
 }

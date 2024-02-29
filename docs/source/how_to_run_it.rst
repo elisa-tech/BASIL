@@ -188,8 +188,9 @@ You can copy the db file locally with the following docker command:
 ^^^^^^^^^^^^^^^^^
 You can stop running containers, the one that you can see listed with the **ps** docker command using the following syntax:
 
-``docker stop basil-api-containeri``
-``docker stop basil-app-containeri``
+``docker stop basil-api-container``
+
+``docker stop basil-app-container``
 
 
 

@@ -305,7 +305,7 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields, _dbi_sessio
                         if j in history_data[i]['mapping'].keys() and j not in fields_to_skip:
                             if history_data[i]['mapping'][j] != history_data[i - 1]['mapping'][j]:
                                 tmp['mapping'][j] = history_data[i]['mapping'][j]
-                    tmp['mapping'][j]['edited_by'] = get_user_email_from_id(
+                    tmp['mapping']['edited_by'] = get_user_email_from_id(
                         history_data[i]['mapping']['edited_by_id'],
                         _dbi_session)
             ret.append(tmp)

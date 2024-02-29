@@ -241,11 +241,22 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
           </NavItem>
           <NavItem
             preventDefault
+            id='nav-useful-links-contribute'
+            to='#nav-useful-links-contribute'
+            onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-4'
+            isActive={false}
+          >
+            Contribute
+          </NavItem>
+          <NavItem
+            preventDefault
             id='nav-useful-links-report-a-bug'
             to='#nav-useful-links-report-a-bug'
             onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues/new')}
             groupId='nav-useful-links'
-            itemId='nav-useful-links-item-4'
+            itemId='nav-useful-links-item-5'
             isActive={false}
           >
             Report a bug

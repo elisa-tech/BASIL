@@ -1,6 +1,7 @@
 import React from 'react'
 import * as Constants from '../../Constants/constants'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface MappingForkModalProps {
   api
@@ -25,6 +26,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   relationData,
   loadMappingData
 }: MappingForkModalProps) => {
+  let auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [messageValue, setMessageValue] = React.useState('')
 
@@ -42,7 +44,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   }, [modalShowState])
 
   const fork = () => {
-    const data = { 'api-id': api.id, 'relation-id': relationData.relation_id }
+    const data = { 'api-id': api.id, 'relation-id': relationData.relation_id, 'user-id': auth.userId, token: auth.token }
     fetch(Constants.API_BASE_URL + '/fork/' + parentType + '/' + workItemType, {
       method: 'POST',
       headers: {
@@ -84,11 +86,14 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
         ]}
       >
         {messageValue ? (
-          <Hint>
-            <HintBody>{messageValue}</HintBody>
-          </Hint>
+          <>
+            <Hint>
+              <HintBody>{messageValue}</HintBody>
+            </Hint>
+            <br />
+          </>
         ) : (
-          <span></span>
+          ''
         )}
       </Modal>
     </React.Fragment>

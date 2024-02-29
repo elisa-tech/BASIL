@@ -55,7 +55,7 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
                         <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
                       </em>
                       <Text>
-                        <ReactMarkdown>{version.object[key].toString()}</ReactMarkdown>
+                        <ReactMarkdown>{version.object[key]?.toString()}</ReactMarkdown>
                       </Text>
                     </TextListItem>
                   ))}
@@ -76,7 +76,7 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
                         <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
                       </em>
                       <Text>
-                        <ReactMarkdown>{version.mapping[key].toString()}</ReactMarkdown>
+                        <ReactMarkdown>{version.mapping[key]?.toString()}</ReactMarkdown>
                       </Text>
                     </TextListItem>
                   ))}

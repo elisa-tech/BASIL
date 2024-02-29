@@ -12,6 +12,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface TestSpecificationSearchProps {
   api
@@ -48,6 +49,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
   loadTestSpecifications,
   testSpecifications
 }: TestSpecificationSearchProps) => {
+  let auth = useAuth()
   const [searchValue, setSearchValue] = React.useState(formData.title)
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
@@ -154,7 +156,9 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       'sw-requirement': {},
       section: modalSection,
       offset: modalOffset,
-      coverage: coverageValue
+      coverage: coverageValue,
+      'user-id': auth.userId,
+      token: auth.token
     }
 
     if (formVerb == 'PUT' || formVerb == 'DELETE') {
@@ -239,11 +243,14 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       <br />
 
       {messageValue ? (
-        <Hint>
-          <HintBody>{messageValue}</HintBody>
-        </Hint>
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
       ) : (
-        <span></span>
+        ''
       )}
 
       {formDefaultButtons ? (

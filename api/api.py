@@ -1793,12 +1793,14 @@ class ApiTestSpecificationsMapping(Resource):
             dbi.engine.dispose()
             return 'bad request!', 401
 
+        notification_ts_id = test_specification_mapping_api.test_specification.id
+        notification_ts_title = test_specification_mapping_api.test_specification.title
         dbi.session.delete(test_specification_mapping_api)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted test specification ' \
-                       f'{test_specification_mapping_api.test_specification.title}'
+                       f'{notification_ts_id} {notification_ts_title}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api} - Test Specification has been deleted',
@@ -2107,12 +2109,14 @@ class ApiTestCasesMapping(Resource):
             dbi.engine.dispose()
             return 'bad request!', 401
 
+        notification_tc_id = test_case_mapping_api.test_case.id
+        notification_tc_title = test_case_mapping_api.test_case.title
         dbi.session.delete(test_case_mapping_api)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted test case ' \
-                       f'{test_case_mapping_api.test_case.title}'
+                       f'{notification_tc_id} {notification_tc_title}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api} - Test Case has been deleted',
@@ -2696,16 +2700,17 @@ class ApiJustificationsMapping(Resource):
             dbi.engine.dispose()
             return 'bad request!', 401
 
+        notification_j_id = justification_mapping_api.justification.id
         dbi.session.delete(justification_mapping_api)
         dbi.session.commit()
 
         # Add Notifications
-        notification = f'{user.email} deleted justification {justification_mapping_api.justification.id} ' \
+        notification = f'{user.email} deleted justification {notification_j_id} ' \
                        f'mapped to ' \
                        f'{api.api} as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
-                                          f'Justification mapping {justification_mapping_api.id} has been deleted',
+                                          'Justification mapping has been deleted',
                                           notification,
                                           str(user.id),
                                           f'/mapping/{api.id}')
@@ -2975,12 +2980,14 @@ class ApiSwRequirementsMapping(Resource):
             dbi.engine.dispose()
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
+        notification_sr_id = sw_requirement_mapping_api.sw_requirement.id
+        notification_sr_title = sw_requirement_mapping_api.sw_requirement.title
         dbi.session.delete(sw_requirement_mapping_api)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted sw requirement ' \
-                       f'{sw_requirement_mapping_api.sw_requirement.title}'
+                       f'{notification_sr_id} {notification_sr_title}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api} - Sw Requirement has been deleted',
@@ -3393,12 +3400,14 @@ class SwRequirementSwRequirementsMapping(Resource):
             return 'bad request!', 401
         """
 
+        notification_sr_id = sr_mapping_sr.sw_requirement.id
+        notification_sr_title = sr_mapping_sr.sw_requirement.title
         dbi.session.delete(sr_mapping_sr)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted sw requirement ' \
-                       f'{sr_mapping_sr.sw_requirement.id} mapping as part of the library {api.library}'
+                       f'{notification_sr_id} {notification_sr_title} mapping as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api}, a sw requirement has been deleted',
@@ -3714,12 +3723,14 @@ class SwRequirementTestSpecificationsMapping(Resource):
         # test_specification = sw_mapping_ts.test_specification
         # dbi.session.delete(test_specification)
 
+        notification_ts_id = sw_mapping_ts.test_specification.id
+        notification_ts_title = sw_mapping_ts.test_specification.title
         dbi.session.delete(sw_mapping_ts)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted test specification ' \
-                       f'{sw_mapping_ts.test_specification.id} mapping as part of the library {api.library}'
+                       f'{notification_ts_id} {notification_ts_title} mapping as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api}, a test specification has been deleted',
@@ -4032,12 +4043,14 @@ class SwRequirementTestCasesMapping(Resource):
         # test_case = sw_mapping_tc.test_case
         # dbi.session.delete(test_case)
 
+        notification_tc_id = sw_mapping_tc.test_case.id
+        notification_tc_title = sw_mapping_tc.test_case.title
         dbi.session.delete(sw_mapping_tc)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted test case ' \
-                       f'{sw_mapping_tc.test_case.id} mapping as part of the library {api.library}'
+                       f'{notification_tc_id} {notification_tc_title} mapping as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api}, a test case has been deleted',
@@ -4371,12 +4384,14 @@ class TestSpecificationTestCasesMapping(Resource):
         # test_case = ts_mapping_tc.test_case
         # dbi.session.delete(test_case)
 
+        notification_tc_id = ts_mapping_tc.test_case.id
+        notification_tc_title = ts_mapping_tc.test_case.title
         dbi.session.delete(ts_mapping_tc)
         dbi.session.commit()
 
         # Add Notifications
         notification = f'{user.email} deleted test case ' \
-                       f'{ts_mapping_tc.test_case.id} mapping as part of the library {api.library}'
+                       f'{notification_tc_id} {notification_tc_title} mapping as part of the library {api.library}'
         notifications = NotificationModel(api,
                                           NOTIFICATION_CATEGORY_DELETE,
                                           f'{api.api}, a test case has been deleted',

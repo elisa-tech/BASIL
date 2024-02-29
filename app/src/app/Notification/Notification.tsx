@@ -15,7 +15,7 @@ import {
 } from '@patternfly/react-core'
 import * as Constants from '../Constants/constants'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 interface Notification {
   api: string

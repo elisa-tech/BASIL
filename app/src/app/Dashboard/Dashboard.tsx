@@ -2,7 +2,7 @@ import * as React from 'react'
 import * as Constants from '../Constants/constants'
 import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants, SearchInput, Tab, TabTitleText, Tabs } from '@patternfly/react-core'
 import { APIListingPageSection } from './APIListingPageSection'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 const Dashboard: React.FunctionComponent = () => {
   let auth = useAuth()

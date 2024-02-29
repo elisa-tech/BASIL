@@ -12,6 +12,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface TestCaseSearchProps {
   api
@@ -48,6 +49,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
   loadTestCases,
   testCases
 }: TestCaseSearchProps) => {
+  let auth = useAuth()
   const [searchValue, setSearchValue] = React.useState(formData.title)
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
@@ -153,7 +155,9 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
       'test-case': { id: test_case_id },
       section: modalSection,
       offset: modalOffset,
-      coverage: coverageValue
+      coverage: coverageValue,
+      'user-id': auth.userId,
+      token: auth.token
     }
 
     if (modalIndirect == true) {
@@ -249,11 +253,14 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
       <br />
 
       {messageValue ? (
-        <Hint>
-          <HintBody>{messageValue}</HintBody>
-        </Hint>
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
       ) : (
-        <span></span>
+        ''
       )}
 
       {formDefaultButtons ? (

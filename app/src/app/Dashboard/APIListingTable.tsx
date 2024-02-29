@@ -5,7 +5,7 @@ import { Button, Flex, FlexItem, Text, TextContent, TextList, TextListItem, Text
 import { APIForm } from './Form/APIForm'
 import { ApiMenuKebab } from './Menu/ApiMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 import { AttentionBellIcon } from '@patternfly/react-icons/dist/esm/icons/attention-bell-icon'
 
 interface APIHistoryData {

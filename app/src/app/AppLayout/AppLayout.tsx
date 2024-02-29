@@ -24,7 +24,7 @@ import { HeaderToolbar } from './HeaderToolbar'
 import { NotificationDrawerBasic } from '../Notification/Notification'
 import logo from '@app/bgimages/basil.svg'
 import * as Constants from '../Constants/constants'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 interface IAppLayout {
   children: React.ReactNode

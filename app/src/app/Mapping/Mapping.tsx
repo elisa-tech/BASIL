@@ -4,7 +4,7 @@ import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants } from '@pa
 import { MappingBreadCrumb } from './MappingBreadCrumb'
 import { MappingPageSection } from './MappingPageSection'
 import { useParams } from 'react-router-dom'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 const Mapping: React.FunctionComponent = () => {
   let auth = useAuth()

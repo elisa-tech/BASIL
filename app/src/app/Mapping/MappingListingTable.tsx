@@ -32,7 +32,7 @@ import CatalogIcon from '@patternfly/react-icons/dist/esm/icons/catalog-icon'
 import TaskIcon from '@patternfly/react-icons/dist/esm/icons/task-icon'
 import BalanceScaleIcon from '@patternfly/react-icons/dist/esm/icons/balance-scale-icon'
 import MigrationIcon from '@patternfly/react-icons/dist/esm/icons/migration-icon'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 export interface MappingListingTableProps {
   api

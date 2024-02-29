@@ -29,7 +29,7 @@ import {
   Title
 } from '@patternfly/react-core'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 const Signin: React.FunctionComponent = () => {
   let auth = useAuth()

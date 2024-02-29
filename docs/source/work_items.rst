@@ -17,6 +17,7 @@ Often used to highlight the reason why a section of the Specification Document c
 Default Fields:
 
 + description
++ status
 
 Possible Children Work Item Types:
 
@@ -31,6 +32,7 @@ Default Fields:
 
 + title
 + description
++ status
 
 Possible Children Work Item Types:
 
@@ -51,6 +53,7 @@ Default Fields:
 + preconditions
 + test_description
 + expected_behavior
++ status
 
 Possible Children Work Item Types:
 
@@ -67,7 +70,27 @@ Default Fields:
 + description
 + repository
 + relative_path
++ status
 
 Possible Children Work Item Types:
 
 + None
+
+----------------
+Work Item Status
+----------------
+
+BASIL support following status for above mentioned work items:
+
++ NEW
++ IN PROGRESS
++ IN REVIEW
++ REJECTED
++ REWORK
++ APPROVED
+
+Example of typical workflows can be:
+
+NEW --> IN PROGRESS --> IN REVIEW --> APPROVED
+
+NEW --> IN PROGRESS --> IN REVIEW --> REJECTED --> REWORK --> IN REVIEW --> APPROVED

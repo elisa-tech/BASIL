@@ -154,6 +154,16 @@ def get_user_id_from_request(_request, _db_session):
     return user_id
 
 
+def get_user_email_from_id(_id, _db_session):
+    try:
+        user = _db_session.query(UserModel).filter(
+            UserModel.id == _id
+        ).one()
+        return user.email
+    except NoResultFound:
+        return ''
+
+
 def get_active_user_from_request(_request, _db_session):
     mandatory_fields = ['user-id', 'token']
     for field in mandatory_fields:
@@ -225,9 +235,10 @@ def get_combined_history_object(_obj, _map, _obj_fields, _map_fields):
     return _combined
 
 
-def get_reduced_history_data(history_data, _obj_fields, _map_fields):
+def get_reduced_history_data(history_data, _obj_fields, _map_fields, _dbi_session):
     """
-
+    Remove from the history_data fields that has not been modified
+    Adding on each history element the name of the user
     """
     fields_to_skip = ['version', 'created_at', 'updated_at']
 
@@ -247,6 +258,26 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields):
         if j in history_data[0]['mapping'].keys() and j not in fields_to_skip:
             ret[0]['mapping'][j] = history_data[0]['mapping'][j]
 
+    # Object - return user email of the first version instead of the id
+    if 'edited_by_id' in ret[0]['object'].keys():
+        del (ret[0]['object']['edited_by_id'])
+    if 'created_by_id' in ret[0]['object'].keys():
+        ret[0]['object']['created_by'] = get_user_email_from_id(
+            ret[0]['object']['created_by_id'],
+            _dbi_session
+        )
+        del (ret[0]['object']['created_by_id'])
+
+    # Mapping - return user email of the first version instead of the id
+    if 'edited_by_id' in ret[0]['mapping'].keys():
+        del (ret[0]['mapping']['edited_by_id'])
+    if 'created_by_id' in ret[0]['mapping'].keys():
+        ret[0]['mapping']['created_by'] = get_user_email_from_id(
+            ret[0]['mapping']['created_by_id'],
+            _dbi_session
+        )
+        del (ret[0]['mapping']['created_by_id'])
+
     if len(history_data) > 1:
         for i in range(1, len(history_data)):
             tmp = {'object': {},
@@ -263,6 +294,9 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields):
                     if k in history_data[i]['object'].keys() and k not in fields_to_skip:
                         if history_data[i]['object'][k] != history_data[i - 1]['object'][k]:
                             tmp['object'][k] = history_data[i]['object'][k]
+                    tmp['object']['edited_by'] = get_user_email_from_id(
+                        history_data[i]['object']['edited_by_id'],
+                        _dbi_session)
 
             if len(last_version) > 1 and len(current_version) > 1:
                 if last_version[1] != current_version[1]:
@@ -271,6 +305,9 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields):
                         if j in history_data[i]['mapping'].keys() and j not in fields_to_skip:
                             if history_data[i]['mapping'][j] != history_data[i - 1]['mapping'][j]:
                                 tmp['mapping'][j] = history_data[i]['mapping'][j]
+                    tmp['mapping'][j]['edited_by'] = get_user_email_from_id(
+                        history_data[i]['mapping']['edited_by_id'],
+                        _dbi_session)
             ret.append(tmp)
 
     return ret
@@ -1402,7 +1439,7 @@ class ApiHistory(Resource):
             if staging_array[i]['type'] == 'object' and staging_array[i]['version'] > last_obj_version:
                 ret.append(get_combined_history_object(staging_array[i], ret[-1]['mapping'], _model_fields, []))
 
-        ret = get_reduced_history_data(ret, _model_fields, [])
+        ret = get_reduced_history_data(ret, _model_fields, [], dbi.session)
         ret = ret[::-1]
         dbi.engine.dispose()
         return ret
@@ -1566,7 +1603,8 @@ class ApiTestSpecificationsMapping(Resource):
 
         if 'id' not in request_data['test-specification'].keys():
             # Create a new one
-            for check_field in TestSpecification.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in TestSpecification.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['test-specification'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Unconsistent data.", 400
@@ -1884,7 +1922,8 @@ class ApiTestCasesMapping(Resource):
 
         if 'id' not in request_data['test-case'].keys():
             # Create a new one
-            for check_field in TestCase.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in TestCase.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['test-case'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Not consistent data.", 400
@@ -2251,7 +2290,7 @@ class MappingHistory(Resource):
                 ret.append(
                     get_combined_history_object(ret[-1]['object'], staging_array[i], _model_fields, _model_map_fields))
 
-        ret = get_reduced_history_data(ret, _model_fields, _model_map_fields)
+        ret = get_reduced_history_data(ret, _model_fields, _model_map_fields, dbi.session)
         ret = ret[::-1]
         dbi.engine.dispose()
         return ret
@@ -2752,7 +2791,8 @@ class ApiSwRequirementsMapping(Resource):
 
         if 'id' not in request_data['sw-requirement'].keys():
             # Create a new one
-            for check_field in SwRequirement.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in SwRequirement.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['sw-requirement'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Not consistent data.", 400
@@ -3099,24 +3139,31 @@ class SwRequirementSwRequirementsMapping(Resource):
             relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == relation_id
             )
+            try:
+                relation_to_item = relation_to_query.one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Parent mapping not found", 404
+
+            api_id = relation_to_item.api.id
         elif request_data['relation-to'] == 'sw-requirement':
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
                 SwRequirementSwRequirementModel.id == relation_id
             )
+            try:
+                relation_to_item = relation_to_query.one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Parent mapping not found", 404
+
+            api_id = get_parent_api_id(relation_to_item, dbi.session)
+            if not api_id:
+                dbi.engine.dispose()
+                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
         else:
             dbi.engine.dispose()
             return "Bad request!!!", 400
-
-        try:
-            relation_to_item = relation_to_query.one()
-        except NoResultFound:
-            dbi.engine.dispose()
-            return "Parent mapping not found", 404
-
-        api_id = get_parent_api_id(relation_to_item, dbi.session)
-        if not api_id:
-            dbi.engine.dispose()
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -3149,7 +3196,8 @@ class SwRequirementSwRequirementsMapping(Resource):
 
         if 'id' not in request_data['sw-requirement'].keys():
             # Create a new one
-            for check_field in SwRequirement.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in SwRequirement.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['sw-requirement'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Not consistent data.", 400
@@ -3412,26 +3460,30 @@ class SwRequirementTestSpecificationsMapping(Resource):
             relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == relation_id
             )
+            try:
+                relation_to_item = relation_to_query.one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Parent mapping not found", 404
+
+            api_id = relation_to_item.api.id
         elif relation_to == 'sw-requirement':
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
                 SwRequirementSwRequirementModel.id == relation_id
             )
-        else:
-            dbi.engine.dispose()
-            return "Bad request!!!", 400
+            try:
+                relation_to_item = relation_to_query.one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Parent mapping not found", 404
 
-        try:
-            relation_to_item = relation_to_query.one()
-        except NoResultFound:
-            return "Unable to find parent element", 404
-
-        if relation_to == 'api':
-            api_id = relation_to_item.api.id
-        elif relation_to == 'sw-requirement':
             api_id = get_parent_api_id(relation_to_item, dbi.session)
             if not api_id:
                 dbi.engine.dispose()
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        else:
+            dbi.engine.dispose()
+            return "Bad request!!!", 400
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -3452,7 +3504,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         if 'id' not in request_data['test-specification'].keys():
             # Create a new one
-            for check_field in TestSpecification.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in TestSpecification.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['test-specification'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Not consistent data.", 400
@@ -3718,23 +3771,32 @@ class SwRequirementTestCasesMapping(Resource):
             relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == relation_id
             )
+
+            try:
+                relation_to_item = relation_to_query.one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Parent mapping not found", 404
+
+            api_id = relation_to_item.api.id
+
         elif relation_to == 'sw-requirement':
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
                 SwRequirementSwRequirementModel.id == relation_id
             )
+            try:
+                relation_to_item = relation_to_query.one()
+            except NoResultFound:
+                dbi.engine.dispose()
+                return "Parent mapping not found", 404
+
+            api_id = get_parent_api_id(relation_to_item, dbi.session)
+            if not api_id:
+                dbi.engine.dispose()
+                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
             dbi.engine.dispose()
             return "Bad request!!!", 400
-
-        try:
-            relation_to_item = relation_to_query.one()
-        except NoResultFound:
-            return "Parent mapping not found", 404
-
-        api_id = get_parent_api_id(relation_to_item, dbi.session)
-        if not api_id:
-            dbi.engine.dispose()
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -3767,7 +3829,8 @@ class SwRequirementTestCasesMapping(Resource):
 
         if 'id' not in request_data['test-case'].keys():
             # Create a new one
-            for check_field in TestCase.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in TestCase.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['test-case'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Not consistent data.", 400
@@ -4069,7 +4132,8 @@ class TestSpecificationTestCasesMapping(Resource):
 
         if 'id' not in request_data['test-case'].keys():
             # Create a new one
-            for check_field in TestCase.fields:
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in TestCase.fields if x not in ['status']]:
                 if check_field.replace("_", "-") not in request_data['test-case'].keys():
                     dbi.engine.dispose()
                     return "Bad request. Not consistent data.", 400

@@ -1,5 +1,7 @@
 import React from 'react'
-import { Button, Modal, ModalVariant, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
+import ReactMarkdown from 'react-markdown'
+import * as Constants from '../../Constants/constants'
+import { Button, Divider, Modal, ModalVariant, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
 
 export interface MappingHistoryModalProps {
   modalShowState
@@ -41,30 +43,49 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
             <Text component={TextVariants.h3}>
               Version {version.version} - {version.created_at}
             </Text>
-            <TextList>
-              {Object.keys(version.object).map((key, index) => (
-                <TextListItem key={index}>
-                  <Text component={TextVariants.p} className='work-item-detail-text'>
-                    <em>
-                      <b>{key}</b>:{' '}
-                    </em>
-                    {version.object[key]}
-                  </Text>
-                </TextListItem>
-              ))}
-            </TextList>
-            <TextList>
-              <Text component={TextVariants.p} className='work-item-detail-text'>
-                {Object.keys(version.mapping).map((key, index) => (
-                  <TextListItem key={index}>
-                    <em>
-                      <b>{key}</b>:{' '}
-                    </em>
-                    {version.mapping[key]}
-                  </TextListItem>
-                ))}
-              </Text>
-            </TextList>
+
+            {Object.keys(version.object).length > 0 ? (
+              <>
+                <Text component={TextVariants.h4}>Work Item</Text>
+                <Divider />
+                <TextList>
+                  {Object.keys(version.object).map((key, index) => (
+                    <TextListItem key={index}>
+                      <em>
+                        <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
+                      </em>
+                      <Text>
+                        <ReactMarkdown>{version.object[key].toString()}</ReactMarkdown>
+                      </Text>
+                    </TextListItem>
+                  ))}
+                </TextList>
+              </>
+            ) : (
+              ''
+            )}
+
+            {Object.keys(version.mapping).length > 0 ? (
+              <>
+                <Text component={TextVariants.h4}>Mapping</Text>
+                <Divider />
+                <TextList>
+                  {Object.keys(version.mapping).map((key, index) => (
+                    <TextListItem key={index}>
+                      <em>
+                        <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
+                      </em>
+                      <Text>
+                        <ReactMarkdown>{version.mapping[key].toString()}</ReactMarkdown>
+                      </Text>
+                    </TextListItem>
+                  ))}
+                </TextList>
+              </>
+            ) : (
+              ''
+            )}
+            <br />
           </TextContent>
         </React.Fragment>
       ))

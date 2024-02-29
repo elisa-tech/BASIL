@@ -6,6 +6,8 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Hint,
@@ -50,6 +52,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+  const [justificationStatusValue, setJustificationStatusValue] = React.useState(formData.status)
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
@@ -108,6 +111,10 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
     setCoverageValue(value)
   }
 
+  const handleJustificationStatusChange = (_event, value: string) => {
+    setJustificationStatusValue(value)
+  }
+
   const handleSubmit = () => {
     if (validatedDescriptionValue != 'success') {
       setMessageValue('Justification Description is mandatory.')
@@ -140,6 +147,10 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
       data['justification']['id'] = formData.id
     }
 
+    if (formVerb == 'PUT') {
+      data['justification']['status'] = justificationStatusValue
+    }
+
     fetch(Constants.API_BASE_URL + '/mapping/api/justifications', {
       method: formVerb,
       headers: {
@@ -167,6 +178,23 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
 
   return (
     <Form>
+      {formAction == 'edit' ? (
+        <FormGroup label='Status' isRequired fieldId={`input-justification-${formAction}-status-${formData.id}`}>
+          <FormSelect
+            value={justificationStatusValue}
+            id={`input-justification-${formAction}-status-${formData.id}`}
+            onChange={handleJustificationStatusChange}
+            aria-label='Justification Status Input'
+          >
+            {Constants.status_options.map((option, index) => (
+              <FormSelectOption isDisabled={option.disabled} key={index} value={option.value} label={option.label} />
+            ))}
+          </FormSelect>
+        </FormGroup>
+      ) : (
+        ''
+      )}
+
       <FormGroup label='Description' isRequired fieldId={`input-justification-${formAction}-description-${formData.id}`}>
         <TextArea
           isRequired

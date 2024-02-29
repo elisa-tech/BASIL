@@ -24,6 +24,7 @@ class SwRequirementModel(Base):
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementModel.edited_by_id")
+    status: Mapped[str] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -34,6 +35,7 @@ class SwRequirementModel(Base):
         self.created_by_id = created_by.id
         self.edited_by = created_by
         self.edited_by_id = created_by.id
+        self.status = Base.STATUS_NEW
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -41,6 +43,7 @@ class SwRequirementModel(Base):
         return f"SwRequirementModel(id={self.id!r}, " \
                f"title={self.title!r}, " \
                f"description={self.description!r}), " \
+               f"status={self.status!r}), " \
                f"created_by={self.created_by.email!r}, " \
                f"edited_by={self.edited_by.email!r}"
 
@@ -54,6 +57,7 @@ class SwRequirementModel(Base):
         _dict = {"id": self.id,
                  "title": self.title,
                  "description": self.description,
+                 "status": self.status,
                  "created_by": self.created_by.email,
                  }
 
@@ -80,6 +84,7 @@ def receive_after_update(mapper, connection, target):
             id=target.id,
             title=target.title,
             description=target.description,
+            status=target.status,
             created_by_id=target.created_by_id,
             edited_by_id=target.edited_by_id,
             version=version + 1
@@ -93,6 +98,7 @@ def receive_after_insert(mapper, connection, target):
         id=target.id,
         title=target.title,
         description=target.description,
+        status=target.status,
         created_by_id=target.created_by_id,
         edited_by_id=target.edited_by_id,
         version=1
@@ -115,13 +121,16 @@ class SwRequirementHistoryModel(Base):
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementHistoryModel.edited_by_id")
+    status: Mapped[str] = mapped_column(String(30))
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    def __init__(self, id, title, description, created_by_id, edited_by_id, version):
+    def __init__(self, id, title, description, created_by_id, edited_by_id,
+                 status, version):
         self.id = id
         self.title = title
         self.description = description
+        self.status = status
         self.version = version
         self.created_by_id = created_by_id
         self.edited_by_id = edited_by_id
@@ -132,5 +141,6 @@ class SwRequirementHistoryModel(Base):
                f"id={self.id!r}, " \
                f"version={self.version!r}, " \
                f"title={self.title!r}, " \
+               f"status={self.status!r}, " \
                f"created_by={self.created_by.email!r}, " \
                f"description={self.description!r})"

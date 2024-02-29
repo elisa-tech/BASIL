@@ -6,6 +6,8 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Hint,
@@ -60,6 +62,8 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '0')
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+
+  const [swRequirementStatusValue, setSwRequirementStatusValue] = React.useState(formData.status)
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
@@ -134,6 +138,10 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     setCoverageValue(value)
   }
 
+  const handleSwRequirementStatusChange = (_event, value: string) => {
+    setSwRequirementStatusValue(value)
+  }
+
   const handleSubmit = () => {
     if (validatedTitleValue != 'success') {
       setMessageValue('Sw Requirement Title is mandatory.')
@@ -176,6 +184,10 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       }
     }
 
+    if (formVerb == 'PUT') {
+      data[Constants._SR]['status'] = swRequirementStatusValue
+    }
+
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/sw-requirements', {
       method: formVerb,
       headers: {
@@ -203,6 +215,23 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
   return (
     <Form>
+      {formAction == 'edit' ? (
+        <FormGroup label='Status' isRequired fieldId={`input-sw-requirement-${formAction}-status-${formData.id}`}>
+          <FormSelect
+            value={swRequirementStatusValue}
+            id={`input-sw-requirement-${formAction}-status-${formData.id}`}
+            onChange={handleSwRequirementStatusChange}
+            aria-label='Sw Requirement Status Input'
+          >
+            {Constants.status_options.map((option, index) => (
+              <FormSelectOption isDisabled={option.disabled} key={index} value={option.value} label={option.label} />
+            ))}
+          </FormSelect>
+        </FormGroup>
+      ) : (
+        ''
+      )}
+
       <FormGroup label='Sw Requirement Title' isRequired fieldId={`input-sw-requirement-${formAction}-title-${formData.id}`}>
         <TextInput
           isRequired

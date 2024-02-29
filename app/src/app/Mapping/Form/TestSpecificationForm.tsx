@@ -6,6 +6,8 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Hint,
@@ -65,6 +67,8 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '0')
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+
+  const [testSpecificationStatusValue, setTestSpecificationStatusValue] = React.useState(formData.status)
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
@@ -162,6 +166,10 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     setCoverageValue(value)
   }
 
+  const handleTestSpecificationStatusChange = (_event, value: string) => {
+    setTestSpecificationStatusValue(value)
+  }
+
   const handleSubmit = () => {
     if (validatedTitleValue != 'success') {
       setMessageValue('Test Specification Title is mandatory.')
@@ -212,7 +220,8 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     }
 
     if (formVerb == 'PUT') {
-      data['test-specification']['id'] = formData.id
+      data[Constants._TS]['id'] = formData.id
+      data[Constants._TS]['status'] = testSpecificationStatusValue
     }
 
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-specifications', {
@@ -242,6 +251,23 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
   return (
     <Form>
+      {formAction == 'edit' ? (
+        <FormGroup label='Status' isRequired fieldId={`input-test-specification-${formAction}-status-${formData.id}`}>
+          <FormSelect
+            value={testSpecificationStatusValue}
+            id={`input-test-specification-${formAction}-status-${formData.id}`}
+            onChange={handleTestSpecificationStatusChange}
+            aria-label='Test Specification Status Input'
+          >
+            {Constants.status_options.map((option, index) => (
+              <FormSelectOption isDisabled={option.disabled} key={index} value={option.value} label={option.label} />
+            ))}
+          </FormSelect>
+        </FormGroup>
+      ) : (
+        ''
+      )}
+
       <FormGroup label='Test Specification Title' isRequired fieldId={`input-test-specification-${formAction}-title-${formData.id}`}>
         <TextInput
           isRequired

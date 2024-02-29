@@ -1,5 +1,7 @@
 import React from 'react'
-import { Button, Modal, ModalVariant, TextContent, TextList, TextListItem } from '@patternfly/react-core'
+import ReactMarkdown from 'react-markdown'
+import * as Constants from '../../Constants/constants'
+import { Button, Modal, ModalVariant, Text, TextContent, TextList, TextListItem } from '@patternfly/react-core'
 
 export interface MappingDeleteModalProps {
   modalShowState
@@ -42,9 +44,11 @@ export const MappingDetailsModal: React.FunctionComponent<MappingDeleteModalProp
               {Object.keys(version).map((key, index) => (
                 <TextListItem key={index}>
                   <em>
-                    <b>{key}</b>:{' '}
+                    <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
                   </em>
-                  {version[key]}
+                  <Text>
+                    <ReactMarkdown>{version[key].toString()}</ReactMarkdown>
+                  </Text>
                 </TextListItem>
               ))}
             </TextList>

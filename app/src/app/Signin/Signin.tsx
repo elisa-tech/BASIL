@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as Constants from '../Constants/constants'
 import logo from '@app/bgimages/basil.svg'
 import {
+  Bullseye,
   Form,
   FormGroup,
   TextInput,
@@ -24,7 +25,8 @@ import {
   Flex,
   FlexItem,
   Text,
-  TextVariants
+  TextVariants,
+  Title
 } from '@patternfly/react-core'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { useAuth } from '@app/User/AuthProvider'
@@ -144,104 +146,106 @@ const Signin: React.FunctionComponent = () => {
 
   return (
     <PageGroup stickyOnBreakpoint={{ default: 'top' }} hasShadowBottom>
-      <PageSection variant={PageSectionVariants.light}>
-        <Panel>
-          <PanelHeader>
-            <Text component={TextVariants.h1}>Sign In</Text>
-            {alertMessage !== '' && (
-              <FormHelperText>
-                <HelperText>
-                  <HelperTextItem variant='error'>{alertMessage}</HelperTextItem>
-                </HelperText>
-              </FormHelperText>
-            )}
-          </PanelHeader>
-          <Divider />
-          <PanelMain>
-            <PanelMainBody>
-              <Flex>
-                <FlexItem align={{ default: 'alignLeft' }}>
-                  <Form isWidthLimited>
-                    <FormGroup label='Email' isRequired fieldId='signin-form-email-01'>
-                      <TextInput
-                        isRequired
-                        type='email'
-                        id='signin-form-email-01'
-                        name='signin-form-email-01'
-                        value={email}
-                        onChange={handleEmailChange}
-                      />
-                      {validateEmailValue !== 'success' && (
-                        <FormHelperText>
-                          <HelperText>
-                            <HelperTextItem variant='error'>
-                              {validateEmailValue === 'error' ? 'This field is mandatory' : ''}
-                            </HelperTextItem>
-                          </HelperText>
-                        </FormHelperText>
-                      )}
-                    </FormGroup>
-                    <FormGroup label='Password' isRequired fieldId='signin-form-password-02'>
-                      <TextInput
-                        isRequired
-                        type='password'
-                        id='signin-form-password-02'
-                        name='signin-form-password-02'
-                        value={password}
-                        onChange={handlePasswordChange}
-                      />
-                      {validatePasswordValue !== 'success' && (
-                        <FormHelperText>
-                          <HelperText>
-                            <HelperTextItem variant='error'>
-                              {validatePasswordValue === 'error' ? 'This field is mandatory' : ''}
-                            </HelperTextItem>
-                          </HelperText>
-                        </FormHelperText>
-                      )}
-                    </FormGroup>
-                    <FormGroup label='Password Confirm' isRequired fieldId='signin-form-password-confirm-03'>
-                      <TextInput
-                        isRequired
-                        type='password'
-                        id='signin-form-password-confirm-03'
-                        name='signin-form-password-confirm-03'
-                        value={passwordConfirm}
-                        onChange={handlePasswordConfirmChange}
-                      />
-                      {validatePasswordConfirmValue !== 'success' && (
-                        <FormHelperText>
-                          <HelperText>
-                            <HelperTextItem variant='error'>
-                              {validatePasswordConfirmValue === 'error' ? 'This field is mandatory' : ''}
-                            </HelperTextItem>
-                          </HelperText>
-                        </FormHelperText>
-                      )}
-                      {validatePasswordValues !== 'success' && (
-                        <FormHelperText>
-                          <HelperText>
-                            <HelperTextItem variant='error'>
-                              {validatePasswordValues === 'error' ? 'Passwords are not the same. Please check.' : ''}
-                            </HelperTextItem>
-                          </HelperText>
-                        </FormHelperText>
-                      )}
-                    </FormGroup>
-                    <ActionGroup>
-                      <Button variant='primary' onClick={() => formSubmit()}>
-                        Submit
-                      </Button>
-                      <Button onClick={() => resetForm()} variant='secondary'>
-                        Reset
-                      </Button>
-                    </ActionGroup>
-                  </Form>
-                </FlexItem>
-              </Flex>
-            </PanelMainBody>
-          </PanelMain>
-        </Panel>
+      <PageSection variant={PageSectionVariants.dark}>
+        <Bullseye>
+          <Panel variant='raised'>
+            <PanelHeader>
+              <Title headingLevel='h1'>Sign In</Title>
+              {alertMessage !== '' && (
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem variant='warning'>{alertMessage}</HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              )}
+            </PanelHeader>
+            <Divider />
+            <PanelMain>
+              <PanelMainBody>
+                <Flex>
+                  <FlexItem align={{ default: 'alignLeft' }}>
+                    <Form isHorizontal>
+                      <FormGroup label='Email' isRequired fieldId='signin-form-email-01'>
+                        <TextInput
+                          isRequired
+                          type='email'
+                          id='signin-form-email-01'
+                          name='signin-form-email-01'
+                          value={email}
+                          onChange={handleEmailChange}
+                        />
+                        {validateEmailValue !== 'success' && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant='warning'>
+                                {validateEmailValue === 'error' ? 'This field is mandatory' : ''}
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                      </FormGroup>
+                      <FormGroup label='Password' isRequired fieldId='signin-form-password-02'>
+                        <TextInput
+                          isRequired
+                          type='password'
+                          id='signin-form-password-02'
+                          name='signin-form-password-02'
+                          value={password}
+                          onChange={handlePasswordChange}
+                        />
+                        {validatePasswordValue !== 'success' && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant='warning'>
+                                {validatePasswordValue === 'error' ? 'This field is mandatory' : ''}
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                      </FormGroup>
+                      <FormGroup label='Password Confirm' isRequired fieldId='signin-form-password-confirm-03'>
+                        <TextInput
+                          isRequired
+                          type='password'
+                          id='signin-form-password-confirm-03'
+                          name='signin-form-password-confirm-03'
+                          value={passwordConfirm}
+                          onChange={handlePasswordConfirmChange}
+                        />
+                        {validatePasswordConfirmValue !== 'success' && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant='warning'>
+                                {validatePasswordConfirmValue === 'error' ? 'This field is mandatory' : ''}
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                        {validatePasswordValues !== 'success' && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant='warning'>
+                                {validatePasswordValues === 'error' ? 'Passwords are not the same. Please check.' : ''}
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                      </FormGroup>
+                      <ActionGroup>
+                        <Button variant='primary' onClick={() => formSubmit()}>
+                          Submit
+                        </Button>
+                        <Button onClick={() => resetForm()} variant='secondary'>
+                          Reset
+                        </Button>
+                      </ActionGroup>
+                    </Form>
+                  </FlexItem>
+                </Flex>
+              </PanelMainBody>
+            </PanelMain>
+          </Panel>
+        </Bullseye>
       </PageSection>
     </PageGroup>
   )

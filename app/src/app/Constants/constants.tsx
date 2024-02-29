@@ -20,3 +20,18 @@ export const _TS_ = 'test_specification'
 export const _TSs_ = 'test_specifications'
 
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'
+
+export const status_options = [
+  { value: 'NEW', label: 'New', disabled: false },
+  { value: 'IN PROGRESS', label: 'in Progress', disabled: false },
+  { value: 'IN REVIEW', label: 'in Review', disabled: false },
+  { value: 'REJECTED', label: 'Rejected', disabled: false },
+  { value: 'REWORK', label: 'Rework', disabled: false },
+  { value: 'APPROVED', label: 'Approved', disabled: false }
+]
+
+export const capitalizeFirstWithoutHashes = (_string: string) => {
+  let tmp = _string.replaceAll('-', ' ')
+  tmp = tmp.replaceAll('_', ' ')
+  return tmp.charAt(0).toUpperCase() + tmp.slice(1)
+}

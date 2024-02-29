@@ -1,7 +1,8 @@
 import React from 'react'
+import ReactMarkdown from 'react-markdown'
 import * as Constants from '../../Constants/constants'
 import { Button, Modal, ModalVariant } from '@patternfly/react-core'
-import { TextContent, TextList, TextListItem } from '@patternfly/react-core'
+import { Text, TextContent, TextList, TextListItem } from '@patternfly/react-core'
 import { Panel, PanelMain, PanelMainBody } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { CommentForm } from '../Form/CommentForm'
@@ -102,7 +103,9 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
         </em>
         <span className='date-text'> on {comment['created_at']}</span>
         <br />
-        {comment['comment']}
+        <Text>
+          <ReactMarkdown>{comment['comment'].toString()}</ReactMarkdown>
+        </Text>
       </TextListItem>
     ))
   }

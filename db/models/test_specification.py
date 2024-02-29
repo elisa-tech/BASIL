@@ -26,6 +26,7 @@ class TestSpecificationModel(Base):
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestSpecificationModel.edited_by_id")
+    status: Mapped[str] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -38,6 +39,7 @@ class TestSpecificationModel(Base):
         self.created_by_id = created_by.id
         self.edited_by = created_by
         self.edited_by_id = created_by.id
+        self.status = Base.STATUS_NEW
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -47,6 +49,7 @@ class TestSpecificationModel(Base):
                f"preconditions={self.preconditions!r}, " \
                f"test_description={self.test_description!r}, " \
                f"expected_behavior={self.expected_behavior!r}), " \
+               f"status={self.status!r}), " \
                f"created_by={self.created_by.email!r}"
 
     def current_version(self, db_session):
@@ -61,6 +64,7 @@ class TestSpecificationModel(Base):
                  "preconditions": self.preconditions,
                  "test_description": self.test_description,
                  "expected_behavior": self.expected_behavior,
+                 "status": self.status,
                  'created_by': self.created_by.email,
                  }
 
@@ -91,6 +95,7 @@ def receive_after_update(mapper, connection, target):
             expected_behavior=target.expected_behavior,
             created_by_id=target.created_by_id,
             edited_by_id=target.edited_by_id,
+            status=target.status,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -106,6 +111,7 @@ def receive_after_insert(mapper, connection, target):
         expected_behavior=target.expected_behavior,
         created_by_id=target.created_by_id,
         edited_by_id=target.edited_by_id,
+        status=target.status,
         version=1
     )
     connection.execute(insert_query)
@@ -128,11 +134,13 @@ class TestSpecificationHistoryModel(Base):
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestSpecificationHistoryModel.edited_by_id")
+    status: Mapped[str] = mapped_column(String(30))
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     def __init__(self, id, title, preconditions, test_description,
-                 expected_behavior, created_by_id, edited_by_id, version):
+                 expected_behavior, created_by_id, edited_by_id,
+                 status, version):
         self.id = id
         self.title = title
         self.preconditions = preconditions
@@ -140,6 +148,7 @@ class TestSpecificationHistoryModel(Base):
         self.expected_behavior = expected_behavior
         self.created_by_id = created_by_id
         self.edited_by_id = edited_by_id
+        self.status = status
         self.version = version
         self.created_at = datetime.now()
 
@@ -151,4 +160,5 @@ class TestSpecificationHistoryModel(Base):
                f"test_description={self.test_description!r}, " \
                f"expected_behavior={self.expected_behavior!r}), " \
                f"created_by={self.created_by.email!r}, " \
+               f"status={self.status!r}, " \
                f"version={self.version!r}"

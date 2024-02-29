@@ -25,6 +25,7 @@ class TestCaseModel(Base):
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestCaseModel.edited_by_id")
+    status: Mapped[str] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -37,6 +38,7 @@ class TestCaseModel(Base):
         self.created_by_id = created_by.id
         self.edited_by = created_by
         self.edited_by_id = created_by.id
+        self.status = Base.STATUS_NEW
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -46,6 +48,7 @@ class TestCaseModel(Base):
                f"relative_path={self.relative_path!r}," \
                f"title={self.title!r}, " \
                f"description={self.description!r}), " \
+               f"status={self.status!r}), " \
                f"created_by={self.created_by.email!r}"
 
     def current_version(self, db_session):
@@ -60,6 +63,7 @@ class TestCaseModel(Base):
                  "relative_path": self.relative_path,
                  "title": self.title,
                  "description": self.description,
+                 "status": self.status,
                  'created_by': self.created_by.email,
                  }
 
@@ -90,6 +94,7 @@ def receive_after_update(mapper, connection, target):
             description=target.description,
             created_by_id=target.created_by_id,
             edited_by_id=target.edited_by_id,
+            status=target.status,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -105,6 +110,7 @@ def receive_after_insert(mapper, connection, target):
         description=target.description,
         created_by_id=target.created_by_id,
         edited_by_id=target.edited_by_id,
+        status=target.status,
         version=1
     )
     connection.execute(insert_query)
@@ -127,18 +133,21 @@ class TestCaseHistoryModel(Base):
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestCaseHistoryModel.edited_by_id")
+    status: Mapped[str] = mapped_column(String(30))
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     def __init__(self, id, repository, relative_path, title, description,
-                 created_by_id, edited_by_id, version):
+                 created_by_id, edited_by_id, status, version):
         self.id = id
         self.repository = repository
         self.relative_path = relative_path
         self.title = title
         self.description = description
+        self.status
         self.created_by_id = created_by_id
         self.edited_by_id = edited_by_id
+        self.status = status
         self.version = version
         self.created_at = datetime.now()
 
@@ -150,4 +159,5 @@ class TestCaseHistoryModel(Base):
                f"title={self.title!r}, " \
                f"description={self.description!r}), " \
                f"created_by={self.created_by.email!r}, " \
+               f"status={self.status!r}, " \
                f"version = {self.version!r},"

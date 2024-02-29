@@ -6,6 +6,8 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Hint,
@@ -66,6 +68,8 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '0')
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+
+  const [testCaseStatusValue, setTestCaseStatusValue] = React.useState(formData.status)
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
@@ -159,6 +163,10 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     setCoverageValue(value)
   }
 
+  const handleTestCaseStatusChange = (_event, value: string) => {
+    setTestCaseStatusValue(value)
+  }
+
   const handleSubmit = () => {
     if (validatedTitleValue != 'success') {
       setMessageValue('Test Case Title is mandatory.')
@@ -212,6 +220,10 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       }
     }
 
+    if (formVerb == 'PUT') {
+      data[Constants._TC]['status'] = testCaseStatusValue
+    }
+
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-cases', {
       method: formVerb,
       headers: {
@@ -238,6 +250,23 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
   return (
     <Form>
+      {formAction == 'edit' ? (
+        <FormGroup label='Status' isRequired fieldId={`input-test-case-${formAction}-status-${formData.id}`}>
+          <FormSelect
+            value={testCaseStatusValue}
+            id={`input-test-case-${formAction}-status-${formData.id}`}
+            onChange={handleTestCaseStatusChange}
+            aria-label='Test Case Status Input'
+          >
+            {Constants.status_options.map((option, index) => (
+              <FormSelectOption isDisabled={option.disabled} key={index} value={option.value} label={option.label} />
+            ))}
+          </FormSelect>
+        </FormGroup>
+      ) : (
+        ''
+      )}
+
       <FormGroup label='Test Case Title' isRequired fieldId={`input-test-case-${formAction}-title-${formData.id}`}>
         <TextInput
           isRequired

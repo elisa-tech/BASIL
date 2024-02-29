@@ -18,6 +18,7 @@ import {
   TextContent,
   TextVariants
 } from '@patternfly/react-core'
+import ReactMarkdown from 'react-markdown'
 import { MappingSectionMenuKebab } from './Menu/MappingSectionMenuKebab'
 import { SwRequirementMenuKebab } from './Menu/SwRequirementMenuKebab'
 import { TestSpecificationMenuKebab } from './Menu/TestSpecificationMenuKebab'
@@ -98,6 +99,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   const getLimitedText = (_text, _length) => {
     if (_text == undefined) {
       return ''
+    }
+    if (_length == 0) {
+      return _text
     }
     let tmp = _text.substr(0, _length)
     if (_text.length > _length) {
@@ -201,6 +205,31 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     }
   }
 
+  const getStatusLabel = (status) => {
+    let label_color = 'orange'
+    let status_lc = status.toString().toLowerCase()
+
+    if (status_lc == 'new') {
+      label_color = 'grey'
+    } else if (status_lc == 'approved') {
+      label_color = 'green'
+    } else if (status_lc == 'rejected') {
+      label_color = 'red'
+    } else {
+      label_color = 'orange'
+    }
+
+    return (
+      <React.Fragment>
+        <FlexItem>
+          <Label color={label_color} name='label-status' isCompact>
+            {status.toLowerCase()}
+          </Label>
+        </FlexItem>
+      </React.Fragment>
+    )
+  }
+
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {
     if (indirect == false) {
       if (mappingViewSelectValue != 'test-cases') {
@@ -232,6 +261,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <Text component={TextVariants.h6}>ver. {test_case['version']}</Text>
                 </FlexItem>
+                {getStatusLabel(test_case[Constants._TC_]['status'])}
                 <FlexItem>
                   <Label variant='outline' isCompact>
                     {coverageFormat(test_case['coverage'])}% Coverage
@@ -275,9 +305,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(test_case[Constants._TC_]['title'], 100)}</Text>
-                    <Text component={TextVariants.p} className='work-item-detail-text'>
-                      {getLimitedText(test_case[Constants._TC_]['description'], 200)}
+                    <Text component={TextVariants.h5}>{getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -321,6 +351,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <Text component={TextVariants.h6}>ver. {test_spec['version']}</Text>
                 </FlexItem>
+                {getStatusLabel(test_spec[Constants._TS_]['status'])}
                 <FlexItem>
                   <Label variant='outline' isCompact>
                     {coverageFormat(test_spec['coverage'])}% Coverage
@@ -378,9 +409,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(test_spec[Constants._TS_]['title'], 100)}</Text>
-                    <Text component={TextVariants.p} className='work-item-detail-text'>
-                      {getLimitedText(test_spec[Constants._TS_]['test_description'], 200)}
+                    <Text component={TextVariants.h5}>{getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -420,6 +451,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
                 </FlexItem>
+                {getStatusLabel(mappedItem[Constants._SR_]['status'])}
                 <FlexItem>
                   <Label name='label-sw-requirement-coverage' variant='outline' isCompact>
                     {coverageFormat(mappedItem['coverage'])}% Coverage
@@ -478,9 +510,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(mappedItem[Constants._SR_]['title'], 100)}</Text>
-                    <Text component={TextVariants.p} className='work-item-detail-text'>
-                      {getLimitedText(mappedItem[Constants._SR_]['description'], 200)}
+                    <Text component={TextVariants.h5}>{getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -519,6 +551,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
                 </FlexItem>
+                {getStatusLabel(mappedItem[Constants._J]['status'])}
                 <Label variant='outline' isCompact>
                   {coverageFormat(mappedItem['coverage'])}% Coverage
                 </Label>
@@ -553,8 +586,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5} className='work-item-detail-text'>
-                      {getLimitedText(mappedItem[Constants._J]['description'], 100)}
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -633,7 +666,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             <Flex>
               <FlexItem>
                 <TextContent>
-                  <Text component={TextVariants.h5}>{getLimitedText(work_item_description, 100)}</Text>
+                  <Text component={TextVariants.h5}>
+                    <ReactMarkdown>{getLimitedText(work_item_description, 0)}</ReactMarkdown>
+                  </Text>
                 </TextContent>
               </FlexItem>
             </Flex>

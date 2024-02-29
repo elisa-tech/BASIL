@@ -1,6 +1,6 @@
 [project]
 name = "BASIL"
-version = "1.1.0"
+version = "1.1.1"
 description = "A web based application to support Quality Departments in Funtional Safety related tasks."
 authors = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"},

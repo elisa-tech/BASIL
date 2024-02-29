@@ -1,7 +1,7 @@
 import React from 'react'
 import * as Constants from '../../Constants/constants'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface MappingDeleteModalProps {
   api

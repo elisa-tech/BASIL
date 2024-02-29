@@ -3,7 +3,7 @@ import { Button, Divider, Hint, HintBody, Modal, ModalVariant, Text, TextContent
 import * as Constants from '../../Constants/constants'
 import CopyIcon from '@patternfly/react-icons/dist/esm/icons/copy-icon'
 import { decode as base64_decode, encode as base64_encode } from 'base-64'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface AdminModalProps {
   modalShowState

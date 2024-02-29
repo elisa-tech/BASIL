@@ -5,7 +5,7 @@ import { Card, CardBody, Flex, FlexItem, ListItem, ListVariant, PageSection, Tit
 import { AdminListingTable } from './AdminListingTable'
 import { Redirect, useHistory, useLocation } from 'react-router-dom'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 const Admin: React.FunctionComponent = () => {
   const location = useLocation()

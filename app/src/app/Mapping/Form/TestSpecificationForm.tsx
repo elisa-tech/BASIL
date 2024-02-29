@@ -15,7 +15,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface TestSpecificationFormProps {
   api
@@ -352,11 +352,14 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       </FormGroup>
 
       {messageValue ? (
-        <Hint>
-          <HintBody>{messageValue}</HintBody>
-        </Hint>
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
       ) : (
-        <span></span>
+        ''
       )}
 
       {formDefaultButtons ? (

@@ -5,7 +5,7 @@ import { Button, Checkbox, Flex, FlexItem, Text, TextContent, TextList, TextList
 import { AdminMenuKebab } from './Menu/AdminMenuKebab'
 import { AdminModal } from './Modal/AdminModal'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 export interface AdminListingTableProps {
   users

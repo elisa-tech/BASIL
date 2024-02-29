@@ -21,7 +21,7 @@ import BellIcon from '@patternfly/react-icons/dist/esm/icons/bell-icon'
 import QuestionCircleIcon from '@patternfly/react-icons/dist/esm/icons/question-circle-icon'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import imgAvatar from '../bgimages/avatarImg.svg'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 import { Redirect, useLocation } from 'react-router-dom'
 
 export interface HeaderToolbarProps {

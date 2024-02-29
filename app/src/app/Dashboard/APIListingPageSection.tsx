@@ -14,13 +14,13 @@ import {
   ToolbarContent,
   ToolbarItem
 } from '@patternfly/react-core'
-import { APIListingTable } from '@app/Dashboard/APIListingTable'
+import { APIListingTable } from './APIListingTable'
 import { APIModal } from './Modal/APIModal'
 import { APICheckSpecModal } from './Modal/APICheckSpecModal'
 import { APIDeleteModal } from './Modal/APIDeleteModal'
 import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
 import { APIManageUserPermissionsModal } from './Modal/APIManageUserPermissionsModal'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 export interface APIListingPageSectionProps {
   currentLibrary: string

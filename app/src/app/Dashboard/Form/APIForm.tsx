@@ -12,7 +12,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import * as Constants from '../../Constants/constants'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface APIFormProps {
   formDefaultButtons?: number

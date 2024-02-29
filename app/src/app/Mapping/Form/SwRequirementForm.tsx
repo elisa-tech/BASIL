@@ -15,7 +15,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface SwRequirementFormProps {
   api
@@ -285,11 +285,14 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       </FormGroup>
 
       {messageValue ? (
-        <Hint>
-          <HintBody>{messageValue}</HintBody>
-        </Hint>
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
       ) : (
-        <span></span>
+        ''
       )}
 
       {formDefaultButtons ? (

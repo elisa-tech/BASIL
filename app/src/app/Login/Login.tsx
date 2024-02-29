@@ -12,7 +12,7 @@ import {
 } from '@patternfly/react-core'
 import { Redirect, useHistory, useLocation } from 'react-router-dom'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../User/AuthProvider'
 
 const Login: React.FunctionComponent = () => {
   const location = useLocation()

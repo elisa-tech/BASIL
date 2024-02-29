@@ -12,6 +12,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface JustificationSearchProps {
   api
@@ -40,6 +41,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
   loadJustifications,
   loadMappingData
 }: JustificationSearchProps) => {
+  let auth = useAuth()
   const [searchValue, setSearchValue] = React.useState(formData?.title || '')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
@@ -145,7 +147,9 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
       justification: { id: justification_id },
       section: modalSection,
       offset: modalOffset,
-      coverage: coverageValue
+      coverage: coverageValue,
+      'user-id': auth.userId,
+      token: auth.token
     }
 
     if (formVerb == 'PUT' || formVerb == 'DELETE') {
@@ -222,9 +226,12 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
       <br />
 
       {messageValue ? (
-        <Hint>
-          <HintBody>{messageValue}</HintBody>
-        </Hint>
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
       ) : (
         ''
       )}

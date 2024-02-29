@@ -13,7 +13,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
-import { useAuth } from '@app/User/AuthProvider'
+import { useAuth } from '../../User/AuthProvider'
 
 export interface CommentFormProps {
   relationData
@@ -155,11 +155,14 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       </FormGroup>
 
       {messageValue ? (
-        <Hint>
-          <HintBody>{messageValue}</HintBody>
-        </Hint>
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
       ) : (
-        <span></span>
+        ''
       )}
 
       <ActionGroup>

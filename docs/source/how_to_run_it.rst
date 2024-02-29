@@ -151,7 +151,7 @@ Before building your container, if you need to access BASIL from a machine diffe
 
 You can build the API project using the Dockerfile-api with the following command
 
-``docker build --build-arg BASIL_ADMIN_PASSWORD=your-desired-password --build-arg BASIL_HOSTNAME=basil.server.com --build-arg BASIL_API_PORT=1234 -f Dockerfile-api -t basil-api-image .``
+``docker build --build-arg ADMIN_PASSWORD=your-desired-password --build-arg BASIL_HOSTNAME=basil.server.com --build-arg BASIL_API_PORT=1234 -f Dockerfile-api -t basil-api-image .``
 
 At the same way you can build the APP project using Dockerfile-app
 

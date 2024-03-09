@@ -26,7 +26,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   relationData,
   loadMappingData
 }: MappingForkModalProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [messageValue, setMessageValue] = React.useState('')
 

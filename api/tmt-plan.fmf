@@ -1,0 +1,30 @@
+summary: general purpose tmt plan to run test from BASIL user interface
+
+environment:
+  basil_test_case_id: ""
+  basil_test_case_mapping_table: ""
+  basil_test_case_mapping_id: ""
+  basil_test_relative_path: ""
+  basil_test_repo_path: ""
+  basil_test_repo_url: ""
+  basil_test_repo_ref: ""
+  basil_test_run_id: ""
+  basil_user_email: ""
+
+discover: []
+
+adjust:
+  - discover+:
+    - name: General purpose discover
+      how: fmf
+      url: $basil_test_repo_url
+      ref: $basil_test_repo_ref
+      test:
+        - $basil_test_relative_path
+    
+execute:
+  how: tmt
+
+report:
+  - how: html
+    name: html-report

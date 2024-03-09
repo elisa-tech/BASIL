@@ -52,7 +52,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
   parentRelatedToType,
   parentType
 }: SwRequirementFormProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
 
   const [titleValue, setTitleValue] = React.useState(formData.title)
   const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')

@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:5000'
+export const API_BASE_URL = 'http://localhost:5005'
 
 export const force_reload = true
 
@@ -30,8 +30,25 @@ export const status_options = [
   { value: 'APPROVED', label: 'Approved', disabled: false }
 ]
 
+export const provision_type = [
+  { value: '', label: '', disabled: false },
+  { value: 'container', label: 'Fedora Container', disabled: false },
+  { value: 'connect', label: 'SSH', disabled: false }
+]
+
 export const capitalizeFirstWithoutHashes = (_string: string) => {
   let tmp = _string.split('-').join(' ')
   tmp = tmp.split('_').join(' ')
   return tmp.charAt(0).toUpperCase() + tmp.slice(1)
+}
+
+export const logObject = (obj) => {
+  let i
+  let k
+  console.log('<----------------------------')
+  for (i = 0; i < Object.keys(obj).length; i++) {
+    k = Object.keys(obj)[i]
+    console.log(k + ' : ' + obj[k])
+  }
+  console.log('---------------------------->')
 }

@@ -1,20 +1,17 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import logo from '@app/bgimages/basil.svg'
 import {
-  Bullseye,
-  Form,
-  FormGroup,
-  TextInput,
-  Checkbox,
-  Popover,
   ActionGroup,
+  Bullseye,
   Button,
   Divider,
-  Radio,
+  Flex,
+  FlexItem,
+  Form,
+  FormGroup,
+  FormHelperText,
   HelperText,
   HelperTextItem,
-  FormHelperText,
   PageGroup,
   PageSection,
   PageSectionVariants,
@@ -22,17 +19,13 @@ import {
   PanelHeader,
   PanelMain,
   PanelMainBody,
-  Flex,
-  FlexItem,
-  Text,
-  TextVariants,
+  TextInput,
   Title
 } from '@patternfly/react-core'
-import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { useAuth } from '../User/AuthProvider'
 
 const Signin: React.FunctionComponent = () => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [alertMessage, setAlertMessage] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
@@ -81,6 +74,7 @@ const Signin: React.FunctionComponent = () => {
       setValidatePassworValue('success')
       comparePasswords()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [password])
 
   React.useEffect(() => {
@@ -90,6 +84,7 @@ const Signin: React.FunctionComponent = () => {
       setValidatePasswordConfirmValue('success')
       comparePasswords()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passwordConfirm])
 
   const resetForm = () => {
@@ -120,7 +115,7 @@ const Signin: React.FunctionComponent = () => {
       setAlertMessage('')
     }
 
-    let data = { email: email, password: password }
+    const data = { email: email, password: password }
 
     fetch(Constants.API_BASE_URL + '/user/signin', {
       method: 'POST',

@@ -45,7 +45,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   setModalManageUserPermissionsInfo,
   apis
 }: APIListingTableProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [expandedRepoNames, setExpandedRepoNames] = React.useState<string[]>([])
   const setRepoExpanded = (repo: DataObject, isExpanding = true) =>
     setExpandedRepoNames((prevExpanded) => {

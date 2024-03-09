@@ -34,8 +34,9 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   }
 
   const getSection = () => {
-    let currentSelection = getSelection()?.toString() as string | ''
+    const currentSelection = getSelection()?.toString() as string | ''
     if (currentSelection != '') {
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == 'snippet-' + sectionIndex) {
         return currentSelection
       } else {
@@ -47,9 +48,11 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   }
 
   const getOffset = () => {
-    let currentSelection = getSelection()?.toString() as string | ''
+    const currentSelection = getSelection()?.toString() as string | ''
     if (currentSelection != '') {
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == 'snippet-' + sectionIndex) {
+        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
         return offset + Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset)
       } else {
         return offset

@@ -1,0 +1,5 @@
+summary: Dummy failing test
+description: Dummy failing test to be used locally
+test: echo "dummy test start" && sleep 100 && echo "dummy test end" && exit 1
+framework: shell
+duration: 1m

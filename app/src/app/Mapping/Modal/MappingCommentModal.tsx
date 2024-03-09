@@ -8,31 +8,28 @@ import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { CommentForm } from '../Form/CommentForm'
 
 export interface MappingCommentModalProps {
-  api
   modalDescription
   modalTitle
   relationData
   workItemType
   parentType
-  parentRelatedToType
   setModalShowState
   modalShowState: boolean
   loadMappingData
 }
 
 export const MappingCommentModal: React.FunctionComponent<MappingCommentModalProps> = ({
-  api,
   modalDescription,
   modalTitle,
   relationData,
   workItemType,
   parentType,
-  parentRelatedToType,
   setModalShowState,
   modalShowState = false,
   loadMappingData
 }: MappingCommentModalProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [comments, setComments] = React.useState<any[]>([])
 
   const handleModalToggle = () => {

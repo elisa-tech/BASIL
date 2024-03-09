@@ -49,7 +49,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
   loadTestSpecifications,
   testSpecifications
 }: TestSpecificationSearchProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [searchValue, setSearchValue] = React.useState(formData.title)
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')

@@ -52,7 +52,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
   parentRelatedToType,
   parentType
 }: TestCaseFormProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
 
   const [titleValue, setTitleValue] = React.useState(formData.title)
   const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')

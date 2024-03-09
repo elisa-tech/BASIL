@@ -56,12 +56,15 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
   }, [offsetValue])
 
   const handleSectionValueChange = () => {
-    let currentSelection = getSelection()?.toString() as string | ''
+    const currentSelection = getSelection()?.toString() as string | ''
     if (currentSelection != '') {
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == 'input-raw-specification') {
         setModalSection(currentSelection)
+        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
         setModalOffset(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset))
         setSectionValue(currentSelection)
+        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
         setOffsetValue(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset))
       }
     }
@@ -93,7 +96,7 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
           id={`input-justification-section`}
           name={`input-justification-section`}
           value={sectionValue || ''}
-          onChange={(_ev, value) => handleSectionValueChange()}
+          onChange={() => handleSectionValueChange()}
         />
         {validatedSectionValue !== 'success' && (
           <FormHelperText>

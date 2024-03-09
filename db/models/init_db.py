@@ -16,6 +16,7 @@ from db.models.comment import CommentModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
 from db.models.note import NoteModel
 from db.models.notification import NotificationModel
+from db.models.ssh_key import SshKeyModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementHistoryModel
 from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
@@ -24,6 +25,8 @@ from db.models.sw_requirement_test_specification import SwRequirementTestSpecifi
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationHistoryModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
+from db.models.test_run_config import TestRunConfigModel
+from db.models.test_run import TestRunModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel

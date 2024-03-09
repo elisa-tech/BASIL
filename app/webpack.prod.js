@@ -11,6 +11,9 @@ module.exports = merge(common('production'), {
   mode: 'production',
   devtool: 'source-map',
   optimization: {
+    splitChunks: {
+      chunks: 'all'
+    },
     minimizer: [
       new TerserJSPlugin({}),
       new CssMinimizerPlugin({

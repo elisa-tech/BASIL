@@ -1,0 +1,5 @@
+summary: Dummy test
+description: Dummy test to be used locally
+test: echo "dummy test start" && sleep 100 && echo "dummy test end" 
+framework: shell
+duration: 1m

@@ -4,9 +4,7 @@ import {
   BadgeCountObject,
   Button,
   ButtonVariant,
-  Divider,
   Dropdown,
-  DropdownGroup,
   DropdownItem,
   DropdownList,
   MenuToggle,
@@ -16,13 +14,10 @@ import {
   ToolbarGroup,
   ToolbarItem
 } from '@patternfly/react-core'
-import HelpIcon from '@patternfly/react-icons/dist/esm/icons/help-icon'
 import BellIcon from '@patternfly/react-icons/dist/esm/icons/bell-icon'
 import QuestionCircleIcon from '@patternfly/react-icons/dist/esm/icons/question-circle-icon'
-import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import imgAvatar from '../bgimages/avatarImg.svg'
 import { useAuth } from '../User/AuthProvider'
-import { Redirect, useLocation } from 'react-router-dom'
 
 export interface HeaderToolbarProps {
   notificationCount: number
@@ -35,11 +30,10 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   notificationDrawerExpanded,
   setNotificationDrawerExpanded
 }: HeaderToolbarProps) => {
-  let auth = useAuth()
-  let location = useLocation()
+  const auth = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
-  const [isKebabDropdownOpen, setIsKebabDropdownOpen] = React.useState(false)
-  const [isFullKebabDropdownOpen, setIsFullKebabDropdownOpen] = React.useState(false)
+  //const [isKebabDropdownOpen, setIsKebabDropdownOpen] = React.useState(false)
+  //const [isFullKebabDropdownOpen, setIsFullKebabDropdownOpen] = React.useState(false)
 
   const badgeCountObjectNotRead: BadgeCountObject = {
     isRead: false,
@@ -59,6 +53,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
     setIsDropdownOpen(false)
   }
 
+  /*
   const onKebabDropdownToggle = () => {
     setIsKebabDropdownOpen(!isKebabDropdownOpen)
   }
@@ -74,9 +69,15 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   const onFullKebabDropdownSelect = () => {
     setIsFullKebabDropdownOpen(false)
   }
+  */
 
   const adminDropdownItems = (
     <>
+      <DropdownItem key='admin ssh keys'>
+        <Button component='a' href='/ssh-keys' variant='link'>
+          SSH Keys
+        </Button>
+      </DropdownItem>
       <DropdownItem key='admin user management'>
         <Button component='a' href='/admin' variant='link'>
           User Management
@@ -107,7 +108,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const userDropdownItems = (
     <>
-      <DropdownItem key='user profile'>My profile</DropdownItem>
+      <DropdownItem key='user ssh keys'>
+        <Button component='a' href='/ssh-keys' variant='link'>
+          SSH Keys
+        </Button>
+      </DropdownItem>
       <DropdownItem key='user logout'>
         <Button component='a' onClick={() => auth.logOut()} variant='link'>
           Logout

@@ -12,6 +12,8 @@ import { MappingForkModal } from './Modal/MappingForkModal'
 import { MappingHistoryModal } from './Modal/MappingHistoryModal'
 import { MappingUsageModal } from './Modal/MappingUsageModal'
 import { MappingCommentModal } from './Modal/MappingCommentModal'
+import { TestResultModal } from './Modal/TestResultModal'
+import { TestRunModal } from './Modal/TestRunModal'
 import { Switch } from '@patternfly/react-core'
 import { MappingViewSelect } from './MappingViewSelect'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
@@ -37,6 +39,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 }: MappingPageSectionProps) => {
   const [modalAction, setModalAction] = React.useState('')
   const [modalVerb, setModalVerb] = React.useState('')
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [modalFormData, setModalFormData] = React.useState<any>('')
   const [modalTitle, setModalTitle] = React.useState('')
   const [modalIndirect, setModalIndirect] = React.useState<boolean>(false)
@@ -58,6 +61,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [forkModalShowState, setForkModalShowState] = React.useState<boolean>(false)
   const [usageModalShowState, setUsageModalShowState] = React.useState<boolean>(false)
   const [commentModalShowState, setCommentModalShowState] = React.useState<boolean>(false)
+  const [testResultModalShowState, setTestResultModalShowState] = React.useState<boolean>(false)
+  const [testRunModalShowState, setTestRunModalShowState] = React.useState<boolean>(false)
+
   const [currentMappingHistory, setCurrentMappingHistory] = React.useState()
   const [currentMappingDetails, setCurrentMappingDetails] = React.useState()
   const [currentMappingUsage, setCurrentMappingUsage] = React.useState()
@@ -200,6 +206,18 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalWorkItemType(work_item_type)
     setModalParentType(parent_type)
     setModalParentRelatedToType(parent_related_to_type)
+  }
+
+  const setTestRunModalInfo = (show, api, work_item, parent_type) => {
+    setModalRelationData(work_item)
+    setTestRunModalShowState(show)
+    setModalParentType(parent_type)
+  }
+
+  const setTestResultModalInfo = (show, api, work_item, parent_type) => {
+    setModalRelationData(work_item)
+    setTestResultModalShowState(show)
+    setModalParentType(parent_type)
   }
 
   const setForkModalInfo = (show, work_item_type, parent_type, parent_related_to_type, list, index) => {
@@ -403,11 +421,15 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         api={api}
         srModalShowState={srModalShowState}
         //setSrModalShowState={setSrModalShowState}
-        tsModalShowState={tsModalShowState}
-        setTsModalShowState={setTsModalShowState}
-        tcModalShowState={tcModalShowState}
-        setTcModalShowState={setTcModalShowState}
-        jModalShowState={jModalShowState}
+        //tsModalShowState={tsModalShowState}
+        //setTsModalShowState={setTsModalShowState}
+        //tcModalShowState={tcModalShowState}
+        //setTcModalShowState={setTcModalShowState}
+        //jModalShowState={jModalShowState}
+        //testResultModalShowState={testResultModalShowState}
+        //setTestResultModalShowState={setTestResultModalShowState}
+        //testRunModalShowState={testRunModalShowState}
+        //setTestRunModalShowState={setTestRunModalShowState}
         //setJModalShowState={setJModalShowState}
         setTsModalInfo={setTsModalInfo}
         setTcModalInfo={setTcModalInfo}
@@ -415,6 +437,8 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         setJModalInfo={setJModalInfo}
         setCommentModalInfo={setCommentModalInfo}
         setDeleteModalInfo={setDeleteModalInfo}
+        setTestRunModalInfo={setTestRunModalInfo}
+        setTestResultModalInfo={setTestResultModalInfo}
         setDetailsModalInfo={setDetailsModalInfo}
         setForkModalInfo={setForkModalInfo}
         setHistoryModalInfo={setHistoryModalInfo}
@@ -523,13 +547,13 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         modalShowState={usageModalShowState}
       />
       <MappingCommentModal
-        api={api}
+        //api={api}
         modalDescription={modalDescription}
         modalTitle={modalTitle}
         relationData={modalRelationData}
         workItemType={modalWorkItemType}
         parentType={modalParentType}
-        parentRelatedToType={modalParentRelatedToType}
+        //parentRelatedToType={modalParentRelatedToType}
         setModalShowState={setCommentModalShowState}
         modalShowState={commentModalShowState}
         loadMappingData={loadMappingData}
@@ -557,6 +581,20 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         //parentRelatedToType={modalParentRelatedToType}
         relationData={modalRelationData}
         loadMappingData={loadMappingData}
+      />
+      <TestResultModal
+        api={api}
+        setModalShowState={setTestResultModalShowState}
+        modalShowState={testResultModalShowState}
+        modalRelationData={modalRelationData}
+        parentType={modalParentType}
+      />
+      <TestRunModal
+        api={api}
+        setModalShowState={setTestRunModalShowState}
+        modalShowState={testRunModalShowState}
+        modalRelationData={modalRelationData}
+        parentType={modalParentType}
       />
     </React.Fragment>
   )

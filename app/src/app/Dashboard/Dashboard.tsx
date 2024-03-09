@@ -5,7 +5,7 @@ import { APIListingPageSection } from './APIListingPageSection'
 import { useAuth } from '../User/AuthProvider'
 
 const Dashboard: React.FunctionComponent = () => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [activeTabKey, setActiveTabKey] = React.useState(0)
   const [searchValue, setSearchValue] = React.useState('')
   const [apis, setApis] = React.useState([])
@@ -147,15 +147,7 @@ const Dashboard: React.FunctionComponent = () => {
           </Tabs>
         </PageSection>
       </PageGroup>
-      <APIListingPageSection
-        currentLibrary={currentLibrary}
-        setCurrentLibrary={setCurrentLibrary}
-        loadLibraries={loadLibraries}
-        loadApi={loadApi}
-        apis={apis}
-        searchValue={searchValue}
-        totalCoverage={totalCoverage}
-      />
+      <APIListingPageSection currentLibrary={currentLibrary} apis={apis} totalCoverage={totalCoverage} />
     </React.Fragment>
   )
 }

@@ -1,19 +1,14 @@
 import * as React from 'react'
-import * as Constants from '../Constants/constants'
-import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { Button, Checkbox, Flex, FlexItem, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { Checkbox } from '@patternfly/react-core'
 import { AdminMenuKebab } from './Menu/AdminMenuKebab'
 import { AdminModal } from './Modal/AdminModal'
-import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
-import { useAuth } from '../User/AuthProvider'
 
 export interface AdminListingTableProps {
   users
 }
 
 const AdminListingTable: React.FunctionComponent<AdminListingTableProps> = ({ users }: AdminListingTableProps) => {
-  let auth = useAuth()
-
   const [modalShowState, setModalShowState] = React.useState(false)
   const [modalFormData, setModalFormData] = React.useState('')
 
@@ -26,7 +21,7 @@ const AdminListingTable: React.FunctionComponent<AdminListingTableProps> = ({ us
     if (users.length == 0) {
       return ''
     } else {
-      return users.map((user, rowIndex) => (
+      return users.map((user) => (
         <Tbody key={user.id}>
           <Tr>
             <Td dataLabel='enabled'>

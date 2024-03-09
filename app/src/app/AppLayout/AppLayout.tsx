@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
 import {
   Brand,
   Button,
@@ -11,14 +10,12 @@ import {
   Nav,
   NavExpandable,
   NavItem,
-  NavItemSeparator,
   NavList,
   Page,
   PageSidebar,
   PageSidebarBody,
   SkipToContent
 } from '@patternfly/react-core'
-import { IAppRoute, IAppRouteGroup, routes } from '@app/routes'
 import BarsIcon from '@patternfly/react-icons/dist/esm/icons/bars-icon'
 import { HeaderToolbar } from './HeaderToolbar'
 import { NotificationDrawerBasic } from '../Notification/Notification'
@@ -31,16 +28,17 @@ interface IAppLayout {
 }
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
   const [notificationDrawerExpanded, setNotificationDrawerExpanded] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification[]>([])
-  const [activeGroup, setActiveGroup] = React.useState('')
-  const [activeItem, setActiveItem] = React.useState('ungrouped_item-1')
+  //const [activeGroup, setActiveGroup] = React.useState('')
+  //const [activeItem, setActiveItem] = React.useState('ungrouped_item-1')
   const [libraries, setLibraries] = React.useState([])
   const [fetchNotificationCount, setFetchNotificationCount] = React.useState(0)
   const [fetchLibrariesCount, setFetchLibrariesCount] = React.useState(0)
 
+  /*
   const onNavigationSelect = (
     _event: React.FormEvent<HTMLInputElement>,
     result: { itemId: number | string; groupId: number | string | null }
@@ -48,6 +46,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     setActiveGroup(result.groupId as string)
     setActiveItem(result.itemId as string)
   }
+  */
 
   React.useEffect(() => {
     loadNotifications()
@@ -117,8 +116,6 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     </Masthead>
   )
 
-  const location = useLocation()
-
   const navigate = (url) => {
     window.open(url, '_blank', 'noreferrer')
   }
@@ -144,7 +141,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   }
 
   const Navigation = (
-    <Nav onSelect={onNavigationSelect} aria-label='Mixed global'>
+    <Nav aria-label='Mixed global'>
       <NavList>
         <NavItem
           preventDefault
@@ -197,6 +194,21 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
             isActive={false}
           >
             User Management
+          </NavItem>
+        ) : (
+          ''
+        )}
+
+        {auth.isLogged() && !auth.isGuest() ? (
+          <NavItem
+            preventDefault
+            id='nav-item-user-ssh-keys'
+            to='#nav-item-user-ssh-keys'
+            onClick={() => redirect('/ssh-keys')}
+            itemId='ungrouped-item-5'
+            isActive={false}
+          >
+            SSH Keys
           </NavItem>
         ) : (
           ''

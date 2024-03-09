@@ -52,7 +52,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
 
   const handleEdit = () => {
     //let list_item = {};
-    let list = []
+    //let list = []
     if (mappingType == Constants._J) {
       //list_item = mappingList[mappingIndex];
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];

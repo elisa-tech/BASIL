@@ -13,7 +13,8 @@ from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
 logging.basicConfig()
-logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+# logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
@@ -23,6 +24,14 @@ JOIN_SW_REQUIREMENTS_TABLE = "sw-requirements"
 JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
 MAX_LOGIN_ATTEMPTS = 5
 MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 15  # 15 minutes
+SSH_KEYS_PATH = os.path.join(currentdir, 'ssh_keys')
+TMT_LOGS_PATH = os.path.join(os.path.dirname(currentdir), 'logs', 'tmt')
+
+if not os.path.exists(SSH_KEYS_PATH):
+    os.mkdir(SSH_KEYS_PATH)
+
+if not os.path.exists(TMT_LOGS_PATH):
+    os.makedirs(TMT_LOGS_PATH, exist_ok=True)
 
 USER_ROLES_DELETE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_EDIT_PERMISSIONS = ['ADMIN', 'USER']
@@ -58,6 +67,7 @@ from db.models.api import ApiModel, ApiHistoryModel
 from db.models.comment import CommentModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
 from db.models.notification import NotificationModel
+from db.models.ssh_key import SshKeyModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementHistoryModel
 from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
@@ -66,6 +76,8 @@ from db.models.sw_requirement_test_specification import SwRequirementTestSpecifi
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationHistoryModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
+from db.models.test_run import TestRunModel
+from db.models.test_run_config import TestRunConfigModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
@@ -570,8 +582,8 @@ def get_query_string_args(args):
     order_by = args.get("order_by", default="", type=str)
     order_how = args.get("order_how", default="", type=str)
 
-    permitted_keys = ["api-id", "id", "library", "mapped_to_type", "mode",
-                      "parent_id", "parent_table", "relation_id", "search",
+    permitted_keys = ["api-id", "id", "library", "mapped_to_type", "mapped_to_id",
+                      "mode", "parent_id", "parent_table", "relation_id", "search",
                       "token", "url", "user-id", "work_item_type"]
 
     ret = {"db": db,
@@ -940,7 +952,6 @@ class Comment(Resource):
                            f'{mapping.api.api} as part of the library {mapping.api.library}'
             notifications = NotificationModel(mapping.api,
                                               'success',
-                                              f'Comment to {mapping.api.api} has been added',
                                               notification,
                                               str(user.id),
                                               f'/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments')
@@ -4990,20 +5001,506 @@ class Testing(Resource):
     def get(self):
         request_data = request.args
         dbi = db_orm.DbInterface(get_db())
-        if 'mapping-id' not in request_data.keys():
+        if 'mapped_to_id' not in request_data.keys():
             return "wrong input", 400
 
         """
         mapping = dbi.session.query(SwRequirementSwRequirementModel).filter(
-            SwRequirementSwRequirementModel.id == request_data['mapping-id']
+            SwRequirementSwRequirementModel.id == request_data['mapped_to_id']
         ).one()
         """
 
         mapping = dbi.session.query(SwRequirementTestCaseModel).filter(
-            SwRequirementTestCaseModel.id == request_data['mapping-id']
+            SwRequirementTestCaseModel.id == request_data['mapped_to_id']
         ).one()
 
         return get_parent_api_id(mapping, dbi.session)
+
+
+class UserSshKey(Resource):
+    fields = get_model_editable_fields(SshKeyModel, False)
+
+    def get(self):
+
+        args = get_query_string_args(request.args)
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+        if user_id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        ssh_keys = dbi.session.query(SshKeyModel).filter(
+            SshKeyModel.created_by_id == user_id).order_by(
+            SshKeyModel.created_at.desc()).all()
+        ssh_keys = [x.as_dict(full_data=True) for x in ssh_keys]
+        return ssh_keys
+
+    def post(self):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(self.fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        title = request_data['title'].strip()
+        ssh_key = request_data['ssh_key'].strip()
+        if title == '' or ssh_key == '':
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        existing = dbi.session.query(SshKeyModel).filter(
+            SshKeyModel.title == title,
+            SshKeyModel.created_by_id == user.id
+        ).all()
+
+        if len(existing):
+            return CONFLICT_MESSAGE, CONFLICT_STATUS
+
+        new_ssh_key = SshKeyModel(title, ssh_key, user)
+        dbi.session.add(new_ssh_key)
+        dbi.session.commit()
+
+        # File creation and permissions set
+        if not os.path.exists(SSH_KEYS_PATH):
+            os.mkdir(SSH_KEYS_PATH)
+
+        f = open(f'{SSH_KEYS_PATH}/{new_ssh_key.id}', 'w')
+        f.write(f'{new_ssh_key.ssh_key.strip()}\n')
+        f.close()
+
+        os.chmod(f'{SSH_KEYS_PATH}/{new_ssh_key.id}', 0o600)
+
+        if not os.path.exists(f'{SSH_KEYS_PATH}/{new_ssh_key.id}'):
+            dbi.session.delete(new_ssh_key)
+            dbi.session.commit()
+            return "Error", 400
+
+        dbi.engine.dispose()
+
+        return new_ssh_key.as_dict()
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(['id'], request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            ssh_key = dbi.session.query(SshKeyModel).filter(
+                SshKeyModel.id == request_data['id']
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        if ssh_key.created_by.id != user.id:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        dbi.session.delete(ssh_key)
+        dbi.session.commit()
+
+        if os.path.exists(f'{SSH_KEYS_PATH}/{ssh_key.id}'):
+            os.remove(f'{SSH_KEYS_PATH}/{ssh_key.id}')
+
+        dbi.engine.dispose()
+        return True
+
+
+class TestRunConfig(Resource):
+    # Do not support delete, put and post
+    # Once a Test Run has been executed the Test Run Config is defined
+    # and should be accessible in future to identify the Test Run
+    # A new Test Config is creeated by the Test Run post endpoint
+
+    fields = get_model_editable_fields(TestRunConfigModel, False)
+
+    def get(self):
+
+        args = get_query_string_args(request.args)
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+        if user_id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        query = dbi.session.query(TestRunConfigModel).filter(
+            TestRunConfigModel.created_by_id == user_id)
+
+        if 'search' in args.keys():
+            query = query.filter(or_(
+                TestRunConfigModel.title.like(f'%{args["search"]}%'),
+                TestRunConfigModel.provision_guest.like(f'%{args["search"]}%'),
+                TestRunConfigModel.provision_guest_port.like(f'%{args["search"]}%'),
+                TestRunConfigModel.environment_vars.like(f'%{args["search"]}%'),
+                TestRunConfigModel.context_vars.like(f'%{args["search"]}%')
+            ))
+
+        configs = query.order_by(
+            TestRunConfigModel.created_at.desc()).all()
+
+        configs = [x.as_dict(full_data=True) for x in configs]
+        return configs
+
+
+class TestRun(Resource):
+    fields = get_model_editable_fields(TestRunModel, False)
+
+    def get(self):
+        mandatory_fields = ['api-id', 'mapped_to_type', 'mapped_to_id']
+        args = get_query_string_args(request.args)
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+        if user_id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        runs_query = dbi.session.query(TestRunModel).join(
+            TestRunConfigModel).filter(
+            TestRunModel.api_id == api.id,
+            TestRunModel.mapping_to == args['mapped_to_type'],
+            TestRunModel.mapping_id == args['mapped_to_id'],
+        )
+
+        if 'search' in args.keys():
+            search = args['search']
+            runs_query = runs_query.filter(or_(
+                TestRunModel.id.like(f'%{search}%'),
+                TestRunModel.uid.like(f'%{search}%'),
+                TestRunModel.title.like(f'%{search}%'),
+                TestRunModel.note.like(f'%{search}%'),
+                TestRunModel.bugs.like(f'%{search}%'),
+                TestRunModel.result.like(f'%{search}%'),
+                TestRunModel.created_at.like(f'%{search}%'),
+                TestRunConfigModel.title.like(f'%{search}%'),
+                TestRunConfigModel.provision_type.like(f'%{search}%'),
+                TestRunConfigModel.git_repo_ref.like(f'%{search}%'),
+                TestRunConfigModel.context_vars.like(f'%{search}%'),
+                TestRunConfigModel.environment_vars.like(f'%{search}%'),
+                TestRunConfigModel.provision_guest.like(f'%{search}%'),
+                TestRunConfigModel.provision_guest_port.like(f'%{search}%'),
+            ))
+
+        runs = runs_query.order_by(
+            TestRunModel.created_at.desc()).all()
+
+        runs = [x.as_dict(full_data=True) for x in runs]
+        return runs
+
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ['api-id', 'title', 'note', 'test-run-config', 'mapped_to_type', 'mapped_to_id']
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        config_mandatory_fields = ['context_vars', 'environment_vars',
+                                   'from_db', 'id',
+                                   'title', 'git_repo_ref', 'ssh_key',
+                                   'provision_type', 'provision_guest', 'provision_guest_port']
+        if not check_fields_in_request(config_mandatory_fields, request_data['test-run-config']):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Config
+        test_run_config_id = str(request_data['test-run-config']['id']).strip()
+        config_title = str(request_data['test-run-config']['title']).strip()
+        git_repo_ref = str(request_data['test-run-config']['git_repo_ref']).strip()
+        context_vars = str(request_data['test-run-config']['context_vars']).strip()
+        environment_vars = str(request_data['test-run-config']['environment_vars']).strip()
+        provision_type = str(request_data['test-run-config']['provision_type']).strip()
+        provision_guest = str(request_data['test-run-config']['provision_guest']).strip()
+        provision_guest_port = str(request_data['test-run-config']['provision_guest_port']).strip()
+        ssh_key_id = request_data['test-run-config']['ssh_key']
+
+        if test_run_config_id == '0':
+            # Check mandatory fields
+            if config_title == '' or provision_type == '':
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+            if provision_type == 'connect':
+                if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+                try:
+                    ssh_key = dbi.session.query(SshKeyModel).filter(
+                        SshKeyModel.id == ssh_key_id,
+                        SshKeyModel.created_by_id == user.id
+                    ).one()
+                except NoResultFound:
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            else:
+                ssh_key = None
+
+            test_config = TestRunConfigModel(config_title,
+                                             git_repo_ref,
+                                             context_vars,
+                                             environment_vars,
+                                             provision_type,
+                                             provision_guest,
+                                             provision_guest_port,
+                                             ssh_key,
+                                             user)
+
+            dbi.session.add(test_config)
+
+        else:
+            # Reuse existing Test Config
+            try:
+                test_config = dbi.session.query(TestRunConfigModel).filter(
+                    TestRunConfigModel.id == test_run_config_id
+                ).one()
+            except NoResultFound:
+                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+            # Check the ssh_key still exists
+            if test_config.provision_type == 'connect':
+                if not test_config.ssh_key:
+                    return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Test Run
+        title = request_data['title'].strip()
+        note = request_data['note'].strip()
+        mapping_to = str(request_data['mapped_to_type']).strip()
+        mapping_id = request_data['mapped_to_id']
+
+        # Check mandatory fields
+        if title == '' or mapping_to == '' or mapping_id == '':
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        mapping_model = None
+        if mapping_to == ApiTestCaseModel.__tablename__:
+            mapping_model = ApiTestCaseModel
+        elif mapping_to == SwRequirementTestCaseModel.__tablename__:
+            mapping_model = SwRequirementTestCaseModel
+        elif mapping_to == TestSpecificationTestCaseModel.__tablename__:
+            mapping_model = TestSpecificationTestCaseModel
+        else:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        try:
+            mapping = dbi.session.query(mapping_model).filter(
+                mapping_model.id == mapping_id
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Create the Test Config only if the Test Run data is consistent
+        dbi.session.commit()
+
+        new_test_run = TestRunModel(api,
+                                    title,
+                                    note,
+                                    test_config,
+                                    mapping_to,
+                                    mapping_id,
+                                    user)
+
+        dbi.session.add(new_test_run)
+        dbi.session.commit()
+
+        # Start the detached process to run the test async
+        cmd = f"python3 {os.path.join(currentdir, 'tmttestrun.py')} --id {new_test_run.id} " \
+              f"&> {TMT_LOGS_PATH}/{new_test_run.uid}.log &"
+        os.system(cmd)
+
+        # Notification
+        notification = f'{user.email} started a Test Run for Test Case ' \
+                       f'{mapping.test_case.title} as part of the sw component ' \
+                       f'{api.api}, library {api.library}'
+        notifications = NotificationModel(api,
+                                          'info',
+                                          f'Test Run for {api.api} has been requested',
+                                          notification,
+                                          str(user.id),
+                                          f'/mapping/{api.id}')
+        dbi.session.add(notifications)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        print(new_test_run.as_dict())
+        return new_test_run.as_dict()
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ['api-id', 'id', 'bugs', 'note', 'mapped_to_type', 'mapped_to_id']
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        mapping_model = None
+        mapping_to = request_data['mapped_to_type']
+        mapping_id = request_data['mapped_to_id']
+        if mapping_to == ApiTestCaseModel.__tablename__:
+            mapping_model = ApiTestCaseModel
+        elif mapping_to == SwRequirementTestCaseModel.__tablename__:
+            mapping_model = SwRequirementTestCaseModel
+        elif mapping_to == TestSpecificationTestCaseModel.__tablename__:
+            mapping_model = TestSpecificationTestCaseModel
+        else:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        try:
+            mapping = dbi.session.query(mapping_model).filter(
+                mapping_model.id == mapping_id
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        try:
+            run = dbi.session.query(TestRunModel).filter(
+                TestRunModel.api_id == api.id,
+                TestRunModel.id == request_data['id'],
+                TestRunModel.mapping_to == mapping_to,
+                TestRunModel.mapping_id == mapping_id,
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        test_run_modified = False
+        if run.bugs != request_data['bugs']:
+            test_run_modified = True
+            run.bugs = request_data['bugs']
+
+        if run.note != request_data['note']:
+            test_run_modified = True
+            run.note = request_data['note']
+
+        if test_run_modified:
+            dbi.session.add(run)
+            dbi.session.commit()
+
+            # Notification
+            notification = f'{user.email} modified a Test Run for Test Case ' \
+                           f'{mapping.test_case.title} as part of the sw component ' \
+                           f'{api.api}, library {api.library}.\nBugs: {run.bugs}'
+            notifications = NotificationModel(api,
+                                              'info',
+                                              f'Test Run for {api.api} has been modified',
+                                              notification,
+                                              str(user.id),
+                                              f'/mapping/{api.id}')
+            dbi.session.add(notifications)
+            dbi.session.commit()
+
+        dbi.engine.dispose()
+        return run.as_dict()
+
+
+class TestRunLog(Resource):
+
+    def get(self):
+        mandatory_fields = ['api-id', 'mapped_to_type', 'mapped_to_id']
+        args = get_query_string_args(request.args)
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+        if user_id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            run = dbi.session.query(TestRunModel).filter(
+                TestRunModel.api_id == api.id,
+                TestRunModel.id == args['id'],
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        log_txt = ''
+        log_exec = ''
+        log_txt_path = os.path.join(TMT_LOGS_PATH, run.uid, 'log.txt')
+        print(f"fpath: {log_txt_path}")
+        if os.path.exists(log_txt_path):
+            f = open(log_txt_path, 'r')
+            log_txt = f.read()
+            f.close()
+        else:
+            log_txt = "File not found that mean there was an error in the execution. See the stdout/stderr section."
+
+        log_exec_path = os.path.join(TMT_LOGS_PATH, f'{run.uid}.log')
+        if os.path.exists(log_exec_path):
+            f = open(log_exec_path, 'r')
+            log_exec = f.read()
+            f.close()
+        else:
+            log_exec = "File not found that mean there was an error in the execution."
+
+        return {'log_txt': log_txt,
+                'log_exec': log_exec,
+                'stdout_stderr': run.log}
 
 
 api.add_resource(Api, '/apis')
@@ -5022,6 +5519,9 @@ api.add_resource(ApiJustificationsMapping, '/mapping/api/justifications')
 api.add_resource(ApiSwRequirementsMapping, '/mapping/api/sw-requirements')
 api.add_resource(ApiTestSpecificationsMapping, '/mapping/api/test-specifications')
 api.add_resource(ApiTestCasesMapping, '/mapping/api/test-cases')
+api.add_resource(TestRunConfig, '/mapping/api/test-run-configs')
+api.add_resource(TestRun, '/mapping/api/test-runs')
+api.add_resource(TestRunLog, '/mapping/api/test-run/log')
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')
 api.add_resource(SwRequirementTestSpecificationsMapping, '/mapping/sw-requirement/test-specifications')
@@ -5053,11 +5553,11 @@ api.add_resource(UserPermissionsApi, '/user/permissions/api')
 api.add_resource(UserResetPassword, '/user/reset-password')
 api.add_resource(UserRole, '/user/role')
 api.add_resource(UserSignin, '/user/signin')
+api.add_resource(UserSshKey, '/user/ssh-key')
 api.add_resource(Testing, '/testing')
 
 
 if __name__ == "__main__":
-    import api_url
     import argparse
     import sys
     parser = argparse.ArgumentParser()
@@ -5076,4 +5576,4 @@ if __name__ == "__main__":
         init_db.initialization(db_name='test.db')
     else:
         app.config['DB'] = 'basil.db'
-    app.run(host='0.0.0.0', port=api_url.api_port)
+    app.run()

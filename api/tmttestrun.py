@@ -181,7 +181,7 @@ class TmtTestRunner():
     def run(self):
         context_options_str = ''
         env_options_str = ''
-        provision_str = 'local'
+        provision_str = 'container'
         root_dir_var_str = ''
 
         if len(self.context.keys()) > 0:

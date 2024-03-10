@@ -7,11 +7,11 @@ WORKDIR /BASIL-APP
 COPY . /BASIL-APP
 
 # Set the public ip
-ARG BASIL_API_ENDPOINT=localhost:5000
-RUN sed -i "s#http://localhost:5005#${BASIL_API_ENDPOINT}#g" app/src/app/Constants/constants.tsx && \
+ARG API_ENDPOINT=localhost:5000
+RUN sed -i "s#http://localhost:5005#${API_ENDPOINT}#g" app/src/app/Constants/constants.tsx && \
     cd app && \
-    npm install -d --verbose && \
-    npm run build
+    npm install -d --verbose
+RUN npm run build
 
 # In case of reverse proxy
 # RUN sed -i "s/src=\"\//src=\"/g" dist/index.html

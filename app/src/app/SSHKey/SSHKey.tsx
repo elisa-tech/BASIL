@@ -11,7 +11,7 @@ const SSHKey: React.FunctionComponent = () => {
   const [modalShowState, setModalShowState] = React.useState(false)
 
   const loadSSHKeys = () => {
-    if (!auth.isLogged() || !auth.isAdmin()) {
+    if (!auth.isLogged()) {
       return
     }
     let url

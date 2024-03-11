@@ -30,7 +30,7 @@ class TmtTestRunner():
     execution_return_code = -1
     test_result = ''
     test_report = ''
-    root_dir = os.path.join(os.path.dirname(currentdir), 'logs', 'tmt')  # Same as TMT_LOGS_PATH defined in api.py
+    root_dir = os.getenv('BASIL_TMT_WORKDIR_ROOT', '/var/tmp/tmt')  # Same as TMT_LOGS_PATH defined in api.py
     ssh_keys_dir = os.path.join(currentdir, 'ssh_keys')  # Same as SSH_KEYS_PATH defined in api.py
     dbi = None
     db_test_run = None

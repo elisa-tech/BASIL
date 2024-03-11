@@ -25,7 +25,7 @@ JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
 MAX_LOGIN_ATTEMPTS = 5
 MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 15  # 15 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, 'ssh_keys')
-TMT_LOGS_PATH = os.path.join(os.path.dirname(currentdir), 'logs', 'tmt')
+TMT_LOGS_PATH = os.getenv('BASIL_TMT_WORKDIR_ROOT', '/var/tmp/tmt')
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.mkdir(SSH_KEYS_PATH)

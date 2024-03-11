@@ -1,5 +1,9 @@
 summary: Dummy failing test
-description: Dummy failing test to be used locally
-test: echo "dummy test start" && sleep 100 && echo "dummy test end" && exit 1
+description: Dummy failing test
+test: |
+  echo "dummy test start"
+  echo "Test is running..." > $TMT_PLAN_DATA/test.log
+  echo "dummy test end"
+  exit 1
 framework: shell
 duration: 1m

@@ -3,9 +3,6 @@
 How to run it
 =================================
 
-
-
-
 ------------
 Architecture
 ------------
@@ -21,9 +18,84 @@ Architecture
 + A Web Front End Application
 + A Database (default sqlite)
 
---------
-Database
---------
+
+-----------------
+Docker Containers
+-----------------
+
+You can deploy BASIL via Docker using Dockerfile-api and Dockerfile-app provided as part of the source code.
+
+# Build the Containers
+^^^^^^^^^^^^^^^^^^^^^^
+
+You can build the API project using the Dockerfile-api.
+
+Building this container you will also initialize the database.
+
+If you need to host BASIL on a server you should specify following build argument:
+
+ + API_PORT (default is 5000)
+
+BASIL will be configured with an admin user name **admin**.
+You can specify the **admin** user password with the following build argument:
+
+ + ADMIN_PASSWORD (default is **admin**)
+
+Here an example of docker build command:
+
+``docker build --build-arg ADMIN_PASSWORD=your-desired-password --build-arg API_PORT=1234 -f Dockerfile-api -t basil-api-image .``
+
+At the same way you can build the APP project using Dockerfile-app
+
+To be able to reach the API project you need to specify the following build argument:
+
+ + API_ENDPOINT (e.g. http://api-server-it:yourport or http://api-server-it/reverse-proxy-route)
+
+``docker build --build-arg API_ENDPOINT=http://api-server-it:yourport -f Dockerfile-app -t basil-app-image .``
+
+
+# Start the Containers
+^^^^^^^^^^^^^^^^^^^^^^
+
+You can start the API Container above created with the name **basil-api-image** with the following docker command
+
+``docker run -d --network=host --name basil-api-container basil-api-image``
+
+You can start the APP Container above created with the name **basil-app-image** with the following docker command
+
+``docker run -d --network=host --name basil-app-container basil-app-image``
+
+# Check Containers status
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can list running containers with the following docker command
+
+``docker ps``
+
+# Backup BASIL DB from Container
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Only the API project is able to interact with the database and the db and due to that you should refer to the **basil-api** container.
+You can copy the db file locally with the following docker command:
+
+``docker cp basil-api-container:/BASIL-API/db/basil.db </YOUR/LOCAL/LOCATION>``
+
+# Stop Containers
+^^^^^^^^^^^^^^^^^
+You can stop running containers, the one that you can see listed with the **ps** docker command using the following syntax:
+
+``docker stop basil-api-container``
+
+``docker stop basil-app-container``
+
+
+---------------------
+Manual Configurations
+---------------------
+
+In case you don't want to use containers you can configure BASIL environment manually.
+
+Here following few useful information to be able to set it up correctly.
 
 Init the database
 ^^^^^^^^^^^^^^^^^
@@ -31,16 +103,21 @@ BASIL comes without a database and is up to the user to init it.
 The default configuration is based on an sqlite database.
 It is possible to use a different type of database configuring the SQLAlchemy create_engine method used in in the **db/db_orm.py** script.
 
+To be able to create an admin user at database initialization you should specify the following environment variable:
+
+ + BASIL_ADMIN_PASSWORD (populated with your desired admin password)
+
+This way you will be able to login in BASIL with **admin** and you desired admin password.
 
 Move to the db/models directory
 
 ``cd db && cd models``
 
-Defining the environment variable BASIL_ADMIN_PASSWORD you will be able to create an ADMIN user, during the database initialization, with the desired credentials.
-
-Initialize the sqlite database, you will find it in db/basil.db
+Initialize the sqlite database
 
 ``python3 init_db.py``
+
+That will create the sqlite3 database at **db/basil.db**
 
 
 Navigate the database
@@ -74,7 +151,7 @@ Start the Flask Server
 ^^^^^^^^^^^^^^^^^^^^^^
 
 The Flask Server is suggested only for development.
-For production it is suggested to use a WSGI server instead.
+For production it is suggested to use a WSGI server instead like gunicorn.
 
 From BASIL project root directory:
 
@@ -87,8 +164,6 @@ To be able to edit the port you should edit following files:
 + api/api_url.py - variable **api_port**
 + app/src/app/Constants/constants.tsx - variable **API_BASE_URL**
 
-**IMPORTANT**
-If you want to configure BASIL to be used from multiple clients, or in general, if you want to host BASIL on a different machine from the one that call it, you should setup above mentioned files with the ip address of the server machine.
 
 -------------
 Front End APP
@@ -135,62 +210,6 @@ Run a production build (outputs to "dist" dir)
 
 ``npm run start``
 
-
------------------
-Docker Containers
------------------
-
-You can deploy BASIL via Docker using Dockerfile-api and Dockerfile-app provided as part ofthe source code.
-Before building your container, if you need to access BASIL from a machine different from the one that is hosting it, you need to specify the following arguments in the docker command:
-
- + **BASIL_HOSTNAME** (name of the host machine or ip address)
- + **BASIL_API_PORT** (number of the port you want to assign to the API)
-
-# Build the Containers
-^^^^^^^^^^^^^^^^^^^^^^
-
-You can build the API project using the Dockerfile-api with the following command
-
-``docker build --build-arg ADMIN_PASSWORD=your-desired-password --build-arg BASIL_HOSTNAME=basil.server.com --build-arg BASIL_API_PORT=1234 -f Dockerfile-api -t basil-api-image .``
-
-At the same way you can build the APP project using Dockerfile-app
-
-``docker build --build-arg BASIL_HOSTNAME=basil.server.com --build-arg BASIL_API_PORT=1234 -f Dockerfile-app -t basil-app-image .``
-
-
-# Start the Containers
-^^^^^^^^^^^^^^^^^^^^^^
-
-You can start the API Container above created with the name **basil-api-image** with the following docker command
-
-``docker run -d --network=host --name basil-api-container basil-api-image``
-
-You can start the APP Container above created with the name **basil-app-image** with the following docker command
-
-``docker run -d --network=host --name basil-app-container basil-app-image``
-
-# Check Containers status
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-You can list running containers with the following docker command
-
-``docker ps``
-
-# Backup BASIL DB from Container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Only the API project is able to interact with the database and the db and due to that you should refer to the **basil-api** container.
-You can copy the db file locally with the following docker command:
-
-``docker cp basil-api-container:/BASIL-API/db/basil.db </YOUR/LOCAL/LOCATION>``
-
-# Stop Containers
-^^^^^^^^^^^^^^^^^
-You can stop running containers, the one that you can see listed with the **ps** docker command using the following syntax:
-
-``docker stop basil-api-container``
-
-``docker stop basil-app-container``
 
 
 

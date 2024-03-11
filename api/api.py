@@ -1,6 +1,6 @@
 import base64
 from flask_cors import CORS
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, send_from_directory
 from flask_restful import Resource, Api, reqparse
 import os
 import datetime
@@ -582,7 +582,7 @@ def get_query_string_args(args):
     order_by = args.get("order_by", default="", type=str)
     order_how = args.get("order_how", default="", type=str)
 
-    permitted_keys = ["api-id", "id", "library", "mapped_to_type", "mapped_to_id",
+    permitted_keys = ["api-id", "artifact", "id", "library", "mapped_to_type", "mapped_to_id",
                       "mode", "parent_id", "parent_table", "relation_id", "search",
                       "token", "url", "user-id", "work_item_type"]
 
@@ -5167,9 +5167,12 @@ class TestRun(Resource):
         dbi = db_orm.DbInterface(get_db())
 
         # User
-        user_id = get_user_id_from_request(args, dbi.session)
-        if user_id == 0:
+        user = get_active_user_from_request(args, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        else:
+            user_id = 0
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -5447,7 +5450,7 @@ class TestRun(Resource):
 class TestRunLog(Resource):
 
     def get(self):
-        mandatory_fields = ['api-id', 'mapped_to_type', 'mapped_to_id']
+        mandatory_fields = ['api-id', 'id']
         args = get_query_string_args(request.args)
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
@@ -5455,9 +5458,12 @@ class TestRunLog(Resource):
         dbi = db_orm.DbInterface(get_db())
 
         # User
-        user_id = get_user_id_from_request(args, dbi.session)
-        if user_id == 0:
+        user = get_active_user_from_request(args, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        else:
+            user_id = 0
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -5498,9 +5504,60 @@ class TestRunLog(Resource):
         else:
             log_exec = "File not found that mean there was an error in the execution."
 
-        return {'log_txt': log_txt,
+        # List files in the TMT_PLAN_DATA dir
+        artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data'))
+
+        return {'artifacts': artifacts,
+                'log_txt': log_txt,
                 'log_exec': log_exec,
                 'stdout_stderr': run.log}
+
+
+class TestRunArtifacts(Resource):
+
+    def get(self):
+        mandatory_fields = ['api-id', 'artifact', 'id']
+        args = get_query_string_args(request.args)
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(args, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        else:
+            user_id = 0
+
+        # Find api
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            run = dbi.session.query(TestRunModel).filter(
+                TestRunModel.api_id == api.id,
+                TestRunModel.id == args['id'],
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # List files in the TMT_PLAN_DATA dir
+        artifacts_path = os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data')
+        artifacts = os.listdir(artifacts_path)
+        if args['artifact'] not in artifacts:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        return send_from_directory(artifacts_path, args['artifact'])
 
 
 api.add_resource(Api, '/apis')
@@ -5522,6 +5579,7 @@ api.add_resource(ApiTestCasesMapping, '/mapping/api/test-cases')
 api.add_resource(TestRunConfig, '/mapping/api/test-run-configs')
 api.add_resource(TestRun, '/mapping/api/test-runs')
 api.add_resource(TestRunLog, '/mapping/api/test-run/log')
+api.add_resource(TestRunArtifacts, '/mapping/api/test-run/artifacts')
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')
 api.add_resource(SwRequirementTestSpecificationsMapping, '/mapping/sw-requirement/test-specifications')

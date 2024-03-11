@@ -35,6 +35,9 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
   }, [modalTestRun])
 
   const handleSubmit = () => {
+    if (api?.permissions.indexOf('w') < 0) {
+      return
+    }
     if (modalTestRun.id == null) {
       setMessageValue('Select a Test Run')
       return
@@ -80,6 +83,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       <FormGroup label='Bug' isRequired fieldId={`input-test-run-bug-bugs`}>
         <TextInput
           isRequired
+          isDisabled={api?.permissions.indexOf('w') < 0}
           aria-label='Test Run Bug Bug field'
           id={`input-test-run-bug-bugs`}
           name={`input-test-run-bug-bugs`}
@@ -89,6 +93,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       </FormGroup>
       <FormGroup label='Note' fieldId={`input-test-run-bug-note`}>
         <TextArea
+          isDisabled={api?.permissions.indexOf('w') < 0}
           resizeOrientation='vertical'
           aria-label='Test Run Bug Note field'
           id={`input-test-run-bug-note`}
@@ -97,11 +102,16 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
           onChange={(_ev, value) => handleNoteValueChange(value)}
         />
       </FormGroup>
-      <ActionGroup>
-        <Button id='btn-test-run-bug-submit' variant='primary' onClick={() => handleSubmit()}>
-          Save
-        </Button>
-      </ActionGroup>
+
+      {api?.permissions.indexOf('w') >= 0 ? (
+        <ActionGroup>
+          <Button id='btn-test-run-bug-submit' variant='primary' onClick={() => handleSubmit()}>
+            Save
+          </Button>
+        </ActionGroup>
+      ) : (
+        ''
+      )}
 
       {messageValue ? (
         <>

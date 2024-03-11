@@ -41,6 +41,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   const [testResults, setTestResults] = React.useState<any[]>([])
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [selectedTestResult, setSelectedTestResult] = React.useState<any>({})
+  const [selectedTestResultArtifacts, setSelectedTestResultArtifacts] = React.useState([])
   const [selectedTestResultLogExec, setSelectedTestResultLogExec] = React.useState('')
   const [selectedTestResultLogTxt, setSelectedTestResultLogTxt] = React.useState('')
   const [selectedTestResultLogStd, setSelectedTestResultLogStd] = React.useState('')
@@ -111,7 +112,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   }, [modalShowState])
 
   const loadTestResult = (filter) => {
-    if (auth.isGuest()) {
+    if (api?.permissions.indexOf('r') < 0) {
       return
     }
     if (api == null) {
@@ -139,23 +140,19 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   }
 
   const loadCurrentTestRunLogTxt = () => {
-    if (auth.isGuest()) {
+    if (api?.permissions.indexOf('r') < 0) {
       return
     }
     if (Object.keys(selectedTestResult).length == 0 || selectedTestResult == null) {
       return
     }
-
     if (api == null) {
       return
     }
-    const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
     let url = Constants.API_BASE_URL + '/mapping/api/test-run/log'
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     url += '&api-id=' + api.id
-    url += '&mapped_to_type=' + mapping_to
-    url += '&mapped_to_id=' + modalRelationData['relation_id']
     url += '&id=' + selectedTestResult.id
     if (searchValue != undefined) {
       url += '&search=' + searchValue
@@ -164,6 +161,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
+        setSelectedTestResultArtifacts(data['artifacts'])
         setSelectedTestResultLogTxt(data['log_txt'])
         setSelectedTestResultLogStd(data['stdout_stderr'])
         setSelectedTestResultLogExec(data['log_exec'])
@@ -177,6 +175,16 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   // Toggle currently active tab
   const handleTabClick = (event: React.MouseEvent | React.KeyboardEvent | MouseEvent, tabIndex: string | number) => {
     setActiveTabKey(tabIndex)
+  }
+
+  const getArtifactUrl = (artifact) => {
+    let url = Constants.API_BASE_URL + '/mapping/api/test-run/artifacts'
+    url += '?api-id=' + api.id
+    url += '&user-id=' + auth.userId
+    url += '&token=' + auth.token
+    url += '&id=' + selectedTestResult.id
+    url += '&artifact=' + artifact
+    return url
   }
 
   const requestTestRun = (test_run) => {
@@ -222,6 +230,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   const testRunDetailsRef = React.createRef<HTMLElement>()
   const testRunDetailsLogTxtRef = React.createRef<HTMLElement>()
   const testRunDetailsLogStdRef = React.createRef<HTMLElement>()
+  const testRunArtifactsRef = React.createRef<HTMLElement>()
   const testRunBugRef = React.createRef<HTMLElement>()
   const testRunDetailsLogExecRef = React.createRef<HTMLElement>()
 
@@ -279,6 +288,13 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
             tabContentId='tabTestRunBug'
             tabContentRef={testRunBugRef}
           />
+          <Tab
+            eventKey={6}
+            id='tab-btn-test-run-artifacts'
+            title={<TabTitleText>Artifacts</TabTitleText>}
+            tabContentId='tabTestRunArtifacts'
+            tabContentRef={testRunArtifactsRef}
+          />
         </Tabs>
         <div>
           <TabContent eventKey={0} id='tabContentTestCaseForm' ref={testRunListRef}>
@@ -322,15 +338,21 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
                       <Td dataLabel={columnNames.date}>{testResult.created_at}</Td>
                       <Td dataLabel={columnNames.bug}>{testResult.bugs?.length > 0 ? <BugIcon /> : ''}</Td>
                       <Td dataLabel={columnNames.actions}>
-                        <Button
-                          variant='plain'
-                          aria-label='Action'
-                          onClick={() => {
-                            requestTestRun(testResult)
-                          }}
-                        >
-                          <ProcessAutomationIcon /> Re-run
-                        </Button>
+                        {api?.permissions.indexOf('w') >= 0 ? (
+                          <>
+                            <Button
+                              variant='plain'
+                              aria-label='Action'
+                              onClick={() => {
+                                requestTestRun(testResult)
+                              }}
+                            >
+                              <ProcessAutomationIcon /> Re-run
+                            </Button>
+                          </>
+                        ) : (
+                          ''
+                        )}
                       </Td>
                     </Tr>
                   ))}
@@ -440,6 +462,25 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
               <TestRunBugForm api={api} modalTestRun={selectedTestResult} modalRelationData={modalRelationData} parentType={parentType} />
             </TabContentBody>
           </TabContent>
+          <TabContent eventKey={6} id='tabContentTestResultArtifacts' ref={testRunArtifactsRef} hidden>
+            <TabContentBody hasPadding>
+              <TextContent>
+                <Text component={TextVariants.h3}>$TMT_PLAN_DATA Directory</Text>
+              </TextContent>
+              <br />
+              {(selectedTestResultArtifacts?.length > 0 &&
+                selectedTestResultArtifacts.map((artifact, index) => (
+                  <Button key={index} component='a' href={getArtifactUrl(artifact)} target='_blank' variant='link'>
+                    {artifact}
+                  </Button>
+                ))) || (
+                <TextContent>
+                  <Text component={TextVariants.p}>empty</Text>
+                </TextContent>
+              )}
+            </TabContentBody>
+          </TabContent>
+
           {messageValue ? (
             <>
               <Divider />

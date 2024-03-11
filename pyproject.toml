@@ -13,6 +13,7 @@ dependencies = [
     "Flask-Cors==3.0.10",
     "Flask-RESTful==0.3.9",
     "gunicorn==21.2.0",
+    "PyYAML==6.0",
     "requests==2.28.2",
     "SQLAlchemy==2.0.19",
     "spdx-tools==0.8.1",

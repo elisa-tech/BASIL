@@ -5,11 +5,8 @@ USER root
 RUN mkdir BASIL-API
 WORKDIR /BASIL-API
 COPY . /BASIL-API
-RUN dnf install -y curl python3 python3-pip podman && \
-    curl -sSLO https://pdm-project.org/install-pdm.py && \
-    python3 install-pdm.py -p /pdm && \
-    /pdm/bin/pdm install && \
-    /pdm/bin/pdm run pip3 install 'tmt[provision-container]'
+RUN dnf install -y curl python3 python3-pip podman rsync && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 # Set the public ip in the api/api_url.py
 WORKDIR /BASIL-API
@@ -20,8 +17,9 @@ ENV BASIL_API_PORT=$API_PORT
 # Init the database and
 # Write permission to db
 WORKDIR /BASIL-API/db/models
-RUN /pdm/bin/pdm run python3 init_db.py && \
-    chmod a+rw /BASIL-API/db
+RUN python3 init_db.py && \
+    chmod a+rw /BASIL-API/db &&
+    unset BASIL_ADMIN_PASSWORD
 
 WORKDIR /BASIL-API/api
-CMD ["/pdm/bin/pdm", "run", "gunicorn", "--access-logfile", "/var/tmp/tc-access.log", "--error-logfile", "/var/tmp/tc-error.log", "--bind", "0.0.0.0:${BASIL_API_PORT}", "api:app"]
+CMD ["gunicorn", "--access-logfile", "/var/basi/logs/tc-access.log", "--error-logfile", "/var/basil/logs/tc-error.log", "--bind", "0.0.0.0:${BASIL_API_PORT}", "api:app"]

@@ -5503,7 +5503,9 @@ class TestRunLog(Resource):
             log_exec = "File not found that mean there was an error in the execution."
 
         # List files in the TMT_PLAN_DATA dir
-        artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data'))
+        artifacts = []
+        if os.path.exists(os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data')):
+            artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data'))
 
         return {'artifacts': artifacts,
                 'log_txt': log_txt,

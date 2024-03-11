@@ -48,6 +48,7 @@ def initialization(db_name='basil.db'):
     if os.getenv('BASIL_ADMIN_PASSWORD', '') != '':
         admin = UserModel("admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
         dbi.session.add(admin)
+        del os.environ['BASIL_ADMIN_PASSWORD']
 
     if db_name == 'test.db':
         guest = UserModel("dummy_guest", "dummy_guest", "GUEST")

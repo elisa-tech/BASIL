@@ -189,10 +189,10 @@ class TmtTestRunner():
                 if len(v):
                     context_options_str += f"-c {k}='\"{v}\"' "
 
-            if len(self.env.keys()) > 0:
-                for k, v in self.env.items():
-                    if len(v):
-                        env_options_str += f"-e {k}='\"{v}\"' "
+        if len(self.env.keys()) > 0:
+            for k, v in self.env.items():
+                if len(v):
+                    env_options_str += f"-e {k}='\"{v}\"' "
 
         if self.db_test_run.test_run_config.provision_type == 'connect':
             if self.db_test_run.test_run_config.provision_guest != '' and \

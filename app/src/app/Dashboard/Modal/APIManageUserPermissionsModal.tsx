@@ -32,7 +32,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   const auth = useAuth()
   const UNSET_USER_EMAIL = ''
   const UNSET_USER_ROLE = ''
-  const [userEmailSearchValue, setUserEmailSearchValue] = React.useState('lpellecc@redhat.com')
+  const [userEmailSearchValue, setUserEmailSearchValue] = React.useState('')
   const [userEmail, setUserEmail] = React.useState(UNSET_USER_EMAIL)
   const [userRole, setUserRole] = React.useState(UNSET_USER_ROLE)
   const [userEditPermission, setUserEditPermission] = React.useState(false)

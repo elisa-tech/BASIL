@@ -321,41 +321,42 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {testResults.map((testResult) => (
-                    <Tr
-                      key={testResult.id}
-                      onRowClick={() => handleSelectedTestRun(testResult)}
-                      isSelectable
-                      isClickable
-                      isRowSelected={selectedTestResult === testResult}
-                    >
-                      <Td dataLabel={columnNames.id}>{testResult.id}</Td>
-                      <Td dataLabel={columnNames.title}>{testResult.title}</Td>
-                      <Td dataLabel={columnNames.sut}>
-                        {testResult.config.provision_type == 'connect' ? testResult.config.provision_guest : 'container'}
-                      </Td>
-                      <Td dataLabel={columnNames.result}>{testResult?.result}</Td>
-                      <Td dataLabel={columnNames.date}>{testResult.created_at}</Td>
-                      <Td dataLabel={columnNames.bug}>{testResult.bugs?.length > 0 ? <BugIcon /> : ''}</Td>
-                      <Td dataLabel={columnNames.actions}>
-                        {api?.permissions.indexOf('w') >= 0 ? (
-                          <>
-                            <Button
-                              variant='plain'
-                              aria-label='Action'
-                              onClick={() => {
-                                requestTestRun(testResult)
-                              }}
-                            >
-                              <ProcessAutomationIcon /> Re-run
-                            </Button>
-                          </>
-                        ) : (
-                          ''
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
+                  {testResults &&
+                    testResults.map((testResult) => (
+                      <Tr
+                        key={testResult.id}
+                        onRowClick={() => handleSelectedTestRun(testResult)}
+                        isSelectable
+                        isClickable
+                        isRowSelected={selectedTestResult === testResult}
+                      >
+                        <Td dataLabel={columnNames.id}>{testResult.id}</Td>
+                        <Td dataLabel={columnNames.title}>{testResult.title}</Td>
+                        <Td dataLabel={columnNames.sut}>
+                          {testResult.config.provision_type == 'connect' ? testResult.config.provision_guest : 'container'}
+                        </Td>
+                        <Td dataLabel={columnNames.result}>{testResult?.result}</Td>
+                        <Td dataLabel={columnNames.date}>{testResult.created_at}</Td>
+                        <Td dataLabel={columnNames.bug}>{testResult.bugs?.length > 0 ? <BugIcon /> : ''}</Td>
+                        <Td dataLabel={columnNames.actions}>
+                          {api?.permissions.indexOf('w') >= 0 ? (
+                            <>
+                              <Button
+                                variant='plain'
+                                aria-label='Action'
+                                onClick={() => {
+                                  requestTestRun(testResult)
+                                }}
+                              >
+                                <ProcessAutomationIcon /> Re-run
+                              </Button>
+                            </>
+                          ) : (
+                            ''
+                          )}
+                        </Td>
+                      </Tr>
+                    ))}
                 </Tbody>
               </Table>
             </TabContentBody>
@@ -468,7 +469,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
                 <Text component={TextVariants.h3}>$TMT_PLAN_DATA Directory</Text>
               </TextContent>
               <br />
-              {(selectedTestResultArtifacts?.length > 0 &&
+              {(selectedTestResultArtifacts &&
                 selectedTestResultArtifacts.map((artifact, index) => (
                   <Button key={index} component='a' href={getArtifactUrl(artifact)} target='_blank' variant='link'>
                     {artifact}

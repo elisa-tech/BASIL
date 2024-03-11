@@ -53,6 +53,7 @@ To be able to reach the API project you need to specify the following build argu
 
 ``docker build --build-arg API_ENDPOINT=http://api-server-it:yourport -f Dockerfile-app -t basil-app-image .``
 
+NOTE: API_ENDPOINT must start with http
 
 # Start the Containers
 ^^^^^^^^^^^^^^^^^^^^^^

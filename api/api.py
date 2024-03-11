@@ -5170,7 +5170,6 @@ class TestRun(Resource):
         user = get_active_user_from_request(args, dbi.session)
         if isinstance(user, UserModel):
             user_id = user.id
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
         else:
             user_id = 0
 
@@ -5461,7 +5460,6 @@ class TestRunLog(Resource):
         user = get_active_user_from_request(args, dbi.session)
         if isinstance(user, UserModel):
             user_id = user.id
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
         else:
             user_id = 0
 

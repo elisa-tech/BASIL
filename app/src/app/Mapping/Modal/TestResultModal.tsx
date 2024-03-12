@@ -4,6 +4,10 @@ import {
   Button,
   CodeBlock,
   CodeBlockCode,
+  Divider,
+  Hint,
+  HintBody,
+  Label,
   Modal,
   ModalVariant,
   SearchInput,
@@ -11,12 +15,17 @@ import {
   TabContent,
   TabContentBody,
   TabTitleText,
-  Tabs
+  Tabs,
+  Text,
+  TextContent,
+  TextVariants
 } from '@patternfly/react-core'
-import { Divider, Hint, HintBody, Text, TextContent, TextVariants } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import ProcessAutomationIcon from '@patternfly/react-icons/dist/esm/icons/process-automation-icon'
 import BugIcon from '@patternfly/react-icons/dist/esm/icons/bug-icon'
+import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon'
+import InfoCircleIcon from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
+import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { TestRunBugForm } from '../Form/TestRunBugForm'
 import { useAuth } from '../../User/AuthProvider'
 
@@ -351,7 +360,29 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
                         <Td dataLabel={columnNames.sut}>
                           {testResult.config.provision_type == 'connect' ? testResult.config.provision_guest : 'container'}
                         </Td>
-                        <Td dataLabel={columnNames.result}>{testResult?.result}</Td>
+                        <Td dataLabel={columnNames.result}>
+                          {testResult?.result == 'pass' ? (
+                            <Label icon={<CheckCircleIcon />} color='green'>
+                              {testResult?.result}
+                            </Label>
+                          ) : (
+                            ''
+                          )}
+                          {testResult?.result == 'fail' ? (
+                            <Label icon={<ExclamationCircleIcon />} color='red'>
+                              {testResult?.result}
+                            </Label>
+                          ) : (
+                            ''
+                          )}
+                          {testResult?.result != 'pass' && testResult?.result != 'fail' ? (
+                            <Label icon={<InfoCircleIcon />} color='orange'>
+                              {testResult?.result}
+                            </Label>
+                          ) : (
+                            ''
+                          )}
+                        </Td>
                         <Td dataLabel={columnNames.date}>{testResult.created_at}</Td>
                         <Td dataLabel={columnNames.bug}>{testResult.bugs?.length > 0 ? <BugIcon /> : ''}</Td>
                         <Td dataLabel={columnNames.actions}>

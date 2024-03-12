@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:5005'
+export const API_BASE_URL = 'http://localhost:5000'
 
 export const force_reload = true
 

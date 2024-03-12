@@ -57,6 +57,12 @@ NOTIFICATION_CATEGORY_NEW = 'success'
 NOTIFICATION_CATEGORY_EDIT = 'warning'
 NOTIFICATION_CATEGORY_DELETE = 'danger'
 
+API_PERMISSION_FIELDS = ['delete_permissions',
+                         'edit_permissions',
+                         'manage_permissions',
+                         'read_denials',
+                         'write_permissions']
+
 from db import db_orm
 from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
 from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirementHistoryModel
@@ -195,6 +201,18 @@ def get_active_user_from_request(_request, _db_session):
         return user
     except NoResultFound:
         return None
+
+
+def get_users_email_from_ids(_ids, _dbi_session):
+    # _ids list format [1][3][34]
+    user_ids = _ids.split('][')
+    user_ids = [x.replace('[', '').replace(']', '') for x in user_ids]
+    query = _dbi_session.query(UserModel.email).filter(
+        UserModel.id.in_(user_ids)
+    )
+    users = query.all()
+    ret = [x.email for x in users]
+    return ret
 
 
 def get_api_user_permissions(_api, _user_id, _dbi_session):
@@ -1451,6 +1469,16 @@ class ApiHistory(Resource):
                 ret.append(get_combined_history_object(staging_array[i], ret[-1]['mapping'], _model_fields, []))
 
         ret = get_reduced_history_data(ret, _model_fields, [], dbi.session)
+
+        for i in range(len(ret)):
+            for permission_field in API_PERMISSION_FIELDS:
+                if permission_field in ret[i]['object'].keys():
+                    ret[i]['object'][permission_field] = ", ".join(get_users_email_from_ids(
+                        ret[i]['object'][permission_field], dbi.session))
+                if permission_field in ret[i]['mapping'].keys():
+                    ret[i]['mapping'][permission_field] = ", ".join(get_users_email_from_ids(
+                        ret[i]['mapping'][permission_field], dbi.session))
+
         ret = ret[::-1]
         dbi.engine.dispose()
         return ret

@@ -5504,8 +5504,8 @@ class TestRunLog(Resource):
 
         # List files in the TMT_PLAN_DATA dir
         artifacts = []
-        if os.path.exists(os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data')):
-            artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data'))
+        if os.path.exists(os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data')):
+            artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data'))
 
         return {'artifacts': artifacts,
                 'log_txt': log_txt,
@@ -5552,7 +5552,7 @@ class TestRunArtifacts(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # List files in the TMT_PLAN_DATA dir
-        artifacts_path = os.path.join(TMT_LOGS_PATH, run.uid, 'tmt-plan', 'data')
+        artifacts_path = os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data')
         artifacts = os.listdir(artifacts_path)
         if args['artifact'] not in artifacts:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS

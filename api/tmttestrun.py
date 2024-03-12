@@ -144,21 +144,28 @@ class TmtTestRunner():
 
     def publish(self):
         if self.execution_result == self.RESULT_PASS:
-            results_file_path = f'{self.root_dir}/{self.db_test_run.uid}/{self.plan}/execute/results.yaml'
-            report_file_path = '{self.root_dir}/{self.uid}/{self.plan}/report/html-report/index.html'
+            results_file_path = f'{self.root_dir}/{self.db_test_run.uid}/api/{self.plan}/execute/results.yaml'
+            report_file_path = f'{self.root_dir}/{self.db_test_run.uid}/api/{self.plan}/report/html-report/index.html'
 
             if not os.path.exists(results_file_path):
                 self.execution_result = self.RESULT_FAIL
                 self.test_result = self.RESULT_FAIL
+            else:
+                with open(results_file_path, 'r') as file:
+                    result_yaml = yaml.safe_load(file)
+                    if isinstance(result_yaml, list):
+                        if 'result' in result_yaml[0].keys():
+                            self.test_result = result_yaml[0]['result']
+                        if 'log' in result_yaml[0].keys():
+                            if isinstance(result_yaml[0]['log'], list):
+                                log_file = result_yaml[0]['log'][0]
+                                if os.path.exists(log_file):
+                                    f = open(log_file, 'r')
+                                    self.log = f.read()
+                                    f.close()
 
             if os.path.exists(report_file_path):
                 self.test_report = report_file_path
-
-            with open(results_file_path, 'r') as file:
-                result_yaml = yaml.safe_load(file)
-                test_key = list(result_yaml.keys())[0]
-                self.test_result = result_yaml[test_key]["result"]
-                self.log = result_yaml[test_key]["log"][0]
 
         else:
             self.test_result = 'not executed'
@@ -219,7 +226,7 @@ class TmtTestRunner():
 
         out, err = process.communicate()
         self.execution_return_code = process.returncode
-        if self.execution_return_code == 0:
+        if self.execution_return_code in [0, 1]:
             self.execution_result = self.RESULT_PASS
         else:
             self.execution_result = self.RESULT_FAIL

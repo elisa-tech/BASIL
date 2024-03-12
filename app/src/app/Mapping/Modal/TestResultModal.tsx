@@ -103,6 +103,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
     setIsModalOpen(new_state)
     if (new_state == false) {
       setTestResults([])
+      setMessageValue('')
     }
   }
 
@@ -300,6 +301,18 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
           />
         </Tabs>
         <div>
+          {messageValue ? (
+            <>
+              <Divider />
+              <Hint>
+                <HintBody>{messageValue}</HintBody>
+              </Hint>
+              <br />
+            </>
+          ) : (
+            ''
+          )}
+
           <TabContent eventKey={0} id='tabContentTestCaseForm' ref={testRunListRef}>
             <br />
             <SearchInput
@@ -484,18 +497,6 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
               )}
             </TabContentBody>
           </TabContent>
-
-          {messageValue ? (
-            <>
-              <Divider />
-              <Hint>
-                <HintBody>{messageValue}</HintBody>
-              </Hint>
-              <br />
-            </>
-          ) : (
-            ''
-          )}
         </div>
       </Modal>
     </React.Fragment>

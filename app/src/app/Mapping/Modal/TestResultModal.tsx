@@ -101,6 +101,9 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
     const new_state = !modalShowState
     setModalShowState(new_state)
     setIsModalOpen(new_state)
+    if (new_state == false) {
+      setTestResults([])
+    }
   }
 
   React.useEffect(() => {

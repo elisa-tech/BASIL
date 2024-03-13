@@ -19,3 +19,9 @@ repos:
         pass_filenames: false
         always_run: true
         language: system
+      - id: documentation
+        name: documentation
+        entry: "sphinx-build -W docs/source docs/build"
+        pass_filenames: false
+        always_run: true
+        language: system

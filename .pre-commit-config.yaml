@@ -25,3 +25,9 @@ repos:
         pass_filenames: false
         always_run: true
         language: system
+      - id: tmt
+        name: tmt
+        entry: "tmt lint . --exclude test-mr && tmt lint . --disable-check P005"
+        pass_filenames: false
+        always_run: true
+        language: system

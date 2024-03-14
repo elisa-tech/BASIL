@@ -12,7 +12,6 @@ db/*.db
 cypress/screenshots/
 dist/
 docs/build
-examples/
 logs/
 node_modules/
 notes.md

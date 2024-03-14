@@ -14,7 +14,8 @@ require:
   - pkgconf
 test: |
   cat /etc/resolv.conf
-  ping google.com
+  curl -s -o /dev/null -w "%{http_code}" https://www.google.com
+  dnf install -y autoconf automake bison flex gcc git glibc-headers m4 make pkgconf
   EXIT_CODE=0
   CURRENT_SYSCALL=${CURRENT_SYSCALL:=nanosleep}
   LTP_DOWNLOAD_PATH=/var/tmp/ltp

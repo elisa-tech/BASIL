@@ -10,7 +10,7 @@ export interface AdminMenuKebabProps {
 }
 
 export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ setModalAdminInfo, user }: AdminMenuKebabProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [isOpen, setIsOpen] = React.useState(false)
 
   const onToggleClick = () => {
@@ -46,6 +46,7 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
       })
       .catch((err) => {
         //setMessageValue(err.toString());
+        console.log(err)
       })
   }
 
@@ -74,6 +75,7 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
       })
       .catch((err) => {
         //setMessageValue(err.toString());
+        console.log(err)
       })
   }
 

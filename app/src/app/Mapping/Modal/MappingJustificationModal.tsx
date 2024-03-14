@@ -13,15 +13,12 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   modalVerb = '',
   modalTitle = '',
   modalFormData,
-  modalIndirect,
   modalOffset,
   setModalOffset,
   modalSection,
   setModalSection,
   modalDescription = '',
   parentData,
-  parentType = '',
-  parentRelatedToType = '',
   loadMappingData,
   api
 }: MappingModalProps) => {

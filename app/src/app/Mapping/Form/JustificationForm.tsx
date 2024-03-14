@@ -46,7 +46,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
   modalSection,
   parentData
 }: JustificationFormProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
   const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
 

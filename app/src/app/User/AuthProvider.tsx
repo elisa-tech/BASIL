@@ -1,27 +1,26 @@
 //https://dev.to/miracool/how-to-manage-user-authentication-with-react-js-3ic5
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import { useContext, createContext, useState } from 'react'
-import { Redirect, useHistory } from 'react-router-dom'
+import { createContext, useContext, useState } from 'react'
 
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
 const AuthContext = createContext<any>({
   /* ... */
 })
 
 const AuthProvider = ({ children }) => {
+  /*
   type ResponseData = {
     id: string
     token: string
     error: string
   }
+  */
 
-  let history = useHistory()
   const [userId, setUserId] = useState(localStorage.getItem('uId') || '')
   const [userRole, setUserRole] = useState(localStorage.getItem('uRole') || '')
   const [userEmail, setUserEmail] = useState(localStorage.getItem('uEmail') || '')
   const [token, setToken] = useState(localStorage.getItem('uToken') || '')
-  const [loginState, setLoginState] = useState('waiting')
-  const [loginMessage, setLoginMessage] = useState('')
 
   React.useEffect(() => {
     localStorage.setItem('uId', userId == null ? '' : userId)
@@ -32,9 +31,6 @@ const AuthProvider = ({ children }) => {
 
   const loginAction = (data) => {
     try {
-      let request_status = 0
-      let response_message = ''
-      setLoginState('requested')
       const requestOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,37 +38,25 @@ const AuthProvider = ({ children }) => {
       }
       fetch(Constants.API_BASE_URL + '/user/login', requestOptions)
         .then((response) => {
-          request_status = response.status
-          response_message = response.statusText + ': '
           return response.json()
         })
         .then((response_data) => {
           if (typeof response_data == 'object') {
-            if (response_data.hasOwnProperty('token')) {
+            //if (response_data.hasOwnProperty('token')) {
+            if (Object.prototype.hasOwnProperty.call(response_data, 'token')) {
               setUserEmail(response_data['email'])
               setUserId(response_data['id'])
               setUserRole(response_data['role'])
               setToken(response_data['token'])
-              setLoginState('done')
               window.location.href = '/'
-            } else {
-              setLoginMessage(response_message + 'Invalid credentials')
-              setLoginState('error')
-            }
-          } else {
-            if (typeof response_data == 'string') {
-              setLoginMessage(response_message + response_data)
-              setLoginState('error')
             }
           }
         })
         .catch((err) => {
           console.log(err)
-          setLoginState('error')
         })
     } catch (err) {
       console.log(err)
-      setLoginState('error')
     }
   }
 

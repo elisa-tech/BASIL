@@ -10,8 +10,7 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
-  TextArea,
-  TextInput
+  TextArea
 } from '@patternfly/react-core'
 import { useAuth } from '../../User/AuthProvider'
 
@@ -30,7 +29,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
   handleModalToggle,
   loadMappingData
 }: CommentFormProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [commentValue, setCommentValue] = React.useState('')
   const [validatedCommentValue, setValidatedCommentValue] = React.useState<Constants.validate>('error')
 

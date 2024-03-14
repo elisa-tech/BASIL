@@ -41,7 +41,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
   loadJustifications,
   loadMappingData
 }: JustificationSearchProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [searchValue, setSearchValue] = React.useState(formData?.title || '')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')

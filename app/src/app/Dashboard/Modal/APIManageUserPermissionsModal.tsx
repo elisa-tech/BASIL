@@ -9,20 +9,11 @@ import {
   Divider,
   Flex,
   FlexItem,
-  Form,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
   Hint,
   HintBody,
   Modal,
   ModalVariant,
-  SearchInput,
-  Text,
-  TextContent,
-  TextInput,
-  TextVariants
+  SearchInput
 } from '@patternfly/react-core'
 import * as Constants from '../../Constants/constants'
 import { useAuth } from '../../User/AuthProvider'
@@ -38,10 +29,10 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   modalShowState,
   setModalShowState
 }: ManageUserPermissionsProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const UNSET_USER_EMAIL = ''
   const UNSET_USER_ROLE = ''
-  const [userEmailSearchValue, setUserEmailSearchValue] = React.useState('lpellecc@redhat.com')
+  const [userEmailSearchValue, setUserEmailSearchValue] = React.useState('')
   const [userEmail, setUserEmail] = React.useState(UNSET_USER_EMAIL)
   const [userRole, setUserRole] = React.useState(UNSET_USER_ROLE)
   const [userEditPermission, setUserEditPermission] = React.useState(false)
@@ -97,9 +88,9 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     setUserReadPermission(false)
     setUserWritePermission(false)
 
-    let response_status
+    //let response_status
     let response_data
-    let search_string = userEmailSearchValue.trim()
+    const search_string = userEmailSearchValue.trim()
     let url
 
     if (search_string.length == 0) {
@@ -123,7 +114,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
       }
     })
       .then((response) => {
-        response_status = response.status
+        //response_status = response.status
         response_data = response.json()
         if (response.status !== 200) {
           setMessageValue('Unable to find the user')
@@ -154,7 +145,6 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   }
 
   const handleUserPermissionSubmit = () => {
-    let response_status
     let response_data
     let permissions = ''
 
@@ -171,8 +161,8 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
       permissions += 'w'
     }
 
-    let url = Constants.API_BASE_URL + '/user/permissions/api'
-    let data = { 'api-id': api.id, 'user-id': auth.userId, token: auth.token, email: userEmailSearchValue, permissions: permissions }
+    const url = Constants.API_BASE_URL + '/user/permissions/api'
+    const data = { 'api-id': api.id, 'user-id': auth.userId, token: auth.token, email: userEmailSearchValue, permissions: permissions }
     fetch(url, {
       method: 'PUT',
       headers: {
@@ -182,7 +172,6 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
       body: JSON.stringify(data)
     })
       .then((response) => {
-        response_status = response.status
         response_data = response.json()
         if (response.status !== 200) {
           setMessageValue('Unable to find the user')

@@ -45,7 +45,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   setModalManageUserPermissionsInfo,
   apis
 }: APIListingTableProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [expandedRepoNames, setExpandedRepoNames] = React.useState<string[]>([])
   const setRepoExpanded = (repo: DataObject, isExpanding = true) =>
     setExpandedRepoNames((prevExpanded) => {
@@ -57,6 +57,9 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   const [currentApiHistory, setCurrentApiHistory] = React.useState([])
 
   React.useEffect(() => {
+    if (currentApiID == 0) {
+      return
+    }
     const url = Constants.API_BASE_URL + '/apis/history?api-id=' + currentApiID
     fetch(url)
       .then((res) => res.json())

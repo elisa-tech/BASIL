@@ -26,7 +26,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   relationData,
   loadMappingData
 }: MappingDeleteModalProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [messageValue, setMessageValue] = React.useState('')
 

@@ -19,7 +19,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
   setModalManageUserPermissionsInfo,
   apiData
 }: ApiMenuKebabProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [isOpen, setIsOpen] = React.useState(false)
 
   const onToggleClick = () => {
@@ -31,11 +31,11 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
   }
 
   const toggleUserNotifications = (api_id) => {
-    let response_status
+    //let response_status
     let response_data
 
-    let url = Constants.API_BASE_URL + '/user/notifications'
-    let data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
+    const url = Constants.API_BASE_URL + '/user/notifications'
+    const data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
       headers: {
@@ -45,7 +45,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
       body: JSON.stringify(data)
     })
       .then((response) => {
-        response_status = response.status
+        //response_status = response.status
         response_data = response.json()
         if (response.status !== 200) {
           return

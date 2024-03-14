@@ -9,18 +9,12 @@ export interface APIModalProps {
   modalDescription: string
   modalShowState: boolean
   modalFormData
-  setCurrentLibrary
-  loadLibraries
-  loadApi
   setModalShowState
 }
 
 export const APIModal: React.FunctionComponent<APIModalProps> = ({
   modalShowState = false,
   setModalShowState,
-  setCurrentLibrary,
-  loadLibraries,
-  loadApi,
   modalAction = '',
   modalVerb = '',
   modalTitle = '',

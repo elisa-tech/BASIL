@@ -7,15 +7,21 @@ repos:
         pass_filenames: false
         always_run: true
         language: system
+      - id: prettier
+        name: prettier
+        entry: "npx prettier . --write"
+        pass_filenames: false
+        always_run: true
+        language: system
       - id: eslint
         name: eslint
         entry: "cd app && npx eslint src"
         pass_filenames: false
         always_run: true
         language: system
-      - id: prettier
-        name: prettier
-        entry: "npx prettier . --write"
+      - id: documentation
+        name: documentation
+        entry: "sphinx-build -W docs/source docs/build"
         pass_filenames: false
         always_run: true
         language: system

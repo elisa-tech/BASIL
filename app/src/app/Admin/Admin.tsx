@@ -1,15 +1,11 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import logo from '@app/bgimages/basil.svg'
-import { Card, CardBody, Flex, FlexItem, ListItem, ListVariant, PageSection, Title } from '@patternfly/react-core'
+import { Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core'
 import { AdminListingTable } from './AdminListingTable'
-import { Redirect, useHistory, useLocation } from 'react-router-dom'
-import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { useAuth } from '../User/AuthProvider'
 
 const Admin: React.FunctionComponent = () => {
-  const location = useLocation()
-  let auth = useAuth()
+  const auth = useAuth()
   const [users, setUsers] = React.useState([])
 
   const loadUsers = () => {
@@ -38,6 +34,7 @@ const Admin: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     loadUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

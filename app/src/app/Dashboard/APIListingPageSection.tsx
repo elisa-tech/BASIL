@@ -24,24 +24,16 @@ import { useAuth } from '../User/AuthProvider'
 
 export interface APIListingPageSectionProps {
   currentLibrary: string
-  setCurrentLibrary
-  loadLibraries
-  loadApi
   apis
   totalCoverage
-  searchValue: string
 }
 
 const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps> = ({
   currentLibrary,
-  setCurrentLibrary,
-  loadLibraries,
-  loadApi,
   apis,
-  totalCoverage,
-  searchValue
+  totalCoverage
 }: APIListingPageSectionProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const rows = []
   const [page, setPage] = React.useState(1)
   const [modalShowState, setModalShowState] = React.useState(false)
@@ -192,8 +184,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
           </Flex>
           {tableToolbar}
           <APIListingTable
-            //currentLibrary={currentLibrary}
-            //searchValue={searchValue}
             setModalInfo={setModalInfo}
             setModalCheckSpecInfo={setModalCheckSpecInfo}
             setModalDeleteInfo={setModalDeleteInfo}
@@ -205,15 +195,14 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
       <APIModal
         modalAction={modalAction}
         modalVerb={modalVerb}
-        //modalObject={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
         modalFormData={modalFormData}
         modalShowState={modalShowState}
         setModalShowState={setModalShowState}
-        setCurrentLibrary={setCurrentLibrary}
-        loadLibraries={loadLibraries}
-        loadApi={loadApi}
+        //setCurrentLibrary={setCurrentLibrary}
+        //loadLibraries={loadLibraries}
+        //loadApi={loadApi}
       />
       <APIDeleteModal
         modalShowState={modalDeleteShowState}
@@ -221,8 +210,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         api={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
-        //loadLibraries={loadLibraries}
-        //loadApi={loadApi}
       />
       <APICheckSpecModal
         api={modalCheckSpecApiData}

@@ -49,7 +49,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
   parentRelatedToType,
   swRequirements
 }: SwRequirementSearchProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [searchValue, setSearchValue] = React.useState(formData?.title || '')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')

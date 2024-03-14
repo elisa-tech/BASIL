@@ -1,28 +1,30 @@
 import React from 'react'
 import {
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  MenuToggleElement,
   NotificationDrawer,
   NotificationDrawerBody,
   NotificationDrawerHeader,
   NotificationDrawerList,
   NotificationDrawerListItem,
   NotificationDrawerListItemBody,
-  NotificationDrawerListItemHeader,
-  Dropdown,
-  DropdownList,
-  DropdownItem,
-  MenuToggle,
-  MenuToggleElement
+  NotificationDrawerListItemHeader
 } from '@patternfly/react-core'
 import * as Constants from '../Constants/constants'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import { useAuth } from '../User/AuthProvider'
 
+/*
 interface Notification {
   api: string
   notification: string
   read_by?: string
   url: string
 }
+*/
 
 export interface NotificationDrawerBasicProps {
   notifications
@@ -34,13 +36,13 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   notificationDrawerExpanded,
   setNotificationDrawerExpanded
 }: NotificationDrawerBasicProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [isOpenHeaderDropdown, setIsOpenHeaderDropdown] = React.useState(false)
   const [isOpenMap, setIsOpenMap] = React.useState(new Array(notifications.length).fill(false))
 
   const onToggle = (index: number) => () => {
-    let currentState = isOpenMap[index]
-    let newStates = new Array(notifications.length).fill(false)
+    const currentState = isOpenMap[index]
+    const newStates = new Array(notifications.length).fill(false)
     newStates[index] = !currentState
     setIsOpenHeaderDropdown(false)
     setIsOpenMap(newStates)
@@ -55,13 +57,13 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
     setIsOpenHeaderDropdown(!isOpenHeaderDropdown)
   }
 
-  const onSelect = (notification_id) => {
+  const onSelect = () => {
     setIsOpenMap(new Array(notifications.length).fill(false))
   }
 
-  const onSelectHeaderDropdown = () => {}
+  //const onSelectHeaderDropdown = () => {}
 
-  const onDrawerClose = (_event: React.MouseEvent<Element, MouseEvent> | KeyboardEvent) => {
+  const onDrawerClose = () => {
     toggleNotificationDrawer()
     setIsOpenMap(new Array(notifications.length).fill(false))
   }
@@ -71,11 +73,10 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   }
 
   const clearNotification = (notification_id) => {
-    let response_status
     let response_data
 
-    let url = Constants.API_BASE_URL + '/user/notifications'
-    let data = { 'user-id': auth.userId, token: auth.token }
+    const url = Constants.API_BASE_URL + '/user/notifications'
+    const data = { 'user-id': auth.userId, token: auth.token }
 
     if (notification_id != null) {
       data['id'] = notification_id
@@ -90,7 +91,6 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
       body: JSON.stringify(data)
     })
       .then((response) => {
-        response_status = response.status
         response_data = response.json()
         if (response.status !== 200) {
           return
@@ -113,13 +113,14 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
     } else {
       return notifications.map((notification, notificationIndex) => (
         <NotificationDrawerListItem
+          // eslint-disable-next-line  @typescript-eslint/no-explicit-any
           onClick={(ev: any) => ev.preventDefault()}
           key={'notification-drawer-list-item-' + notification['id']}
           variant={notification['category']}
         >
           <NotificationDrawerListItemHeader variant={notification['category']} title={notification['title']} srTitle='Info notification:'>
             <Dropdown
-              onSelect={() => onSelect(notification['id'])}
+              onSelect={() => onSelect()}
               isOpen={isOpenMap[notificationIndex]}
               onOpenChange={() => onToggle(notificationIndex)}
               popperProps={{ position: 'right' }}
@@ -168,7 +169,7 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
       <NotificationDrawerHeader count={notifications?.length | 0} onClose={onDrawerClose}>
         {notifications?.length > 0 ? (
           <Dropdown
-            onSelect={onSelectHeaderDropdown}
+            //onSelect={onSelectHeaderDropdown}
             isOpen={isOpenHeaderDropdown}
             onOpenChange={() => setIsOpenHeaderDropdown(false)}
             popperProps={{ position: 'right' }}

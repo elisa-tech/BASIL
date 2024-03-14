@@ -1,0 +1,9 @@
+summary: Dummy passing test
+description: Dummy passing test
+test: |
+  echo "dummy test start"
+  echo "Test is running..." > $TMT_PLAN_DATA/test.log
+  sleep 100
+  echo "dummy test end"
+framework: shell
+duration: 5m

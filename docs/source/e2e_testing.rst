@@ -4,8 +4,6 @@ E2E Testing with cypress
 ========================
 
 
-
-
 -------------
 Preconditions
 -------------
@@ -14,10 +12,12 @@ Before running the e2e testing via cypress you need to run the api project with 
 
 From BASIL project root directory:
 
-``pdm run api/api.py --testing``
+.. code-block:: bash
+
+   pdm run api/api.py --testing
+
 
 That will create a test database **db/test.db** preventing the modification of your production db **db/basil.db**
-
 
 
 -----------
@@ -29,14 +29,19 @@ Run Cypress e2e testing in the terminal
 
 From BASIL project root directory:
 
-``npx cypress run``
+.. code-block:: bash
+
+   npx cypress run
+
 
 Open the cypress application for interactive Testing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 From BASIL project root directory:
 
-``npx cypress open``
+.. code-block:: bash
+
+   npx cypress open
 
 
 .. toctree::

@@ -12,3 +12,6 @@ per-file-ignores =
     api/api.py:E402
     api/test/*.py:E402
     db/models/init_db.py:E402,F401
+    api/tmttestrun.py:E402,F401
+    db/models/test_run.py:F401
+    db/models/test_run_config.py:F401

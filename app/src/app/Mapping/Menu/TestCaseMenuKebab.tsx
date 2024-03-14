@@ -10,6 +10,8 @@ export interface TestCaseMenuKebabProps {
   setUsageModalInfo
   setTcModalInfo
   setDeleteModalInfo
+  setTestRunModalInfo
+  setTestResultModalInfo
   mappingParentType
   mappingParentRelatedToType
   mappingIndex
@@ -26,6 +28,8 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
   setUsageModalInfo,
   setTcModalInfo,
   setDeleteModalInfo,
+  setTestRunModalInfo,
+  setTestResultModalInfo,
   mappingParentType,
   mappingParentRelatedToType,
   mappingIndex,
@@ -66,7 +70,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
     >
       <DropdownList>
         {api?.permissions.indexOf('w') >= 0 ? (
-          <React.Fragment>
+          <>
             <DropdownItem
               value={0}
               id={'btn-menu-test-case-delete-' + mappingList[mappingIndex].relation_id}
@@ -102,7 +106,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
             <DropdownItem value={2} key='fork' isDisabled>
               Fork
             </DropdownItem>
-          </React.Fragment>
+          </>
         ) : (
           ''
         )}
@@ -114,10 +118,36 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         >
           History
         </DropdownItem>
-        <DropdownItem value={4} key='show-details' onClick={() => setDetailsModalInfo(true, Constants._TC, getTestCase()['id'])}>
+
+        {api?.permissions.indexOf('w') >= 0 ? (
+          <>
+            <DropdownItem value={4} key='run' onClick={() => setTestRunModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}>
+              Run
+            </DropdownItem>
+          </>
+        ) : (
+          ''
+        )}
+
+        <DropdownItem value={5} key='show-details' onClick={() => setDetailsModalInfo(true, Constants._TC, getTestCase()['id'])}>
           Show Details
         </DropdownItem>
-        <DropdownItem value={5} key='usage' onClick={() => setUsageModalInfo(true, Constants._TC, getTestCase()['id'])}>
+
+        {api?.permissions.indexOf('r') >= 0 ? (
+          <>
+            <DropdownItem
+              value={6}
+              key='test result'
+              onClick={() => setTestResultModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}
+            >
+              Test Result
+            </DropdownItem>
+          </>
+        ) : (
+          ''
+        )}
+
+        <DropdownItem value={7} key='usage' onClick={() => setUsageModalInfo(true, Constants._TC, getTestCase()['id'])}>
           Usage
         </DropdownItem>
       </DropdownList>

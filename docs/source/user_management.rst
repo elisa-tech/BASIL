@@ -14,10 +14,10 @@ An admin will be able to modify your role, to reset your password and to enable/
 Roles
 -----
 
-BASIL support 3 different user roles: GUEST, USER, ADMIN.
+BASIL support 3 different user roles: ADMIN, GUEST, USER.
+ * ADMIN: same rules as USER but an ADMIN can also enable/disable other users and reset their password.
  * GUEST: Can navigate and add comments to public contents. A guest cannot create a new software components.
  * USER: Can navigate and add comments to public contents. Moreover a USER can work on Software Components accordingly with the user permission defined by owners/managers.
- * ADMIN: same rules as USER but an ADMIN can also enable/disable other users and reset their password.
 
 
 ----------------

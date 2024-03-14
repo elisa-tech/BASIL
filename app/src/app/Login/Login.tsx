@@ -1,22 +1,13 @@
 import * as React from 'react'
-import * as Constants from '../Constants/constants'
 import logo from '@app/bgimages/basil.svg'
-import {
-  LoginFooterItem,
-  LoginForm,
-  LoginMainFooterBandItem,
-  LoginMainFooterLinksItem,
-  LoginPage,
-  ListItem,
-  ListVariant
-} from '@patternfly/react-core'
-import { Redirect, useHistory, useLocation } from 'react-router-dom'
+import { ListItem, ListVariant, LoginFooterItem, LoginForm, LoginMainFooterBandItem, LoginPage } from '@patternfly/react-core'
+import { Redirect, useLocation } from 'react-router-dom'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { useAuth } from '../User/AuthProvider'
 
 const Login: React.FunctionComponent = () => {
   const location = useLocation()
-  let auth = useAuth()
+  const auth = useAuth()
   const [showHelperText, setShowHelperText] = React.useState(false)
   const [helperText, setHelperText] = React.useState('')
   const [username, setUsername] = React.useState('')
@@ -73,7 +64,7 @@ const Login: React.FunctionComponent = () => {
   const loginForm = (
     <LoginForm
       showHelperText={showHelperText}
-      helperText='Invalid login credentials.'
+      helperText={helperText} //'Invalid login credentials.'
       helperTextIcon={<ExclamationCircleIcon />}
       usernameLabel='Username'
       usernameValue={username}

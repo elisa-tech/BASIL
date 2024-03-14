@@ -43,16 +43,22 @@ export interface MappingListingTableProps {
   setSrModalInfo
   setJModalInfo
   srModalShowState
-  tsModalShowState
-  setTsModalShowState
-  tcModalShowState
-  setTcModalShowState
-  jModalShowState
+  //tsModalShowState
+  //setTsModalShowState
+  //tcModalShowState
+  //setTcModalShowState
+  //testRunModalShowState
+  //setTestRunModalShowState
+  //testResultModalShowState
+  //setTestResultModalShowState
+  //jModalShowState
   setCommentModalInfo
   setDeleteModalInfo
   setDetailsModalInfo
   setForkModalInfo
   setHistoryModalInfo
+  setTestResultModalInfo
+  setTestRunModalInfo
   setUsageModalInfo
   mappingViewSelectValue
   showIndirectTestCases
@@ -68,22 +74,28 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   setSrModalInfo,
   setJModalInfo,
   srModalShowState,
-  tsModalShowState,
-  setTsModalShowState,
-  tcModalShowState,
-  setTcModalShowState,
-  jModalShowState,
+  //tsModalShowState,
+  //setTsModalShowState,
+  //tcModalShowState,
+  //setTcModalShowState,
+  //testRunModalShowState,
+  //setTestRunModalShowState,
+  //testResultModalShowState,
+  //setTestResultModalShowState,
+  //jModalShowState,
   setCommentModalInfo,
   setDeleteModalInfo,
   setDetailsModalInfo,
   setForkModalInfo,
   setHistoryModalInfo,
+  setTestResultModalInfo,
+  setTestRunModalInfo,
   setUsageModalInfo,
   mappingViewSelectValue,
   showIndirectTestCases,
   showIndirectTestSpecifications
 }: MappingListingTableProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
 
   const getWorkItemDescription = (_work_item_type) => {
     const work_item_types = [Constants._A, Constants._J, Constants._SR, Constants._TS, Constants._TC]
@@ -207,7 +219,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
 
   const getStatusLabel = (status) => {
     let label_color = 'orange'
-    let status_lc = status.toString().toLowerCase()
+    const status_lc = status.toString().toLowerCase()
 
     if (status_lc == 'new') {
       label_color = 'grey'
@@ -220,7 +232,14 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     return (
       <React.Fragment>
         <FlexItem>
-          <Label color={label_color as any} name='label-status' isCompact>
+          <Label
+            color={
+              // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+              label_color as any
+            }
+            name='label-status'
+            isCompact
+          >
             {status.toLowerCase()}
           </Label>
         </FlexItem>
@@ -287,6 +306,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     setUsageModalInfo={setUsageModalInfo}
                     setTcModalInfo={setTcModalInfo}
                     setDeleteModalInfo={setDeleteModalInfo}
+                    setTestRunModalInfo={setTestRunModalInfo}
+                    setTestResultModalInfo={setTestResultModalInfo}
                     mappingParentType={parent_type}
                     mappingParentRelatedToType={parent_related_to_type}
                     mappingIndex={cIndex}

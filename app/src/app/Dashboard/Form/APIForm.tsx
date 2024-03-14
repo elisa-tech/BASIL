@@ -46,7 +46,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   modalFormSubmitState = 'waiting',
   setModalFormSubmitState
 }: APIFormProps) => {
-  let auth = useAuth()
+  const auth = useAuth()
   const [apiValue, setApiValue] = React.useState(formData.api)
   const [validatedApiValue, setValidatedApiValue] = React.useState<Constants.validate>('error')
 

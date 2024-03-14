@@ -1,5 +1,17 @@
 summary: nanosleep
 description: LTP nanosleep tests
+require:
+  - autoconf
+  - automake
+  - bison
+  - flex
+  - gcc
+  - git
+  - glibc-headers
+  - kernel-headers
+  - m4
+  - make
+  - pkgconf
 test: |
   EXIT_CODE=0
   CURRENT_SYSCALL=${CURRENT_SYSCALL:=nanosleep}

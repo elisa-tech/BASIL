@@ -13,6 +13,8 @@ require:
   - make
   - pkgconf
 test: |
+  cat /etc/resolv.conf
+  ping google.com
   EXIT_CODE=0
   CURRENT_SYSCALL=${CURRENT_SYSCALL:=nanosleep}
   LTP_DOWNLOAD_PATH=/var/tmp/ltp

@@ -18,7 +18,7 @@ test: |
   #dnf install -y autoconf automake bison flex gcc git glibc-headers m4 make pkgconf
   EXIT_CODE=0
   CURRENT_SYSCALL=${CURRENT_SYSCALL:=getpid}
-  CURRENT_TEST=${CURRENT_SYSCALL:=getpid01}
+  CURRENT_TEST=${CURRENT_TEST:=getpid01}
   LTP_DOWNLOAD_PATH=/var/tmp/ltp
   LTP_BUILD_PATH=/opt/ltp
   GIT_SSL_NO_VERIFY=true git clone --depth 1 https://github.com/linux-test-project/ltp.git ${LTP_DOWNLOAD_PATH}

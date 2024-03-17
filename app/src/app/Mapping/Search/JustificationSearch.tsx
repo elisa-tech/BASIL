@@ -3,6 +3,8 @@ import * as Constants from '../../Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -24,6 +26,7 @@ export interface JustificationSearchProps {
   justifications
   modalOffset
   modalSection
+  modalShowState
   loadJustifications
   loadMappingData
 }
@@ -38,6 +41,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
   justifications,
   modalOffset,
   modalSection,
+  modalShowState,
   loadJustifications,
   loadMappingData
 }: JustificationSearchProps) => {
@@ -46,7 +50,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState<string>('')
-
+  const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
@@ -82,11 +86,6 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
     }
   }, [coverageValue])
 
-  React.useEffect(() => {
-    loadJustifications(searchValue)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
-
   const handleCoverageValueChange = (_event, value: string) => {
     setCoverageValue(value)
   }
@@ -97,6 +96,14 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusValue])
+
+  React.useEffect(() => {
+    if (modalShowState == true && initializedValue == false) {
+      setInitializedValue(true)
+      loadJustifications(searchValue)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const getJustificationsTable = (justifications) => {
     return justifications.map((justification, jIndex) => (
@@ -186,13 +193,28 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
 
   return (
     <React.Fragment>
-      <SearchInput
-        placeholder='Search Identifier'
-        value={searchValue}
-        onChange={(_event, value) => onChangeSearchValue(value)}
-        onClear={() => onChangeSearchValue('')}
-        style={{ width: '400px' }}
-      />
+      <Flex>
+        <FlexItem>
+          <SearchInput
+            placeholder='Search Identifier'
+            value={searchValue}
+            onChange={(_event, value) => onChangeSearchValue(value)}
+            onClear={() => onChangeSearchValue('')}
+            style={{ width: '400px' }}
+          />
+        </FlexItem>
+        <FlexItem>
+          <Button
+            variant='primary'
+            aria-label='Action'
+            onClick={() => {
+              loadJustifications(searchValue)
+            }}
+          >
+            Search
+          </Button>
+        </FlexItem>
+      </Flex>
       <br />
       <DataList
         isCompact

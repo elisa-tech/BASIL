@@ -176,6 +176,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
                 modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
+                modalShowState={modalShowState}
                 formMessage={''}
                 formDefaultButtons={1}
                 formData={testCaseSearchFormDataDefault}

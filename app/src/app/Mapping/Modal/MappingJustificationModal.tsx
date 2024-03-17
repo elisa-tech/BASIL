@@ -152,6 +152,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
                 //modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
+                modalShowState={modalShowState}
                 formDefaultButtons={1}
                 formData={null}
                 formMessage={''}

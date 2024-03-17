@@ -291,9 +291,10 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           <TabContent eventKey={2} id='tabContentTestRunConfigExisting' ref={existingItemsRef} hidden>
             <TabContentBody hasPadding>
               <TestRunConfigSearch
-                loadTestRunConfigs={loadTestRunConfigs}
-                testRunConfigs={testRunConfigs}
                 handleSelectExistingTestConfig={handleSelectExistingTestConfig}
+                loadTestRunConfigs={loadTestRunConfigs}
+                modalShowState={modalShowState}
+                testRunConfigs={testRunConfigs}
               />
             </TabContentBody>
           </TabContent>

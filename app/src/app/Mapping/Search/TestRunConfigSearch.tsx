@@ -1,19 +1,32 @@
 import React from 'react'
-import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import {
+  Button,
+  DataList,
+  DataListCell,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
+  Flex,
+  FlexItem,
+  SearchInput
+} from '@patternfly/react-core'
 
 export interface TestRunConfigSearchProps {
+  handleSelectExistingTestConfig
+  modalShowState
   loadTestRunConfigs
   testRunConfigs
-  handleSelectExistingTestConfig
 }
 
 export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchProps> = ({
+  handleSelectExistingTestConfig,
   loadTestRunConfigs,
-  testRunConfigs,
-  handleSelectExistingTestConfig
+  modalShowState,
+  testRunConfigs
 }: TestRunConfigSearchProps) => {
   const [searchValue, setSearchValue] = React.useState('')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
+  const [initializedValue, setInitializedValue] = React.useState(false)
 
   const onChangeSearchValue = (value) => {
     setSearchValue(value)
@@ -32,11 +45,6 @@ export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchPro
   const handleInputChange = (_event: React.FormEvent<HTMLInputElement>, id: string) => {
     setSelectedDataListItemId(id)
   }
-
-  React.useEffect(() => {
-    loadTestRunConfigs(searchValue)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
 
   const getTestRunConfigTable = (test_run_configs) => {
     if (test_run_configs == null) {
@@ -65,13 +73,28 @@ export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchPro
 
   return (
     <React.Fragment>
-      <SearchInput
-        placeholder='Search Identifier'
-        value={searchValue}
-        onChange={(_event, value) => onChangeSearchValue(value)}
-        onClear={() => onChangeSearchValue('')}
-        style={{ width: '400px' }}
-      />
+      <Flex>
+        <FlexItem>
+          <SearchInput
+            placeholder='Search Identifier'
+            value={searchValue}
+            onChange={(_event, value) => onChangeSearchValue(value)}
+            onClear={() => onChangeSearchValue('')}
+            style={{ width: '400px' }}
+          />
+        </FlexItem>
+        <FlexItem>
+          <Button
+            variant='primary'
+            aria-label='Action'
+            onClick={() => {
+              loadTestRunConfigs(searchValue)
+            }}
+          >
+            Search
+          </Button>
+        </FlexItem>
+      </Flex>
       <br />
       <DataList
         isCompact

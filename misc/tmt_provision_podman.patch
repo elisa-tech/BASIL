@@ -1,11 +1,20 @@
 --- podman.py	2024-03-17 09:12:05
-+++ podman_modified.py	2024-03-17 09:16:25
++++ podman_modified.py	2024-03-17 14:59:45
+@@ -20,7 +20,7 @@
+ DEFAULT_PULL_ATTEMPTS = 5
+ DEFAULT_PULL_INTERVAL = 5
+ # podman default stop time is 10s
+-DEFAULT_STOP_TIME = 1
++DEFAULT_STOP_TIME = 20
+
+
+ @dataclasses.dataclass
 @@ -151,7 +151,7 @@
              else:
                  raise err
- 
+
 -        return ['--network', self.network]
 +        return ['--network=host']
- 
+
      def start(self) -> None:
          """ Start provisioned guest """

@@ -1,5 +1,5 @@
-summary: nanosleep
-description: LTP nanosleep tests
+summary: LTP syscall test
+description: LTP syscall test
 require:
   - autoconf
   - automake
@@ -17,7 +17,8 @@ test: |
   curl -s -o /dev/null -w "%{http_code}" https://www.google.com || true
   #dnf install -y autoconf automake bison flex gcc git glibc-headers m4 make pkgconf
   EXIT_CODE=0
-  CURRENT_SYSCALL=${CURRENT_SYSCALL:=nanosleep}
+  CURRENT_SYSCALL=${CURRENT_SYSCALL:=getpid}
+  CURRENT_TEST=${CURRENT_SYSCALL:=getpid01}
   LTP_DOWNLOAD_PATH=/var/tmp/ltp
   LTP_BUILD_PATH=/opt/ltp
   GIT_SSL_NO_VERIFY=true git clone --depth 1 https://github.com/linux-test-project/ltp.git ${LTP_DOWNLOAD_PATH}
@@ -35,8 +36,8 @@ test: |
   #cp /var/${CURRENT_SYSCALL}.output ${TMT_PLAN_DATA}/${CURRENT_SYSCALL}.output
   #cp /var/${CURRENT_SYSCALL}.failed ${TMT_PLAN_DATA}/${CURRENT_SYSCALL}.failed
   #exit ${EXIT_CODE}
-  cd testcases/kernel/syscalls/nanosleep
+  cd testcases/kernel/syscalls/${CURRENT_SYSCALL}
   make
-  PATH=$PATH:$PWD ./nanosleep01
+  PATH=$PATH:$PWD ./${CURRENT_TEST}
 framework: shell
 duration: 1h

@@ -1,0 +1,19 @@
+summary: glibc single test
+description: glibc single test
+require:
+  - gcc
+  - git
+  - glibc
+  - make
+test: |
+  CURRENT_TEST=${CURRENT_TEST:=libio/tst-fopenloc}
+  GLIBC_DOWNLOAD_PATH=/var/tmp/glibc
+  GIT_SSL_NO_VERIFY=true git clone --depth 1 https://sourceware.org/git/glibc.git ${GLIBC_DOWNLOAD_PATH}
+  cd ${GLIBC_DOWNLOAD_PATH}
+  mkdir build
+  cd build
+  export glibc_install="$(pwd)/install"
+  ../configure --prefix "$glibc_install"
+  make -j `nproc` test t=${CURRENT_TEST}
+framework: shell
+duration: 1h

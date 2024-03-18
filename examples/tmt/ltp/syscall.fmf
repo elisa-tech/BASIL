@@ -24,6 +24,5 @@ test: |
   cd testcases/kernel/syscalls/${CURRENT_SYSCALL}
   make
   PATH=$PATH:$PWD ./${CURRENT_TEST}
-  ls -l
 framework: shell
 duration: 1h

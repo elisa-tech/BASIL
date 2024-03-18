@@ -46,6 +46,14 @@ export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchPro
     setSelectedDataListItemId(id)
   }
 
+  React.useEffect(() => {
+    if (modalShowState == true && initializedValue == false) {
+      setInitializedValue(true)
+      loadTestRunConfigs(searchValue)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const getTestRunConfigTable = (test_run_configs) => {
     if (test_run_configs == null) {
       return

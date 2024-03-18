@@ -11,6 +11,6 @@ class DbInterface():
 
     def __init__(self, db_name="basil.db"):
         currentdir = os.path.dirname(os.path.realpath(__file__))
-        self.engine = create_engine(f"sqlite:///{currentdir}/{db_name}", echo=True)
+        self.engine = create_engine(f"sqlite:///{currentdir}/{db_name}", echo=False)
         Session = sessionmaker(bind=self.engine)
         self.session = Session()

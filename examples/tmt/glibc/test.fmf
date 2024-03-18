@@ -1,6 +1,7 @@
 summary: glibc single test
 description: glibc single test
 require:
+  - bison
   - gcc
   - git
   - glibc

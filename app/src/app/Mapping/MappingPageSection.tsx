@@ -345,6 +345,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                     <Button
                       variant='secondary'
                       id='btn-mapping-new-sw-requirement'
+                      isDisabled={api?.raw_specification == null}
                       onClick={() => setSrModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
                     >
                       Map Software Req.
@@ -354,6 +355,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                     <Button
                       variant='secondary'
                       id='btn-mapping-new-test-specification'
+                      isDisabled={api?.raw_specification == null}
                       onClick={() => setTsModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
                     >
                       Map Test Specification
@@ -363,6 +365,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                     <Button
                       variant='secondary'
                       id='btn-mapping-new-test-case'
+                      isDisabled={api?.raw_specification == null}
                       onClick={() => setTcModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
                     >
                       Map Test Case
@@ -372,6 +375,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                     <Button
                       variant='secondary'
                       id='btn-mapping-new-justification'
+                      isDisabled={api?.raw_specification == null}
                       onClick={() => setJModalInfo(true, 'add', api, '', 0, [], -1)}
                     >
                       Map Justification

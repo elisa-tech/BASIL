@@ -79,6 +79,9 @@ const Mapping: React.FunctionComponent = () => {
   }, [mappingViewSelectValue])
 
   React.useEffect(() => {
+    if (mappingData == null) {
+      return
+    }
     let total_len = 0
     let wa = 0
     for (let i = 0; i < mappingData['length']; i++) {

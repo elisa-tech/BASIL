@@ -171,6 +171,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
                 modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
+                modalShowState={modalShowState}
                 formDefaultButtons={1}
                 formData={modalFormData}
                 formMessage={''}

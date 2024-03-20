@@ -3,6 +3,8 @@ import * as Constants from '../../Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -24,6 +26,7 @@ export interface SwRequirementSearchProps {
   modalIndirect
   modalOffset
   modalSection
+  modalShowState
   loadMappingData
   loadSwRequirements
   parentData
@@ -42,6 +45,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
   modalIndirect,
   modalOffset,
   modalSection,
+  modalShowState,
   loadMappingData,
   loadSwRequirements,
   parentData,
@@ -54,7 +58,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
-
+  const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
@@ -95,16 +99,19 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
   }
 
   React.useEffect(() => {
-    loadSwRequirements(searchValue)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
-
-  React.useEffect(() => {
     if (statusValue == 'submitted') {
       handleSubmit()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusValue])
+
+  React.useEffect(() => {
+    if (modalShowState == true && initializedValue == false) {
+      setInitializedValue(true)
+      loadSwRequirements(searchValue)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const getSwRequirementsTable = (sw_requirements) => {
     return sw_requirements.map((sw_requirement, srIndex) => (
@@ -202,13 +209,28 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
 
   return (
     <React.Fragment>
-      <SearchInput
-        placeholder='Search Identifier'
-        value={searchValue}
-        onChange={(_event, value) => onChangeSearchValue(value)}
-        onClear={() => onChangeSearchValue('')}
-        style={{ width: '400px' }}
-      />
+      <Flex>
+        <FlexItem>
+          <SearchInput
+            placeholder='Search Identifier'
+            value={searchValue}
+            onChange={(_event, value) => onChangeSearchValue(value)}
+            onClear={() => onChangeSearchValue('')}
+            style={{ width: '400px' }}
+          />
+        </FlexItem>
+        <FlexItem>
+          <Button
+            variant='primary'
+            aria-label='Action'
+            onClick={() => {
+              loadSwRequirements(searchValue)
+            }}
+          >
+            Search
+          </Button>
+        </FlexItem>
+      </Flex>
       <br />
       <DataList
         isCompact

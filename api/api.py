@@ -5,6 +5,7 @@ from flask_restful import Resource, Api, reqparse
 import os
 import datetime
 import logging
+import shutil
 from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
 import sys
@@ -5472,6 +5473,85 @@ class TestRun(Resource):
 
         dbi.engine.dispose()
         return run.as_dict()
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ['api-id', 'id', 'mapped_to_type', 'mapped_to_id']
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        mapping_model = None
+        mapping_to = request_data['mapped_to_type']
+        mapping_id = request_data['mapped_to_id']
+        if mapping_to == ApiTestCaseModel.__tablename__:
+            mapping_model = ApiTestCaseModel
+        elif mapping_to == SwRequirementTestCaseModel.__tablename__:
+            mapping_model = SwRequirementTestCaseModel
+        elif mapping_to == TestSpecificationTestCaseModel.__tablename__:
+            mapping_model = TestSpecificationTestCaseModel
+        else:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        try:
+            mapping = dbi.session.query(mapping_model).filter(
+                mapping_model.id == mapping_id
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        try:
+            run = dbi.session.query(TestRunModel).filter(
+                TestRunModel.api_id == api.id,
+                TestRunModel.id == request_data['id'],
+                TestRunModel.mapping_to == mapping_to,
+                TestRunModel.mapping_id == mapping_id,
+            ).one()
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        run_dict = run.as_dict()
+        dbi.session.delete(run)
+        dbi.session.commit()
+
+        # Remove folder
+        run_path = os.path.join(TMT_LOGS_PATH, run_dict['uid'])
+        if os.path.exists(run_path):
+            if os.path.isdir(run_path):
+                shutil.rmtree(run_path)
+
+        # Notification
+        notification = f'{user.email} deleted a Test Run for Test Case ' \
+                       f'{mapping.test_case.title} as part of the sw component ' \
+                       f'{api.api}, library {api.library}.'
+        notifications = NotificationModel(api,
+                                          'info',
+                                          f'Test Run for {api.api} has been removed',
+                                          notification,
+                                          str(user.id),
+                                          f'/mapping/{api.id}')
+        dbi.session.add(notifications)
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return run_dict
 
 
 class TestRunLog(Resource):

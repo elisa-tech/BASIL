@@ -5,7 +5,7 @@ USER root
 RUN mkdir BASIL-API
 WORKDIR /BASIL-API
 COPY . /BASIL-API
-RUN dnf install -y curl git python3 python3-pip podman rsync && \
+RUN dnf install -y curl git patch python3 python3-pip podman rsync && \
     pip3 install --no-cache-dir -r requirements.txt
 
 # Set the public ip in the api/api_url.py
@@ -20,6 +20,8 @@ RUN cd db/models && \
     python3 init_db.py && \
     chmod a+rw /BASIL-API/db
 
-ENV BASIL_ADMIN_PASSWORD=
+# Apply patches
+RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch
 
+ENV BASIL_ADMIN_PASSWORD=
 CMD cd api && gunicorn --access-logfile /var/tmp/tc-access.log --error-logfile /var/tmp/tc-error.log --bind 0.0.0.0:${BASIL_API_PORT} api:app

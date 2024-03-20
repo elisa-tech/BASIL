@@ -1,6 +1,17 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import { Flex, FlexItem, PageGroup, PageSection, PageSectionVariants, SearchInput, Tab, TabTitleText, Tabs } from '@patternfly/react-core'
+import {
+  Button,
+  Flex,
+  FlexItem,
+  PageGroup,
+  PageSection,
+  PageSectionVariants,
+  SearchInput,
+  Tab,
+  TabTitleText,
+  Tabs
+} from '@patternfly/react-core'
 import { APIListingPageSection } from './APIListingPageSection'
 import { useAuth } from '../User/AuthProvider'
 
@@ -90,11 +101,6 @@ const Dashboard: React.FunctionComponent = () => {
   }, [currentLibrary])
 
   React.useEffect(() => {
-    loadApi()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
-
-  React.useEffect(() => {
     if (libraries.length > 0) {
       if (currentLibrary == '') {
         if (qsCurrentLibrary != undefined) {
@@ -129,6 +135,17 @@ const Dashboard: React.FunctionComponent = () => {
                 onClear={() => onChangeSearchValue('')}
                 style={{ width: '400px' }}
               />
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant='primary'
+                aria-label='Action'
+                onClick={() => {
+                  loadApi()
+                }}
+              >
+                Search
+              </Button>
             </FlexItem>
           </Flex>
         </PageSection>

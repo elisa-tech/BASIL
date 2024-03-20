@@ -3,6 +3,8 @@ import * as Constants from '../../Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   FormGroup,
   FormHelperText,
   HelperText,
@@ -24,9 +26,10 @@ export interface TestSpecificationSearchProps {
   parentType: string
   parentRelatedToType
   handleModalToggle
+  modalIndirect
   modalOffset
   modalSection
-  modalIndirect
+  modalShowState
   loadMappingData
   loadTestSpecifications
   testSpecifications
@@ -42,9 +45,10 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
   parentType = '',
   parentRelatedToType,
   handleModalToggle,
+  modalIndirect,
   modalOffset,
   modalSection,
-  modalIndirect,
+  modalShowState,
   loadMappingData,
   loadTestSpecifications,
   testSpecifications
@@ -54,7 +58,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
-
+  const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState('error')
 
@@ -94,11 +98,6 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     setSelectedDataListItemId(id)
   }
 
-  React.useEffect(() => {
-    loadTestSpecifications(searchValue)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
-
   const getTestSpecificationsTable = (test_specifications) => {
     return test_specifications.map((test_specification, tsIndex) => (
       <DataListItem
@@ -119,6 +118,14 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       </DataListItem>
     ))
   }
+
+  React.useEffect(() => {
+    if (modalShowState == true && initializedValue == false) {
+      setInitializedValue(true)
+      loadTestSpecifications(searchValue)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   React.useEffect(() => {
     if (statusValue == 'submitted') {
@@ -202,13 +209,28 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
 
   return (
     <React.Fragment>
-      <SearchInput
-        placeholder='Search Identifier'
-        value={searchValue}
-        onChange={(_event, value) => onChangeSearchValue(value)}
-        onClear={() => onChangeSearchValue('')}
-        style={{ width: '400px' }}
-      />
+      <Flex>
+        <FlexItem>
+          <SearchInput
+            placeholder='Search Identifier'
+            value={searchValue}
+            onChange={(_event, value) => onChangeSearchValue(value)}
+            onClear={() => onChangeSearchValue('')}
+            style={{ width: '400px' }}
+          />
+        </FlexItem>
+        <FlexItem>
+          <Button
+            variant='primary'
+            aria-label='Action'
+            onClick={() => {
+              loadTestSpecifications(searchValue)
+            }}
+          >
+            Search
+          </Button>
+        </FlexItem>
+      </Flex>
       <br />
       <DataList
         isCompact

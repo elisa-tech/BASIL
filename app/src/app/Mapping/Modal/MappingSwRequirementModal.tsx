@@ -179,6 +179,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
                 modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
+                modalShowState={modalShowState}
                 swRequirements={swRequirements}
                 formDefaultButtons={1}
                 formMessage={''}

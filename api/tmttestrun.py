@@ -188,7 +188,7 @@ class TmtTestRunner():
     def run(self):
         context_options_str = ''
         env_options_str = ''
-        provision_str = 'container'
+        provision_str = 'container --stop-time 30'
         root_dir_var_str = ''
 
         if len(self.context.keys()) > 0:
@@ -214,8 +214,8 @@ class TmtTestRunner():
 
         # skip prepare that can generate package manager error on some systems
         cmd = f'{root_dir_var_str} && cd {currentdir} && ' \
-              f'tmt {context_options_str} run -vvv --id {self.db_test_run.uid} {env_options_str} ' \
-              f'discover execute finish report provision --how {provision_str} plan --name {self.plan}'
+              f'tmt {context_options_str} run -vvv -a --id {self.db_test_run.uid} {env_options_str} ' \
+              f'provision --how {provision_str} plan --name {self.plan}'
         cmd = cmd.replace('  ', ' ')
 
         process = subprocess.Popen(cmd,

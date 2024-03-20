@@ -4,6 +4,8 @@ import {
   ActionGroup,
   Button,
   FormGroup,
+  Flex,
+  FlexItem,
   FormHelperText,
   HelperText,
   HelperTextItem,
@@ -24,9 +26,10 @@ export interface TestCaseSearchProps {
   parentType: string
   parentRelatedToType
   handleModalToggle
+  modalIndirect
   modalOffset
   modalSection
-  modalIndirect
+  modalShowState
   loadMappingData
   loadTestCases
   testCases
@@ -42,9 +45,10 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
   parentType,
   parentRelatedToType,
   handleModalToggle,
+  modalIndirect,
   modalOffset,
   modalSection,
-  modalIndirect,
+  modalShowState,
   loadMappingData,
   loadTestCases,
   testCases
@@ -54,7 +58,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
-
+  const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState('error')
 
@@ -94,11 +98,6 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
     setSelectedDataListItemId(id)
   }
 
-  React.useEffect(() => {
-    loadTestCases(searchValue)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
-
   const getTestCasesTable = (test_cases) => {
     return test_cases.map((test_case, tcIndex) => (
       <DataListItem
@@ -126,6 +125,14 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusValue])
+
+  React.useEffect(() => {
+    if (modalShowState == true && initializedValue == false) {
+      setInitializedValue(true)
+      loadTestCases(searchValue)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = () => {
     if (selectedDataListItemId == '' || selectedDataListItemId == '' || selectedDataListItemId == null) {
@@ -213,13 +220,28 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
 
   return (
     <React.Fragment>
-      <SearchInput
-        placeholder='Search Identifier'
-        value={searchValue}
-        onChange={(_event, value) => onChangeSearchValue(value)}
-        onClear={() => onChangeSearchValue('')}
-        style={{ width: '400px' }}
-      />
+      <Flex>
+        <FlexItem>
+          <SearchInput
+            placeholder='Search Identifier'
+            value={searchValue}
+            onChange={(_event, value) => onChangeSearchValue(value)}
+            onClear={() => onChangeSearchValue('')}
+            style={{ width: '400px' }}
+          />
+        </FlexItem>
+        <FlexItem>
+          <Button
+            variant='primary'
+            aria-label='Action'
+            onClick={() => {
+              loadTestCases(searchValue)
+            }}
+          >
+            Search
+          </Button>
+        </FlexItem>
+      </Flex>
       <br />
       <DataList
         isCompact

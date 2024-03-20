@@ -97,7 +97,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {api?.permissions.indexOf('w') >= 0 ? (
+        {api?.permissions.indexOf('w') >= 0 && api.raw_specification != null ? (
           <React.Fragment>
             <DropdownItem
               value={2}

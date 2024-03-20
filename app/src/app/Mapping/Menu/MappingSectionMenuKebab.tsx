@@ -62,7 +62,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
     }
   }
 
-  return (
+  return api?.raw_specification != null ? (
     <Dropdown
       isOpen={isOpen}
       onSelect={onSelect}
@@ -113,5 +113,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
         </DropdownItem>
       </DropdownList>
     </Dropdown>
+  ) : (
+    ''
   )
 }

@@ -1,0 +1,24 @@
+summary: glibc single test
+description: glibc single test
+require:
+  - bison
+  - gcc
+  - git
+  - glibc
+  - make
+test: |
+  CURRENT_TEST=${CURRENT_TEST:=libio/tst-fopenloc}
+  GLIBC_DOWNLOAD_PATH=$HOME/src
+  GLIBC_BUILD_PATH=$HOME/build/glibc
+  mkdir $GLIBC_DOWNLOAD_PATH || true
+  cd $GLIBC_DOWNLOAD_PATH
+  GIT_SSL_NO_VERIFY=true git clone --depth 1 https://sourceware.org/git/glibc.git
+  mkdir -p $GLIBC_BUILD_PATH
+  cd $GLIBC_BUILD_PATH
+  $GLIBC_DOWNLOAD_PATH/glibc/configure --prefix=/usr
+  make
+  make test t=$CURRENT_TEST
+  cp $GLIBC_BUILD_PATH/$CURRENT_TEST.out $TMT_PLAN_DATA/test.out
+  cp $GLIBC_BUILD_PATH/$CURRENT_TEST.test-result $TMT_PLAN_DATA/test.test-result
+framework: shell
+duration: 12h

@@ -5,6 +5,8 @@ import {
   CodeBlock,
   CodeBlockCode,
   Divider,
+  Flex,
+  FlexItem,
   Hint,
   HintBody,
   Label,
@@ -26,6 +28,7 @@ import BugIcon from '@patternfly/react-icons/dist/esm/icons/bug-icon'
 import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon'
 import InfoCircleIcon from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
+import TimesIcon from '@patternfly/react-icons/dist/esm/icons/times-icon'
 import { TestRunBugForm } from '../Form/TestRunBugForm'
 import { useAuth } from '../../User/AuthProvider'
 
@@ -95,11 +98,6 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   const onChangeSearchValue = (value) => {
     setSearchValue(value)
   }
-
-  React.useEffect(() => {
-    loadTestResult(searchValue)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchValue])
 
   React.useEffect(() => {
     loadCurrentTestRunLogTxt()
@@ -239,6 +237,52 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
       })
   }
 
+  const deleteTestRun = (test_run) => {
+    const test_run_label = document.getElementById('test-result-delete-label-' + test_run.id)
+    if (typeof test_run_label === undefined || test_run_label == null) {
+      return
+    } else {
+      if (test_run_label.innerHTML == 'Delete') {
+        test_run_label.innerHTML = 'Confirm'
+        return
+      }
+    }
+    const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
+    const mapping_id = modalRelationData['relation_id']
+    setMessageValue('')
+    const tmpConf = test_run.config
+    tmpConf['from_db'] = 1
+
+    const data = {
+      'api-id': api.id,
+      id: test_run.id,
+      'user-id': auth.userId,
+      token: auth.token,
+      mapped_to_type: mapping_to,
+      mapped_to_id: mapping_id
+    }
+
+    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+      method: 'DELETE',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        if (response.status !== 200) {
+          setMessageValue(response.statusText)
+        } else {
+          loadTestResult(searchValue)
+          setMessageValue('')
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
+  }
+
   const testRunListRef = React.createRef<HTMLElement>()
   const testRunDetailsRef = React.createRef<HTMLElement>()
   const testRunDetailsLogTxtRef = React.createRef<HTMLElement>()
@@ -324,13 +368,28 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
 
           <TabContent eventKey={0} id='tabContentTestCaseForm' ref={testRunListRef}>
             <br />
-            <SearchInput
-              placeholder='Search'
-              value={searchValue}
-              onChange={(_event, value) => onChangeSearchValue(value)}
-              onClear={() => onChangeSearchValue('')}
-              style={{ width: '400px' }}
-            />
+            <Flex>
+              <FlexItem>
+                <SearchInput
+                  placeholder='Search'
+                  value={searchValue}
+                  onChange={(_event, value) => onChangeSearchValue(value)}
+                  onClear={() => onChangeSearchValue('')}
+                  style={{ width: '400px' }}
+                />
+              </FlexItem>
+              <FlexItem>
+                <Button
+                  variant='primary'
+                  aria-label='Action'
+                  onClick={() => {
+                    loadTestResult(searchValue)
+                  }}
+                >
+                  Search
+                </Button>
+              </FlexItem>
+            </Flex>
             <br />
             <TabContentBody hasPadding>
               <Table aria-label='Clickable table'>
@@ -396,6 +455,15 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
                                 }}
                               >
                                 <ProcessAutomationIcon /> Re-run
+                              </Button>
+                              <Button
+                                variant='plain'
+                                aria-label='Action'
+                                onClick={() => {
+                                  deleteTestRun(testResult)
+                                }}
+                              >
+                                <TimesIcon /> <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
                               </Button>
                             </>
                           ) : (

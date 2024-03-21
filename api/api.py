@@ -406,7 +406,10 @@ def get_api_specification(_url_or_path):
         if _url_or_path.startswith("http"):
             try:
                 resource = urllib.request.urlopen(_url_or_path)
-                content = resource.read().decode(resource.headers.get_content_charset())
+                if resource.headers.get_content_charset():
+                    content = resource.read().decode(resource.headers.get_content_charset())
+                else:
+                    content = resource.read()
                 return content
             except URLError as excp:
                 print(f"URLError: {excp.reason} reading {_url_or_path}")

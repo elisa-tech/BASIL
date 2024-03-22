@@ -409,7 +409,7 @@ def get_api_specification(_url_or_path):
                 if resource.headers.get_content_charset():
                     content = resource.read().decode(resource.headers.get_content_charset())
                 else:
-                    content = resource.read()
+                    content = resource.read().decode('utf-8')
                 return content
             except URLError as excp:
                 print(f"URLError: {excp.reason} reading {_url_or_path}")

@@ -3,7 +3,7 @@ import os
 import traceback
 import urllib.request
 
-API_URL = 'http://localhost:5005'
+API_URL = 'http://localhost:5000'
 
 def api_get_sw_components() -> list:
     """

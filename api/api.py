@@ -973,7 +973,8 @@ class Comment(Resource):
                            f'mapped to ' \
                            f'{mapping.api.api} as part of the library {mapping.api.library}'
             notifications = NotificationModel(mapping.api,
-                                              'success',
+                                              NOTIFICATION_CATEGORY_NEW,
+                                              f'New Comment from {user.email}',
                                               notification,
                                               str(user.id),
                                               f'/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments')

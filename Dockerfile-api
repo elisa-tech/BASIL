@@ -24,4 +24,7 @@ RUN cd db/models && \
 RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch
 
 ENV BASIL_ADMIN_PASSWORD=
-CMD cd api && gunicorn --access-logfile /var/tmp/tc-access.log --error-logfile /var/tmp/tc-error.log --bind 0.0.0.0:${BASIL_API_PORT} api:app
+CMD cd api && gunicorn --access-logfile /var/tmp/tc-gunicorn-access.log \
+                       --error-logfile /var/tmp/tc-gunicorn-error.log \
+                       --bind 0.0.0.0:${BASIL_API_PORT} api:app 2> | \
+                       tee /var/tmp/tc-error.log

@@ -287,7 +287,8 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='APICheckSpecModal'
+        aria-label='api check spec modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title='Check Work Item Mapping against a Software Component Specification'

@@ -41,7 +41,8 @@ export const APIModal: React.FunctionComponent<APIModalProps> = ({
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='APIModal'
+        aria-label='api modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

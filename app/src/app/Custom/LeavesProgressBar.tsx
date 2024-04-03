@@ -43,16 +43,16 @@ const LeavesProgressBar: React.FunctionComponent<LeavesProgressBarProps> = ({
     <React.Fragment>
       <div aria-describedby={progressId + '-ref2'} id={progressId}>
         <Icon iconSize={icon_size}>
-          <img src={leaves[0]} />
+          <img alt='progress 0-25' src={leaves[0]} />
         </Icon>
         <Icon iconSize={icon_size}>
-          <img src={leaves[1]} />
+          <img alt='progress 25-50' src={leaves[1]} />
         </Icon>
         <Icon iconSize={icon_size}>
-          <img src={leaves[2]} />
+          <img alt='progress 50-75' src={leaves[2]} />
         </Icon>
         <Icon iconSize={icon_size}>
-          <img src={leaves[3]} />
+          <img alt='progress 75-100' src={leaves[3]} />
         </Icon>
       </div>
       <Tooltip

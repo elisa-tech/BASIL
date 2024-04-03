@@ -95,7 +95,8 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingHistoryModal'
+        aria-label='mapping history modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

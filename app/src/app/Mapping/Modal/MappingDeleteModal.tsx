@@ -70,7 +70,8 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingDeleteModal'
+        aria-label='mapping delete modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

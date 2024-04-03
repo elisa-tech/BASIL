@@ -2,6 +2,8 @@ import React from 'react'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   FormHelperText,
@@ -9,6 +11,7 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
+  Radio,
   TextInput
 } from '@patternfly/react-core'
 import * as Constants from '../../Constants/constants'
@@ -35,6 +38,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     library_version: '',
     raw_specification_url: '',
     category: '',
+    default_view: '',
     tags: '',
     implementation_file_from_row: '',
     implementation_file_to_row: '',
@@ -60,6 +64,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   const [validatedRawSpecificationUrlValue, setValidatedRawSpecificationUrlValue] = React.useState<Constants.validate>('error')
 
   const [categoryValue, setCategoryValue] = React.useState(formData.category)
+  const [defaultViewValue, setDefaultViewValue] = React.useState(formData.default_view)
 
   const [tagsValue, setTagsValue] = React.useState(formData.tags)
 
@@ -74,6 +79,18 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
   const [statusValue, setStatusValue] = React.useState('waiting')
+
+  const handleDefaultViewChange = () => {
+    if (document.getElementById('radio-default-view-raw-specification').checked) {
+      setDefaultViewValue(Constants._RS)
+    } else if (document.getElementById('radio-default-view-sw-requirements').checked) {
+      setDefaultViewValue(Constants._SRs)
+    } else if (document.getElementById('radio-default-view-test-cases').checked) {
+      setDefaultViewValue(Constants._TCs)
+    } else if (document.getElementById('radio-default-view-test-specifications').checked) {
+      setDefaultViewValue(Constants._TSs)
+    }
+  }
 
   React.useEffect(() => {
     if (apiValue.trim() === '') {
@@ -183,6 +200,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     setLibraryVersionValue(formAction == 'fork' ? '' : formData.library_version)
     setRawSpecificationUrlValue(formData.raw_specification_url)
     setCategoryValue(formData.category)
+    setDefaultViewValue(formData.default_view)
     setTagsValue(formData.tags)
     setImplementationFileValue(formData.implementation_file)
     setImplementationFileFromRowValue(formData.implementation_file_from_row)
@@ -239,6 +257,10 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       'raw-specification-url': rawSpecificationUrlValue,
       'user-id': auth.userId,
       token: auth.token
+    }
+
+    if (formAction == 'edit') {
+      data['default-view'] = defaultViewValue
     }
 
     fetch(Constants.API_BASE_URL + '/apis', {
@@ -395,6 +417,45 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           onChange={(_ev, value) => handleTagsValueChange(_ev, value)}
         />
       </FormGroup>
+
+      {formAction == 'edit' ? (
+        <FormGroup label='Default View:' fieldId={`input-api-default-view-${formData.id}`}>
+          <Flex>
+            <FlexItem>
+              <Radio
+                isChecked={defaultViewValue == Constants._RS}
+                name='radio-default-view'
+                onChange={handleDefaultViewChange}
+                label='Raw Specification'
+                id='radio-default-view-raw-specification'
+              ></Radio>
+              <Radio
+                isChecked={defaultViewValue == Constants._SRs || defaultViewValue == '' || defaultViewValue == null}
+                name='radio-default-view'
+                onChange={handleDefaultViewChange}
+                label='Sw Requirements'
+                id='radio-default-view-sw-requirements'
+              ></Radio>
+              <Radio
+                isChecked={defaultViewValue == Constants._TCs}
+                name='radio-default-view'
+                onChange={handleDefaultViewChange}
+                label='Test Cases'
+                id='radio-default-view-test-cases'
+              ></Radio>
+              <Radio
+                isChecked={defaultViewValue == Constants._TSs}
+                name='radio-default-view'
+                onChange={handleDefaultViewChange}
+                label='Test Specifications'
+                id='radio-default-view-test-specifications'
+              ></Radio>
+            </FlexItem>
+          </Flex>
+        </FormGroup>
+      ) : (
+        ''
+      )}
 
       {messageValue ? (
         <Hint>

@@ -69,7 +69,8 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='APIDeleteModal'
+        aria-label='api delete modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

@@ -69,7 +69,8 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingForkModal'
+        aria-label='mapping fork modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

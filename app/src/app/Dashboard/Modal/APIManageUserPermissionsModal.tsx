@@ -190,7 +190,8 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='APIManageUserPermissionsModal'
+        aria-label='api manage user permissions modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title='Manage User Permission'

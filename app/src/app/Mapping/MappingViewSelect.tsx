@@ -4,13 +4,16 @@ import { FormSelect, FormSelectOption } from '@patternfly/react-core'
 export interface MappingViewSelectProps {
   mappingViewSelectValue
   setMappingViewSelectValue
+  setMappingViewSelectValueOld
 }
 
 export const MappingViewSelect: React.FunctionComponent<MappingViewSelectProps> = ({
   mappingViewSelectValue,
-  setMappingViewSelectValue
+  setMappingViewSelectValue,
+  setMappingViewSelectValueOld
 }: MappingViewSelectProps) => {
   const onChange = (_event: React.FormEvent<HTMLSelectElement>, value: string) => {
+    setMappingViewSelectValueOld(mappingViewSelectValue)
     setMappingViewSelectValue(value)
   }
 

@@ -19,6 +19,7 @@ class ApiModel(Base):
     api: Mapped[str] = mapped_column(String(100))
     library: Mapped[str] = mapped_column(String(100))
     category: Mapped[str] = mapped_column(String(100))
+    default_view: Mapped[Optional[str]] = mapped_column(String(30))
     checksum: Mapped[Optional[str]] = mapped_column(String(100))
     library_version: Mapped[str] = mapped_column(String())
     implementation_file: Mapped[Optional[str]] = mapped_column(String())
@@ -74,6 +75,7 @@ class ApiModel(Base):
                f"raw_specification_url={self.raw_specification_url!r}, " \
                f"category={self.category!r}, " \
                f"checksum={self.checksum!r}, " \
+               f"default_view={self.default_view!r}, " \
                f"implementation_file={self.implementation_file!r}, " \
                f"implementation_file_from_row={self.implementation_file_from_row!r}, " \
                f"implementation_file_to_row={self.implementation_file_to_row!r}," \
@@ -96,6 +98,7 @@ class ApiModel(Base):
                  "raw_specification_url": self.raw_specification_url,
                  "category": self.category,
                  "checksum": self.checksum,
+                 "default_view": self.default_view,
                  "implementation_file": self.implementation_file,
                  "implementation_file_from_row": self.implementation_file_from_row,
                  "implementation_file_to_row": self.implementation_file_to_row,
@@ -158,6 +161,7 @@ def receive_after_update(mapper, connection, target):
             raw_specification_url=target.raw_specification_url,
             category=target.category,
             checksum=target.checksum,
+            default_view=target.default_view,
             implementation_file=target.implementation_file,
             implementation_file_from_row=target.implementation_file_from_row,
             implementation_file_to_row=target.implementation_file_to_row,
@@ -184,6 +188,7 @@ def receive_after_insert(mapper, connection, target):
         raw_specification_url=target.raw_specification_url,
         category=target.category,
         checksum=target.checksum,
+        default_view=target.default_view,
         implementation_file=target.implementation_file,
         implementation_file_from_row=target.implementation_file_from_row,
         implementation_file_to_row=target.implementation_file_to_row,
@@ -211,6 +216,7 @@ class ApiHistoryModel(Base):
     library: Mapped[str] = mapped_column(String(100))
     category: Mapped[str] = mapped_column(String(100))
     checksum: Mapped[Optional[str]] = mapped_column(String(100))
+    default_view: Mapped[Optional[str]] = mapped_column(String(30))
     library_version: Mapped[str] = mapped_column(String())
     implementation_file: Mapped[Optional[str]] = mapped_column(String())
     implementation_file_from_row: Mapped[Optional[int]] = mapped_column(Integer())
@@ -233,7 +239,7 @@ class ApiHistoryModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __init__(self, id, api, library, library_version, raw_specification_url,
-                 category, checksum, implementation_file,
+                 category, checksum, default_view, implementation_file,
                  implementation_file_from_row, implementation_file_to_row, tags,
                  created_by_id, edited_by_id, delete_permissions, edit_permissions,
                  manage_permissions, read_denials, write_permissions, version):
@@ -244,6 +250,7 @@ class ApiHistoryModel(Base):
         self.raw_specification_url = raw_specification_url
         self.category = category
         self.checksum = checksum
+        self.default_view = default_view
         self.implementation_file = implementation_file
         self.implementation_file_from_row = implementation_file_from_row
         self.implementation_file_to_row = implementation_file_to_row
@@ -267,6 +274,7 @@ class ApiHistoryModel(Base):
                f"raw_specification_url={self.raw_specification_url!r}, " \
                f"category={self.category!r}, " \
                f"checksum={self.checksum!r}, " \
+               f"default_view={self.default_view!r}, " \
                f"implementation_file={self.implementation_file!r}, " \
                f"implementation_file_from_row={self.implementation_file_from_row!r}, " \
                f"implementation_file_to_row={self.implementation_file_to_row!r}," \

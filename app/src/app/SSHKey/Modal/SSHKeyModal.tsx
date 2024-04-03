@@ -28,10 +28,11 @@ export const SSHKeyModal: React.FunctionComponent<SSHKeyModalProps> = ({ modalSh
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='SSHKeyModal'
+        aria-label='ssh key modal'
         tabIndex={0}
         variant={ModalVariant.large}
-        title={'Add a new SSH Key'}
+        title='Add a new SSH Key'
         description={''}
         isOpen={isModalOpen}
         onClose={handleModalToggle}

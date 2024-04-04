@@ -118,21 +118,18 @@ class ApiModel(Base):
             )
             srs = srs_query.all()
             srs_cov = sum([x.get_waterfall_coverage(db_session) for x in srs])
-            print(f'srs_cov: {srs_cov}')
 
             tss_query = db_session.query(ApiTestSpecificationModel).filter(
                 ApiTestSpecificationModel.api_id == self.id
             )
             tss = tss_query.all()
             tss_cov = sum([x.get_waterfall_coverage(db_session) for x in tss])
-            print(f'tss_cov: {tss_cov}')
 
             tcs_query = db_session.query(ApiTestCaseModel).filter(
                 ApiTestCaseModel.api_id == self.id
             )
             tcs = tcs_query.all()
             tcs_cov = sum([x.as_dict()['coverage'] for x in tcs])
-            print(f'tcs_cov: {tcs_cov}')
 
             _dict['srs_coverage'] = srs_cov
             _dict['tss_coverage'] = tss_cov

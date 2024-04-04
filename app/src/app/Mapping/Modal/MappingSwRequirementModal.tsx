@@ -85,7 +85,8 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingSwRequirementModal'
+        aria-label='mapping sw requirement modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

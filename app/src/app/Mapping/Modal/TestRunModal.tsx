@@ -227,10 +227,11 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Test Run modal'
+        bodyAriaLabel='TestRunModal'
+        aria-label='test run modal'
         tabIndex={0}
         variant={ModalVariant.large}
-        title={`Test Run`}
+        title='Test Run'
         description={``}
         isOpen={isModalOpen}
         onClose={handleModalToggle}

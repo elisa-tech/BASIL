@@ -249,7 +249,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
 
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {
     if (indirect == false) {
-      if (mappingViewSelectValue != 'test-cases') {
+      if (mappingViewSelectValue != Constants._TCs) {
         return ''
       }
     } else {
@@ -747,7 +747,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             {getSwRequirements(
               snippet['section'],
               snippet['offset'],
-              snippet[mappingViewSelectValue.replaceAll('-', '_')],
+              snippet[mappingViewSelectValue ? mappingViewSelectValue.replaceAll('-', '_') : Constants.DEFAULT_VIEW],
               false,
               Constants._A,
               ''
@@ -755,7 +755,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             {getTestSpecifications(
               snippet['section'],
               snippet['offset'],
-              snippet[mappingViewSelectValue.replaceAll('-', '_')],
+              snippet[mappingViewSelectValue ? mappingViewSelectValue.replaceAll('-', '_') : Constants.DEFAULT_VIEW],
               false,
               Constants._A,
               ''
@@ -763,7 +763,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             {getTestCases(
               snippet['section'],
               snippet['offset'],
-              snippet[mappingViewSelectValue.replaceAll('-', '_')],
+              snippet[mappingViewSelectValue ? mappingViewSelectValue.replaceAll('-', '_') : Constants.DEFAULT_VIEW],
               false,
               Constants._A,
               ''

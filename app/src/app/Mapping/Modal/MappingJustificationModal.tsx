@@ -64,7 +64,8 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingJustificationModal'
+        aria-label='mapping justification modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

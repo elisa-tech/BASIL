@@ -58,7 +58,8 @@ export const MappingUsageModal: React.FunctionComponent<MappingUsageModalProps> 
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingUsageModal'
+        aria-label='mapping usage modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

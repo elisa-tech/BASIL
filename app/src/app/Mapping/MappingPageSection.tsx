@@ -24,6 +24,7 @@ export interface MappingPageSectionProps {
   loadMappingData
   mappingViewSelectValue
   setMappingViewSelectValue
+  setMappingViewSelectValueOld
   totalCoverage
   api
 }
@@ -34,6 +35,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   loadMappingData,
   mappingViewSelectValue,
   setMappingViewSelectValue,
+  setMappingViewSelectValueOld,
   totalCoverage,
   api
 }: MappingPageSectionProps) => {
@@ -71,7 +73,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [modalRelationData, setModalRelationData] = React.useState({})
   const [modalWorkItemType, setModalWorkItemType] = React.useState('')
 
+  const [showIndirectTestSpecificationsOld, setShowIndirectTestSpecificationsOld] = React.useState<boolean>(true)
   const [showIndirectTestSpecifications, setShowIndirectTestSpecifications] = React.useState<boolean>(true)
+  const [showIndirectTestCasesOld, setShowIndirectTestCasesOld] = React.useState<boolean>(true)
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
 
   const getWorkItemDescription = (_work_item_type) => {
@@ -314,14 +318,18 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const toggleIndirectTestSpecifications = () => {
+    setShowIndirectTestSpecificationsOld(showIndirectTestSpecifications)
     setShowIndirectTestSpecifications(!showIndirectTestSpecifications)
   }
   const toggleIndirectTestCases = () => {
+    setShowIndirectTestCasesOld(showIndirectTestCases)
     setShowIndirectTestCases(!showIndirectTestCases)
   }
 
   React.useEffect(() => {
-    loadMappingData(false)
+    if (showIndirectTestSpecifications != showIndirectTestSpecificationsOld || showIndirectTestCases != showIndirectTestCasesOld) {
+      loadMappingData(false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showIndirectTestSpecifications, showIndirectTestCases])
 
@@ -392,7 +400,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
           <CardBody>
             <Flex>
               <FlexItem>
-                <MappingViewSelect mappingViewSelectValue={mappingViewSelectValue} setMappingViewSelectValue={setMappingViewSelectValue} />
+                <MappingViewSelect
+                  mappingViewSelectValue={mappingViewSelectValue}
+                  setMappingViewSelectValue={setMappingViewSelectValue}
+                  setMappingViewSelectValueOld={setMappingViewSelectValueOld}
+                />
               </FlexItem>
               <FlexItem align={{ default: 'alignRight' }}>
                 <Switch

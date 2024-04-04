@@ -239,7 +239,7 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
 
   const deleteTestRun = (test_run) => {
     const test_run_label = document.getElementById('test-result-delete-label-' + test_run.id)
-    if (typeof test_run_label === undefined || test_run_label == null) {
+    if (typeof test_run_label === 'undefined' || test_run_label == null) {
       return
     } else {
       if (test_run_label.innerHTML == 'Delete') {
@@ -294,10 +294,11 @@ export const TestResultModal: React.FunctionComponent<TestResultModalProps> = ({
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='TestResultModal'
+        aria-label='test result modal'
         tabIndex={0}
         variant={ModalVariant.large}
-        title={`Test Result`}
+        title='Test Result'
         description={``}
         isOpen={isModalOpen}
         onClose={handleModalToggle}

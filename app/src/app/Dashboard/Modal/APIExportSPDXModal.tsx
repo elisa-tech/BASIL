@@ -61,7 +61,8 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='APIExportSPDXModal'
+        aria-label='api export spdx modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title='SPDX Data'

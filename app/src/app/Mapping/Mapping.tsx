@@ -8,7 +8,8 @@ import { useAuth } from '../User/AuthProvider'
 
 const Mapping: React.FunctionComponent = () => {
   const auth = useAuth()
-  const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('sw-requirements')
+  const [mappingViewSelectValue, setMappingViewSelectValue] = React.useState('')
+  const [mappingViewSelectValueOld, setMappingViewSelectValueOld] = React.useState('')
   const [num, setNum] = React.useState(0)
   const [apiData, setApiData] = React.useState(null)
   const [mappingData, setMappingData] = React.useState([])
@@ -21,30 +22,12 @@ const Mapping: React.FunctionComponent = () => {
   //const params = new URLSearchParams(search)
   //const queryView = params.get('view')
 
-  const loadApiData = () => {
-    let url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
-
-    if (auth.isLogged()) {
-      url += '&user-id=' + auth.userId + '&token=' + auth.token
-    }
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        setApiData(data)
-      })
-      .catch((err) => {
-        console.log(err.message)
-      })
-  }
-
   const loadMappingData = (force_reload) => {
     if (force_reload == false || force_reload == undefined) {
       if (num > 0) {
         return
       }
     }
-
     let url
     url = Constants.API_BASE_URL + '/mapping/api/' + mappingViewSelectValue
     url += '?api-id=' + api_id
@@ -52,6 +35,8 @@ const Mapping: React.FunctionComponent = () => {
     if (auth.isLogged()) {
       url += '&user-id=' + auth.userId + '&token=' + auth.token
     }
+
+    setNum(num + 1)
 
     fetch(url)
       .then((res) => res.json())
@@ -65,20 +50,42 @@ const Mapping: React.FunctionComponent = () => {
   }
 
   React.useEffect(() => {
-    if (num == 0) {
-      loadApiData()
-      loadMappingData(false)
+    const loadApiData = () => {
+      let url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
+
+      if (auth.isLogged()) {
+        url += '&user-id=' + auth.userId + '&token=' + auth.token
+      }
+
+      fetch(url)
+        .then((res) => res.json())
+        .then((data) => {
+          setApiData(data)
+          setMappingViewSelectValueOld(mappingViewSelectValue)
+          if (data.default_view != '') {
+            setMappingViewSelectValue(data.default_view)
+          } else {
+            setMappingViewSelectValue(Constants.DEFAULT_VIEW)
+          }
+        })
+        .catch((err) => {
+          console.log(err.message)
+        })
     }
-    setNum(num + 1)
+
+    loadApiData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   React.useEffect(() => {
-    loadMappingData(true)
+    if (mappingViewSelectValue != mappingViewSelectValueOld) {
+      loadMappingData(Constants.force_reload)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingViewSelectValue])
 
   React.useEffect(() => {
+    Constants.logObject(mappingData)
     if (mappingData == null) {
       return
     }
@@ -112,6 +119,7 @@ const Mapping: React.FunctionComponent = () => {
             loadMappingData={loadMappingData}
             mappingViewSelectValue={mappingViewSelectValue}
             setMappingViewSelectValue={setMappingViewSelectValue}
+            setMappingViewSelectValueOld={setMappingViewSelectValueOld}
             totalCoverage={totalCoverage}
             api={apiData}
           />

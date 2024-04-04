@@ -3,9 +3,9 @@ import * as Constants from '../../Constants/constants'
 import {
   ActionGroup,
   Button,
-  FormGroup,
   Flex,
   FlexItem,
+  FormGroup,
   FormHelperText,
   HelperText,
   HelperTextItem,

@@ -1150,6 +1150,7 @@ class Api(Resource):
         request_data = request.get_json(force=True)
         post_fields = self.fields_hashes.copy()
         post_fields.append('action')
+        post_fields.remove('default-view')
         if not check_fields_in_request(post_fields, request_data):
             return 'bad request!', 400
 
@@ -5392,7 +5393,6 @@ class TestRun(Resource):
         dbi.session.commit()
         dbi.engine.dispose()
 
-        print(new_test_run.as_dict())
         return new_test_run.as_dict()
 
     def put(self):
@@ -5598,7 +5598,7 @@ class TestRunLog(Resource):
         log_txt = ''
         log_exec = ''
         log_txt_path = os.path.join(TMT_LOGS_PATH, run.uid, 'log.txt')
-        print(f"fpath: {log_txt_path}")
+
         if os.path.exists(log_txt_path):
             f = open(log_txt_path, 'r')
             log_txt = f.read()

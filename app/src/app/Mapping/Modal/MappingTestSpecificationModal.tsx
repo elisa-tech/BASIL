@@ -82,7 +82,8 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingTestSpecificationModal'
+        aria-label='mapping test specification modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

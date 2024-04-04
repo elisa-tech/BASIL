@@ -110,7 +110,8 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   return (
     <React.Fragment>
       <Modal
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='MappingCommentModal'
+        aria-label='mapping comment modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={modalTitle}

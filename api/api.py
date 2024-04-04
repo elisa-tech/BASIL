@@ -15,7 +15,6 @@ from uuid import uuid4
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-# logging.getLogger('sqlalchemy').setLevel(logging.ERROR)
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
@@ -5672,6 +5671,20 @@ class TestRunArtifacts(Resource):
         return send_from_directory(artifacts_path, args['artifact'])
 
 
+class Version(Resource):
+
+    def get(self):
+        version = ""
+        filepath = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
+        f = open(filepath, 'r')
+        fc = f.read()
+        f.close()
+        version_row = [x for x in fc.split("\n") if "version = " in x]
+        if len(version_row) == 1:
+            version = version_row[0].split("=")[-1].replace('"', '').strip()
+        return {'version': version}
+
+
 api.add_resource(Api, '/apis')
 api.add_resource(ApiHistory, '/apis/history')
 api.add_resource(ApiSpecification, '/api-specifications')
@@ -5725,6 +5738,7 @@ api.add_resource(UserRole, '/user/role')
 api.add_resource(UserSignin, '/user/signin')
 api.add_resource(UserSshKey, '/user/ssh-key')
 api.add_resource(Testing, '/testing')
+api.add_resource(Version, '/version')
 
 
 if __name__ == "__main__":

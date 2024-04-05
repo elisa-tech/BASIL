@@ -429,8 +429,17 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <TextContent>
                     <Text component={TextVariants.h5}>{getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h6}>Preconditions:</Text>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
+                    </Text>
+                    <Text component={TextVariants.h6}>Test Description:</Text>
                     <Text className='work-item-detail-text'>
                       <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
+                    </Text>
+                    <Text component={TextVariants.h6}>Expected Behavior:</Text>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>

@@ -80,12 +80,7 @@ class ApiTestSpecificationModel(Base):
             tmp['coverage'] = ((self.coverage / 100) * (ts_tcs[i].coverage / 100)) * 100
             tmp['test_case'] = ts_tcs[i].test_case.as_dict(db_session=db_session)
             ts_tc_mapping += [tmp]
-            print("\n\n      ----------------    ")
-            print(f"ApiSwRequirementModel.coverage: {self.coverage}")
-            print(f"SwRequirementTestCaseModel.coverage: {ts_tcs[i].coverage}")
-            print(f"coverage: {tmp['coverage']}")
 
-        print(f'    * ts_tc_mapping: {ts_tc_mapping}')
         return ts_tc_mapping
 
     def current_version(self, db_session):
@@ -144,9 +139,6 @@ class ApiTestSpecificationModel(Base):
 
         waterfall_coverage = (min(max(0, tcs_coverage), 100) * self.coverage) / 100.0
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
-        print(f'tcs_coverage: {tcs_coverage}')
-        print(f'waterfall_coverage: {waterfall_coverage}')
-        print(f'self.coverage: {self.coverage}')
         return waterfall_coverage
 
 

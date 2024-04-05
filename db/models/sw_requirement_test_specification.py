@@ -80,7 +80,6 @@ class SwRequirementTestSpecificationModel(Base):
         return f'{last_item.version}.{last_mapping.version}'
 
     def as_dict(self, full_data=False, db_session=None):
-        print(self)
         _dict = {'relation_id': self.id,
                  'coverage': self.coverage,
                  'covered': self.get_waterfall_coverage(db_session),

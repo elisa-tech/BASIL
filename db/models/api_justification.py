@@ -114,7 +114,6 @@ def receive_after_update(mapper, connection, target):
     coverage = 0
 
     for row in connection.execute(last_query):
-        print(f"row: {row}")
         version = row[0]
         section = row[1]
         offset = row[2]

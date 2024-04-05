@@ -5023,7 +5023,7 @@ class UserNotifications(Resource):
             if api_id not in user_api_notifications:
                 user_api_notifications.append(api_id)
 
-        user.api_notifications = "".join([str(x) for x in user_api_notifications])
+        user.api_notifications = ",".join([str(x) for x in user_api_notifications])
         dbi.session.add(user)
         dbi.session.commit()
         dbi.engine.dispose()

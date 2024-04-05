@@ -131,12 +131,6 @@ class SwRequirementTestCaseModel(Base):
             tmp['coverage'] = ((self.coverage / 100) * (ts_tcs[i].coverage / 100)) * 100
             tmp['test_case'] = ts_tcs[i].test_case.as_dict(db_session=db_session)
             ts_tc_mapping += [tmp]
-            print("\n\n      ----------------    ")
-            print(f"ApiSwRequirementModel.coverage: {self.coverage}")
-            print(f"SwRequirementTestCaseModel.coverage: {ts_tcs[i].coverage}")
-            print(f"coverage: {tmp['coverage']}")
-
-        print(f'    * ts_tc_mapping: {ts_tc_mapping}')
         return ts_tc_mapping
 
 

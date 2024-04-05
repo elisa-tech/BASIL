@@ -77,12 +77,7 @@ class ApiSwRequirementModel(Base):
             tmp['coverage'] = ((self.coverage/100) * (sr_tcs[i].coverage / 100)) * 100
             tmp['test_case'] = sr_tcs[i].test_case.as_dict(db_session=db_session)
             sr_tc_mapping += [tmp]
-            print("\n\n      ----------------    ")
-            print(f"ApiSwRequirementModel.coverage: {self.coverage}")
-            print(f"SwRequirementTestCaseModel.coverage: {sr_tcs[i].coverage}")
-            print(f"coverage: {tmp['coverage']}")
 
-        print(f'    * sr_tc_mapping: {sr_tc_mapping}')
         return sr_tc_mapping
 
     def get_indirect_test_specifications(self, db_session):
@@ -163,7 +158,6 @@ class ApiSwRequirementModel(Base):
         srs = sr_query.all()
         if len(srs) > 0:
             srs_coverage = sum([x.get_waterfall_coverage(db_session) for x in srs])
-            print(f"srs_coverage: {srs_coverage}")
 
         # Test Specifications
         ts_query = db_session.query(SwRequirementTestSpecificationModel).filter(

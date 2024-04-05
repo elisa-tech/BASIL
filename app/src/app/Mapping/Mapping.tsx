@@ -85,7 +85,6 @@ const Mapping: React.FunctionComponent = () => {
   }, [mappingViewSelectValue])
 
   React.useEffect(() => {
-    Constants.logObject(mappingData)
     if (mappingData == null) {
       return
     }
@@ -112,18 +111,16 @@ const Mapping: React.FunctionComponent = () => {
             <FlexItem align={{ default: 'alignRight' }}></FlexItem>
           </Flex>
         </PageSection>
-        <PageSection type='tabs' variant={PageSectionVariants.light} isWidthLimited>
-          <MappingPageSection
-            mappingData={mappingData}
-            unmappingData={unmappingData}
-            loadMappingData={loadMappingData}
-            mappingViewSelectValue={mappingViewSelectValue}
-            setMappingViewSelectValue={setMappingViewSelectValue}
-            setMappingViewSelectValueOld={setMappingViewSelectValueOld}
-            totalCoverage={totalCoverage}
-            api={apiData}
-          />
-        </PageSection>
+        <MappingPageSection
+          mappingData={mappingData}
+          unmappingData={unmappingData}
+          loadMappingData={loadMappingData}
+          mappingViewSelectValue={mappingViewSelectValue}
+          setMappingViewSelectValue={setMappingViewSelectValue}
+          setMappingViewSelectValueOld={setMappingViewSelectValueOld}
+          totalCoverage={totalCoverage}
+          api={apiData}
+        />
       </PageGroup>
     </React.Fragment>
   )

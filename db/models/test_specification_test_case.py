@@ -107,7 +107,6 @@ class TestSpecificationTestCaseModel(Base):
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
 
-        # print(f"\n\nDICT: {_dict}")
         return _dict
 
     def current_version(self, db_session):

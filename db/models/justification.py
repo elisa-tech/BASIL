@@ -67,20 +67,15 @@ class JustificationModel(Base):
 
 @event.listens_for(JustificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    print("---------> after update")
     last_query = select(JustificationHistoryModel.version,
                         JustificationHistoryModel.description).where(
         JustificationHistoryModel.id == target.id).order_by(
         JustificationHistoryModel.version.desc()).limit(1)
     version = -1
-    description = None
     for row in connection.execute(last_query):
         version = row[0]
-        description = row[1]
 
     if version > -1:
-        print(f"description: {description}")
-        print(f"target.description: {target.description}")
         insert_query = insert(JustificationHistoryModel).values(
             id=target.id,
             description=target.description,
@@ -94,7 +89,6 @@ def receive_after_update(mapper, connection, target):
 
 @event.listens_for(JustificationModel, "after_insert")
 def receive_after_insert(mapper, connection, target):
-    print("---------> after insert")
     insert_query = insert(JustificationHistoryModel).values(
         id=target.id,
         description=target.description,

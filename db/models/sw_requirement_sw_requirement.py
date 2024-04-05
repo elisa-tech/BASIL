@@ -101,7 +101,6 @@ class SwRequirementSwRequirementModel(Base):
             _dict['api'] = {'id': self.sw_requirement_mapping_api.api_id}
             _dict['direct_sw_requirement'] = {'id': self.sw_requirement_mapping_api.sw_requirement.id}
         elif self.sw_requirement_mapping_sw_requirement_id:
-            print(f"self.sw_requirement_mapping_sw_requirement_id: {self.sw_requirement_mapping_sw_requirement_id}")
             _dict['indirect_sw_requirement'] = {
                 'id': self.sw_requirement_mapping_sw_requirement.get_parent_sw_requirement().id}
             _dict['direct_sw_requirement'] = {'id': self.sw_requirement_mapping_sw_requirement.sw_requirement.id}
@@ -139,10 +138,8 @@ class SwRequirementSwRequirementModel(Base):
         srs = db_session.query(SwRequirementSwRequirementModel).filter(
             SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id == self.id
         ).all()
-        print(srs)
         if len(srs) > 0:
             srs_coverage = sum([x.get_waterfall_coverage(db_session) for x in srs])
-            print(f"srs_coverage: {srs_coverage}")
 
         # Test Specifications
         ts_query = db_session.query(SwRequirementTestSpecificationModel).filter(
@@ -151,7 +148,6 @@ class SwRequirementSwRequirementModel(Base):
         tss = ts_query.all()
         if len(tss) > 0:
             tss_coverage = sum([x.get_waterfall_coverage(db_session) for x in tss])
-            print(f"tss_coverage: {tss_coverage}")
 
         # Test Cases
         tc_query = db_session.query(SwRequirementTestCaseModel).filter(
@@ -160,7 +156,6 @@ class SwRequirementSwRequirementModel(Base):
         tcs = tc_query.all()
         if len(tcs) > 0:
             tcs_coverage = sum([x.as_dict()['coverage'] for x in tcs])
-            print(f"tcs_coverage: {tss_coverage}")
 
         if len(tcs) == len(tss) == len(srs) == 0:
             waterfall_coverage = self.coverage

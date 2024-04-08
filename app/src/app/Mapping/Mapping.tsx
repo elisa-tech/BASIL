@@ -62,7 +62,7 @@ const Mapping: React.FunctionComponent = () => {
         .then((data) => {
           setApiData(data)
           setMappingViewSelectValueOld(mappingViewSelectValue)
-          if (data.default_view != '') {
+          if (data.default_view != '' && data.default_view != 'null' && data.default_view != undefined) {
             setMappingViewSelectValue(data.default_view)
           } else {
             setMappingViewSelectValue(Constants.DEFAULT_VIEW)

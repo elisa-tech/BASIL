@@ -46,14 +46,6 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
     setIsOpen(false)
   }
 
-  const getTestSpecification = () => {
-    if (indirect == true) {
-      return mappingList[mappingIndex][Constants._TS_]
-    } else {
-      return mappingList[mappingIndex]
-    }
-  }
-
   return (
     <Dropdown
       isOpen={isOpen}
@@ -138,10 +130,18 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
         >
           History
         </DropdownItem>
-        <DropdownItem value={5} key='show-details' onClick={() => setDetailsModalInfo(true, Constants._TS, getTestSpecification()['id'])}>
+        <DropdownItem
+          value={5}
+          key='show-details'
+          onClick={() => setDetailsModalInfo(true, Constants._TS, mappingList[mappingIndex][Constants._TS_]['id'])}
+        >
           Show Details
         </DropdownItem>
-        <DropdownItem value={6} key='usage' onClick={() => setUsageModalInfo(true, Constants._TS, getTestSpecification()['id'])}>
+        <DropdownItem
+          value={6}
+          key='usage'
+          onClick={() => setUsageModalInfo(true, Constants._TS, mappingList[mappingIndex][Constants._TS_]['id'])}
+        >
           Usage
         </DropdownItem>
       </DropdownList>

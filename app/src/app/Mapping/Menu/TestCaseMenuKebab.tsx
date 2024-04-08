@@ -48,14 +48,6 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
     setIsOpen(false)
   }
 
-  const getTestCase = () => {
-    if (indirect == true) {
-      return mappingList[mappingIndex][Constants._TC_]
-    } else {
-      return mappingList[mappingIndex]
-    }
-  }
-
   return (
     <Dropdown
       isOpen={isOpen}
@@ -129,7 +121,11 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           ''
         )}
 
-        <DropdownItem value={5} key='show-details' onClick={() => setDetailsModalInfo(true, Constants._TC, getTestCase()['id'])}>
+        <DropdownItem
+          value={5}
+          key='show-details'
+          onClick={() => setDetailsModalInfo(true, Constants._TC, mappingList[mappingIndex][Constants._TC_]['id'])}
+        >
           Show Details
         </DropdownItem>
 
@@ -147,7 +143,11 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           ''
         )}
 
-        <DropdownItem value={7} key='usage' onClick={() => setUsageModalInfo(true, Constants._TC, getTestCase()['id'])}>
+        <DropdownItem
+          value={7}
+          key='usage'
+          onClick={() => setUsageModalInfo(true, Constants._TC, mappingList[mappingIndex][Constants._TC_]['id'])}
+        >
           Usage
         </DropdownItem>
       </DropdownList>

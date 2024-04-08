@@ -81,14 +81,21 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   const handleDefaultViewChange = () => {
-    if (document.getElementById('radio-default-view-raw-specification').checked) {
-      setDefaultViewValue(Constants._RS)
-    } else if (document.getElementById('radio-default-view-sw-requirements').checked) {
-      setDefaultViewValue(Constants._SRs)
-    } else if (document.getElementById('radio-default-view-test-cases').checked) {
-      setDefaultViewValue(Constants._TCs)
-    } else if (document.getElementById('radio-default-view-test-specifications').checked) {
-      setDefaultViewValue(Constants._TSs)
+    const radio_dv_rs = document.getElementById('radio-default-view-raw-specification') as HTMLInputElement
+    const radio_dv_sr = document.getElementById('radio-default-view-sw-requirements') as HTMLInputElement
+    const radio_dv_tc = document.getElementById('radio-default-view-test-cases') as HTMLInputElement
+    const radio_dv_ts = document.getElementById('radio-default-view-test-specifications') as HTMLInputElement
+
+    if (radio_dv_rs != null && radio_dv_sr != null && radio_dv_tc != null && radio_dv_ts != null) {
+      if (radio_dv_rs.checked) {
+        setDefaultViewValue(Constants._RS)
+      } else if (radio_dv_sr.checked) {
+        setDefaultViewValue(Constants._SRs)
+      } else if (radio_dv_tc.checked) {
+        setDefaultViewValue(Constants._TCs)
+      } else if (radio_dv_ts.checked) {
+        setDefaultViewValue(Constants._TSs)
+      }
     }
   }
 

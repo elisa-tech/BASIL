@@ -7,7 +7,7 @@ COPY . /BASIL-APP
 WORKDIR /BASIL-APP/app
 # Set the public ip
 ARG API_ENDPOINT=localhost:5000
-RUN sed -i "s#http://localhost:5005#${API_ENDPOINT}#g" src/app/Constants/constants.tsx && \
+RUN sed -i "s#http://localhost:5000#${API_ENDPOINT}#g" src/app/Constants/constants.tsx && \
     npm install -d --verbose
 RUN npm run build
 

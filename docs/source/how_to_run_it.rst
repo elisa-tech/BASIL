@@ -56,12 +56,14 @@ At the same way you can build the APP project using Dockerfile-app
 
 To be able to reach the API project you need to specify the following build argument:
 
- + API_ENDPOINT (e.g. http://api-server-it:yourport or http://api-server-it/reverse-proxy-route)
+ + API_ENDPOINT (e.g. http://api-server-it:yourport)
+ + APP_PORT
 
 .. code-block:: bash
 
    docker build \
       --build-arg API_ENDPOINT=http://api-server-url:yourport \
+      --build-arg APP_PORT=yourport \
       -f Dockerfile-app \
       -t basil-app-image .
 

@@ -7,7 +7,9 @@ COPY . /BASIL-APP
 WORKDIR /BASIL-APP/app
 # Set the public ip
 ARG API_ENDPOINT=localhost:5000
+ARG APP_PORT=9000
 RUN sed -i "s#http://localhost:5000#${API_ENDPOINT}#g" src/app/Constants/constants.tsx && \
+    sed -i "s#--port 9000#--port ${APP_PORT}#g" package.json && \
     npm install -d --verbose
 RUN npm run build
 

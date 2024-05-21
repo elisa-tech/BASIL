@@ -46,8 +46,8 @@ Here an example of docker build command:
 .. code-block:: bash
 
    docker build \
-      --build-arg ADMIN_PASSWORD=your-desired-password \
-      --build-arg API_PORT=1234 \
+      --build-arg="ADMIN_PASSWORD=your-desired-password" \
+      --build-arg="API_PORT=1234" \
       -f Dockerfile-api \
       -t basil-api-image .
 
@@ -62,8 +62,8 @@ To be able to reach the API project you need to specify the following build argu
 .. code-block:: bash
 
    docker build \
-      --build-arg API_ENDPOINT=http://api-server-url:yourport \
-      --build-arg APP_PORT=yourport \
+      --build-arg="API_ENDPOINT=http://api-server-url:yourport" \
+      --build-arg="APP_PORT=yourport" \
       -f Dockerfile-app \
       -t basil-app-image .
 

@@ -8,11 +8,13 @@ sys.path.insert(1, os.path.dirname(os.path.dirname(currentdir)))
 from db import db_orm
 from db.models.db_base import Base
 from db.models.api import ApiModel, ApiHistoryModel
+from db.models.api_document import ApiDocumentModel, ApiDocumentHistoryModel
 from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
 from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirementHistoryModel
 from db.models.api_test_case import ApiTestCaseModel, ApiTestCaseHistoryModel
 from db.models.api_test_specification import ApiTestSpecificationModel, ApiTestSpecificationHistoryModel
 from db.models.comment import CommentModel
+from db.models.document import DocumentModel, DocumentHistoryModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
 from db.models.note import NoteModel
 from db.models.notification import NotificationModel

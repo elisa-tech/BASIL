@@ -64,6 +64,7 @@ API_PERMISSION_FIELDS = ['delete_permissions',
                          'write_permissions']
 
 from db import db_orm
+from db.models.api_document import ApiDocumentModel, ApiDocumentHistoryModel
 from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
 from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirementHistoryModel
 from db.models.api_test_case import ApiTestCaseModel, ApiTestCaseHistoryModel
@@ -71,6 +72,7 @@ from db.models.api_test_specification import ApiTestSpecificationModel
 from db.models.api_test_specification import ApiTestSpecificationHistoryModel
 from db.models.api import ApiModel, ApiHistoryModel
 from db.models.comment import CommentModel
+from db.models.document import DocumentModel, DocumentHistoryModel
 from db.models.justification import JustificationModel, JustificationHistoryModel
 from db.models.notification import NotificationModel
 from db.models.ssh_key import SshKeyModel
@@ -108,6 +110,8 @@ _TC = 'test_case'
 _TCs = f'{_TC}s'
 _J = 'justification'
 _Js = f'{_J}s'
+_D = 'document'
+_Ds = f'{_D}s'
 
 
 def get_api_from_request(_request, _db_session):
@@ -368,6 +372,16 @@ def get_model_editable_fields(_model, _is_history):
         return [x for x in all_fields if x not in not_editable_model_history_fields]
 
 
+def get_dict_with_db_format_keys(_dict):
+    """
+    return a dict with keys formatted with _ instead of -
+    """
+    tmp = {}
+    for iKey in list(_dict.keys()):
+        tmp[iKey.replace("-", "_")] = _dict[iKey]
+    return tmp
+
+
 def filter_query(_query, _args, _model, _is_history):
     fields = get_model_editable_fields(_model, _is_history)
     for arg_key in _args.keys():
@@ -465,7 +479,8 @@ def split_section(_to_splits, _that_split, _work_item_type):
                            _Js: [],
                            _TCs: [],
                            _TSs: [],
-                           _SRs: []}
+                           _SRs: [],
+                           _Ds: []}
 
             for j in range(len(_to_split[_SRs])):
                 tmp_section[_SRs].append(_to_split[_SRs][j].copy())
@@ -475,6 +490,8 @@ def split_section(_to_splits, _that_split, _work_item_type):
                 tmp_section[_TSs].append(_to_split[_TSs][j].copy())
             for j in range(len(_to_split[_Js])):
                 tmp_section[_Js].append(_to_split[_Js][j].copy())
+            for j in range(len(_to_split[_Ds])):
+                tmp_section[_Ds].append(_to_split[_Ds][j].copy())
 
             sections.append(tmp_section)
 
@@ -495,7 +512,8 @@ def split_section(_to_splits, _that_split, _work_item_type):
                                _Js: [],
                                _TCs: [],
                                _TSs: [],
-                               _SRs: []}
+                               _SRs: [],
+                               _Ds: []}
 
                 for j in range(len(_to_split[_SRs])):
                     tmp_section[_SRs].append(_to_split[_SRs][j].copy())
@@ -505,6 +523,8 @@ def split_section(_to_splits, _that_split, _work_item_type):
                     tmp_section[_TSs].append(_to_split[_TSs][j].copy())
                 for j in range(len(_to_split[_Js])):
                     tmp_section[_Js].append(_to_split[_Js][j].copy())
+                for j in range(len(_to_split[_Ds])):
+                    tmp_section[_Ds].append(_to_split[_Ds][j].copy())
 
                 sections.append(tmp_section)
 
@@ -536,7 +556,8 @@ def get_split_sections(_specification, _mapping, _work_item_types):
                         _TCs: [],
                         _TSs: [],
                         _SRs: [],
-                        _Js: []}]
+                        _Js: [],
+                        _Ds: []}]
 
     for iWIT in range(len(_work_item_types)):
         _items_key = f"{_work_item_types[iWIT]}s"
@@ -570,7 +591,8 @@ def get_split_sections(_specification, _mapping, _work_item_types):
             if sum([len(mapped_sections[iS][_SRs]),
                     len(mapped_sections[iS][_TSs]),
                     len(mapped_sections[iS][_TCs]),
-                    len(mapped_sections[iS][_Js])]) == 0:
+                    len(mapped_sections[iS][_Js]),
+                    len(mapped_sections[iS][_Ds])]) == 0:
                 mapped_sections[iS]['delete'] = True
 
         coverage_total = 0
@@ -582,6 +604,8 @@ def get_split_sections(_specification, _mapping, _work_item_types):
             coverage_total += mapped_sections[iS][_TSs][j]['covered']
         for j in range(len(mapped_sections[iS][_Js])):
             coverage_total += mapped_sections[iS][_Js][j]['covered']
+        for j in range(len(mapped_sections[iS][_Ds])):
+            coverage_total += mapped_sections[iS][_Ds][j]['covered']
         mapped_sections[iS]['covered'] = min(max(coverage_total, 0), 100)
 
     # Remove Section with section: \n and no work items
@@ -702,6 +726,11 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
         ApiSwRequirementModel.offset.asc()).all()
     sr_mapping = [x.as_dict(db_session=dbi.session) for x in sr]
 
+    documents = dbi.session.query(ApiDocumentModel).filter(
+        ApiDocumentModel.api_id == api.id).order_by(
+        ApiDocumentModel.offset.asc()).all()
+    documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+
     justifications = dbi.session.query(ApiJustificationModel).filter(
         ApiJustificationModel.api_id == api.id).order_by(
         ApiJustificationModel.offset.asc()).all()
@@ -709,20 +738,17 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
 
     mapping = {_A: api.as_dict(),
                _SRs: sr_mapping,
-               _Js: justifications_mapping}
+               _Js: justifications_mapping,
+               _Ds: documents_mapping}
 
-    for iMapping in range(len(mapping[_SRs])):
-        current_offset = mapping[_SRs][iMapping]['offset']
-        current_section = mapping[_SRs][iMapping]['section']
-        mapping[_SRs][iMapping]['match'] = (
-                api_specification[current_offset:current_offset + len(current_section)] == current_section)
-    for iMapping in range(len(mapping[_Js])):
-        current_offset = mapping[_Js][iMapping]['offset']
-        current_section = mapping[_Js][iMapping]['section']
-        mapping[_Js][iMapping]['match'] = (
-                api_specification[current_offset:current_offset + len(current_section)] == current_section)
+    for iType in [_SRs, _Js, _Ds]:
+        for iMapping in range(len(mapping[iType])):
+            current_offset = mapping[iType][iMapping]['offset']
+            current_section = mapping[iType][iMapping]['section']
+            mapping[iType][iMapping]['match'] = (
+                    api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-    mapped_sections = get_split_sections(api_specification, mapping, [_SR, _J])
+    mapped_sections = get_split_sections(api_specification, mapping, [_SR, _J, _D])
     unmapped_sections = [x for x in mapping[_SRs] if not x['match']]
     unmapped_sections += [x for x in mapping[_Js] if not x['match']]
 
@@ -1016,6 +1042,89 @@ class CheckSpecification(Resource):
         return ret
 
 
+class Document(Resource):
+    def get(self):
+        """
+        /documents
+        """
+        args = get_query_string_args(request.args)
+        dbi = db_orm.DbInterface(get_db())
+        query = dbi.session.query(DocumentModel)
+        query = filter_query(query, args, DocumentModel, False)
+        docs = [doc.as_dict() for doc in query.all()]
+        dbi.engine.dispose()
+        return docs
+
+
+class RemoteDocument(Resource):
+    def get(self):
+        """
+        /remote-documents
+        """
+
+        args = get_query_string_args(request.args)
+        ret = {}
+        if "api-id" not in args.keys():
+            return {}
+
+        if "id" not in args.keys() and "url" not in args.keys():
+            return {}
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if "url" in args.keys():
+            ret = {"url": args["url"],
+                   "valid": None,  # not evaluated
+                   "content": get_api_specification(args["url"])}
+        elif "id" in args.keys():
+            try:
+                document = dbi.session.query(DocumentModel).filter(
+                    DocumentModel.id == args["id"]).one()
+                content = get_api_specification(document.url)
+                valid = False
+                if content:
+                    valid = (content[document.offset:document.offset + len(document.section)] == document.section)
+                if int(valid) == 0 and document.valid == 1:
+                    document.valid = int(valid)
+                    dbi.session.add(document)
+
+                    # Add Notifications
+                    notification = f'Document {document.title} ' \
+                                   f'mapped to ' \
+                                   f'{api.api} as part of the library {api.library} it is not valid anymore'
+                    notifications = NotificationModel(api,
+                                                      NOTIFICATION_CATEGORY_EDIT,
+                                                      f'Document {document.title} it is not valid anymore',
+                                                      notification,
+                                                      "",
+                                                      f'/mapping/{api.id}')
+                    dbi.session.add(notifications)
+                    dbi.session.commit()
+
+            except NoResultFound:
+                return f"Unable to find the Document id {id}", 400
+            ret = {"id": args["id"],
+                   "content": content,
+                   "valid": valid}
+
+        dbi.engine.dispose()
+        return ret
+
+
 class FixNewSpecificationWarnings(Resource):
     fields = ['id']
 
@@ -1225,6 +1334,19 @@ class Api(Resource):
                                             api_justification.offset,
                                             api_justification.coverage,
                                             user)
+                dbi.session.add(tmp)
+
+            # Clone ApiDocument
+            api_documents = dbi.session.query(ApiDocumentModel).filter(
+                ApiDocumentModel.api_id == source_api[0].id
+            ).all()
+            for api_document in api_documents:
+                tmp = ApiDocumentModel(new_api,
+                                       api_document.document,
+                                       api_document.section,
+                                       api_document.offset,
+                                       api_document.coverage,
+                                       user)
                 dbi.session.add(tmp)
 
             # Clone ApiSwRequirement
@@ -1577,6 +1699,11 @@ class ApiTestSpecificationsMapping(Resource):
             ApiTestSpecificationModel.offset.asc()).all()
         ts_mapping = [x.as_dict(db_session=dbi.session) for x in ts]
 
+        documents = dbi.session.query(ApiDocumentModel).filter(
+            ApiDocumentModel.api_id == api.id).order_by(
+            ApiDocumentModel.offset.asc()).all()
+        documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+
         justifications = dbi.session.query(ApiJustificationModel).filter(
             ApiJustificationModel.api_id == api.id).order_by(
             ApiJustificationModel.offset.asc()).all()
@@ -1584,7 +1711,8 @@ class ApiTestSpecificationsMapping(Resource):
 
         mapping = {_A: api.as_dict(),
                    _TSs: ts_mapping,
-                   _Js: justifications_mapping}
+                   _Js: justifications_mapping,
+                   _Ds: documents_mapping}
 
         for iTS in range(len(mapping[_TSs])):
             # Indirect Test Cases
@@ -1596,18 +1724,14 @@ class ApiTestSpecificationsMapping(Resource):
             mapping[_TSs][iTS][_TS][_TCs] = [get_dict_without_keys(x.as_dict(db_session=dbi.session),
                                                                    undesired_keys + ['api']) for x in ind_tc]
 
-        for iMapping in range(len(mapping[_TSs])):
-            current_offset = mapping[_TSs][iMapping]['offset']
-            current_section = mapping[_TSs][iMapping]['section']
-            mapping[_TSs][iMapping]['match'] = (
-                    api_specification[current_offset:current_offset + len(current_section)] == current_section)
-        for iMapping in range(len(mapping[_Js])):
-            current_offset = mapping[_Js][iMapping]['offset']
-            current_section = mapping[_Js][iMapping]['section']
-            mapping[_Js][iMapping]['match'] = (
-                    api_specification[current_offset:current_offset + len(current_section)] == current_section)
+        for iType in [_TSs, _Js, _Ds]:
+            for iMapping in range(len(mapping[iType])):
+                current_offset = mapping[iType][iMapping]['offset']
+                current_section = mapping[iType][iMapping]['section']
+                mapping[iType][iMapping]['match'] = (
+                        api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-        mapped_sections = get_split_sections(api_specification, mapping, [_TS, _J])
+        mapped_sections = get_split_sections(api_specification, mapping, [_TS, _J, _D])
         unmapped_sections = [x for x in mapping[_TSs] if not x['match']]
         unmapped_sections += [x for x in mapping[_Js] if not x['match']]
         ret = {'mapped': mapped_sections,
@@ -1908,6 +2032,11 @@ class ApiTestCasesMapping(Resource):
             ApiTestCaseModel.offset.asc()).all()
         tc_mapping = [x.as_dict(db_session=dbi.session) for x in tc]
 
+        documents = dbi.session.query(ApiDocumentModel).filter(
+            ApiDocumentModel.api_id == api.id).order_by(
+            ApiDocumentModel.offset.asc()).all()
+        documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+
         justifications = dbi.session.query(ApiJustificationModel).filter(
             ApiJustificationModel.api_id == api.id).order_by(
             ApiJustificationModel.offset.asc()).all()
@@ -1915,20 +2044,17 @@ class ApiTestCasesMapping(Resource):
 
         mapping = {_A: api.as_dict(),
                    _TCs: tc_mapping,
-                   _Js: justifications_mapping}
+                   _Js: justifications_mapping,
+                   _Ds: documents_mapping}
 
-        for iMapping in range(len(mapping[_TCs])):
-            current_offset = mapping[_TCs][iMapping]['offset']
-            current_section = mapping[_TCs][iMapping]['section']
-            mapping[_TCs][iMapping]['match'] = (
-                    api_specification[current_offset:current_offset + len(current_section)] == current_section)
-        for iMapping in range(len(mapping[_Js])):
-            current_offset = mapping[_Js][iMapping]['offset']
-            current_section = mapping[_Js][iMapping]['section']
-            mapping[_Js][iMapping]['match'] = (
-                    api_specification[current_offset:current_offset + len(current_section)] == current_section)
+        for iType in [_TCs, _Js, _Ds]:
+            for iMapping in range(len(mapping[iType])):
+                current_offset = mapping[iType][iMapping]['offset']
+                current_section = mapping[iType][iMapping]['section']
+                mapping[iType][iMapping]['match'] = (
+                        api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
-        mapped_sections = get_split_sections(api_specification, mapping, [_TC, _J])
+        mapped_sections = get_split_sections(api_specification, mapping, [_TC, _J, _D])
         unmapped_sections = [x for x in mapping[_TCs] if not x['match']]
         unmapped_sections += [x for x in mapping[_Js] if not x['match']]
         ret = {'mapped': mapped_sections,
@@ -2201,6 +2327,11 @@ class MappingHistory(Resource):
                 _model_map = ApiJustificationModel
                 _model_map_history = ApiJustificationHistoryModel
                 _model_history = JustificationHistoryModel
+            elif args['work_item_type'] == 'document':
+                _model = DocumentModel
+                _model_map = ApiDocumentModel
+                _model_map_history = ApiDocumentHistoryModel
+                _model_history = DocumentHistoryModel
             elif args['work_item_type'] == 'sw-requirement':
                 _model = SwRequirementModel
                 _model_map = ApiSwRequirementModel
@@ -2367,6 +2498,12 @@ class MappingUsage(Resource):
                 model.justification_id == _id
             ).all()
             api_ids = [x.api_id for x in api_data]
+        elif args['work_item_type'] == "document":
+            model = ApiDocumentModel
+            api_data = dbi.session.query(model).filter(
+                model.document_id == _id
+            ).all()
+            api_ids = [x.api_id for x in api_data]
         elif args['work_item_type'] == "sw-requirement":
             model = ApiSwRequirementModel
             api_data = dbi.session.query(model).filter(
@@ -2530,11 +2667,12 @@ class ApiJustificationsMapping(Resource):
         mapping = {_A: api.as_dict(),
                    _Js: justifications_mapping}
 
-        for iMapping in range(len(mapping[_Js])):
-            current_offset = mapping[_Js][iMapping]['offset']
-            current_section = mapping[_Js][iMapping]['section']
-            mapping[_Js][iMapping]['match'] = (
-                    api_specification[current_offset:current_offset + len(current_section)] == current_section)
+        for iType in [_Js]:
+            for iMapping in range(len(mapping[iType])):
+                current_offset = mapping[iType][iMapping]['offset']
+                current_section = mapping[iType][iMapping]['section']
+                mapping[iType][iMapping]['match'] = (
+                        api_specification[current_offset:current_offset + len(current_section)] == current_section)
 
         mapped_sections = get_split_sections(api_specification, mapping, [_J])
         unmapped_sections = [x for x in mapping[_Js] if not x['match']]
@@ -2768,6 +2906,335 @@ class ApiJustificationsMapping(Resource):
                 ApiJustificationModel.api_id == api.id).filter( \
                 ApiJustificationModel.justification_id == justification.id).all()) == 0:
             dbi.session.delete(justification)
+        """
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return True
+
+
+class ApiDocumentsMapping(Resource):
+    fields = ['api-id',
+              'coverage',
+              'document',
+              'offset',
+              'section']
+
+    document_fields = ['description',
+                       'document_type',
+                       'offset',
+                       'section',
+                       'spdx_relation',
+                       'title',
+                       'url']
+
+    def get(self):
+        """
+        curl <API_URL>/api/documents?api-id=<api-id>
+        """
+
+        args = get_query_string_args(request.args)
+        if not check_fields_in_request(['api-id'], args):
+            return 'bad request!', 400
+
+        # undesired_keys = ['section', 'offset']
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(args, dbi.session)
+
+        # Find api
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        api_specification = get_api_specification(api.raw_specification_url)
+        if api_specification is None:
+            return []
+
+        documents = dbi.session.query(ApiDocumentModel).filter(
+            ApiDocumentModel.api_id == api.id).order_by(
+            ApiDocumentModel.offset.asc()).all()
+        documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+
+        mapping = {_A: api.as_dict(),
+                   _Ds: documents_mapping}
+
+        for iType in [_Ds]:
+            for iMapping in range(len(mapping[iType])):
+                current_offset = mapping[iType][iMapping]['offset']
+                current_section = mapping[iType][iMapping]['section']
+                mapping[iType][iMapping]['match'] = (
+                        api_specification[current_offset:current_offset + len(current_section)] == current_section)
+
+        mapped_sections = get_split_sections(api_specification, mapping, [_D])
+        unmapped_sections = [x for x in mapping[_Ds] if not x['match']]
+        ret = {'mapped': mapped_sections,
+               'unmapped': unmapped_sections}
+
+        dbi.engine.dispose()
+        return ret
+
+    def post(self):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(self.fields, request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        mapping_section = request_data['section']
+        mapping_offset = request_data['offset']
+        mapping_coverage = request_data['coverage']
+
+        if 'id' not in request_data['document'].keys():
+
+            if not check_fields_in_request(self.document_fields, request_data['document']):
+                dbi.engine.dispose()
+                return 'bad request!!', 400
+
+            doc_title = request_data['document']['title']
+            doc_description = request_data['document']['description']
+            doc_type = request_data['document']['document_type']
+            doc_spdx_relation = request_data['document']['spdx_relation']
+            doc_url = request_data['document']['url']
+            doc_section = request_data['document']['section']
+            doc_offset = request_data['document']['offset']
+            doc_valid = 0  # default 0, it will be evaluated once rendered
+            new_document = DocumentModel(doc_title,
+                                         doc_description,
+                                         doc_type,
+                                         doc_spdx_relation,
+                                         doc_url,
+                                         doc_section,
+                                         doc_offset,
+                                         doc_valid,
+                                         user)
+            new_document_mapping_api = ApiDocumentModel(api,
+                                                        new_document,
+                                                        mapping_section,
+                                                        mapping_offset,
+                                                        mapping_coverage,
+                                                        user)
+            dbi.session.add(new_document)
+            dbi.session.add(new_document_mapping_api)
+
+        else:
+            id = request_data['document']['id']
+            if len(dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).filter(
+                    ApiDocumentModel.document_id == id).filter(
+                    ApiDocumentModel.section == mapping_section).all()) > 0:
+                dbi.engine.dispose()
+                return "Document already associated to the selected api Specification section.", 409
+
+            try:
+                existing_document = dbi.session.query(DocumentModel).filter(
+                    DocumentModel.id == id).one()
+            except NoResultFound:
+                return f"Unable to find the Document id {id}", 400
+
+            new_document_mapping_api = ApiDocumentModel(api,
+                                                        existing_document,
+                                                        mapping_section,
+                                                        mapping_offset,
+                                                        mapping_coverage,
+                                                        user)
+
+            dbi.session.add(new_document_mapping_api)
+        dbi.session.commit()  # TO have the id of the new document mapping
+
+        # Add Notifications
+        notification = f'{user.email} added document {new_document_mapping_api.document.id} ' \
+                       f'mapped to ' \
+                       f'{api.api} as part of the library {api.library}'
+        notifications = NotificationModel(api,
+                                          NOTIFICATION_CATEGORY_NEW,
+                                          f'Document mapping {new_document_mapping_api.id} has been added',
+                                          notification,
+                                          str(user.id),
+                                          f'/mapping/{api.id}')
+        dbi.session.add(notifications)
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return new_document_mapping_api.as_dict()
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        document_fields = self.document_fields + ['status']
+
+        if not check_fields_in_request(self.fields + ["relation-id"], request_data):
+            return 'bad request!', 400
+
+        if not check_fields_in_request(document_fields, request_data['document']):
+            return 'bad request!!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # check if api ...
+        try:
+            document_mapping_api = dbi.session.query(ApiDocumentModel).filter(
+                ApiDocumentModel.id == request_data["relation-id"]).one()
+        except NoResultFound:
+            return f"Unable to find the Document mapping to Api id {request_data['relation-id']}", 400
+
+        document = document_mapping_api.document
+
+        # Update only modified fields
+        modified_d = False
+        request_document_data = get_dict_with_db_format_keys(request_data["document"])
+        print(f"request_document_data: {request_document_data}")
+        print(f"document: {document}")
+        for field in document_fields:
+            if field in request_document_data.keys():
+                if getattr(document, field) != request_document_data[field]:
+                    modified_d = True
+                    setattr(document, field, request_document_data[field])
+                    if field == "url":  # move valid to false
+                        setattr(document, "valid", 0)
+
+        if modified_d:
+            setattr(document, 'edited_by_id', user.id)
+
+        modified_da = False  # da: document mapping api
+        if request_data['section'] != document_mapping_api.section:
+            modified_da = True
+            document_mapping_api.section = request_data["section"]
+
+        if request_data['offset'] != document_mapping_api.offset:
+            modified_da = True
+            document_mapping_api.offset = request_data["offset"]
+
+        if request_data['coverage'] != document_mapping_api.coverage:
+            modified_da = True
+            document_mapping_api.coverage = request_data["coverage"]
+
+        if modified_da:
+            document_mapping_api.edited_by_id = user.id
+
+        if modified_da or modified_d:
+            # Add Notifications
+            notification = f'{user.email} modified document {document_mapping_api.document.id} ' \
+                           f'mapped to ' \
+                           f'{api.api} as part of the library {api.library}'
+            notifications = NotificationModel(api,
+                                              NOTIFICATION_CATEGORY_EDIT,
+                                              f'Document mapping {document_mapping_api.id} '
+                                              f'has been modified',
+                                              notification,
+                                              str(user.id),
+                                              f'/mapping/{api.id}')
+            dbi.session.add(notifications)
+
+        dbi.session.commit()
+        dbi.engine.dispose()
+        return document_mapping_api.as_dict()
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(['relation-id', 'api-id'], request_data):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'w' not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # check if api ...
+        document_mapping_api = dbi.session.query(ApiDocumentModel).filter(
+            ApiDocumentModel.id == request_data["relation-id"]).all()
+
+        if len(document_mapping_api) != 1:
+            dbi.engine.dispose()
+            return 'bad request!', 401
+
+        document_mapping_api = document_mapping_api[0]
+
+        if document_mapping_api.api.id != api.id:
+            dbi.engine.dispose()
+            return 'bad request!', 401
+
+        notification_d_id = document_mapping_api.document.id
+        dbi.session.delete(document_mapping_api)
+        dbi.session.commit()
+
+        # Add Notifications
+        notification = f'{user.email} deleted document {notification_d_id} ' \
+                       f'mapped to ' \
+                       f'{api.api} as part of the library {api.library}'
+        notifications = NotificationModel(api,
+                                          NOTIFICATION_CATEGORY_DELETE,
+                                          'Document mapping has been deleted',
+                                          notification,
+                                          str(user.id),
+                                          f'/mapping/{api.id}')
+        dbi.session.add(notifications)
+
+        # TODO: Remove work item only user request to do
+        """
+        document = document_mapping_api.document
+
+        if len(dbi.session.query(ApiDocumentModel).filter( \
+                ApiDocumentModel.api_id == api.id).filter( \
+                ApiDocumentModel.document_id == document.id).all()) == 0:
+            dbi.session.delete(document)
         """
 
         dbi.session.commit()
@@ -5690,6 +6157,8 @@ api.add_resource(ApiHistory, '/apis/history')
 api.add_resource(ApiSpecification, '/api-specifications')
 api.add_resource(Library, '/libraries')
 api.add_resource(SPDXLibrary, '/spdx/libraries')
+api.add_resource(Document, '/documents')
+api.add_resource(RemoteDocument, '/remote-documents')
 api.add_resource(Justification, '/justifications')
 api.add_resource(SwRequirement, '/sw-requirements')
 api.add_resource(TestSpecification, '/test-specifications')
@@ -5697,6 +6166,7 @@ api.add_resource(TestCase, '/test-cases')
 # Mapping
 # - Direct
 api.add_resource(ApiSpecificationsMapping, '/mapping/api/specifications')
+api.add_resource(ApiDocumentsMapping, '/mapping/api/documents')
 api.add_resource(ApiJustificationsMapping, '/mapping/api/justifications')
 api.add_resource(ApiSwRequirementsMapping, '/mapping/api/sw-requirements')
 api.add_resource(ApiTestSpecificationsMapping, '/mapping/api/test-specifications')

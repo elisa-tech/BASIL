@@ -74,6 +74,11 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
         parent_table = Constants._J + Constants._M_ + Constants._A
         parent_id = relationData.relation_id
       }
+    } else if (workItemType == Constants._D) {
+      if (parentType == Constants._A) {
+        parent_table = Constants._D + Constants._M_ + Constants._A
+        parent_id = relationData.relation_id
+      }
     } else if (workItemType == Constants._SR) {
       if (parentType == Constants._A) {
         parent_table = Constants._SR_ + Constants._M_ + Constants._A

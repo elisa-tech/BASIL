@@ -4,7 +4,10 @@ FROM registry.fedoraproject.org/fedora:39
 USER root
 RUN mkdir BASIL-API
 WORKDIR /BASIL-API
-COPY . /BASIL-API
+COPY api/ /BASIL-API/api
+COPY db/ /BASIL-API/db
+COPY misc/ /BASIL-API/misc
+COPY requirements.txt pyproject.toml /BASIL-API/
 RUN dnf install -y curl git patch python3 python3-pip podman rsync && \
     pip3 install --no-cache-dir -r requirements.txt
 
@@ -15,7 +18,7 @@ ENV BASIL_ADMIN_PASSWORD=${ADMIN_PASSWORD} BASIL_API_PORT=${API_PORT}
 
 # Init the database and
 # Write permission to db
-RUN cd db/models && \
+RUN mkdir -p /var/tmp && cd /BASIL-API/db/models && \
     python3 init_db.py && \
     chmod a+rw /BASIL-API/db
 

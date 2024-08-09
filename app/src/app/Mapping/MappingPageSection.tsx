@@ -8,6 +8,7 @@ import { MappingTestCaseModal } from './Modal/MappingTestCaseModal'
 import { MappingJustificationModal } from './Modal/MappingJustificationModal'
 import { MappingDeleteModal } from './Modal/MappingDeleteModal'
 import { MappingDetailsModal } from './Modal/MappingDetailsModal'
+import { MappingDocumentModal } from './Modal/MappingDocumentModal'
 import { MappingForkModal } from './Modal/MappingForkModal'
 import { MappingHistoryModal } from './Modal/MappingHistoryModal'
 import { MappingUsageModal } from './Modal/MappingUsageModal'
@@ -57,6 +58,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [tsModalShowState, setTsModalShowState] = React.useState<boolean>(false)
   const [tcModalShowState, setTcModalShowState] = React.useState<boolean>(false)
   const [jModalShowState, setJModalShowState] = React.useState<boolean>(false)
+  const [docModalShowState, setDocModalShowState] = React.useState<boolean>(false)
   const [historyModalShowState, setHistoryModalShowState] = React.useState<boolean>(false)
   const [deleteModalShowState, setDeleteModalShowState] = React.useState<boolean>(false)
   const [detailsModalShowState, setDetailsModalShowState] = React.useState<boolean>(false)
@@ -79,15 +81,10 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
 
   const getWorkItemDescription = (_work_item_type) => {
-    const work_item_types = [Constants._A, Constants._J, Constants._SR, Constants._TS, Constants._TC]
-    const work_item_descriptions = ['Api', 'Justification', 'Software Requirement', 'Test Specification', 'Test Case']
+    const work_item_types = [Constants._A, Constants._D, Constants._J, Constants._SR, Constants._TS, Constants._TC]
+    const work_item_descriptions = ['Api', 'Document', 'Justification', 'Software Requirement', 'Test Specification', 'Test Case']
     return work_item_descriptions[work_item_types.indexOf(_work_item_type)]
   }
-
-  const tcFormEmpty = { id: 0, coverage: 0, title: '', description: '', repository: '', relative_path: '' }
-  const tsFormEmpty = { id: 0, coverage: 0, title: '', preconditions: '', test_description: '', expected_behavior: '' }
-  const srFormEmpty = { id: 0, coverage: 0, title: '', description: '' }
-  const jFormEmpty = { id: 0, description: '', coverage: 100 }
 
   const getSwRequirementData = (_list, _index) => {
     const sr = {
@@ -120,6 +117,13 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     return js
   }
 
+  const getDocumentData = (_list, _index) => {
+    let doc = {}
+    doc = _list[_index][Constants._D]
+    doc['coverage'] = _list[_index]['coverage']
+    return doc
+  }
+
   const setSrModalInfo = (show, indirect, action, api, section, offset, parent_type, parent_list, parent_index, parent_related_to_type) => {
     setModalTitle(getWorkItemDescription(Constants._SR))
     setModalDescription('Work item data and mapping information (section, offset, coverage).')
@@ -127,7 +131,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalAction(action)
     if (action == 'add') {
       setModalVerb('POST')
-      setModalFormData(srFormEmpty)
+      setModalFormData(Constants.srFormEmpty)
     } else if (action == 'edit') {
       setModalVerb('PUT')
       setModalFormData(getSwRequirementData(parent_list, parent_index))
@@ -146,7 +150,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalAction(action)
     if (action == 'add') {
       setModalVerb('POST')
-      setModalFormData(tsFormEmpty)
+      setModalFormData(Constants.tsFormEmpty)
     } else if (action == 'edit') {
       setModalVerb('PUT')
       setModalFormData(getTestSpecificationData(parent_list, parent_index))
@@ -167,7 +171,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalAction(action)
     if (action == 'add') {
       setModalVerb('POST')
-      setModalFormData(tcFormEmpty)
+      setModalFormData(Constants.tcFormEmpty)
     } else if (action == 'edit') {
       setModalVerb('PUT')
       setModalFormData(getTestCaseData(parent_list, parent_index))
@@ -186,13 +190,35 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
     if (action == 'add') {
       setModalVerb('POST')
-      setModalFormData(jFormEmpty)
+      setModalFormData(Constants.jFormEmpty)
     } else if (action == 'edit') {
       setModalVerb('PUT')
       setModalFormData(getJustificationData(parent_list, parent_index))
     }
 
     setModalTitle(getWorkItemDescription(Constants._J))
+    setModalDescription('Work item data and mapping information (section, offset, coverage).')
+    setModalSection(section)
+    setModalOffset(offset)
+    setModalIndirect(false)
+    setModalParentData(parent_list[parent_index])
+    setModalParentType(Constants._A)
+    setModalParentRelatedToType('')
+  }
+
+  const setDocModalInfo = (show, action, api, section, offset, parent_list, parent_index) => {
+    setDocModalShowState(show)
+    setModalAction(action)
+
+    if (action == 'add') {
+      setModalVerb('POST')
+      setModalFormData(Constants.docFormEmpty)
+    } else if (action == 'edit') {
+      setModalVerb('PUT')
+      setModalFormData(getDocumentData(parent_list, parent_index))
+    }
+
+    setModalTitle(getWorkItemDescription(Constants._D))
     setModalDescription('Work item data and mapping information (section, offset, coverage).')
     setModalSection(section)
     setModalOffset(offset)
@@ -251,6 +277,8 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       wi_type = Constants._TC_
     } else if (work_item_type == Constants._J) {
       wi_type = Constants._J
+    } else if (work_item_type == Constants._D) {
+      wi_type = Constants._D
     }
 
     wi_title = list[index][wi_type][wi_field].substr(0, 100)
@@ -389,6 +417,16 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                       Map Justification
                     </Button>
                   </FlexItem>
+                  <FlexItem>
+                    <Button
+                      variant='secondary'
+                      id='btn-mapping-new-document'
+                      isDisabled={api?.raw_specification == null}
+                      onClick={() => setDocModalInfo(true, 'add', api, '', 0, [], -1)}
+                    >
+                      Map Document
+                    </Button>
+                  </FlexItem>
                 </Flex>
               ) : (
                 ''
@@ -447,6 +485,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         //testRunModalShowState={testRunModalShowState}
         //setTestRunModalShowState={setTestRunModalShowState}
         //setJModalShowState={setJModalShowState}
+        setDocModalInfo={setDocModalInfo}
         setTsModalInfo={setTsModalInfo}
         setTcModalInfo={setTcModalInfo}
         setSrModalInfo={setSrModalInfo}
@@ -547,6 +586,27 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         modalData={currentMappingDetails}
         setModalShowState={setDetailsModalShowState}
         modalShowState={detailsModalShowState}
+      />
+      <MappingDocumentModal
+        api={api}
+        modalAction={modalAction}
+        modalDescription={modalDescription}
+        modalFormData={modalFormData}
+        modalIndirect={modalIndirect}
+        modalOffset={modalOffset}
+        setModalOffset={setModalOffset}
+        modalSection={modalSection}
+        setModalSection={setModalSection}
+        modalShowState={docModalShowState}
+        modalTitle={modalTitle}
+        modalVerb={modalVerb}
+        loadMappingData={loadMappingData}
+        parentData={modalParentData}
+        parentType={modalParentType}
+        setModalShowState={setDocModalShowState}
+        modalData={{}}
+        modalHistoryData={currentMappingHistory}
+        parentRelatedToType={modalParentRelatedToType}
       />
       <MappingHistoryModal
         modalDescription={modalDescription}

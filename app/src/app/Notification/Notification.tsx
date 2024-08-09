@@ -105,6 +105,9 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   }
 
   const getNotifications = () => {
+    if (!auth.isLogged()) {
+      return ''
+    }
     if (notifications == null || notifications == undefined) {
       return ''
     }

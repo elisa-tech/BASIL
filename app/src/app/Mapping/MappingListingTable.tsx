@@ -19,6 +19,7 @@ import {
   TextVariants
 } from '@patternfly/react-core'
 import ReactMarkdown from 'react-markdown'
+import { DocumentMenuKebab } from './Menu/DocumentMenuKebab'
 import { MappingSectionMenuKebab } from './Menu/MappingSectionMenuKebab'
 import { SwRequirementMenuKebab } from './Menu/SwRequirementMenuKebab'
 import { TestSpecificationMenuKebab } from './Menu/TestSpecificationMenuKebab'
@@ -29,6 +30,7 @@ import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 import OutlinedCommentsIcon from '@patternfly/react-icons/dist/esm/icons/outlined-comments-icon'
 import CodeIcon from '@patternfly/react-icons/dist/esm/icons/code-icon'
 import CatalogIcon from '@patternfly/react-icons/dist/esm/icons/catalog-icon'
+import FileIcon from '@patternfly/react-icons/dist/esm/icons/file-icon'
 import TaskIcon from '@patternfly/react-icons/dist/esm/icons/task-icon'
 import BalanceScaleIcon from '@patternfly/react-icons/dist/esm/icons/balance-scale-icon'
 import MigrationIcon from '@patternfly/react-icons/dist/esm/icons/migration-icon'
@@ -38,6 +40,7 @@ export interface MappingListingTableProps {
   api
   mappingData
   unmappingData
+  setDocModalInfo
   setTsModalInfo
   setTcModalInfo
   setSrModalInfo
@@ -69,6 +72,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   api,
   mappingData = [],
   unmappingData = [],
+  setDocModalInfo,
   setTsModalInfo,
   setTcModalInfo,
   setSrModalInfo,
@@ -140,7 +144,17 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   }
 
   const getWorkItemIcon = (work_item_type, indirect) => {
-    if (work_item_type == Constants._J) {
+    if (work_item_type == Constants._D) {
+      return (
+        <Flex>
+          <FlexItem>
+            <Icon iconSize='lg'>
+              <FileIcon />
+            </Icon>
+          </FlexItem>
+        </Flex>
+      )
+    } else if (work_item_type == Constants._J) {
       return (
         <Flex>
           <FlexItem>
@@ -245,6 +259,33 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         </FlexItem>
       </React.Fragment>
     )
+  }
+
+  const isValidRemoteDocument = (_id) => {
+    let url = Constants.API_BASE_URL + '/remote-documents?id=' + _id
+    url += '&api-id=' + api.id
+
+    if (auth.isLogged()) {
+      url += '&user-id=' + auth.userId + '&token=' + auth.token
+    } else {
+      return
+    }
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        if ('valid' in data) {
+          document.getElementById('label-document-valid-' + _id).innerHTML = data['valid']
+          if (data['valid']) {
+            document.getElementById('label-document-valid-' + _id).classList.add('pf-m-green')
+          } else {
+            document.getElementById('label-document-valid-' + _id).classList.add('pf-m-red')
+          }
+        }
+      })
+      .catch((err) => {
+        console.log(err.message)
+      })
   }
 
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {
@@ -628,6 +669,164 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     }
   }
 
+  const getDocuments = (section, offset, mapping) => {
+    if (mapping == undefined) {
+      return ''
+    }
+    if (mapping.length == 0) {
+      return ''
+    } else {
+      return mapping.map((mappedItem, mIndex) => (
+        <React.Fragment key={mIndex}>
+          <Card>
+            <CardBody>
+              <Flex>
+                <FlexItem>{getWorkItemIcon(Constants._D, false)}</FlexItem>
+                <FlexItem>
+                  <TextContent>
+                    <Text component={TextVariants.h2}>Document</Text>
+                  </TextContent>
+                </FlexItem>
+                <FlexItem>
+                  <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
+                </FlexItem>
+                {getStatusLabel(mappedItem[Constants._D]['status'])}
+                <Label variant='outline' isCompact>
+                  {coverageFormat(mappedItem['coverage'])}% Coverage
+                </Label>
+                {auth.isLogged() ? (
+                  <FlexItem align={{ default: 'alignRight' }}>
+                    <Button
+                      variant='plain'
+                      icon={<OutlinedCommentsIcon />}
+                      onClick={() => setCommentModalInfo(true, Constants._D, Constants._A, '', mapping, mIndex)}
+                    ></Button>
+                    <Badge key={3} screenReaderText='Comments'>
+                      {mappedItem[Constants._D]['comment_count']}
+                    </Badge>
+                    <DocumentMenuKebab
+                      setDocModalInfo={setDocModalInfo}
+                      setDetailsModalInfo={setDetailsModalInfo}
+                      setHistoryModalInfo={setHistoryModalInfo}
+                      setUsageModalInfo={setUsageModalInfo}
+                      setDeleteModalInfo={setDeleteModalInfo}
+                      mappingList={mapping}
+                      mappingIndex={mIndex}
+                      mappingSection={section}
+                      mappingOffset={offset}
+                      api={api}
+                    />
+                  </FlexItem>
+                ) : (
+                  ''
+                )}
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-text'>
+                      <h3>{mappedItem[Constants._D]['title']}</h3>
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._D]['description'], 0)}</ReactMarkdown>
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-document-type'>&nbsp;</Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              {mappedItem[Constants._D]['document_type'] == 'text' ? (
+                <Flex>
+                  <FlexItem>
+                    <b>Valid: </b>{' '}
+                    <Label id={`label-document-valid-${mappedItem[Constants._D]['id']}`} isCompact>
+                      ...{isValidRemoteDocument(mappedItem[Constants._D]['id'])}
+                    </Label>
+                  </FlexItem>
+                </Flex>
+              ) : (
+                ''
+              )}
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-document-type'>
+                      <b>Type:</b> {mappedItem[Constants._D]['document_type']}
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-document-url'>
+                      <b>Url:</b>{' '}
+                      <a target='_blank' href="{mappedItem[Constants._D]['url']}">
+                        {mappedItem[Constants._D]['url']}
+                      </a>
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-spdx-relation'>
+                      <b>SPDX Relation:</b> {mappedItem[Constants._D]['spdx_relation']}
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              {mappedItem[Constants._D]['document_type'] == 'text' ? (
+                <>
+                  <Flex>
+                    <FlexItem>
+                      <TextContent>
+                        <Text className='work-item-detail-document-offset'>
+                          <b>Offset:</b> {getLimitedText(mappedItem[Constants._D]['offset'], 0)}
+                        </Text>
+                      </TextContent>
+                    </FlexItem>
+                  </Flex>
+                  <Flex>
+                    <FlexItem>
+                      <TextContent>
+                        <Text className='work-item-detail-document-section'>
+                          <b>Section:</b>
+                        </Text>
+                      </TextContent>
+                    </FlexItem>
+                  </Flex>
+                  <Flex>
+                    <FlexItem>
+                      <CodeBlock>
+                        <CodeBlockCode>{getLimitedText(mappedItem[Constants._D]['section'], 0)}</CodeBlockCode>
+                      </CodeBlock>
+                    </FlexItem>
+                  </Flex>
+                </>
+              ) : (
+                ''
+              )}
+            </CardBody>
+          </Card>
+          <Divider />
+        </React.Fragment>
+      ))
+    }
+  }
+
   const getUnmapped = (snippet) => {
     let work_item_id = ''
     let work_item_type = ''
@@ -731,6 +930,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                         offset={snippet['offset']}
                         section={snippet['section']}
                         sectionIndex={snippetIndex}
+                        setDocModalInfo={setDocModalInfo}
                         setTcModalInfo={setTcModalInfo}
                         setTsModalInfo={setTsModalInfo}
                         setSrModalInfo={setSrModalInfo}
@@ -778,6 +978,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               ''
             )}
             {getJustifications(snippet['section'], snippet['offset'], snippet[Constants._Js])}
+            {getDocuments(snippet['section'], snippet['offset'], snippet[Constants._Ds])}
             {/*getSpecifications*/}
           </Td>
         </Tr>

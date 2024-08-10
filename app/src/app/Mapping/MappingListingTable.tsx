@@ -262,30 +262,37 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   }
 
   const isValidRemoteDocument = (_id) => {
+    let ret = ''
     let url = Constants.API_BASE_URL + '/remote-documents?id=' + _id
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
       url += '&user-id=' + auth.userId + '&token=' + auth.token
     } else {
-      return
+      return ret
     }
 
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if ('valid' in data) {
-          document.getElementById('label-document-valid-' + _id).innerHTML = data['valid']
-          if (data['valid']) {
-            document.getElementById('label-document-valid-' + _id).classList.add('pf-m-green')
+          ret = data['valid']
+          let label = document.getElementById('label-document-valid-' + _id)
+          if (ret) {
+            if (label) {
+              label.innerHTML = ret
+            }
+            document.getElementById('label-document-valid-' + _id)?.classList.add('pf-m-green')
           } else {
-            document.getElementById('label-document-valid-' + _id).classList.add('pf-m-red')
+            document.getElementById('label-document-valid-' + _id)?.classList.add('pf-m-red')
           }
         }
+        return ret
       })
       .catch((err) => {
         console.log(err.message)
       })
+    return ret
   }
 
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {

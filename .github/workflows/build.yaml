@@ -56,12 +56,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Download artifacts
+      - name: Download basil-api artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tmp
-          path: /tmp
-      - name: Load image
+          name: basil-api
+          path: /tmp/basil-api.tar
+      - name: Download basil-app artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: basil-app
+          path: /tmp/basil-app.tar
+      - name: Load images
         run: |
           docker load --input /tmp/basil-api.tar
           docker load --input /tmp/basil-app.tar

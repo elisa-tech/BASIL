@@ -60,12 +60,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: basil-api
-          path: /tmp/basil-api.tar
+          path: /tmp
       - name: Download basil-app artifacts
         uses: actions/download-artifact@v4
         with:
           name: basil-app
-          path: /tmp/basil-app.tar
+          path: /tmp
       - name: Load images
         run: |
           docker load --input /tmp/basil-api.tar

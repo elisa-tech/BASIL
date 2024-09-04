@@ -77,6 +77,6 @@ jobs:
           docker run -d --network=host basil-app_${{ env.BRANCH_NAME }}
           docker ps
           echo "Test Api is running"
-          curl -f http://localhost:5000/version
+          curl -vf http://localhost:5000/version
           echo "Test App is running"
-          curl -f http://localhost:9000
+          curl -vf http://localhost:9000

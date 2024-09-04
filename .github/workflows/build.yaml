@@ -67,7 +67,15 @@ jobs:
           name: basil-app
           path: /tmp
       - name: Load images
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           docker load --input /tmp/basil-api.tar
           docker load --input /tmp/basil-app.tar
           docker image ls -a
+          docker run -d --privileged --network=host basil-api_${{ env.BRANCH_NAME }}
+          docker run -d --network=host basil-app_${{ env.BRANCH_NAME }}
+          echo "Test Api is running"
+          curl -f http://localhost:5000/version
+          echo "Test App is running"
+          curl -f http://localhost:9000

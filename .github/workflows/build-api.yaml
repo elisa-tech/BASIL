@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Print current branch
+        run: echo "${BRANCH_NAME}"
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Api
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            ADMIN_PASSWORD=admin
+            API_PORT=5000
+          context: .
+          push: false
+          tags: basil/api:${BRANCH_NAME}

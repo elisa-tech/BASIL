@@ -29,3 +29,14 @@ jobs:
           file: Dockerfile-api
           push: false
           tags: basil-api_${{ env.BRANCH_NAME }}
+      - name: Build App
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            API_ENDPOINT=http://localhost:5000
+          context: .
+          file: Dockerfile-app
+          push: false
+          tags: basil-app_${{ env.BRANCH_NAME }}

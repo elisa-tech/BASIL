@@ -27,6 +27,7 @@ jobs:
             API_PORT=5000
           context: .
           file: Dockerfile-api
+          load: true
           push: false
           tags: basil-api_${{ env.BRANCH_NAME }}
       - name: Build App
@@ -38,5 +39,6 @@ jobs:
             API_ENDPOINT=http://localhost:5000
           context: .
           file: Dockerfile-app
+          load: true
           push: false
           tags: basil-app_${{ env.BRANCH_NAME }}

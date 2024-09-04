@@ -26,5 +26,6 @@ jobs:
             ADMIN_PASSWORD=admin
             API_PORT=5000
           context: .
+          file: Dockerfile-api
           push: false
           tags: basil-api_${{ env.BRANCH_NAME }}

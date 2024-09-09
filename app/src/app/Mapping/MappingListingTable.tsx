@@ -19,6 +19,7 @@ import {
   TextVariants
 } from '@patternfly/react-core'
 import ReactMarkdown from 'react-markdown'
+import { DocumentMenuKebab } from './Menu/DocumentMenuKebab'
 import { MappingSectionMenuKebab } from './Menu/MappingSectionMenuKebab'
 import { SwRequirementMenuKebab } from './Menu/SwRequirementMenuKebab'
 import { TestSpecificationMenuKebab } from './Menu/TestSpecificationMenuKebab'
@@ -29,6 +30,7 @@ import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 import OutlinedCommentsIcon from '@patternfly/react-icons/dist/esm/icons/outlined-comments-icon'
 import CodeIcon from '@patternfly/react-icons/dist/esm/icons/code-icon'
 import CatalogIcon from '@patternfly/react-icons/dist/esm/icons/catalog-icon'
+import FileIcon from '@patternfly/react-icons/dist/esm/icons/file-icon'
 import TaskIcon from '@patternfly/react-icons/dist/esm/icons/task-icon'
 import BalanceScaleIcon from '@patternfly/react-icons/dist/esm/icons/balance-scale-icon'
 import MigrationIcon from '@patternfly/react-icons/dist/esm/icons/migration-icon'
@@ -38,6 +40,7 @@ export interface MappingListingTableProps {
   api
   mappingData
   unmappingData
+  setDocModalInfo
   setTsModalInfo
   setTcModalInfo
   setSrModalInfo
@@ -69,6 +72,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   api,
   mappingData = [],
   unmappingData = [],
+  setDocModalInfo,
   setTsModalInfo,
   setTcModalInfo,
   setSrModalInfo,
@@ -108,20 +112,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     work_items: 'WORK ITEMS'
   }
 
-  const getLimitedText = (_text, _length) => {
-    if (_text == undefined) {
-      return ''
-    }
-    if (_length == 0) {
-      return _text
-    }
-    let tmp = _text.substr(0, _length)
-    if (_text.length > _length) {
-      tmp = tmp + '...'
-    }
-    return tmp
-  }
-
   const coverageFormat = (x) => Number.parseFloat(x).toFixed(1)
 
   const getMappedSectionCodeBlockBackgroundColor = (snippet) => {
@@ -140,7 +130,17 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   }
 
   const getWorkItemIcon = (work_item_type, indirect) => {
-    if (work_item_type == Constants._J) {
+    if (work_item_type == Constants._D) {
+      return (
+        <Flex>
+          <FlexItem>
+            <Icon iconSize='lg'>
+              <FileIcon />
+            </Icon>
+          </FlexItem>
+        </Flex>
+      )
+    } else if (work_item_type == Constants._J) {
       return (
         <Flex>
           <FlexItem>
@@ -247,6 +247,40 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     )
   }
 
+  const isValidRemoteDocument = (_id) => {
+    let ret = ''
+    let url = Constants.API_BASE_URL + '/remote-documents?id=' + _id
+    url += '&api-id=' + api.id
+
+    if (auth.isLogged()) {
+      url += '&user-id=' + auth.userId + '&token=' + auth.token
+    } else {
+      return ret
+    }
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        if ('valid' in data) {
+          ret = data['valid']
+          const label = document.getElementById('label-document-valid-' + _id)
+          if (ret) {
+            if (label) {
+              label.innerHTML = ret
+            }
+            document.getElementById('label-document-valid-' + _id)?.classList.add('pf-m-green')
+          } else {
+            document.getElementById('label-document-valid-' + _id)?.classList.add('pf-m-red')
+          }
+        }
+        return ret
+      })
+      .catch((err) => {
+        console.log(err.message)
+      })
+    return ret
+  }
+
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {
     if (indirect == false) {
       if (mappingViewSelectValue != Constants._TCs) {
@@ -324,9 +358,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h5}>{Constants.getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -428,18 +462,18 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h5}>{Constants.getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
                     <Text component={TextVariants.h6}>Preconditions:</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
                     </Text>
                     <Text component={TextVariants.h6}>Test Description:</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
                     </Text>
                     <Text component={TextVariants.h6}>Expected Behavior:</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -538,9 +572,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h5}>{Constants.getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -615,11 +649,169 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <TextContent>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
               </Flex>
+            </CardBody>
+          </Card>
+          <Divider />
+        </React.Fragment>
+      ))
+    }
+  }
+
+  const getDocuments = (section, offset, mapping) => {
+    if (mapping == undefined) {
+      return ''
+    }
+    if (mapping.length == 0) {
+      return ''
+    } else {
+      return mapping.map((mappedItem, mIndex) => (
+        <React.Fragment key={mIndex}>
+          <Card>
+            <CardBody>
+              <Flex>
+                <FlexItem>{getWorkItemIcon(Constants._D, false)}</FlexItem>
+                <FlexItem>
+                  <TextContent>
+                    <Text component={TextVariants.h2}>Document</Text>
+                  </TextContent>
+                </FlexItem>
+                <FlexItem>
+                  <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
+                </FlexItem>
+                {getStatusLabel(mappedItem[Constants._D]['status'])}
+                <Label variant='outline' isCompact>
+                  {coverageFormat(mappedItem['coverage'])}% Coverage
+                </Label>
+                {auth.isLogged() ? (
+                  <FlexItem align={{ default: 'alignRight' }}>
+                    <Button
+                      variant='plain'
+                      icon={<OutlinedCommentsIcon />}
+                      onClick={() => setCommentModalInfo(true, Constants._D, Constants._A, '', mapping, mIndex)}
+                    ></Button>
+                    <Badge key={3} screenReaderText='Comments'>
+                      {mappedItem[Constants._D]['comment_count']}
+                    </Badge>
+                    <DocumentMenuKebab
+                      setDocModalInfo={setDocModalInfo}
+                      setDetailsModalInfo={setDetailsModalInfo}
+                      setHistoryModalInfo={setHistoryModalInfo}
+                      setUsageModalInfo={setUsageModalInfo}
+                      setDeleteModalInfo={setDeleteModalInfo}
+                      mappingList={mapping}
+                      mappingIndex={mIndex}
+                      mappingSection={section}
+                      mappingOffset={offset}
+                      api={api}
+                    />
+                  </FlexItem>
+                ) : (
+                  ''
+                )}
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-text'>
+                      <h3>{mappedItem[Constants._D]['title']}</h3>
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-text'>
+                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._D]['description'], 0)}</ReactMarkdown>
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-document-type'>&nbsp;</Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              {mappedItem[Constants._D]['document_type'] == 'text' ? (
+                <Flex>
+                  <FlexItem>
+                    <b>Valid: </b>{' '}
+                    <Label id={`label-document-valid-${mappedItem[Constants._D]['id']}`} isCompact>
+                      ...{isValidRemoteDocument(mappedItem[Constants._D]['id'])}
+                    </Label>
+                  </FlexItem>
+                </Flex>
+              ) : (
+                ''
+              )}
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-document-type'>
+                      <b>Type:</b> {mappedItem[Constants._D]['document_type']}
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-document-url'>
+                      <b>Url:</b>{' '}
+                      <a target='_blank' href="{mappedItem[Constants._D]['url']}">
+                        {mappedItem[Constants._D]['url']}
+                      </a>
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              <Flex>
+                <FlexItem>
+                  <TextContent>
+                    <Text className='work-item-detail-spdx-relation'>
+                      <b>SPDX Relation:</b> {mappedItem[Constants._D]['spdx_relation']}
+                    </Text>
+                  </TextContent>
+                </FlexItem>
+              </Flex>
+              {mappedItem[Constants._D]['document_type'] == 'text' ? (
+                <>
+                  <Flex>
+                    <FlexItem>
+                      <TextContent>
+                        <Text className='work-item-detail-document-offset'>
+                          <b>Offset:</b> {Constants.getLimitedText(mappedItem[Constants._D]['offset'], 0)}
+                        </Text>
+                      </TextContent>
+                    </FlexItem>
+                  </Flex>
+                  <Flex>
+                    <FlexItem>
+                      <TextContent>
+                        <Text className='work-item-detail-document-section'>
+                          <b>Section:</b>
+                        </Text>
+                      </TextContent>
+                    </FlexItem>
+                  </Flex>
+                  <Flex>
+                    <FlexItem>
+                      <CodeBlock>
+                        <CodeBlockCode>{Constants.getLimitedText(mappedItem[Constants._D]['section'], 0)}</CodeBlockCode>
+                      </CodeBlock>
+                    </FlexItem>
+                  </Flex>
+                </>
+              ) : (
+                ''
+              )}
             </CardBody>
           </Card>
           <Divider />
@@ -695,7 +887,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <FlexItem>
                 <TextContent>
                   <Text component={TextVariants.h5}>
-                    <ReactMarkdown>{getLimitedText(work_item_description, 0)}</ReactMarkdown>
+                    <ReactMarkdown>{Constants.getLimitedText(work_item_description, 0)}</ReactMarkdown>
                   </Text>
                 </TextContent>
               </FlexItem>
@@ -731,6 +923,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                         offset={snippet['offset']}
                         section={snippet['section']}
                         sectionIndex={snippetIndex}
+                        setDocModalInfo={setDocModalInfo}
                         setTcModalInfo={setTcModalInfo}
                         setTsModalInfo={setTsModalInfo}
                         setSrModalInfo={setSrModalInfo}
@@ -778,6 +971,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               ''
             )}
             {getJustifications(snippet['section'], snippet['offset'], snippet[Constants._Js])}
+            {getDocuments(snippet['section'], snippet['offset'], snippet[Constants._Ds])}
             {/*getSpecifications*/}
           </Td>
         </Tr>

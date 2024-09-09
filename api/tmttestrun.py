@@ -78,6 +78,10 @@ class TmtTestRunner():
             sys.exit(3)
 
         env_str = f'basil_test_case_id={mapping.test_case.id};'
+        env_str += f'basil_test_case_title={mapping.test_case.title};'
+        env_str += f'basil_api_api={mapping.api.api};'
+        env_str += f'basil_api_library={mapping.api.library};'
+        env_str += f'basil_api_library_version={mapping.api.library_version};'
         env_str += f'basil_test_case_mapping_table={self.db_test_run.mapping_to};'
         env_str += f'basil_test_case_mapping_id={self.db_test_run.mapping_id};'
         env_str += f'basil_test_relative_path={mapping.test_case.relative_path};'

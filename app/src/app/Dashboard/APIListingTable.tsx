@@ -130,7 +130,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 {dataRow.api}
               </Button>
             </Td>
-            <Td dataLabel={columnNames.library_version}>{dataRow.library_version}</Td>
+            <Td dataLabel={columnNames.library_version}>{Constants.getLimitedText(dataRow.library_version, 10)}</Td>
             <Td dataLabel={columnNames.created_by}>{dataRow.created_by}</Td>
             <Td dataLabel={columnNames.category}>{dataRow.category}</Td>
             <Td dataLabel={columnNames.coverage}>

@@ -3,6 +3,7 @@ import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } f
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 
 export interface MappingSectionMenuKebabProps {
+  setDocModalInfo
   setTcModalInfo
   setTsModalInfo
   setSrModalInfo
@@ -14,6 +15,7 @@ export interface MappingSectionMenuKebabProps {
 }
 
 export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenuKebabProps> = ({
+  setDocModalInfo,
   setTcModalInfo,
   setTsModalInfo,
   setSrModalInfo,
@@ -75,6 +77,15 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
       shouldFocusToggleOnSelect
     >
       <DropdownList>
+        <DropdownItem
+          value={0}
+          id={'btn-mapping-section-document-' + sectionIndex}
+          name='btn-mapping-section-document'
+          key='assign document'
+          onClick={() => setDocModalInfo(true, 'add', api, getSection(), getOffset(), [], -1)}
+        >
+          Assign Document
+        </DropdownItem>
         <DropdownItem
           value={0}
           id={'btn-mapping-section-justification-' + sectionIndex}

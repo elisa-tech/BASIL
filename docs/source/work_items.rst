@@ -11,7 +11,6 @@ Work Items
 -------------
 Justification
 -------------
-
 Often used to highlight the reason why a section of the Specification Document can't be related to any other work item type.
 
 Default Fields:
@@ -19,6 +18,30 @@ Default Fields:
 + description
 + status
 
+Possible Children Work Item Types:
+
++ None
+
+--------
+Document
+--------
+Document is a general purpose work item that allow users to specify all relationships supported by SPDX.
+BASIL distinguishes between text files and other files.
+In case of text files, user can specify also a snippet of the document.
+Moreover in that case BASIL automatically validate the relationships checking that the selected section still exists at the target offset.
+This way user can be notified in case of changes.
+
+Default Fields:
+
++ title
++ description
++ document_type (file or text)
++ status
++ spdx_relation
++ url
++ section (only in case of text file)
++ offset (only in case of text file)
+  
 Possible Children Work Item Types:
 
 + None
@@ -79,7 +102,6 @@ Possible Children Work Item Types:
 ----------------
 Work Item Status
 ----------------
-
 BASIL support following status for above mentioned work items:
 
 + NEW

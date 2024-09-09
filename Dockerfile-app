@@ -17,4 +17,5 @@ RUN npm run build
 # RUN sed -i "s/src=\"\//src=\"/g" dist/index.html
 # RUN sed -i "s/href=\"\//href=\"/g" dist/index.html
 
+EXPOSE ${APP_PORT}
 CMD ["npm", "run", "start"]

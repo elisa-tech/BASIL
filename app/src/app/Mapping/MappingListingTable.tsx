@@ -112,20 +112,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     work_items: 'WORK ITEMS'
   }
 
-  const getLimitedText = (_text, _length) => {
-    if (_text == undefined) {
-      return ''
-    }
-    if (_length == 0) {
-      return _text
-    }
-    let tmp = _text.substr(0, _length)
-    if (_text.length > _length) {
-      tmp = tmp + '...'
-    }
-    return tmp
-  }
-
   const coverageFormat = (x) => Number.parseFloat(x).toFixed(1)
 
   const getMappedSectionCodeBlockBackgroundColor = (snippet) => {
@@ -277,7 +263,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       .then((data) => {
         if ('valid' in data) {
           ret = data['valid']
-          let label = document.getElementById('label-document-valid-' + _id)
+          const label = document.getElementById('label-document-valid-' + _id)
           if (ret) {
             if (label) {
               label.innerHTML = ret
@@ -372,9 +358,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h5}>{Constants.getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -476,18 +462,18 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h5}>{Constants.getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
                     <Text component={TextVariants.h6}>Preconditions:</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
                     </Text>
                     <Text component={TextVariants.h6}>Test Description:</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
                     </Text>
                     <Text component={TextVariants.h6}>Expected Behavior:</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -586,9 +572,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <Flex>
                 <FlexItem>
                   <TextContent>
-                    <Text component={TextVariants.h5}>{getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
+                    <Text component={TextVariants.h5}>{Constants.getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -663,7 +649,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <TextContent>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -741,7 +727,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <FlexItem>
                   <TextContent>
                     <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{getLimitedText(mappedItem[Constants._D]['description'], 0)}</ReactMarkdown>
+                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._D]['description'], 0)}</ReactMarkdown>
                     </Text>
                   </TextContent>
                 </FlexItem>
@@ -801,7 +787,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <FlexItem>
                       <TextContent>
                         <Text className='work-item-detail-document-offset'>
-                          <b>Offset:</b> {getLimitedText(mappedItem[Constants._D]['offset'], 0)}
+                          <b>Offset:</b> {Constants.getLimitedText(mappedItem[Constants._D]['offset'], 0)}
                         </Text>
                       </TextContent>
                     </FlexItem>
@@ -818,7 +804,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <Flex>
                     <FlexItem>
                       <CodeBlock>
-                        <CodeBlockCode>{getLimitedText(mappedItem[Constants._D]['section'], 0)}</CodeBlockCode>
+                        <CodeBlockCode>{Constants.getLimitedText(mappedItem[Constants._D]['section'], 0)}</CodeBlockCode>
                       </CodeBlock>
                     </FlexItem>
                   </Flex>
@@ -901,7 +887,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               <FlexItem>
                 <TextContent>
                   <Text component={TextVariants.h5}>
-                    <ReactMarkdown>{getLimitedText(work_item_description, 0)}</ReactMarkdown>
+                    <ReactMarkdown>{Constants.getLimitedText(work_item_description, 0)}</ReactMarkdown>
                   </Text>
                 </TextContent>
               </FlexItem>

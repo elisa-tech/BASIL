@@ -25,7 +25,10 @@ RUN mkdir -p /var/tmp && cd /BASIL-API/db/models && \
 # Apply patches
 RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch
 
+# Remove BASIL ADMIN PASSWORD from the environment
 ENV BASIL_ADMIN_PASSWORD=
+
+EXPOSE ${BASIL_API_PORT}
 CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && cd api && \
                        gunicorn --access-logfile /var/tmp/tc-gunicorn-access.log \
                        --error-logfile /var/tmp/tc-gunicorn-error.log \

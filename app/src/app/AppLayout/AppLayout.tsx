@@ -84,14 +84,22 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     let url = Constants.API_BASE_URL + '/user/notifications?'
     url += '&user-id=' + auth.userId + '&token=' + auth.token
 
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        setNotifications(data)
-      })
-      .catch((err) => {
-        console.log(err.message)
-      })
+    fetch(url).then((response) => {
+      const success = response.ok
+      response
+        .json()
+        .then((data) => {
+          console.log(data.message)
+          console.log(success)
+          if (!success) {
+            auth.logOut()
+          }
+          setNotifications(data)
+        })
+        .catch((err) => {
+          console.log(err.message)
+        })
+    })
   }
 
   const Header = (

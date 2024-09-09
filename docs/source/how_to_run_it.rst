@@ -25,6 +25,10 @@ Docker Containers
 
 You can deploy BASIL via Docker using Dockerfile-api and Dockerfile-app provided as part of the source code.
 
+Or you can download images built in the [GitHub actions](https://github.com/elisa-tech/BASIL/actions).
+Pay attention that those images are built with default value of build argument, as an example the ADMIN user password.
+So it is suggested to use those images for evaluation or to modify them, changing critical informations before deploiying a BASIL instance.
+
 # Build the Containers
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -93,14 +97,14 @@ You can start the API Container above created with the name **basil-api-image** 
       -d \
       --privileged \
       --network=host \
-      --name basil-api-container \
+      -p 0.0.0.0:<API-PORT>:<Your desired value> \
       --mount source=basil-db-vol,target=/BASIL-API/db \
       --mount source=basil-ssh-keys-vol,target=/BASIL-API/api/ssh_keys \
       --mount source=basil-tmt-logs-vol,target=/var/tmp/tmt \
       basil-api-image
 
 
-the ``--privileged`` options is needed to be able to run fedora container as a possible testing environment inside the basil-api-container.
+the ``--privileged`` options is needed to be able to run fedora container as a possible testing environment inside api container.
 
 You can start the APP Container above created with the name **basil-app-image** with the following docker command
 
@@ -109,7 +113,7 @@ You can start the APP Container above created with the name **basil-app-image** 
    docker run \
       -d \
       --network=host \
-      --name basil-app-container \
+      -p 0.0.0.0:<APP_PORT>:<Your desired value> \
       basil-app-image
 
 
@@ -121,6 +125,20 @@ You can list running containers with the following docker command
 .. code-block:: bash
 
    docker ps
+
+
+# Inspect an Image
+^^^^^^^^^^^^^^^^^^
+
+You can inspect an image overriding the --entrypoint
+
+.. code-block:: bash
+
+   docker run \
+      --interactive \
+      --tty \
+      --network=host \
+      --entrypoint=/bin/bash <YOUR IMAGE>
 
 
 # Backup BASIL DB from Container
@@ -139,8 +157,8 @@ You can stop running containers, the one that you can see listed with the **ps**
 
 .. code-block:: bash
 
-   docker stop basil-api-container
-   docker stop basil-app-container
+   docker stop <NAME OF THE API CONTAINER>
+   docker stop <NAME OF THE APP CONTAINER>
 
 
 

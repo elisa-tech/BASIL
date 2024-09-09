@@ -13,8 +13,9 @@ require:
   - make
   - pkgconf
 test: |
-  CURRENT_SYSCALL=${CURRENT_SYSCALL:=getpid}
-  CURRENT_TEST=${CURRENT_TEST:=getpid01}
+  CURRENT_SYSCALL=${basil_api_api:=getpid}
+  CURRENT_TEST=${basil_test_case_title:=getpid01}
+  CURRENT_TEST="${CURRENT_TEST%.*}"
   LTP_DOWNLOAD_PATH=/var/tmp/ltp
   LTP_BUILD_PATH=/opt/ltp
   GIT_SSL_NO_VERIFY=true git clone --depth 1 https://github.com/linux-test-project/ltp.git ${LTP_DOWNLOAD_PATH}

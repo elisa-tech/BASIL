@@ -5654,6 +5654,66 @@ class TestRunConfig(Resource):
         configs = [x.as_dict(full_data=True) for x in configs]
         return configs
 
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ['context_vars', 'environment_vars',
+                            'git_repo_ref',
+                            'provision_guest', 'provision_guest_port', 'provision_type',
+                            'ssh_key', 'title']
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Config
+        config_title = str(request_data['title']).strip()
+        git_repo_ref = str(request_data['git_repo_ref']).strip()
+        context_vars = str(request_data['context_vars']).strip()
+        environment_vars = str(request_data['environment_vars']).strip()
+        provision_type = str(request_data['provision_type']).strip()
+        provision_guest = str(request_data['provision_guest']).strip()
+        provision_guest_port = str(request_data['provision_guest_port']).strip()
+        ssh_key_id = request_data['ssh_key']
+
+        # Check mandatory fields
+        if config_title == '' or provision_type == '':
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if provision_type == 'connect':
+            if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+            try:
+                ssh_key = dbi.session.query(SshKeyModel).filter(
+                    SshKeyModel.id == ssh_key_id,
+                    SshKeyModel.created_by_id == user.id
+                ).one()
+            except NoResultFound:
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        else:
+            ssh_key = None
+
+        test_config = TestRunConfigModel(config_title,
+                                         git_repo_ref,
+                                         context_vars,
+                                         environment_vars,
+                                         provision_type,
+                                         provision_guest,
+                                         provision_guest_port,
+                                         ssh_key,
+                                         user)
+
+        dbi.session.add(test_config)
+        dbi.session.commit()
+        dbi.engine.dispose()
+
+        return test_config.as_dict()
+
 
 class TestRun(Resource):
     fields = get_model_editable_fields(TestRunModel, False)

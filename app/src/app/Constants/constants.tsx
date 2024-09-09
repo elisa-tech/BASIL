@@ -160,6 +160,19 @@ export const docFormEmpty = {
   url: ''
 }
 
+export const getLimitedText = (_text, _length) => {
+  if (_text == undefined) {
+    return ''
+  }
+  if (_length == 0) {
+    return _text
+  }
+  if (_text.length > _length) {
+    return _text.substr(0, _length) + '...'
+  }
+  return _text
+}
+
 export const logObject = (obj) => {
   let i
   let k

@@ -118,6 +118,27 @@ We will see in details both provisioning types, but let take a look to other fie
  + Environment variables (to allow you to enable different logic on the test side)
  + tmt context variables (to allow you to enable different logic in the tmt test)
 
+Pay attention that BASIL is automatically exporting some environment variables that you can leverage in you tmt test:
+ + basil_test_case_id: ID of the Test Case
+ + basil_test_case_title: Title of the Test Case
+ + basil_api_api: Name of the Sw component (api)
+ + basil_api_library: Library of the Sw Component
+ + basil_api_library_version: Library Version of the Sw Component
+ + basil_test_case_mapping_table: Parent Type of the Test Case
+ + basil_test_case_mapping_id: Parent ID of the Test Case
+ + basil_test_relative_path: Relative Path of the Test Case inside the test repository
+ + basil_test_repo_path: Path of the Test Case repository
+ + basil_test_repo_url: Url of the Test Case repository
+ + basil_test_repo_ref: Ref (branch or commit sha) of the Test Case repository
+ + basil_test_run_id: UID of the Test Run
+ + basil_test_run_title: Title of the Test Run
+ + basil_test_run_config_id: ID of the Test Run Configuration
+ + basil_test_run_config_title: Title of the Test Run Configuration
+ + basil_user_email: Email of the User that created the Test Run
+
+Any other environment variable can be added by default in your BASIL instance customizing the api/tmttestrun.py file at TmtTestRunner() class initialization.
+
+
 # Test in Fedora Container
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 

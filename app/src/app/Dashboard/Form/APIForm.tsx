@@ -12,7 +12,8 @@ import {
   Hint,
   HintBody,
   Radio,
-  TextInput
+  TextInput,
+  Text
 } from '@patternfly/react-core'
 import * as Constants from '../../Constants/constants'
 import { useAuth } from '../../User/AuthProvider'
@@ -300,7 +301,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
 
   return (
     <Form>
-      <FormGroup label='Software Component Name' isRequired fieldId={`input-api-api-${formData.id}`}>
+      <FormGroup label='Software Component Name' isRequired fieldId={`input-api-${formAction}-api-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-api-${formAction}-api-${formData.id}`}
@@ -316,7 +317,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Library' isRequired fieldId={`input-api-library-${formData.id}`}>
+      <FormGroup label='Library' isRequired fieldId={`input-api-${formAction}-library-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-api-${formAction}-library-${formData.id}`}
@@ -332,7 +333,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Library Version' isRequired fieldId={`input-api-library-version-${formData.id}`}>
+      <FormGroup label='Library Version' isRequired fieldId={`input-api-${formAction}-library-version-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-api-${formAction}-library-version-${formData.id}`}
@@ -348,7 +349,11 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Specification Url/Path (plain text format):' isRequired fieldId={`input-api-raw-specification-url-${formData.id}`}>
+      <FormGroup
+        label='Specification Url/Path (plain text format):'
+        isRequired
+        fieldId={`input-api-${formAction}-raw-specification-url-${formData.id}`}
+      >
         <TextInput
           isRequired
           id={`input-api-${formAction}-raw-specification-url-${formData.id}`}
@@ -366,7 +371,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Category:' fieldId={`input-api-category-${formData.id}`}>
+      <FormGroup label='Category:' fieldId={`input-api-${formAction}-category-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-api-${formAction}-category-${formData.id}`}
@@ -375,7 +380,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           onChange={(_ev, value) => handleCategoryValueChange(_ev, value)}
         />
       </FormGroup>
-      <FormGroup label='Implementation file Url/Path:' fieldId={`input-api-implementation-file-${formData.id}`}>
+      <FormGroup label='Implementation file Url/Path:' fieldId={`input-api-${formAction}-implementation-file-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-api-${formAction}-implementation-file-${formData.id}`}
@@ -384,7 +389,10 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           onChange={(_ev, value) => handleImplementationFileValueChange(_ev, value)}
         />
       </FormGroup>
-      <FormGroup label='Implementation file from row number:' fieldId={`input-api-implementation-file-from-row-${formData.id}`}>
+      <FormGroup
+        label='Implementation file from row number:'
+        fieldId={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
+      >
         <TextInput
           id={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
           name={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
@@ -401,7 +409,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Implementation file to row number:' fieldId={`input-api-implementation-file-to-row-${formData.id}`}>
+      <FormGroup label='Implementation file to row number:' fieldId={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}>
         <TextInput
           id={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}
           name={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}
@@ -416,7 +424,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Tags:' fieldId={`input-api-tags-${formData.id}`}>
+      <FormGroup label='Tags:' fieldId={`input-api-${formAction}-tags-${formData.id}`}>
         <TextInput
           id={`input-api-${formAction}-tags-${formData.id}`}
           name={`input-api-${formAction}-tags-${formData.id}`}
@@ -426,8 +434,11 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       </FormGroup>
 
       {formAction == 'edit' ? (
-        <FormGroup label='Default View:' fieldId={`input-api-default-view-${formData.id}`}>
+        <FormGroup>
           <Flex>
+            <FlexItem>
+              <Text>Default View:</Text>
+            </FlexItem>
             <FlexItem>
               <Radio
                 isChecked={defaultViewValue == Constants._RS}

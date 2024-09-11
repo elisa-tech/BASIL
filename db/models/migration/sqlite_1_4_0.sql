@@ -1,0 +1,1 @@
+ALTER TABLE apis ADD COLUMN last_coverage text(10) DEFAULT '0';

@@ -27,6 +27,7 @@ class ApiModel(Base):
     implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer())
     raw_specification_url: Mapped[str] = mapped_column(String())
     tags: Mapped[str] = mapped_column(String())
+    last_coverage: Mapped[str] = mapped_column(String(10))
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiModel.created_by_id")
@@ -64,6 +65,7 @@ class ApiModel(Base):
         self.manage_permissions = f"{[created_by.id]}"
         self.read_denials = ""
         self.write_permissions = f"{[created_by.id]}"
+        self.last_coverage = "0"
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -81,6 +83,7 @@ class ApiModel(Base):
                f"implementation_file_to_row={self.implementation_file_to_row!r}," \
                f"created_by={self.created_by.email!r}," \
                f"edited_by={self.edited_by.email!r}," \
+               f"last_coverage={self.last_coverage!r}," \
                f"tags={self.tags!r})"
 
     def current_version(self, db_session):
@@ -104,6 +107,7 @@ class ApiModel(Base):
                  "implementation_file_to_row": self.implementation_file_to_row,
                  "created_by": self.created_by.email,
                  "edited_by": self.edited_by.email,
+                 "last_coverage": self.last_coverage,
                  "tags": self.tags}
 
         if db_session is not None:

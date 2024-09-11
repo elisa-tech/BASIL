@@ -25,13 +25,31 @@ import { useAuth } from '../User/AuthProvider'
 export interface APIListingPageSectionProps {
   currentLibrary: string
   apis
+  loadApi
   totalCoverage
+  currentPage
+  setCurrentPage
+  pageCount
+  setPageCount
+  apiCount
+  setApiCount
+  perPage
+  setPerPage
 }
 
 const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps> = ({
   currentLibrary,
   apis,
-  totalCoverage
+  loadApi,
+  totalCoverage,
+  currentPage,
+  setCurrentPage,
+  pageCount,
+  setPageCount,
+  apiCount,
+  setApiCount,
+  perPage,
+  setPerPage
 }: APIListingPageSectionProps) => {
   const auth = useAuth()
   const rows = []
@@ -47,7 +65,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [modalFormData, setModalFormData] = React.useState('')
   const [modalTitle, setModalTitle] = React.useState('')
   const [modalDescription, setModalDescription] = React.useState('')
-  const [perPage, setPerPage] = React.useState(10)
   const [SPDXContent, setSPDXContent] = React.useState('')
 
   const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false)
@@ -56,12 +73,10 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const [paginatedRows, setPaginatedRows] = React.useState(rows.slice(0, 10))
   const handleSetPage = (_evt, newPage, perPage, startIdx, endIdx) => {
-    setPaginatedRows(rows.slice(startIdx, endIdx))
-    setPage(newPage)
+    setCurrentPage(newPage)
   }
   const handlePerPageSelect = (_evt, newPerPage, newPage, startIdx, endIdx) => {
-    setPaginatedRows(rows.slice(startIdx, endIdx))
-    setPage(newPage)
+    setCurrentPage(Math.max(1, Math.ceil(startIdx / newPerPage)))
     setPerPage(newPerPage)
   }
 
@@ -107,8 +122,8 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const renderPagination = (variant, isCompact) => (
     <Pagination
       isCompact={isCompact}
-      itemCount={rows.length}
-      page={page}
+      itemCount={apiCount}
+      page={currentPage}
       perPage={perPage}
       onSetPage={handleSetPage}
       onPerPageSelect={handlePerPageSelect}
@@ -152,6 +167,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
                 <Label color='green' isCompact>
                   Covered {totalCoverage}%
                 </Label>
+                {''}
               </FlexItem>
             </Flex>
             <Flex align={{ default: 'alignRight' }}>

@@ -101,7 +101,6 @@ const Mapping: React.FunctionComponent = () => {
   }, [mappingData])
 
   const updateLastCoverage = (new_coverage) => {
-    console.log('updateLastCoverage: ' + new_coverage)
     let data = { 'api-id': api_id, 'last-coverage': new_coverage }
 
     if (auth.isLogged()) {

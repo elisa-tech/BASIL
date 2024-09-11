@@ -89,8 +89,6 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       response
         .json()
         .then((data) => {
-          console.log(data.message)
-          console.log(success)
           if (!success) {
             auth.logOut()
           }

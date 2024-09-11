@@ -5,6 +5,7 @@ from flask_restful import Resource, Api, reqparse
 import os
 import datetime
 import logging
+import math
 import shutil
 from sqlalchemy import or_
 from sqlalchemy.orm.exc import NoResultFound
@@ -37,7 +38,7 @@ USER_ROLES_DELETE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_EDIT_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_WRITE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_MANAGE_PERMISSIONS = ['ADMIN', 'USER']
-USER_ROLES_MANAGE_USERS = ['ADMIN',]
+USER_ROLES_MANAGE_USERS = ['ADMIN', ]
 
 BAD_REQUEST_MESSAGE = 'Bad request'
 BAD_REQUEST_STATUS = 400
@@ -424,11 +425,11 @@ def get_api_specification(_url_or_path):
                 else:
                     content = resource.read().decode('utf-8')
                 return content
-            except URLError as excp:
-                print(f"URLError: {excp.reason} reading {_url_or_path}")
-                return None
             except HTTPError as excp:
                 print(f"HTTPError: {excp.reason} reading {_url_or_path}")
+                return None
+            except URLError as excp:
+                print(f"URLError: {excp.reason} reading {_url_or_path}")
                 return None
             except ValueError as excp:
                 print(f"ValueError reading {_url_or_path}: {excp}")
@@ -629,7 +630,7 @@ def get_query_string_args(args):
 
     permitted_keys = ["api-id", "artifact", "id", "library", "mapped_to_type", "mapped_to_id",
                       "mode", "parent_id", "parent_table", "relation_id", "search",
-                      "token", "url", "user-id", "work_item_type"]
+                      "token", "url", "user-id", "work_item_type", "page", "per_page"]
 
     ret = {"db": db,
            "limit": limit,
@@ -855,7 +856,7 @@ def check_direct_work_items_against_another_spec_file(db_session, spec, api):
     return ret
 
 
-class Token():
+class Token:
 
     def filter(self, token):
         if token == app.secret_key:
@@ -1044,9 +1045,6 @@ class CheckSpecification(Resource):
 
 class Document(Resource):
     def get(self):
-        """
-        /documents
-        """
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
         query = dbi.session.query(DocumentModel)
@@ -1058,10 +1056,6 @@ class Document(Resource):
 
 class RemoteDocument(Resource):
     def get(self):
-        """
-        /remote-documents
-        """
-
         args = get_query_string_args(request.args)
         ret = {}
         if "api-id" not in args.keys():
@@ -1129,7 +1123,6 @@ class FixNewSpecificationWarnings(Resource):
     fields = ['id']
 
     def get(self):
-
         args = get_query_string_args(request.args)
 
         if not check_fields_in_request(self.fields, args):
@@ -1193,12 +1186,10 @@ class FixNewSpecificationWarnings(Resource):
 
 class Api(Resource):
     fields = get_model_editable_fields(ApiModel, False)
+    fields.remove("last_coverage")
     fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
-        """
-        curl http://localhost:5000/apis
-        """
         apis_dict = []
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
@@ -1219,21 +1210,29 @@ class Api(Resource):
 
         query = dbi.session.query(ApiModel)
         query = filter_query(query, args, ApiModel, False)
-        apis = query.all()
+
+        # Pagination
+        page = 1
+        per_page = 10
+        if 'page' in args.keys():
+            if str(request.args['page']).isnumeric():
+                page = max(int(args['page']), 1)
+                if 'per_page' in args.keys():
+                    if per_page in [5, 10, 20, 40, '5', '10', '20', '40']:
+                        per_page = int(args['per_page'])
+
+        count = query.count()
+        apis = query.offset((page - 1) * per_page).limit(per_page)
+        page_count = math.ceil(count / per_page)
 
         # Remove from the list api that are hidden to the current user
         apis = [x for x in apis if f"[{user_id}]" not in x.read_denials]
 
         if len(apis):
-            apis_dict = [x.as_dict(db_session=dbi.session) for x in apis]
+            apis_dict = [x.as_dict() for x in apis]
 
-        total_coverage = -1
-        for iApi in range(len(apis)):
-            sections = get_api_sw_requirements_mapping_sections(dbi, apis[iApi])
-            if sections is not None:
-                if 'mapped' in sections.keys():
-                    total_coverage = get_api_coverage(sections['mapped'])
-                    apis_dict[iApi]['covered'] = total_coverage
+        for iApi in range(len(apis_dict)):
+            apis_dict[iApi]['covered'] = apis_dict[iApi]['last_coverage']
 
             # Permissions
             permissions = get_api_user_permissions(apis[iApi], user_id, dbi.session)
@@ -1246,15 +1245,16 @@ class Api(Resource):
             else:
                 apis_dict[i]['notifications'] = 0
 
-        ret = apis_dict
-        ret = sorted(ret, key=lambda api: (api['api'], api['library_version']))
+        ret = {"apis": sorted(apis_dict, key=lambda api: (api['api'], api['library_version'])),
+               "current_page": page,
+               "page_count": page_count,
+               "per_page": per_page,
+               "count": count}
+
         dbi.engine.dispose()
         return ret
 
     def post(self):
-        """
-        add a new Api
-        """
         request_data = request.get_json(force=True)
         post_fields = self.fields_hashes.copy()
         post_fields.append('action')
@@ -1393,10 +1393,6 @@ class Api(Resource):
         return new_api.as_dict()
 
     def put(self):
-        """
-        edit an existing Api
-        """
-
         request_data = request.get_json(force=True)
         put_fields = self.fields_hashes.copy()
         put_fields.append('api-id')
@@ -1542,6 +1538,51 @@ class Api(Resource):
         return True
 
 
+class ApiLastCoverage(Resource):
+    def put(self):
+        """
+        edit api last_coverage field
+        """
+        request_data = request.get_json(force=True)
+        edit_field = 'last_coverage'
+        put_fields = ['api-id', edit_field.replace('_', '-')]
+
+        if not check_fields_in_request(put_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # Find api
+        api = get_api_from_request(request_data, dbi.session)
+
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # User permission
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user.id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+
+        api_modified = False
+        if getattr(api, edit_field) != request_data[edit_field.replace('_', '-')]:
+            api_modified = True
+            setattr(api, edit_field, request_data[edit_field.replace('_', '-')])
+
+        if api_modified:
+            dbi.session.add(api)
+            dbi.session.commit()
+
+        dbi.engine.dispose()
+        return api.as_dict()
+
+
 class ApiHistory(Resource):
     def get(self):
         args = get_query_string_args(request.args)
@@ -1568,7 +1609,7 @@ class ApiHistory(Resource):
                    "created_at": datetime.datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
 
             for k in _model_fields:
-                if k not in ['row_id', 'version', 'created_at', 'updated_at']:
+                if k not in ['row_id', 'version', 'last_coverage', 'created_at', 'updated_at']:
                     obj[k] = getattr(model_version, k)
 
             staging_array.append(obj)
@@ -1614,10 +1655,6 @@ class ApiHistory(Resource):
 class Library(Resource):
 
     def get(self):
-        """
-        curl http://localhost:5000/api
-        """
-
         # args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
         libraries = dbi.session.query(ApiModel.library).distinct().all()
@@ -1627,10 +1664,6 @@ class Library(Resource):
 
 class ApiSpecification(Resource):
     def get(self):
-        """
-                curl http://localhost:5000/api
-                """
-
         args = get_query_string_args(request.args)
         if "api-id" not in args.keys():
             return {}
@@ -1664,9 +1697,6 @@ class ApiTestSpecificationsMapping(Resource):
     fields = ['api-id', 'test-specification', 'section', 'coverage']
 
     def get(self):
-        """
-        curl <API_URL>/api/test-specifications?api-id=<api-id>
-        """
         args = get_query_string_args(request.args)
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
@@ -1849,7 +1879,6 @@ class ApiTestSpecificationsMapping(Resource):
         return new_test_specification_mapping_api.as_dict()
 
     def put(self):
-
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
@@ -1996,15 +2025,9 @@ class ApiTestCasesMapping(Resource):
     fields = ['api-id', 'test-case', 'section', 'coverage']
 
     def get(self):
-        """
-        curl <API_URL>/api/test-cases?api-id=<api-id>
-        """
-
         args = get_query_string_args(request.args)
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
-
-        # undesired_keys = ['section', 'offset']
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2406,8 +2429,6 @@ class MappingHistory(Resource):
 
         # object dict
         for model_version in model_versions_query.all():
-            # _description = ''
-
             obj = {"version": model_version.version,
                    "type": "object",
                    "created_at": datetime.datetime.strptime(str(model_version.created_at), '%Y-%m-%d %H:%M:%S.%f')}
@@ -2577,10 +2598,6 @@ class ApiSpecificationsMapping(Resource):
     fields = ['api-id', 'justification', 'section', 'offset']
 
     def get(self):
-        """
-        curl <API_URL>/api/specifications?api-id=<api-id>
-        """
-
         args = get_query_string_args(request.args)
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
@@ -2628,10 +2645,6 @@ class ApiJustificationsMapping(Resource):
     fields = ['api-id', 'justification', 'section', 'offset', 'coverage']
 
     def get(self):
-        """
-        curl <API_URL>/api/justifications?api-id=<api-id>
-        """
-
         args = get_query_string_args(request.args)
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
@@ -2929,15 +2942,9 @@ class ApiDocumentsMapping(Resource):
                        'url']
 
     def get(self):
-        """
-        curl <API_URL>/api/documents?api-id=<api-id>
-        """
-
         args = get_query_string_args(request.args)
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
-
-        # undesired_keys = ['section', 'offset']
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3246,9 +3253,6 @@ class ApiSwRequirementsMapping(Resource):
     fields = ['api-id', 'sw-requirement', 'section', 'coverage']
 
     def get(self):
-        """
-        curl <API_URL>/api/sw-requirements?api-id=<api-id>
-        """
         args = get_query_string_args(request.args)
         if not check_fields_in_request(['api-id'], args):
             return 'bad request!', 400
@@ -3527,8 +3531,6 @@ class Justification(Resource):
     fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
-        """
-        """
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
         query = dbi.session.query(JustificationModel)
@@ -3549,8 +3551,6 @@ class TestSpecification(Resource):
     fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
-        """
-        """
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
 
@@ -3572,8 +3572,6 @@ class SwRequirement(Resource):
     fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
-        """
-        """
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
 
@@ -3595,8 +3593,6 @@ class TestCase(Resource):
     fields_hashes = [x.replace('_', '-') for x in fields]
 
     def get(self):
-        """
-        """
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
         query = dbi.session.query(TestCaseModel)
@@ -3616,10 +3612,6 @@ class SwRequirementSwRequirementsMapping(Resource):
     fields = ['sw-requirement', 'coverage']
 
     def get(self):
-        """
-        curl http://localhost:5000/mapping/sw-requirement/sw-requirements?field=id&filter=24
-        """
-
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
         query = dbi.session.query(SwRequirementSwRequirementModel)
@@ -3628,9 +3620,6 @@ class SwRequirementSwRequirementsMapping(Resource):
 
         dbi.engine.dispose()
         return srsrs
-
-        ret = {}
-        return ret
 
     def post(self):
         request_data = request.get_json(force=True)
@@ -3935,10 +3924,6 @@ class SwRequirementTestSpecificationsMapping(Resource):
     fields = ['api-id', 'sw-requirement', 'test-specification', 'coverage']
 
     def get(self):
-        """
-        curl http://localhost:5000/api/test-specifications?db=head&field=id&filter=24
-        """
-
         ret = {}
         return ret
 
@@ -4114,7 +4099,6 @@ class SwRequirementTestSpecificationsMapping(Resource):
         return new_test_specification_mapping_sw_requirement.as_dict()
 
     def put(self):
-
         request_data = request.get_json(force=True)
 
         mandatory_fields = self.fields + ['relation-id']
@@ -4191,7 +4175,6 @@ class SwRequirementTestSpecificationsMapping(Resource):
         return ret
 
     def delete(self):
-
         ret = False
         request_data = request.get_json(force=True)
 
@@ -4259,10 +4242,6 @@ class SwRequirementTestCasesMapping(Resource):
     fields = ['api-id', 'sw-requirement', 'test-case', 'coverage']
 
     def get(self):
-        """
-        curl http://localhost:5000/api/test-specifications?db=head&field=id&filter=24
-        """
-
         ret = {}
         return ret
 
@@ -4512,7 +4491,6 @@ class SwRequirementTestCasesMapping(Resource):
         return ret
 
     def delete(self):
-
         ret = False
         request_data = request.get_json(force=True)
 
@@ -5521,7 +5499,6 @@ class UserSshKey(Resource):
     fields = get_model_editable_fields(SshKeyModel, False)
 
     def get(self):
-
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
 
@@ -5622,7 +5599,7 @@ class TestRunConfig(Resource):
     # Do not support delete, put and post
     # Once a Test Run has been executed the Test Run Config is defined
     # and should be accessible in future to identify the Test Run
-    # A new Test Config is creeated by the Test Run post endpoint
+    # A new Test Config is created by the Test Run post endpoint
 
     fields = get_model_editable_fields(TestRunConfigModel, False)
 
@@ -6228,6 +6205,7 @@ api.add_resource(TestCase, '/test-cases')
 api.add_resource(ApiSpecificationsMapping, '/mapping/api/specifications')
 api.add_resource(ApiDocumentsMapping, '/mapping/api/documents')
 api.add_resource(ApiJustificationsMapping, '/mapping/api/justifications')
+api.add_resource(ApiLastCoverage, '/mapping/api/last-coverage')
 api.add_resource(ApiSwRequirementsMapping, '/mapping/api/sw-requirements')
 api.add_resource(ApiTestSpecificationsMapping, '/mapping/api/test-specifications')
 api.add_resource(ApiTestCasesMapping, '/mapping/api/test-cases')
@@ -6235,6 +6213,7 @@ api.add_resource(TestRunConfig, '/mapping/api/test-run-configs')
 api.add_resource(TestRun, '/mapping/api/test-runs')
 api.add_resource(TestRunLog, '/mapping/api/test-run/log')
 api.add_resource(TestRunArtifacts, '/mapping/api/test-run/artifacts')
+
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')
 api.add_resource(SwRequirementTestSpecificationsMapping, '/mapping/sw-requirement/test-specifications')

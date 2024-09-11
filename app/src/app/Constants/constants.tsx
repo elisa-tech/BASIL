@@ -23,6 +23,7 @@ export const _TS_ = 'test_specification'
 export const _TSs_ = 'test_specifications'
 
 export const DEFAULT_VIEW = _SRs
+export const DEFAULT_PER_PAGE = 10
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'
 
 export const document_type = [

@@ -28,11 +28,20 @@ const Dashboard: React.FunctionComponent = () => {
   const params = new URLSearchParams(search)
   const qsCurrentLibrary = params.get('currentLibrary')
 
+  // Pagination
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const [pageCount, setPageCount] = React.useState(0)
+  const [apiCount, setApiCount] = React.useState(0)
+  const [perPage, setPerPage] = React.useState(Constants.DEFAULT_PER_PAGE)
+
   const onChangeSearchValue = (value: string) => {
     setSearchValue(value)
   }
 
   const libraryTabClick = (lib) => {
+    setCurrentPage(1)
+    setPageCount(0)
+    setApiCount(0)
     setCurrentLibrary(lib)
   }
 
@@ -68,10 +77,14 @@ const Dashboard: React.FunctionComponent = () => {
       url += '&user-id=' + auth.userId + '&token=' + auth.token
     }
 
+    url += '&page=' + currentPage + '&per_page=' + perPage
+
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        setApis(data)
+        setApis(data['apis'])
+        setPageCount(data['page_count'])
+        setApiCount(data['count'])
       })
       .catch((err) => {
         console.log(err.message)
@@ -99,6 +112,16 @@ const Dashboard: React.FunctionComponent = () => {
     loadApi()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLibrary])
+
+  React.useEffect(() => {
+    loadApi()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage])
+
+  React.useEffect(() => {
+    loadApi()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perPage])
 
   React.useEffect(() => {
     if (libraries.length > 0) {
@@ -164,7 +187,20 @@ const Dashboard: React.FunctionComponent = () => {
           </Tabs>
         </PageSection>
       </PageGroup>
-      <APIListingPageSection currentLibrary={currentLibrary} apis={apis} totalCoverage={totalCoverage} />
+      <APIListingPageSection
+        currentLibrary={currentLibrary}
+        apis={apis}
+        loadApi={loadApi}
+        totalCoverage={totalCoverage}
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        pageCount={pageCount}
+        setPageCount={setPageCount}
+        apiCount={apiCount}
+        setApiCount={setApiCount}
+        perPage={perPage}
+        setPerPage={setPerPage}
+      />
     </React.Fragment>
   )
 }

@@ -97,8 +97,37 @@ const Mapping: React.FunctionComponent = () => {
       wa = wa + (mappingData[i]['section']['length'] / total_len) * (mappingData[i]['covered'] / 100.0)
     }
     const tc = Math.round(wa * 100 * 1e1) / 1e1
-    setTotalCoverage(tc)
+    updateLastCoverage(tc)
   }, [mappingData])
+
+  const updateLastCoverage = (new_coverage) => {
+    console.log('updateLastCoverage: ' + new_coverage)
+    let data = { 'api-id': api_id, 'last-coverage': new_coverage }
+
+    if (auth.isLogged()) {
+      data['user-id'] = auth.userId
+      data['token'] = auth.token
+    }
+
+    setTotalCoverage(new_coverage)
+
+    fetch(Constants.API_BASE_URL + '/mapping/api/last-coverage', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        if (response.status !== 200) {
+          console.log(response.statusText)
+        }
+      })
+      .catch((err) => {
+        console.log(err.toString())
+      })
+  }
 
   return (
     <React.Fragment>

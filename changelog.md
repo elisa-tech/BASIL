@@ -1,5 +1,13 @@
 # CHANGE LOG
 
+## 1.4.x
+
+- Api pagination
+
+## 1.3.x
+
+- Document work item
+
 ## 1.2.x
 
 - Test Case execution via tmt

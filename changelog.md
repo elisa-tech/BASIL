@@ -4,6 +4,9 @@
 
 - Api pagination
 - By default sort api by name, library_version instead of by id
+- Show and manage unmapped Document
+- Avoid to increate the api version on case of last_coverage (field used as cached coverage value) changes
+- Fix warning of Document work items
 
 ## 1.3.x
 

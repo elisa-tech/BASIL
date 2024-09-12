@@ -14,7 +14,7 @@ const Mapping: React.FunctionComponent = () => {
   const [apiData, setApiData] = React.useState(null)
   const [mappingData, setMappingData] = React.useState([])
   const [unmappingData, setUnmappingData] = React.useState([])
-  const [totalCoverage, setTotalCoverage] = React.useState(0)
+  const [totalCoverage, setTotalCoverage] = React.useState(-1)
   const { api_id } = useParams<{ api_id: string }>()
 
   //view
@@ -88,10 +88,16 @@ const Mapping: React.FunctionComponent = () => {
     if (mappingData == null) {
       return
     }
+    if (mappingData.length == 0) {
+      return
+    }
     let total_len = 0
     let wa = 0
     for (let i = 0; i < mappingData['length']; i++) {
       total_len = total_len + mappingData[i]['section']['length']
+    }
+    if (total_len == 0) {
+      return
     }
     for (let i = 0; i < mappingData['length']; i++) {
       wa = wa + (mappingData[i]['section']['length'] / total_len) * (mappingData[i]['covered'] / 100.0)
@@ -101,6 +107,12 @@ const Mapping: React.FunctionComponent = () => {
   }, [mappingData])
 
   const updateLastCoverage = (new_coverage) => {
+    if (apiData == null) {
+      return
+    }
+    if (new_coverage == apiData['last_coverage']) {
+      return
+    }
     let data = { 'api-id': api_id, 'last-coverage': new_coverage }
 
     if (auth.isLogged()) {

@@ -752,6 +752,7 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     mapped_sections = get_split_sections(api_specification, mapping, [_SR, _J, _D])
     unmapped_sections = [x for x in mapping[_SRs] if not x['match']]
     unmapped_sections += [x for x in mapping[_Js] if not x['match']]
+    unmapped_sections += [x for x in mapping[_Ds] if not x['match']]
 
     for iMS in range(len(mapped_sections)):
         for iSR in range(len(mapped_sections[iMS][_SRs])):
@@ -777,8 +778,14 @@ def check_direct_work_items_against_another_spec_file(db_session, spec, api):
                           'warning': []},
            'justifications': {'ok': [],
                               'ko': [],
-                              'warning': []}
+                              'warning': []},
+           'documents': {'ok': [],
+                         'ko': [],
+                         'warning': []}
            }
+
+    if not spec:
+        return ret
 
     # ApiSwRequirement
     api_srs = db_session.query(ApiSwRequirementModel).filter(
@@ -853,6 +860,26 @@ def check_direct_work_items_against_another_spec_file(db_session, spec, api):
         else:
             ret['justifications']['ko'].append({'id': api_j.id,
                                                 'title': api_j.justification.description})
+
+    # ApiDocument
+    api_docs = db_session.query(ApiDocumentModel).filter(
+        ApiDocumentModel.api_id == api.id
+    ).all()
+    for api_doc in api_docs:
+        if api_doc.section in spec:
+            if spec.index(api_doc.section) == api_doc.offset:
+                ret['documents']['ok'].append({'id': api_doc.id,
+                                               'title': api_doc.document.title})
+            else:
+                ret['documents']['warning'].append({'id': api_doc.id,
+                                                    'old-offset': api_doc.offset,
+                                                    'new-offset': spec.index(
+                                                             api_doc.section),
+                                                    'title': api_doc.document.title})
+        else:
+            ret['documents']['ko'].append({'id': api_doc.id,
+                                           'title': api_doc.document.title})
+
     return ret
 
 
@@ -1178,6 +1205,15 @@ class FixNewSpecificationWarnings(Resource):
             ).all()
             if len(j_all) == 1:
                 j_all[0].offset = analysis['justifications']['warning'][i]['new-offset']
+                dbi.session.commit()
+
+        # ApiDocument
+        for i in range(len(analysis['documents']['warning'])):
+            doc_all = dbi.session.query(ApiDocumentModel).filter(
+                ApiDocumentModel.id == analysis['documents']['warning'][i]['id']
+            ).all()
+            if len(doc_all) == 1:
+                doc_all[0].offset = analysis['documents']['warning'][i]['new-offset']
                 dbi.session.commit()
 
         dbi.engine.dispose()
@@ -1765,6 +1801,7 @@ class ApiTestSpecificationsMapping(Resource):
         mapped_sections = get_split_sections(api_specification, mapping, [_TS, _J, _D])
         unmapped_sections = [x for x in mapping[_TSs] if not x['match']]
         unmapped_sections += [x for x in mapping[_Js] if not x['match']]
+        unmapped_sections += [x for x in mapping[_Ds] if not x['match']]
         ret = {'mapped': mapped_sections,
                'unmapped': unmapped_sections}
 
@@ -2081,6 +2118,7 @@ class ApiTestCasesMapping(Resource):
         mapped_sections = get_split_sections(api_specification, mapping, [_TC, _J, _D])
         unmapped_sections = [x for x in mapping[_TCs] if not x['match']]
         unmapped_sections += [x for x in mapping[_Js] if not x['match']]
+        unmapped_sections += [x for x in mapping[_Ds] if not x['match']]
         ret = {'mapped': mapped_sections,
                'unmapped': unmapped_sections}
 
@@ -3133,8 +3171,6 @@ class ApiDocumentsMapping(Resource):
         # Update only modified fields
         modified_d = False
         request_document_data = get_dict_with_db_format_keys(request_data["document"])
-        print(f"request_document_data: {request_document_data}")
-        print(f"document: {document}")
         for field in document_fields:
             if field in request_document_data.keys():
                 if getattr(document, field) != request_document_data[field]:

@@ -9,6 +9,7 @@ import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-ico
 export interface UnmappedMenuKebabProps {
   srModalShowState
   setDeleteModalInfo
+  setDocModalInfo
   setTcModalInfo
   setTsModalInfo
   setSrModalInfo
@@ -24,6 +25,7 @@ export interface UnmappedMenuKebabProps {
 
 export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> = ({
   setDeleteModalInfo,
+  setDocModalInfo,
   setTcModalInfo,
   setTsModalInfo,
   setSrModalInfo,
@@ -60,6 +62,13 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       //list = list_item;
       //list = mappingList[mappingIndex]
       setJModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)
+    } else if (mappingType == Constants._D) {
+      //list_item = mappingList[mappingIndex];
+      //list_item['coverage'] = mappingList[mappingIndex]['coverage'];
+      //list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
+      //list = [list_item];
+      //list = mappingList[mappingIndex]
+      setDocModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)
     } else if (mappingType == Constants._SR) {
       //list_item = mappingList[mappingIndex];
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];

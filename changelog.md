@@ -3,6 +3,8 @@
 ## 1.4.x
 
 - Api pagination
+- Test case gap highlight in case of direct mapping
+- By default sort api by name, library_version instead of by id
 
 ## 1.3.x
 

@@ -1,6 +1,6 @@
 [project]
 name = "BASIL"
-version = "1.4.3"
+version = "1.4.4"
 description = "open source software quality management tool"
 authors = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"},

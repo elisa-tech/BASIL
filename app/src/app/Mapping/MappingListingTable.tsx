@@ -318,15 +318,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     {coverageFormat(test_case['coverage'])}% Coverage
                   </Label>
                 </FlexItem>
-                {indirect == false && test_case['coverage'] < 100 ? (
-                  <FlexItem>
-                    <Label color='red' name='label-test-case-coverage' variant='outline' isCompact>
-                      {coverageFormat(100 - test_case['coverage'])}% Gap
-                    </Label>
-                  </FlexItem>
-                ) : (
-                  ''
-                )}
                 <FlexItem align={{ default: 'alignRight' }}>
                   {indirect == false && auth.isLogged() ? (
                     <React.Fragment>
@@ -422,7 +413,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 {test_spec['gap'] != 0 ? (
                   <React.Fragment>
                     <FlexItem>
-                      <Label color='red' name='label-sw-requirement-coverage' variant='outline' isCompact>
+                      <Label color='red' name='label-test-specification-coverage' variant='outline' isCompact>
                         {coverageFormat(test_spec['gap'])}% Gap
                       </Label>
                     </FlexItem>

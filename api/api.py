@@ -7,7 +7,7 @@ import datetime
 import logging
 import math
 import shutil
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm.exc import NoResultFound
 import sys
 import urllib
@@ -1210,6 +1210,7 @@ class Api(Resource):
 
         query = dbi.session.query(ApiModel)
         query = filter_query(query, args, ApiModel, False)
+        query = query.order_by(and_(ApiModel.api, ApiModel.library_version))
 
         # Pagination
         page = 1

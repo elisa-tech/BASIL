@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
 from sqlalchemy import BigInteger, DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import event, insert, inspect, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -147,6 +147,21 @@ class ApiModel(Base):
 
 @event.listens_for(ApiModel, "after_update")
 def receive_after_update(mapper, connection, target):
+    # Avoid to update the version if the only change is related to last_coverage
+    state = inspect(target)
+    changes = {}
+    for attr in state.attrs:
+        hist = state.get_history(attr.key, True)
+        old_value = hist.deleted[0] if hist.deleted else None
+        new_value = hist.added[0] if hist.added else None
+        if old_value is not None or new_value is not None:
+            if old_value != new_value:
+                changes[attr.key] = [old_value, new_value]
+        affected_fields = list(changes.keys())
+        if len(affected_fields) == 1:
+            if affected_fields[0] == 'last_coverage':
+                return
+
     last_query = select(ApiHistoryModel.version).where(ApiHistoryModel.id ==
                                                        target.id).order_by(ApiHistoryModel.version.desc()).limit(1)
     version = -1

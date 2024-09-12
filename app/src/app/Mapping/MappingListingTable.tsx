@@ -102,8 +102,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   const auth = useAuth()
 
   const getWorkItemDescription = (_work_item_type) => {
-    const work_item_types = [Constants._A, Constants._J, Constants._SR, Constants._TS, Constants._TC]
-    const work_item_descriptions = [Constants._A, Constants._J, 'Software Requirement', 'Test Specification', 'Test Case']
+    const work_item_types = [Constants._A, Constants._J, Constants._D, Constants._SR, Constants._TS, Constants._TC]
+    const work_item_descriptions = [Constants._A, Constants._J, Constants._D, 'Software Requirement', 'Test Specification', 'Test Case']
     return work_item_descriptions[work_item_types.indexOf(_work_item_type)]
   }
 
@@ -829,6 +829,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       work_item_type = Constants._J
       work_item_description = snippet[Constants._J]['description']
       work_item_id = snippet[Constants._J]['id']
+    } else if (Object.prototype.hasOwnProperty.call(snippet, 'document')) {
+      work_item_type = Constants._D
+      work_item_description = snippet[Constants._D]['title']
+      work_item_id = snippet[Constants._D]['id']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'sw_requirement')) {
       work_item_type = Constants._SR
       work_item_description = snippet[Constants._SR_]['title']
@@ -867,6 +871,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   api={api}
                   srModalShowState={srModalShowState}
                   setDeleteModalInfo={setDeleteModalInfo}
+                  setDocModalInfo={setDocModalInfo}
                   setTcModalInfo={setTcModalInfo}
                   setTsModalInfo={setTsModalInfo}
                   setSrModalInfo={setSrModalInfo}

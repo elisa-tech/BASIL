@@ -35,6 +35,9 @@ export const CheckSpecResults: React.FunctionComponent<checkSpecResultsProps> = 
   const [showJustificationsOk, setShowJustificationsOk] = React.useState(false)
   const [showJustificationsKo, setShowJustificationsKo] = React.useState(false)
   const [showJustificationsWarning, setShowJustificationsWarning] = React.useState(false)
+  const [showDocumentsOk, setShowDocumentsOk] = React.useState(false)
+  const [showDocumentsKo, setShowDocumentsKo] = React.useState(false)
+  const [showDocumentsWarning, setShowDocumentsWarning] = React.useState(false)
 
   React.useEffect(() => {
     setShowSwRequirementsOk(false)
@@ -49,6 +52,9 @@ export const CheckSpecResults: React.FunctionComponent<checkSpecResultsProps> = 
     setShowJustificationsOk(false)
     setShowJustificationsKo(false)
     setShowJustificationsWarning(false)
+    setShowDocumentsOk(false)
+    setShowDocumentsKo(false)
+    setShowDocumentsWarning(false)
 
     if (checkResultData['sw-requirements']['ok'].length > 0) {
       setShowSwRequirementsOk(true)
@@ -88,6 +94,16 @@ export const CheckSpecResults: React.FunctionComponent<checkSpecResultsProps> = 
     }
     if (checkResultData['justifications']['warning'].length > 0) {
       setShowJustificationsWarning(true)
+    }
+
+    if (checkResultData['documents']['ok'].length > 0) {
+      setShowDocumentsOk(true)
+    }
+    if (checkResultData['documents']['ko'].length > 0) {
+      setShowDocumentsKo(true)
+    }
+    if (checkResultData['documents']['warning'].length > 0) {
+      setShowDocumentsWarning(true)
     }
   }, [checkResultData])
 
@@ -176,6 +192,28 @@ export const CheckSpecResults: React.FunctionComponent<checkSpecResultsProps> = 
           ))}
           {showJustificationsWarning ? <DescriptionListTerm> * WARNING</DescriptionListTerm> : <span></span>}
           {checkResultData['justifications']['warning'].map((item, index) => (
+            <DescriptionListDescription key={index}>
+              {item.id} - {item.title}
+            </DescriptionListDescription>
+          ))}
+        </DescriptionListGroup>
+
+        <DescriptionListGroup>
+          <DescriptionListTerm>Documents</DescriptionListTerm>
+          {showDocumentsOk ? <DescriptionListTerm> * OK</DescriptionListTerm> : <span></span>}
+          {checkResultData['documents']['ok'].map((item, index) => (
+            <DescriptionListDescription key={index}>
+              {item.id} - {item.title}
+            </DescriptionListDescription>
+          ))}
+          {showDocumentsKo ? <DescriptionListTerm> * KO</DescriptionListTerm> : <span></span>}
+          {checkResultData['documents']['ko'].map((item, index) => (
+            <DescriptionListDescription key={index}>
+              {item.id} - {item.title}
+            </DescriptionListDescription>
+          ))}
+          {showDocumentsWarning ? <DescriptionListTerm> * WARNING</DescriptionListTerm> : <span></span>}
+          {checkResultData['documents']['warning'].map((item, index) => (
             <DescriptionListDescription key={index}>
               {item.id} - {item.title}
             </DescriptionListDescription>

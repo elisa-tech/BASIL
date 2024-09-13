@@ -7,6 +7,7 @@
 - Show and manage unmapped Document
 - Avoid to increate the api version on case of last_coverage (field used as cached coverage value) changes
 - Fix warning of Document work items
+- Fix document link
 
 ## 1.3.x
 

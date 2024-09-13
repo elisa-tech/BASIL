@@ -25,6 +25,9 @@ RUN mkdir -p /var/tmp && cd /BASIL-API/db/models && \
 # Apply patches
 RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch
 
+# Init tmt
+RUN tmt init
+
 # Remove BASIL ADMIN PASSWORD from the environment
 ENV BASIL_ADMIN_PASSWORD=
 

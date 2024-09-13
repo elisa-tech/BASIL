@@ -8,6 +8,7 @@
 - Avoid to increate the api version on case of last_coverage (field used as cached coverage value) changes
 - Fix warning of Document work items
 - Fix document link
+- Fix Dockerfile-api to init tmt to configure test execution framework
 
 ## 1.3.x
 

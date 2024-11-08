@@ -1,8 +1,13 @@
 name: ci
+run-name: ci [${{ inputs.uuid && inputs.uuid || 'N/A' }}]
 
 on:
   push:
   workflow_dispatch:
+    inputs:
+      uuid:
+        description: 'Unique ID'
+        required: false
   
 jobs:
   build:

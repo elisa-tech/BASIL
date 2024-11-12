@@ -18,20 +18,26 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
 }: TestRunBugFormProps) => {
   const auth = useAuth()
   const [bugsValue, setBugsValue] = React.useState(modalTestRun.bugs)
-  const [noteValue, setNoteValue] = React.useState(modalTestRun.note)
+  const [fixesValue, setFixesValue] = React.useState(modalTestRun.fixes)
+  const [notesValue, setNotesValue] = React.useState(modalTestRun.notes)
   const [messageValue, setMessageValue] = React.useState('')
 
   const handleBugsValueChange = (value: string) => {
     setBugsValue(value)
   }
 
-  const handleNoteValueChange = (value: string) => {
-    setNoteValue(value)
+  const handleFixesValueChange = (value: string) => {
+    setFixesValue(value)
+  }
+
+  const handleNotesValueChange = (value: string) => {
+    setNotesValue(value)
   }
 
   React.useEffect(() => {
     setBugsValue(modalTestRun.bugs)
-    setNoteValue(modalTestRun.note)
+    setFixesValue(modalTestRun.fixes)
+    setNotesValue(modalTestRun.notes)
   }, [modalTestRun])
 
   const handleSubmit = () => {
@@ -51,7 +57,8 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       'api-id': api.id,
       id: modalTestRun.id,
       bugs: bugsValue.trim(),
-      note: noteValue.trim(),
+      fixes: fixesValue.trim(),
+      notes: notesValue.trim(),
       'user-id': auth.userId,
       token: auth.token,
       mapped_to_type: mapping_to,
@@ -80,26 +87,35 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
 
   return (
     <Form>
-      <FormGroup label='Bug' isRequired fieldId={`input-test-run-bug-bugs`}>
+      <FormGroup label='Bugs' fieldId={`input-test-run-bugs`}>
         <TextInput
-          isRequired
           isDisabled={api?.permissions.indexOf('w') < 0}
-          aria-label='Test Run Bug Bug field'
-          id={`input-test-run-bug-bugs`}
-          name={`input-test-run-bug-bugs`}
+          aria-label='Test Run Bugs field'
+          id={`input-test-run-bugs`}
+          name={`input-test-run-bugs`}
           value={bugsValue || ''}
           onChange={(_ev, value) => handleBugsValueChange(value)}
         />
       </FormGroup>
-      <FormGroup label='Note' fieldId={`input-test-run-bug-note`}>
+      <FormGroup label='Fixes' fieldId={`input-test-run-fixes`}>
+        <TextInput
+          isDisabled={api?.permissions.indexOf('w') < 0}
+          aria-label='Test Run Fixes'
+          id={`input-test-run-fixes`}
+          name={`input-test-run-fixes`}
+          value={fixesValue || ''}
+          onChange={(_ev, value) => handleFixesValueChange(value)}
+        />
+      </FormGroup>
+      <FormGroup label='Notes' fieldId={`input-test-run-notes`}>
         <TextArea
           isDisabled={api?.permissions.indexOf('w') < 0}
           resizeOrientation='vertical'
-          aria-label='Test Run Bug Note field'
-          id={`input-test-run-bug-note`}
-          name={`input-test-run-bug-note`}
-          value={noteValue || ''}
-          onChange={(_ev, value) => handleNoteValueChange(value)}
+          aria-label='Test Run Notes field'
+          id={`input-test-run-notes`}
+          name={`input-test-run-notes`}
+          value={notesValue || ''}
+          onChange={(_ev, value) => handleNotesValueChange(value)}
         />
       </FormGroup>
 

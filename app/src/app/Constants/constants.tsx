@@ -37,6 +37,13 @@ export const provision_type = [
   { value: 'connect', label: 'SSH', disabled: false }
 ]
 
+export const test_run_plugins = [
+  { value: 'tmt', label: 'tmt', disabled: false },
+  { value: 'github_actions', label: 'github actions', disabled: false },
+  { value: 'gitlab_ci', label: 'gitlab ci', disabled: false },
+  { value: 'kernel_ci', label: 'KernelCI', disabled: false }
+]
+
 export const spdx_relations = [
   { value: '', label: 'Select a value', disabled: false },
   { value: 'AFFECTS', label: 'AFFECTS', disabled: false },
@@ -116,6 +123,30 @@ export const capitalizeFirstWithoutHashes = (_string: string) => {
   let tmp = _string.split('-').join(' ')
   tmp = tmp.split('_').join(' ')
   return tmp.charAt(0).toUpperCase() + tmp.slice(1)
+}
+
+export const extend_config_with_plugin_vars = (config) => {
+  if (Object.keys(config).indexOf('plugin_vars') < 0) {
+    return config
+  }
+  let vars_str = config['plugin_vars']
+  let kv = vars_str.split(';')
+  let tmp
+  for (let i = 0; i < kv.length; i++) {
+    tmp = kv[i].split('=')
+    if (tmp.length == 2) {
+      config[tmp[0].trim()] = tmp[1].trim()
+    }
+  }
+  return config
+}
+
+export const get_config_plugin_var = (_config, _varname) => {
+  let tmp_config = extend_config_with_plugin_vars(_config)
+  if (Object.keys(tmp_config).indexOf(_varname) > -1) {
+    return tmp_config[_varname]
+  }
+  return ''
 }
 
 export const tcFormEmpty = {

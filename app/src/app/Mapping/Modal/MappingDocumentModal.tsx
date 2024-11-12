@@ -103,7 +103,7 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
           />
         </Tabs>
         <div>
-          <TabContent eventKey={0} id='tabContentDocumentForm' ref={newItemRef}>
+          <TabContent eventKey={0} id='tabContentDocumentForm' ref={newItemRef} hidden={0 !== activeTabKey}>
             <TabContentBody hasPadding>
               <DocumentForm
                 api={api}
@@ -124,7 +124,7 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={1} id='tabContentDocumentSection' ref={sectionItemsRef} hidden>
+          <TabContent eventKey={1} id='tabContentDocumentSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
@@ -138,7 +138,7 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={2} id='tabContentDocumentExisting' ref={existingItemsRef} hidden>
+          <TabContent eventKey={2} id='tabContentDocumentExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
             <TabContentBody hasPadding>
               <DocumentSearch
                 api={api}

@@ -110,7 +110,9 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
           <DataListItemCells
             dataListCells={[
               <DataListCell key={tcIndex}>
-                <span id={'clickable-action-item-' + test_case.id}>{test_case.title}</span>
+                <span id={'clickable-action-item-' + test_case.id}>
+                  {test_case.id} - {test_case.title}
+                </span>
               </DataListCell>
             ]}
           />

@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import * as React from 'react'
 import * as Constants from '../../Constants/constants'
 import {
@@ -34,6 +35,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   setModalShowState
 }: TestRunModalProps) => {
   const auth = useAuth()
+  const [infoLabel, setInfoLabel] = React.useState('new')
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [testRunConfigs, setTestRunConfigs] = React.useState([])
   const [sshKeys, setSshKeys] = React.useState([])
@@ -42,12 +44,12 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
 
   const [titleValue, setTitleValue] = React.useState('')
   const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')
-  const [noteValue, setNoteValue] = React.useState('')
+  const [notesValue, setNotesValue] = React.useState('')
   const [messageValue, setMessageValue] = React.useState('')
 
   const resetForms = () => {
     setTitleValue('')
-    setNoteValue('')
+    setNotesValue('')
     setTestRunConfig({})
   }
 
@@ -61,8 +63,8 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
     setTitleValue(value)
   }
 
-  const handleNoteValueChange = (value: string) => {
-    setNoteValue(value)
+  const handleNotesValueChange = (value: string) => {
+    setNotesValue(value)
   }
 
   React.useEffect(() => {
@@ -74,11 +76,18 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   }, [titleValue])
 
   const handleSelectExistingTestConfig = (config) => {
-    setTestRunConfig(config)
+    let config_copy = _.cloneDeep(config)
+    if (['gitlab_ci', 'github_actions'].indexOf(config_copy['plugin']) > -1) {
+      config_copy = Constants.extend_config_with_plugin_vars(config_copy)
+    }
+    setTestRunConfig(config_copy)
   }
 
   React.useEffect(() => {
     setIsModalOpen(modalShowState)
+    if (modalShowState == true) {
+      setActiveTabKey(0)
+    }
   }, [modalShowState])
 
   const loadSSHKeys = () => {
@@ -136,6 +145,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   const validateConfig = () => {
     if (testRunConfig == null) {
       setMessageValue('Test Configuration is not defined')
+      setActiveTabKey(1)
       return false
     }
     if (testRunConfig['from_db'] == 1) {
@@ -143,27 +153,73 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
     }
     if (Object.keys(testRunConfig).indexOf('title') < 0) {
       setMessageValue('Test Configuration is not defined')
+      setActiveTabKey(1)
       return false
     }
     if (testRunConfig['title'].trim() == '') {
       setMessageValue('Test Configuration Title is mandatory')
+      setActiveTabKey(1)
       return false
     }
-    if (testRunConfig['provision_type'].trim() == '') {
-      setMessageValue('Test Configuration Provision Type is mandatory')
-      return false
-    } else if (testRunConfig['provision_type'].trim() == 'connect') {
-      if (testRunConfig['provision_guest'].trim() == '') {
-        setMessageValue('Test Configuration Provision Guest is mandatory')
-        return false
+    if (testRunConfig['plugin'].trim() == 'tmt') {
+      if (testRunConfig['plugin_preset'].trim() == '') {
+        if (testRunConfig['provision_type'].trim() == '') {
+          setMessageValue('Test Configuration Provision Type is mandatory')
+          setActiveTabKey(1)
+          return false
+        } else if (testRunConfig['provision_type'].trim() == 'connect') {
+          if (testRunConfig['provision_guest'].trim() == '') {
+            setMessageValue('Test Configuration Hostname or IP address is mandatory')
+            setActiveTabKey(1)
+            return false
+          }
+          if (testRunConfig['provision_guest_port'].trim() == '') {
+            setMessageValue('Test Configuration Provision Guest Port is mandatory')
+            setActiveTabKey(1)
+            return false
+          }
+          if (testRunConfig['ssh_key'] == 0) {
+            setMessageValue('Test Configuration SSH Key is mandatory')
+            setActiveTabKey(1)
+            return false
+          }
+        }
       }
-      if (testRunConfig['provision_guest_port'].trim() == '') {
-        setMessageValue('Test Configuration Provision Guest Port is mandatory')
-        return false
+    } else if (testRunConfig['plugin'].trim() == 'gitlab_ci') {
+      if (testRunConfig['plugin_preset'].trim() == '') {
+        if (testRunConfig['url'].trim() == '') {
+          setMessageValue('Test Configuration Url is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['project_id'].trim() == '') {
+          setMessageValue('Test Configuration Project ID is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['trigger_token'].trim() == '') {
+          setMessageValue('Test Configuration Trigger Token is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['private_token'].trim() == '') {
+          setMessageValue('Test Configuration Private Token is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
       }
-      if (testRunConfig['ssh_key'] == 0) {
-        setMessageValue('Test Configuration SSH Key is mandatory')
-        return false
+    } else if (testRunConfig['plugin'].trim() == 'github_actions') {
+      if (testRunConfig['plugin_preset'].trim() == '') {
+        if (testRunConfig['url'].trim() == '') {
+          setMessageValue('Test Configuration Url is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['private_token'].trim() == '') {
+          setMessageValue('Test Configuration Private Token is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
       }
     }
     return true
@@ -172,6 +228,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   const handleRun = () => {
     if (validatedTitleValue != 'success') {
       setMessageValue('Test Run Title is mandatory.')
+      setActiveTabKey(0)
       return
     } else if (validateConfig() == false) {
       return
@@ -194,7 +251,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
     const data = {
       'api-id': api.id,
       title: titleValue.trim(),
-      note: noteValue.trim(),
+      notes: notesValue.trim(),
       'test-run-config': testRunConfig,
       'user-id': auth.userId,
       token: auth.token,
@@ -244,6 +301,17 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           </Button>
         ]}
       >
+        {messageValue ? (
+          <>
+            <Divider />
+            <Hint>
+              <HintBody>{messageValue}</HintBody>
+            </Hint>
+            <br />
+          </>
+        ) : (
+          ''
+        )}
         <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Test Specification' role='region'>
           <Tab
             eventKey={0}
@@ -268,49 +336,42 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           />
         </Tabs>
         <div>
-          <TabContent eventKey={0} id='tabContentTestRunForm' ref={newItemRef}>
+          <TabContent eventKey={0} id='tabContentTestRunForm' ref={newItemRef} hidden={0 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestRunForm
                 titleValue={titleValue}
-                noteValue={noteValue}
+                notesValue={notesValue}
                 validatedTitleValue={validatedTitleValue}
                 handleTitleValueChange={handleTitleValueChange}
-                handleNoteValueChange={handleNoteValueChange}
+                handleNotesValueChange={handleNotesValueChange}
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={1} id='tabContentTestRunConfig' ref={sectionItemsRef} hidden>
+          <TabContent eventKey={1} id='tabContentTestRunConfig' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestRunConfigForm
+                api={api}
                 loadSSHKeys={loadSSHKeys}
                 sshKeys={sshKeys}
                 testRunConfig={testRunConfig}
-                handleSelectExistingTestConfig={handleSelectExistingTestConfig}
+                setTestRunConfig={setTestRunConfig}
+                infoLabel={infoLabel}
+                setInfoLabel={setInfoLabel}
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={2} id='tabContentTestRunConfigExisting' ref={existingItemsRef} hidden>
+          <TabContent eventKey={2} id='tabContentTestRunConfigExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestRunConfigSearch
                 handleSelectExistingTestConfig={handleSelectExistingTestConfig}
                 loadTestRunConfigs={loadTestRunConfigs}
                 modalShowState={modalShowState}
                 testRunConfigs={testRunConfigs}
+                setInfoLabel={setInfoLabel}
+                setActiveTabKey={setActiveTabKey}
               />
             </TabContentBody>
           </TabContent>
-
-          {messageValue ? (
-            <>
-              <Divider />
-              <Hint>
-                <HintBody>{messageValue}</HintBody>
-              </Hint>
-              <br />
-            </>
-          ) : (
-            ''
-          )}
         </div>
       </Modal>
     </React.Fragment>

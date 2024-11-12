@@ -13,7 +13,8 @@ import { MappingForkModal } from './Modal/MappingForkModal'
 import { MappingHistoryModal } from './Modal/MappingHistoryModal'
 import { MappingUsageModal } from './Modal/MappingUsageModal'
 import { MappingCommentModal } from './Modal/MappingCommentModal'
-import { TestResultModal } from './Modal/TestResultModal'
+import { TestResultsModal } from './Modal/TestResultsModal'
+import { TestResultDetailsModal } from './Modal/TestResultDetailsModal'
 import { TestRunModal } from './Modal/TestRunModal'
 import { Switch } from '@patternfly/react-core'
 import { MappingViewSelect } from './MappingViewSelect'
@@ -65,8 +66,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [forkModalShowState, setForkModalShowState] = React.useState<boolean>(false)
   const [usageModalShowState, setUsageModalShowState] = React.useState<boolean>(false)
   const [commentModalShowState, setCommentModalShowState] = React.useState<boolean>(false)
-  const [testResultModalShowState, setTestResultModalShowState] = React.useState<boolean>(false)
+  const [testResultsModalShowState, setTestResultsModalShowState] = React.useState<boolean>(false)
+  const [testResultDetailsModalShowState, setTestResultDetailsModalShowState] = React.useState<boolean>(false)
   const [testRunModalShowState, setTestRunModalShowState] = React.useState<boolean>(false)
+
+  const [currentTestResult, setCurrentTestResult] = React.useState<any>({})
 
   const [currentMappingHistory, setCurrentMappingHistory] = React.useState()
   const [currentMappingDetails, setCurrentMappingDetails] = React.useState()
@@ -244,9 +248,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalParentType(parent_type)
   }
 
-  const setTestResultModalInfo = (show, api, work_item, parent_type) => {
+  const setTestResultsModalInfo = (show, api, work_item, parent_type) => {
     setModalRelationData(work_item)
-    setTestResultModalShowState(show)
+    setTestResultsModalShowState(show)
     setModalParentType(parent_type)
   }
 
@@ -480,8 +484,6 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         //tcModalShowState={tcModalShowState}
         //setTcModalShowState={setTcModalShowState}
         //jModalShowState={jModalShowState}
-        //testResultModalShowState={testResultModalShowState}
-        //setTestResultModalShowState={setTestResultModalShowState}
         //testRunModalShowState={testRunModalShowState}
         //setTestRunModalShowState={setTestRunModalShowState}
         //setJModalShowState={setJModalShowState}
@@ -493,7 +495,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         setCommentModalInfo={setCommentModalInfo}
         setDeleteModalInfo={setDeleteModalInfo}
         setTestRunModalInfo={setTestRunModalInfo}
-        setTestResultModalInfo={setTestResultModalInfo}
+        setTestResultsModalInfo={setTestResultsModalInfo}
         setDetailsModalInfo={setDetailsModalInfo}
         setForkModalInfo={setForkModalInfo}
         setHistoryModalInfo={setHistoryModalInfo}
@@ -658,10 +660,21 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         relationData={modalRelationData}
         loadMappingData={loadMappingData}
       />
-      <TestResultModal
+      <TestResultsModal
         api={api}
-        setModalShowState={setTestResultModalShowState}
-        modalShowState={testResultModalShowState}
+        setModalShowState={setTestResultsModalShowState}
+        modalShowState={testResultsModalShowState}
+        setTestResultDetailsModalShowState={setTestResultDetailsModalShowState}
+        setCurrentTestResult={setCurrentTestResult}
+        modalRelationData={modalRelationData}
+        parentType={modalParentType}
+      />
+      <TestResultDetailsModal
+        api={api}
+        setModalShowState={setTestResultDetailsModalShowState}
+        modalShowState={testResultDetailsModalShowState}
+        setTestResultsModalShowState={setTestResultsModalShowState}
+        currentTestResult={currentTestResult}
         modalRelationData={modalRelationData}
         parentType={modalParentType}
       />

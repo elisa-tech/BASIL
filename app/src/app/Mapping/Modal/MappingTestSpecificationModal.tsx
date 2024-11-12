@@ -122,7 +122,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
           />
         </Tabs>
         <div>
-          <TabContent eventKey={0} id='tabContentTestSpecificationForm' ref={newItemRef}>
+          <TabContent eventKey={0} id='tabContentTestSpecificationForm' ref={newItemRef} hidden={0 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestSpecificationForm
                 api={api}
@@ -143,7 +143,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={1} id='tabContentTestSpecificationSection' ref={sectionItemsRef} hidden>
+          <TabContent eventKey={1} id='tabContentTestSpecificationSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
@@ -157,7 +157,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={2} id='tabContentTestSpecificationExisting' ref={existingItemsRef} hidden>
+          <TabContent eventKey={2} id='tabContentTestSpecificationExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestSpecificationSearch
                 api={api}

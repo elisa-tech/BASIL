@@ -1,0 +1,32 @@
+---
+#gitlab_ci:
+#  - name: gitlab-ci-project-name
+#    url: https://www.gitlab.com/
+#    git_repo_ref: main
+#    project_id: 1000000
+#    trigger_token: aaaa-bbbb-cccc
+#    private_token: xxx-yyy-zzz
+#    stage: test-stage
+#    job: unit-test-job
+#    env:
+#      var1: value1
+#      var2: value2
+#github_actions:
+#  - name: basil-test
+#    url: https://www.github.com/elisa-tech/BASIL
+#    git_repo_ref: main
+#    private_token: xxx-yyy-zzz
+#    workflow_id: build.yaml
+#    job: test
+#    inputs:
+#      uuid: XXX-YYY-ZZZ
+#tmt:
+#  - name: ltp_syscall
+#    git_repo_ref: main
+#    provision_type: container
+#    context:
+#      var1: value1
+#      var2: value2
+#    env:
+#      var1: value1
+#      var2: value2

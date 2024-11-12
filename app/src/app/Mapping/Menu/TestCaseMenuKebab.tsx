@@ -11,7 +11,7 @@ export interface TestCaseMenuKebabProps {
   setTcModalInfo
   setDeleteModalInfo
   setTestRunModalInfo
-  setTestResultModalInfo
+  setTestResultsModalInfo
   mappingParentType
   mappingParentRelatedToType
   mappingIndex
@@ -29,7 +29,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
   setTcModalInfo,
   setDeleteModalInfo,
   setTestRunModalInfo,
-  setTestResultModalInfo,
+  setTestResultsModalInfo,
   mappingParentType,
   mappingParentRelatedToType,
   mappingIndex,
@@ -134,7 +134,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
             <DropdownItem
               value={6}
               key='test result'
-              onClick={() => setTestResultModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}
+              onClick={() => setTestResultsModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}
             >
               Test Result
             </DropdownItem>

@@ -3,18 +3,18 @@ import { Form, FormGroup, FormHelperText, HelperText, HelperTextItem, TextArea, 
 
 export interface TestRunFormProps {
   titleValue
-  noteValue
+  notesValue
   validatedTitleValue
   handleTitleValueChange
-  handleNoteValueChange
+  handleNotesValueChange
 }
 
 export const TestRunForm: React.FunctionComponent<TestRunFormProps> = ({
   titleValue,
-  noteValue,
+  notesValue,
   validatedTitleValue,
   handleTitleValueChange,
-  handleNoteValueChange
+  handleNotesValueChange
 }: TestRunFormProps) => {
   return (
     <Form>
@@ -34,14 +34,14 @@ export const TestRunForm: React.FunctionComponent<TestRunFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Note' fieldId={`input-test-run-add-note`}>
+      <FormGroup label='Notes' fieldId={`input-test-run-add-notes`}>
         <TextArea
           resizeOrientation='vertical'
-          aria-label='Test Run Note field'
-          id={`input-test-run-add-note`}
-          name={`input-test-run-add-note`}
-          value={noteValue || ''}
-          onChange={(_ev, value) => handleNoteValueChange(value)}
+          aria-label='Test Run Notes field'
+          id={`input-test-run-add-notes`}
+          name={`input-test-run-add-notes`}
+          value={notesValue || ''}
+          onChange={(_ev, value) => handleNotesValueChange(value)}
         />
       </FormGroup>
     </Form>

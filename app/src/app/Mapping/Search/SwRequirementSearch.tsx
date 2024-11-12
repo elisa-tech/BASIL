@@ -125,7 +125,9 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
           <DataListItemCells
             dataListCells={[
               <DataListCell key={srIndex}>
-                <span id={'clickable-action-item-' + sw_requirement.id}>{sw_requirement.title}</span>
+                <span id={'clickable-action-item-' + sw_requirement.id}>
+                  {sw_requirement.id} - {sw_requirement.title}
+                </span>
               </DataListCell>
             ]}
           />

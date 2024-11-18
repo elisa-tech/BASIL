@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import * as React from 'react'
 import * as Constants from '../../Constants/constants'
 import {
@@ -71,10 +72,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [searchValue, setSearchValue] = React.useState('')
   const [pluginValue, setPluginValue] = React.useState('')
   const [pluginPresetValue, setPluginPresetValue] = React.useState('')
-  const [pluginRefValue, setPluginRefValue] = React.useState('')
-  const [pluginParamsValue, setPluginParamsValue] = React.useState('')
   const [pluginPresetsValue, setPluginPresetsValue] = React.useState([])
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
+  const [filterKey, setFilterKey] = React.useState('')
+  const [filterValue, setFilterValue] = React.useState('')
+  const [filterString, setFilterString] = React.useState('')
+
+  const [searchEnabled, setSearchEnabled] = React.useState(true)
+  const [externalSearchEnabled, setExternalSearchEnabled] = React.useState(true)
 
   const columnNames = {
     id: 'ID',
@@ -90,10 +95,63 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     id: 'ID',
     project: 'Project',
     ref: 'Ref',
+    details: 'Details',
     status: 'Status',
     date: 'Date',
     actions: 'Actions'
   }
+
+  const githubActionsFilterTemplate = {
+    actor: null,
+    conclusion: null,
+    event: null,
+    head_sha: null,
+    ref: null,
+    workflow_id: null,
+    job: null,
+    page: null,
+    per_page: null
+  }
+
+  const gitlabCIFilterTemplate = {
+    id: null,
+    project_id: null,
+    stage: null,
+    job: null,
+    ref: null,
+    sha: null,
+    source: null,
+    status: null,
+    updated_after: null,
+    updated_before: null
+  }
+
+  var kernelCIFilterTemplate = {
+    id: null,
+    name: null,
+    result: null,
+    created_after: null,
+    created_before: null,
+    data__test_source: null,
+    data__test_revision: null,
+    data__platform: null,
+    data__device: null,
+    data__job_id: null,
+    data__kernel_revision__tree: null,
+    data__kernel_revision__url: null,
+    data__kernel_revision__branch: null,
+    data__kernel_revision__commit: null,
+    data__kernel_revision__commit_tags: null,
+    data__arch: null,
+    data__config_full: null,
+    data__defconfig: null,
+    offset: null,
+    limit: null
+  }
+
+  const [gitlabCiFilter, setGitlabCIFilter] = React.useState(gitlabCIFilterTemplate)
+  const [githubActionsFilter, setGithubActionsFilter] = React.useState(githubActionsFilterTemplate)
+  const [kernelCIFilter, setKernelCIFilter] = React.useState(kernelCIFilterTemplate)
 
   const load_plugin_presets = (_plugin) => {
     let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugin-presets?plugin=' + _plugin
@@ -128,16 +186,54 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     setPluginPresetValue(value)
   }
 
-  const handlePluginRefValueChange = (_event, value: string) => {
-    setPluginRefValue(value)
+  const handleFilterKeyChange = (_event, value: string) => {
+    setFilterKey(value)
   }
 
-  const handlePluginParamsValueChange = (_event, value: string) => {
-    setPluginParamsValue(value)
+  const handleFilterValueChange = (_event, value: string) => {
+    setFilterValue(value)
   }
 
   const onChangeSearchValue = (value) => {
     setSearchValue(value)
+  }
+
+  const addFilter = () => {
+    if (pluginValue == Constants.kernel_ci_plugin) {
+      let tmp = _.cloneDeep(kernelCIFilter)
+      tmp[filterKey] = filterValue + '' // cast to string
+      setKernelCIFilter(tmp)
+    } else if (pluginValue == Constants.gitlab_ci_plugin) {
+      let tmp = _.cloneDeep(gitlabCiFilter)
+      tmp[filterKey] = filterValue + '' // cast to string
+      setGitlabCIFilter(tmp)
+    } else if (pluginValue == Constants.github_actions_plugin) {
+      let tmp = _.cloneDeep(githubActionsFilter)
+      tmp[filterKey] = filterValue + '' // cast to string
+      setGithubActionsFilter(tmp)
+    } else {
+      return
+    }
+    setFilterKey('')
+    setFilterValue('')
+  }
+
+  const removeFilter = (filterKey) => {
+    if (pluginValue == Constants.kernel_ci_plugin) {
+      let tmp = _.cloneDeep(kernelCIFilter)
+      tmp[filterKey] = null
+      setKernelCIFilter(tmp)
+    } else if (pluginValue == Constants.gitlab_ci_plugin) {
+      let tmp = _.cloneDeep(gitlabCiFilter)
+      tmp[filterKey] = null
+      setGitlabCIFilter(tmp)
+    } else if (pluginValue == Constants.github_actions_plugin) {
+      let tmp = _.cloneDeep(githubActionsFilter)
+      tmp[filterKey] = null
+      setGithubActionsFilter(tmp)
+    } else {
+      return
+    }
   }
 
   React.useEffect(() => {
@@ -230,6 +326,9 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   }
 
   const loadTestResults = () => {
+    setMessageValue('')
+    setTestResults([]) // clean the list before showing it again
+    setSearchEnabled(false)
     let filter = searchValue
     if (api?.permissions.indexOf('r') < 0) {
       return
@@ -249,41 +348,85 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     }
 
     fetch(url)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          setMessageValue('Error loading Test Results')
+          return []
+        } else {
+          return res.json()
+        }
+      })
       .then((data) => {
         setTestResults(data)
+        setSearchEnabled(true)
       })
       .catch((err) => {
         console.log(err.message)
+        setSearchEnabled(true)
       })
   }
 
   const loadExternalTestResults = () => {
+    setMessageValue('')
+    setExternalTestResults([]) // clean the list
+    setExternalSearchEnabled(false)
     if (api?.permissions.indexOf('r') < 0) {
       return
     }
     if (api == null) {
       return
     }
+
+    let params: string[] = []
+    let currentFilter = null
+    if (pluginValue == Constants.kernel_ci_plugin) {
+      currentFilter = _.cloneDeep(kernelCIFilter)
+    } else if (pluginValue == Constants.gitlab_ci_plugin) {
+      currentFilter = _.cloneDeep(gitlabCiFilter)
+    } else if (pluginValue == Constants.github_actions_plugin) {
+      currentFilter = _.cloneDeep(githubActionsFilter)
+    }
+    if (currentFilter != null) {
+      for (let i = 0; i < Object.keys(currentFilter).length; i++) {
+        let filterKey: string = Object.keys(currentFilter)[i]
+        if (currentFilter[filterKey] != null) {
+          params.push(filterKey + '=' + currentFilter[filterKey])
+        }
+      }
+    }
+
     const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
     let url = Constants.API_BASE_URL + '/mapping/api/test-runs/external'
     url += '?user-id=' + auth.userId
-    url += '&params=' + pluginParamsValue
+    url += '&params=' + params.join(';')
     url += '&plugin=' + pluginValue
     url += '&preset=' + pluginPresetValue
-    url += '&ref=' + pluginRefValue
     url += '&token=' + auth.token
     url += '&api-id=' + api.id
     url += '&mapped_to_type=' + mapping_to
     url += '&mapped_to_id=' + modalRelationData['relation_id']
 
     fetch(url)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          setMessageValue('Error loading external Test Results')
+          return []
+        } else {
+          return res.json()
+        }
+      })
       .then((data) => {
-        setExternalTestResults(data)
+        if (Array.isArray(data)) {
+          setExternalTestResults(data)
+          setExternalSearchEnabled(true)
+        } else {
+          setMessageValue('Error loading external Test Results')
+        }
       })
       .catch((err) => {
         console.log(err.message)
+        setMessageValue('Error loading external Test Results: ' + err.message)
+        setExternalSearchEnabled(true)
       })
   }
 
@@ -408,6 +551,19 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
         isOpen={isModalOpen}
         onClose={handleModalToggle}
       >
+        <div>
+          {messageValue ? (
+            <>
+              <Divider />
+              <Hint>
+                <HintBody>{messageValue}</HintBody>
+              </Hint>
+              <br />
+            </>
+          ) : (
+            ''
+          )}
+        </div>
         <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Test Specification' role='region'>
           <Tab
             eventKey={0}
@@ -424,305 +580,382 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
             tabContentRef={testResultExternalListRef}
           />
         </Tabs>
-        <div>
-          {messageValue ? (
-            <>
-              <Divider />
-              <Hint>
-                <HintBody>{messageValue}</HintBody>
-              </Hint>
-              <br />
-            </>
-          ) : (
-            ''
-          )}
-
-          <TabContent eventKey={0} id='tabContenttestResultList' ref={testResultListRef} hidden={0 !== activeTabKey}>
-            <br />
-            <Flex>
-              <FlexItem>
-                <SearchInput
-                  placeholder='Search'
-                  value={searchValue}
-                  onChange={(_event, value) => onChangeSearchValue(value)}
-                  onClear={() => onChangeSearchValue('')}
-                  style={{ width: '400px' }}
-                />
-              </FlexItem>
-              <FlexItem>
-                <Button
-                  variant='primary'
-                  aria-label='Action'
-                  onClick={() => {
-                    loadTestResults()
-                  }}
-                >
-                  Search
-                </Button>
-              </FlexItem>
-            </Flex>
-            <br />
-            <TabContentBody hasPadding>
-              <Table aria-label='BASIL Test Results Table' variant='compact'>
-                <Thead>
-                  <Tr>
-                    <Th>{columnNames.id}</Th>
-                    <Th>{columnNames.title}</Th>
-                    <Th>{columnNames.sut}</Th>
-                    <Th>{columnNames.result}</Th>
-                    <Th>{columnNames.date}</Th>
-                    <Th>{columnNames.bugs_fixes}</Th>
-                    <Th>{columnNames.actions}</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {testResults &&
-                    testResults.map((testResult) => (
-                      <Tr
-                        key={testResult.id}
-                        onRowClick={() => handleSelectedTestResult(testResult)}
-                        isRowSelected={selectedTestResult === testResult}
-                      >
-                        <Td dataLabel={columnNames.id}>{testResult.id}</Td>
-                        <Td dataLabel={columnNames.title}>{testResult.title}</Td>
-                        <Td dataLabel={columnNames.sut}>
-                          {(() => {
-                            if (testResult.config.plugin == 'tmt') {
-                              if (testResult.config.provision_type == 'connect') {
-                                return testResult.config.provision_guest
-                              } else {
-                                return 'container'
-                              }
+        <TabContent eventKey={0} id='tabContenttestResultList' ref={testResultListRef} hidden={0 !== activeTabKey}>
+          <br />
+          <Flex>
+            <FlexItem>
+              <SearchInput
+                placeholder='Search'
+                value={searchValue}
+                onChange={(_event, value) => onChangeSearchValue(value)}
+                onClear={() => onChangeSearchValue('')}
+                style={{ width: '400px' }}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant='primary'
+                aria-label='Action'
+                isDisabled={searchEnabled == false}
+                onClick={() => {
+                  loadTestResults()
+                }}
+              >
+                Search
+              </Button>
+            </FlexItem>
+          </Flex>
+          <br />
+          <TabContentBody hasPadding>
+            <Table aria-label='BASIL Test Results Table' variant='compact'>
+              <Thead>
+                <Tr>
+                  <Th>{columnNames.id}</Th>
+                  <Th>{columnNames.title}</Th>
+                  <Th>{columnNames.sut}</Th>
+                  <Th>{columnNames.result}</Th>
+                  <Th>{columnNames.date}</Th>
+                  <Th>{columnNames.bugs_fixes}</Th>
+                  <Th>{columnNames.actions}</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {typeof testResults == 'object' &&
+                  testResults.map((testResult) => (
+                    <Tr
+                      key={testResult.id}
+                      onRowClick={() => handleSelectedTestResult(testResult)}
+                      isRowSelected={selectedTestResult === testResult}
+                    >
+                      <Td dataLabel={columnNames.id}>{testResult.id}</Td>
+                      <Td dataLabel={columnNames.title}>{testResult.title}</Td>
+                      <Td dataLabel={columnNames.sut}>
+                        {(() => {
+                          if (testResult.config.plugin == 'tmt') {
+                            if (testResult.config.provision_type == 'connect') {
+                              return testResult.config.provision_guest
                             } else {
-                              return testResult.config.plugin
+                              return 'container'
                             }
-                          })()}
-                        </Td>
-                        <Td dataLabel={columnNames.result}>
-                          {(() => {
-                            if (testResult?.result == null) {
-                              return (
-                                <Label icon={<CheckCircleIcon />} color='purple'>
-                                  {testResult?.status}
-                                </Label>
-                              )
-                            } else {
-                              if (testResult?.result == 'pass') {
-                                return (
-                                  <Label icon={<CheckCircleIcon />} color='green'>
-                                    {testResult?.result}
-                                  </Label>
-                                )
-                              } else if (testResult?.result == 'fail') {
-                                return (
-                                  <Label icon={<ExclamationCircleIcon />} color='red'>
-                                    {testResult?.result}
-                                  </Label>
-                                )
-                              } else {
-                                return (
-                                  <Label icon={<InfoCircleIcon />} color='orange'>
-                                    {testResult?.result}
-                                  </Label>
-                                )
-                              }
-                            }
-                          })()}
-                        </Td>
-                        <Td dataLabel={columnNames.date}>{testResult.created_at}</Td>
-                        <Td dataLabel={columnNames.bugs_fixes}>
-                          {testResult.bugs?.length > 0 ? <BugIcon /> : ''}
-                          &nbsp;
-                          {testResult.fixes?.length > 0 ? <CheckIcon /> : ''}
-                        </Td>
-                        <Td dataLabel={columnNames.actions}>
-                          {api?.permissions.indexOf('w') >= 0 ? (
-                            <>
-                              <Button
-                                variant='plain'
-                                aria-label='Action'
-                                onClick={() => {
-                                  requestTestResult(testResult)
-                                }}
-                              >
-                                <ProcessAutomationIcon /> Re-run
-                              </Button>
-                              <Button
-                                variant='plain'
-                                aria-label='Action'
-                                onClick={() => {
-                                  deleteTestResult(testResult)
-                                }}
-                              >
-                                <TimesIcon /> <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
-                              </Button>
-                              <Button
-                                variant='plain'
-                                aria-label='Action'
-                                onClick={() => {
-                                  handleTestResultDetailsClick(testResult)
-                                }}
-                              >
-                                <EyeIcon /> Details
-                              </Button>
-                            </>
-                          ) : (
-                            ''
-                          )}
-                        </Td>
-                      </Tr>
-                    ))}
-                </Tbody>
-              </Table>
-            </TabContentBody>
-          </TabContent>
-
-          <TabContent eventKey={1} id='tabContentTestResultExternalList' ref={testResultExternalListRef} hidden={1 !== activeTabKey}>
-            <br />
-            <Flex>
-              <FlexItem>
-                <FormGroup label='Plugin' isRequired fieldId={`select-test-run-external-plugin`}>
-                  <FormSelect
-                    value={pluginValue}
-                    id={`select-test-run-external-plugin`}
-                    onChange={handlePluginChange}
-                    aria-label='External Test Run Plugin'
-                  >
-                    <FormSelectOption isDisabled={false} key={0} value={``} label={`Select a Plugin`} />
-                    {Constants.test_run_plugins.map((option, index) => (
-                      <FormSelectOption isDisabled={option.value == 'tmt'} key={index + 1} value={option.value} label={option.label} />
-                    ))}
-                  </FormSelect>
-                </FormGroup>
-              </FlexItem>
-              <FlexItem>
-                <FormGroup label='Plugin Presets' isRequired fieldId={`select-test-run-external-plugin-preset`}>
-                  <FormSelect
-                    value={pluginPresetValue}
-                    id={`select-test-run-external-plugin-preset`}
-                    onChange={handlePluginPresetChange}
-                    aria-label='External Test Run Plugin Preset'
-                  >
-                    <FormSelectOption isDisabled={false} key={0} value={``} label={`Select a preset`} />
-                    {pluginPresetsValue.map((option, index) => (
-                      <FormSelectOption isDisabled={false} key={index + 1} value={option} label={option} />
-                    ))}
-                  </FormSelect>
-                </FormGroup>
-              </FlexItem>
-              <FlexItem>
-                <FormGroup label='Ref' fieldId={`input-test-run-external-plugin-ref`}>
-                  <TextInput
-                    id={`input-test-run-external-plugin-ref`}
-                    name={`input-test-run-external-plugin-ref`}
-                    value={pluginRefValue || ''}
-                    onChange={(_ev, value) => handlePluginRefValueChange(_ev, value)}
-                  />
-                </FormGroup>
-              </FlexItem>
-              <FlexItem>
-                <FormGroup label='Parameters' fieldId={`input-test-run-external-plugin-params`}>
-                  <TextInput
-                    id={`input-test-run-external-plugin-params`}
-                    name={`input-test-run-external-plugin-params`}
-                    placeholder={`example: param1=value1;param2=value2`}
-                    value={pluginParamsValue || ''}
-                    onChange={(_ev, value) => handlePluginParamsValueChange(_ev, value)}
-                  />
-                </FormGroup>
-              </FlexItem>
-              <FlexItem>
-                <Button
-                  variant='primary'
-                  aria-label='Action'
-                  isDisabled={pluginValue == '' || pluginPresetValue == ''}
-                  onClick={() => {
-                    loadExternalTestResults()
-                  }}
-                >
-                  Search
-                </Button>
-              </FlexItem>
-            </Flex>
-            <br />
-            <TabContentBody hasPadding>
-              <Table aria-label='External Test Run table' variant='compact'>
-                <Thead>
-                  <Tr>
-                    <Th>{externalColumnNames.id}</Th>
-                    <Th>{externalColumnNames.project}</Th>
-                    <Th>{externalColumnNames.ref}</Th>
-                    <Th>{externalColumnNames.status}</Th>
-                    <Th>{externalColumnNames.date}</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {externalTestResults &&
-                    externalTestResults.map((testResult) => (
-                      <Tr key={testResult.id}>
-                        <Td dataLabel={externalColumnNames.id}>
-                          <Button
-                            onClick={() => {
-                              window.open(testResult.web_url, '_blank')?.focus()
-                            }}
-                            variant='link'
-                            icon={<ExternalLinkSquareAltIcon />}
-                            iconPosition='right'
-                          >
-                            {testResult.id}
-                          </Button>
-                        </Td>
-                        <Td dataLabel={externalColumnNames.project}>{testResult.project}</Td>
-                        <Td dataLabel={externalColumnNames.ref}>{testResult.ref}</Td>
-                        <Td dataLabel={externalColumnNames.status}>
-                          {(() => {
-                            if (['fail'].indexOf(testResult?.status) > -1) {
-                              return (
-                                <Label icon={<CheckCircleIcon />} color='red'>
-                                  {testResult?.status}
-                                </Label>
-                              )
-                            } else if (['pass'].indexOf(testResult?.status) > -1) {
+                          } else {
+                            return testResult.config.plugin
+                          }
+                        })()}
+                      </Td>
+                      <Td dataLabel={columnNames.result}>
+                        {(() => {
+                          if (testResult?.result == null) {
+                            return (
+                              <Label icon={<CheckCircleIcon />} color='purple'>
+                                {testResult?.status}
+                              </Label>
+                            )
+                          } else {
+                            if (testResult?.result == 'pass') {
                               return (
                                 <Label icon={<CheckCircleIcon />} color='green'>
-                                  {testResult?.status}
+                                  {testResult?.result}
+                                </Label>
+                              )
+                            } else if (testResult?.result == 'fail') {
+                              return (
+                                <Label icon={<ExclamationCircleIcon />} color='red'>
+                                  {testResult?.result}
                                 </Label>
                               )
                             } else {
                               return (
-                                <Label icon={<ExclamationCircleIcon />} color='orange'>
-                                  {testResult?.status}
+                                <Label icon={<InfoCircleIcon />} color='orange'>
+                                  {testResult?.result}
                                 </Label>
                               )
                             }
-                          })()}
-                        </Td>
-                        <Td dataLabel={externalColumnNames.date}>{testResult.created_at}</Td>
+                          }
+                        })()}
+                      </Td>
+                      <Td dataLabel={columnNames.date}>{testResult.created_at}</Td>
+                      <Td dataLabel={columnNames.bugs_fixes}>
+                        {testResult.bugs?.length > 0 ? <BugIcon /> : ''}
+                        &nbsp;
+                        {testResult.fixes?.length > 0 ? <CheckIcon /> : ''}
+                      </Td>
+                      <Td dataLabel={columnNames.actions}>
+                        {(() => {
+                          if (api?.permissions.indexOf('w') >= 0) {
+                            for (let iPlugin = 0; iPlugin < Constants.test_run_plugins.length; iPlugin++) {
+                              if (Constants.test_run_plugins[iPlugin].value == testResult.config.plugin) {
+                                if (Constants.test_run_plugins[iPlugin].trigger == true) {
+                                  return (
+                                    <Button
+                                      variant='plain'
+                                      aria-label='Action'
+                                      onClick={() => {
+                                        requestTestResult(testResult)
+                                      }}
+                                    >
+                                      <ProcessAutomationIcon /> Re-run
+                                    </Button>
+                                  )
+                                }
+                              }
+                            }
+                            return ''
+                          } else {
+                            return ''
+                          }
+                        })()}
 
-                        <Td dataLabel={externalColumnNames.actions}>
-                          {api?.permissions.indexOf('w') >= 0 ? (
-                            <>
-                              <Button
-                                variant='plain'
-                                aria-label='Action'
-                                onClick={() => {
-                                  importExternalTestResult(testResult)
-                                }}
-                              >
-                                <ImportIcon /> <Text id={'test-run-external-import-label-' + testResult.id}>Import</Text>
-                              </Button>
-                            </>
-                          ) : (
-                            ''
-                          )}
-                        </Td>
-                      </Tr>
-                    ))}
-                </Tbody>
-              </Table>
-            </TabContentBody>
-          </TabContent>
-        </div>
+                        {(() => {
+                          if (api?.permissions.indexOf('w') >= 0) {
+                            return (
+                              <>
+                                <Button
+                                  variant='plain'
+                                  aria-label='Action'
+                                  onClick={() => {
+                                    deleteTestResult(testResult)
+                                  }}
+                                >
+                                  <TimesIcon /> <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
+                                </Button>
+                                <Button
+                                  variant='plain'
+                                  aria-label='Action'
+                                  onClick={() => {
+                                    handleTestResultDetailsClick(testResult)
+                                  }}
+                                >
+                                  <EyeIcon /> Details
+                                </Button>
+                              </>
+                            )
+                          } else {
+                            return ''
+                          }
+                        })()}
+                      </Td>
+                    </Tr>
+                  ))}
+              </Tbody>
+            </Table>
+          </TabContentBody>
+        </TabContent>
+
+        <TabContent eventKey={1} id='tabContentTestResultExternalList' ref={testResultExternalListRef} hidden={1 !== activeTabKey}>
+          <br />
+          <Flex>
+            <FlexItem>
+              <FormGroup label='Plugin' isRequired fieldId={`select-test-run-external-plugin`}>
+                <FormSelect
+                  value={pluginValue}
+                  id={`select-test-run-external-plugin`}
+                  onChange={handlePluginChange}
+                  aria-label='External Test Run Plugin'
+                >
+                  <FormSelectOption isDisabled={false} key={0} value={``} label={`Select a Plugin`} />
+                  {Constants.test_run_plugins.map((option, index) => (
+                    <FormSelectOption isDisabled={option.value == 'tmt'} key={index + 1} value={option.value} label={option.label} />
+                  ))}
+                </FormSelect>
+              </FormGroup>
+            </FlexItem>
+            <FlexItem>
+              <FormGroup label='Plugin Presets' isRequired fieldId={`select-test-run-external-plugin-preset`}>
+                <FormSelect
+                  value={pluginPresetValue}
+                  id={`select-test-run-external-plugin-preset`}
+                  onChange={handlePluginPresetChange}
+                  aria-label='External Test Run Plugin Preset'
+                >
+                  <FormSelectOption isDisabled={false} key={0} value={``} label={`Select a preset`} />
+                  {pluginPresetsValue.map((option, index) => (
+                    <FormSelectOption isDisabled={false} key={index + 1} value={option} label={option} />
+                  ))}
+                </FormSelect>
+              </FormGroup>
+            </FlexItem>
+            <FlexItem>
+              <FormGroup label='Filter Key' fieldId={`select-test-run-external-filter-key`}>
+                <FormSelect
+                  value={filterKey}
+                  id={`select-test-run-external-filter-key`}
+                  onChange={handleFilterKeyChange}
+                  aria-label='Filter Key'
+                >
+                  <FormSelectOption isDisabled={false} key={0} value={``} label={`Select a Key`} />
+                  {(() => {
+                    let currentFilter
+                    if (pluginValue == Constants.kernel_ci_plugin) {
+                      currentFilter = _.cloneDeep(kernelCIFilter)
+                    } else if (pluginValue == Constants.gitlab_ci_plugin) {
+                      currentFilter = _.cloneDeep(gitlabCiFilter)
+                    } else if (pluginValue == Constants.github_actions_plugin) {
+                      currentFilter = _.cloneDeep(githubActionsFilter)
+                    } else {
+                      return ''
+                    }
+                    return Object.keys(currentFilter)
+                      .sort()
+                      .map((fKey, fIndex) => (
+                        <FormSelectOption
+                          isDisabled={currentFilter[fKey] != null}
+                          key={fIndex + 1}
+                          value={fKey}
+                          label={fKey.split('__').join(' -> ')}
+                        />
+                      ))
+                  })()}
+                </FormSelect>
+              </FormGroup>
+            </FlexItem>
+            <FlexItem>
+              <FormGroup label='Filter Value' fieldId={`input-test-run-external-filter-value`}>
+                <TextInput
+                  id={`input-test-run-external-filter-key`}
+                  name={`input-test-run-external-filter-key`}
+                  placeholder={`value`}
+                  value={filterValue}
+                  onChange={(_ev, value) => handleFilterValueChange(_ev, value)}
+                />
+              </FormGroup>
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant='secondary'
+                aria-label='Add filter'
+                isDisabled={filterKey == '' || filterValue == ''}
+                onClick={() => {
+                  addFilter()
+                }}
+              >
+                Add Filter
+              </Button>
+            </FlexItem>
+          </Flex>
+          <br />
+          <Flex>
+            {(() => {
+              let validFilters: string[] = []
+              let currentFilter
+              if (pluginValue == Constants.kernel_ci_plugin) {
+                currentFilter = _.cloneDeep(kernelCIFilter)
+              } else if (pluginValue == Constants.gitlab_ci_plugin) {
+                currentFilter = _.cloneDeep(gitlabCiFilter)
+              } else if (pluginValue == Constants.github_actions_plugin) {
+                currentFilter = _.cloneDeep(githubActionsFilter)
+              } else {
+                return ''
+              }
+              for (let i = 0; i < Object.keys(currentFilter).length; i++) {
+                let filterKey: string = Object.keys(currentFilter)[i]
+                if (currentFilter[filterKey] != null) {
+                  validFilters.push(filterKey)
+                }
+              }
+              return validFilters.map((fKey) => (
+                <Label onClose={() => removeFilter(fKey)}>
+                  {fKey}: {currentFilter[fKey]}
+                </Label>
+              ))
+            })()}
+          </Flex>
+          <br />
+          <Flex>
+            <FlexItem>
+              <Button
+                variant='primary'
+                aria-label='Search'
+                isDisabled={pluginValue == '' || pluginPresetValue == '' || externalSearchEnabled == false}
+                onClick={() => {
+                  loadExternalTestResults()
+                }}
+              >
+                Search
+              </Button>
+            </FlexItem>
+          </Flex>
+          <br />
+          <TabContentBody hasPadding>
+            <Table aria-label='External Test Run table' variant='compact'>
+              <Thead>
+                <Tr>
+                  <Th>#</Th>
+                  <Th>{externalColumnNames.id}</Th>
+                  <Th>{externalColumnNames.project}</Th>
+                  <Th>{externalColumnNames.ref}</Th>
+                  <Th>{externalColumnNames.details}</Th>
+                  <Th>{externalColumnNames.status}</Th>
+                  <Th>{externalColumnNames.date}</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {typeof externalTestResults == 'object' &&
+                  externalTestResults.map((testResult, testResultIndex) => (
+                    <Tr key={testResult.id}>
+                      <Td dataLabel='index'>{testResultIndex + 1}</Td>
+                      <Td dataLabel={externalColumnNames.id}>
+                        <Button
+                          onClick={() => {
+                            window.open(testResult.web_url, '_blank')?.focus()
+                          }}
+                          variant='link'
+                          icon={<ExternalLinkSquareAltIcon />}
+                          iconPosition='right'
+                        >
+                          {testResult.id}
+                        </Button>
+                      </Td>
+                      <Td dataLabel={externalColumnNames.project}>{testResult?.project || ''}</Td>
+                      <Td dataLabel={externalColumnNames.ref}>{testResult?.ref || ''}</Td>
+                      <Td dataLabel={externalColumnNames.ref}>{testResult?.details || ''}</Td>
+                      <Td dataLabel={externalColumnNames.status}>
+                        {(() => {
+                          if (['fail'].indexOf(testResult?.status) > -1) {
+                            return (
+                              <Label icon={<CheckCircleIcon />} color='red'>
+                                {testResult?.status}
+                              </Label>
+                            )
+                          } else if (['pass'].indexOf(testResult?.status) > -1) {
+                            return (
+                              <Label icon={<CheckCircleIcon />} color='green'>
+                                {testResult?.status}
+                              </Label>
+                            )
+                          } else {
+                            return (
+                              <Label icon={<ExclamationCircleIcon />} color='orange'>
+                                {testResult?.status}
+                              </Label>
+                            )
+                          }
+                        })()}
+                      </Td>
+                      <Td dataLabel={externalColumnNames.date}>{testResult?.created_at || ''}</Td>
+
+                      <Td dataLabel={externalColumnNames.actions}>
+                        {api?.permissions.indexOf('w') >= 0 ? (
+                          <>
+                            <Button
+                              variant='plain'
+                              aria-label='Action'
+                              onClick={() => {
+                                importExternalTestResult(testResult)
+                              }}
+                            >
+                              <ImportIcon /> <Text id={'test-run-external-import-label-' + testResult.id}>Import</Text>
+                            </Button>
+                          </>
+                        ) : (
+                          ''
+                        )}
+                      </Td>
+                    </Tr>
+                  ))}
+              </Tbody>
+            </Table>
+          </TabContentBody>
+        </TabContent>
       </Modal>
     </React.Fragment>
   )

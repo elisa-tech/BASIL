@@ -37,11 +37,16 @@ export const provision_type = [
   { value: 'connect', label: 'SSH', disabled: false }
 ]
 
+export const gitlab_ci_plugin = 'gitlab_ci'
+export const github_actions_plugin = 'github_actions'
+export const kernel_ci_plugin = 'KernelCI'
+export const tmt_plugin = 'tmt'
+
 export const test_run_plugins = [
-  { value: 'tmt', label: 'tmt', disabled: false },
-  { value: 'github_actions', label: 'github actions', disabled: false },
-  { value: 'gitlab_ci', label: 'gitlab ci', disabled: false },
-  { value: 'kernel_ci', label: 'KernelCI', disabled: false }
+  { value: tmt_plugin, label: 'tmt', disabled: false, trigger: true },
+  { value: github_actions_plugin, label: 'github actions', disabled: false, trigger: true },
+  { value: gitlab_ci_plugin, label: 'gitlab ci', disabled: false, trigger: true },
+  { value: kernel_ci_plugin, label: 'KernelCI', disabled: false, trigger: false }
 ]
 
 export const spdx_relations = [

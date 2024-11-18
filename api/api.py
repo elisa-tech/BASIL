@@ -934,19 +934,19 @@ def add_test_run_config(dbi, request_data, user):
         if not check_fields_in_request(tmt_mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE} Plugin not supported.", BAD_REQUEST_STATUS
 
-    if request_data["plugin"] == "tmt":
+    if request_data["plugin"] == TestRunner.TMT:
         if not check_fields_in_request(tmt_mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields.", BAD_REQUEST_STATUS
 
-    if request_data["plugin"] == "gitlab_ci":
+    if request_data["plugin"] == TestRunner.GITLAB_CI:
         if not check_fields_in_request(gitlab_ci_mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields.", BAD_REQUEST_STATUS
 
-    if request_data["plugin"] == "github_actions":
+    if request_data["plugin"] == TestRunner.GITHUB_ACTIONS:
         if not check_fields_in_request(github_actions_mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields.", BAD_REQUEST_STATUS
 
-    if request_data["plugin"] == "kernel_ci":
+    if request_data["plugin"] == TestRunner.KERNEL_CI:
         if not check_fields_in_request(kernel_ci_mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields.", BAD_REQUEST_STATUS
 
@@ -967,7 +967,7 @@ def add_test_run_config(dbi, request_data, user):
     if config_title == '':
         return f"{BAD_REQUEST_MESSAGE} Empty Configuration Title.", BAD_REQUEST_STATUS
 
-    if plugin == 'tmt':
+    if plugin == TestRunner.TMT:
         context_vars = str(request_data['context_vars']).strip()
         provision_type = str(request_data['provision_type']).strip()
         provision_guest = str(request_data['provision_guest']).strip()
@@ -989,13 +989,13 @@ def add_test_run_config(dbi, request_data, user):
             except NoResultFound:
                 return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key.", BAD_REQUEST_STATUS
 
-    elif plugin == 'gitlab_ci':
+    elif plugin == TestRunner.GITLAB_CI:
         plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
                                  for field in gitlab_ci_mandatory_fields])
-    elif plugin == 'github_actions':
+    elif plugin == TestRunner.GITHUB_ACTIONS:
         plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
                                  for field in github_actions_mandatory_fields])
-    elif plugin == 'kernel_ci':
+    elif plugin == TestRunner.KERNEL_CI:
         plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
                                  for field in kernel_ci_mandatory_fields])
 
@@ -6294,9 +6294,13 @@ class TestRunPluginPresets(Resource):
 
 class ExternalTestRuns(Resource):
     def get(self):
-        mandatory_fields = ["api-id", "plugin", "preset", "ref"]
+        PARAM_DATE_FORMAT = "%Y-%m-%d"
+        GITLAB_CI_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+        KERNEL_CI_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
+        mandatory_fields = ["api-id", "plugin", "preset"]
         args = get_query_string_args(request.args)
+
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
@@ -6308,7 +6312,6 @@ class ExternalTestRuns(Resource):
         preset = args["preset"].strip()
         params_strings = []
         params = {}
-        ref = args["ref"].strip()
 
         preset_config = None
         dbi = db_orm.DbInterface(get_db())
@@ -6344,6 +6347,9 @@ class ExternalTestRuns(Resource):
                     # Values from test_run_config will override preset values
                     preset_config = tmp[0]
 
+            if not preset_config:
+                return "Preset not found", NOT_FOUND_STATUS
+
             if "params" in args.keys():
                 params_strings = args["params"].split(";")
                 params_strings = [x for x in params_strings if "=" in x]
@@ -6352,9 +6358,10 @@ class ExternalTestRuns(Resource):
                     v = param_string.split("=")[1].strip()
                     if k and v:
                         params[k] = v
+                        # Override preset config with params
+                        preset_config[k] = v
 
-        if preset_config:
-            if plugin == "gitlab_ci":
+            if plugin == TestRunner.GITLAB_CI:
                 gitlab_ci_mandatory_fields = ["private_token", "project_id", "url"]
 
                 # Skip pending pipelines from the list
@@ -6369,15 +6376,19 @@ class ExternalTestRuns(Resource):
                 project = gl.projects.get(id=preset_config["project_id"])
 
                 job = None
+                ref = None
                 stage = None
+
                 if "job" in preset_config.keys():
                     if preset_config["job"]:
                         job = preset_config["job"]
 
-                if not ref:
-                    if "git_repo_ref" in preset_config.keys():
-                        if preset_config["git_repo_ref"]:
-                            ref = preset_config["git_repo_ref"]
+                if "ref" in preset_config.keys():
+                    if preset_config["ref"]:
+                        ref = preset_config["ref"]
+                elif "git_repo_ref" in preset_config.keys():
+                    if preset_config["git_repo_ref"]:
+                        ref = preset_config["git_repo_ref"]
 
                 if "stage" in preset_config.keys():
                     if preset_config["stage"]:
@@ -6390,20 +6401,53 @@ class ExternalTestRuns(Resource):
 
                 # Filter
                 all_pipelines = [x for x in all_pipelines if x.status in gitlab_ci_valid_status]
-                param_pipelines = []
+                if not all_pipelines:
+                    return []
+                pipeline_attrs = all_pipelines[0].__dict__["_attrs"].keys()
+                params_pipelines = all_pipelines
+                filtered_by_params = False
+                filtered_pipelines = []
 
                 if params.keys():
-                    for i in range(len(all_pipelines)):
-                        for k, v in params.items():
-                            for pipe_kv in all_pipelines[i].variables.list():
-                                if pipe_kv.key == k:
-                                    if v in pipe_kv.value:
-                                        param_pipelines.append(all_pipelines[i])
-                else:
-                    param_pipelines = all_pipelines
+                    for k, v in params.items():
+                        if k in pipeline_attrs:
+                            params_pipelines = [x for x in params_pipelines
+                                                if x.__dict__["_attrs"][k] == v]
+                            filtered_by_params = True
+
+                    if "updated_after" in params.keys():
+                        if params["updated_after"]:
+                            try:
+                                compare_date = datetime.datetime.strptime(params["updated_after"], PARAM_DATE_FORMAT)
+                                params_pipelines = [x for x in params_pipelines
+                                                    if datetime.datetime.strptime(
+                                                        x.updated_at,
+                                                        GITLAB_CI_DATE_FORMAT
+                                                    ) >= compare_date]
+                                filtered_by_params = True
+                            except ValueError as e:
+                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                pass
+
+                    if "updated_before" in params.keys():
+                        if params["updated_before"]:
+                            try:
+                                compare_date = datetime.datetime.strptime(params["updated_before"], PARAM_DATE_FORMAT)
+                                params_pipelines = [x for x in params_pipelines
+                                                    if datetime.datetime.strptime(
+                                                        x.updated_at,
+                                                        GITLAB_CI_DATE_FORMAT
+                                                    ) <= compare_date]
+                                filtered_by_params = True
+                            except ValueError as e:
+                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                pass
+
+                if not filtered_by_params:
+                    params_pipelines = all_pipelines
 
                 if stage:
-                    for pipeline in param_pipelines:
+                    for pipeline in params_pipelines:
                         pipeline_jobs = pipeline.jobs.list()
                         for pipeline_job in pipeline_jobs:
                             if pipeline_job.__dict__["_attrs"]["stage"] == stage:
@@ -6414,19 +6458,30 @@ class ExternalTestRuns(Resource):
                                 else:
                                     filtered_pipelines.append(pipeline)
                                     break
+                else:
+                    for pipeline in params_pipelines:
+                        pipeline_jobs = pipeline.jobs.list()
+                        for pipeline_job in pipeline_jobs:
+                            if job:
+                                if pipeline_job.__dict__["_attrs"]["name"] == job:
+                                    filtered_pipelines.append(pipeline)
+                                    break
+                            else:
+                                filtered_pipelines.append(pipeline)
+                                break
 
-                    ret_pipelines = filtered_pipelines
-
-                for p in ret_pipelines:
+                for p in filtered_pipelines:
                     ret.append({"created_at": p.created_at,
                                 "id": p.id,
                                 "project": project.name,
                                 "ref": p.ref,
+                                "details": p.name,
                                 "status": "pass" if p.status == "success" else "fail",
                                 "web_url": p.web_url})
 
-            if plugin == "github_actions":
+            if plugin == TestRunner.GITHUB_ACTIONS:
                 github_actions_mandatory_fields = ["private_token", "url"]
+                ref = None
 
                 if not check_fields_in_request(github_actions_mandatory_fields,
                                                preset_config,
@@ -6446,9 +6501,12 @@ class ExternalTestRuns(Resource):
                 repo = url_split[-1]
                 workflows_url = f"https://api.github.com/repos/{owner}/{repo}/actions/runs?"
 
-                if not ref:
-                    if "ref" in preset_config.keys():
-                        ref = preset_config['ref']
+                if "ref" in preset_config.keys():
+                    if preset_config["ref"]:
+                        ref = preset_config["ref"]
+                elif "git_repo_ref" in preset_config.keys():
+                    if preset_config["git_repo_ref"]:
+                        ref = preset_config["git_repo_ref"]
 
                 if ref:
                     workflows_url += f"&branch={ref}"
@@ -6483,8 +6541,79 @@ class ExternalTestRuns(Resource):
                                 "id": p['id'],
                                 "project": f"{owner}/{repo}",
                                 "ref": p['head_branch'],
+                                "details": p['name'],
                                 "status": "pass" if p['conclusion'] == "success" else "fail",
                                 "web_url": f"{preset_config['url']}/actions/runs/{p['id']}"})
+
+            if plugin == TestRunner.KERNEL_CI:
+                NODES_ENDPOINT = "nodes"
+                dashboard_base_url = "https://dashboard.kernelci.org/api/tests/test/maestro:"
+                kernel_ci_mandatory_fields = ["private_token", "url"]
+
+                if not check_fields_in_request(kernel_ci_mandatory_fields,
+                                               preset_config,
+                                               allow_empty_string=False):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+                if preset_config['url'].endswith("/"):
+                    preset_config['url'] = preset_config['url'][:-1]
+
+                # We use double underscore in the param key for kernelCI
+                # that should be replace with a . when used in the kernelCI API
+                for i in range(len(params_strings)):
+                    kv = params_strings[i].split("=")
+                    k = kv[0]
+                    v = kv[1]
+                    if k == "created_after":
+                        try:
+                            compare_date = datetime.datetime.strptime(params["created_after"], PARAM_DATE_FORMAT)
+                            compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
+                            params_strings[i] = f"created__gt={compare_date_str}"
+                        except ValueError as e:
+                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            pass
+                    elif k == "created_before":
+                        try:
+                            compare_date = datetime.datetime.strptime(params["created_before"], PARAM_DATE_FORMAT)
+                            compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
+                            params_strings[i] = f"created__lt={compare_date_str}"
+                        except ValueError as e:
+                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            pass
+                    else:
+                        params_strings[i] = f"{k.replace('__', '.')}={v}"
+
+                kernel_ci_url = f"{preset_config['url']}/{NODES_ENDPOINT}?kind=test&state=done"
+                if params_strings:
+                    kernel_ci_url += f"&{'&'.join(params_strings)}"
+
+                headers = {
+                    "Authorization": f"Bearer {preset_config['private_token']}",
+                }
+
+                try:
+                    kernel_ci_request = urllib.request.Request(
+                        url=kernel_ci_url,
+                        headers=headers
+                    )
+
+                    response_data = urllib.request.urlopen(kernel_ci_request).read()
+                    content = json.loads(response_data.decode("utf-8"))
+                except Exception as e:
+                    return f"{BAD_REQUEST_MESSAGE} Unable to read workflows {e}", BAD_REQUEST_STATUS
+                else:
+                    ret_pipelines = content["items"]
+
+                for p in ret_pipelines:
+                    project = p["data"]["kernel_revision"]["tree"]
+                    branch = p["data"]["kernel_revision"]["branch"]
+                    ret.append({"created_at": p['created'],
+                                "id": p['id'],
+                                "project": project,
+                                "ref": branch,
+                                "details": p['name'],
+                                "status": "pass" if p['result'] == "pass" else "fail",
+                                "web_url": f"{dashboard_base_url}{p['id']}"})
 
         return ret
 

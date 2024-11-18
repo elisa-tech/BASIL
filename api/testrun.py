@@ -51,10 +51,15 @@ class TestRunner:
     STATUS_RUNNING = 'running'
     STATUS_COMPLETED = 'completed'
 
-    test_run_plugin_models = {'github_actions': TestRunnerGithubActionsPlugin,
-                              'gitlab_ci': TestRunnerGitlabCIPlugin,
-                              'KernelCI': None,
-                              'tmt': TestRunnerTmtPlugin}
+    KERNEL_CI = 'KernelCI'
+    GITLAB_CI = 'gitlab_ci'
+    GITHUB_ACTIONS = 'github_actions'
+    TMT = 'tmt'
+
+    test_run_plugin_models = {GITHUB_ACTIONS: TestRunnerGithubActionsPlugin,
+                              GITLAB_CI: TestRunnerGitlabCIPlugin,
+                              KERNEL_CI: None,
+                              TMT: TestRunnerTmtPlugin}
 
     runner_plugin = None
     config = {}

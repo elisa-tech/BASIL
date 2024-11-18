@@ -34,6 +34,8 @@ ENV BASIL_ADMIN_PASSWORD=
 
 EXPOSE ${BASIL_API_PORT}
 CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && cd api && \
-                       gunicorn --access-logfile /var/tmp/gunicorn-access.log \
+                       gunicorn \
+                       --timeout 120 \
+                       --access-logfile /var/tmp/gunicorn-access.log \
                        --error-logfile /var/tmp/gunicorn-error.log \
-                       --bind 0.0.0.0:${BASIL_API_PORT} api:app 2>&1 | tee /var/tmp/basil-error.log
+                       --bind 0.0.0.0:${BASIL_API_PORT} api:app 2>&1 | tee /var/tmp/basil-api-error.log

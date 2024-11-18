@@ -179,14 +179,20 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
         isOpen={isModalOpen}
         onClose={handleModalToggle}
       >
-        <Button
-          onClick={() => {
-            loadCurrentTestRunLog()
-          }}
-        >
-          Refresh
-        </Button>
-        &nbsp;
+        {currentTestResult.status != 'completed' ? (
+          <>
+            <Button
+              onClick={() => {
+                loadCurrentTestRunLog()
+              }}
+            >
+              Refresh
+            </Button>
+            &nbsp;
+          </>
+        ) : (
+          ''
+        )}
         <Button
           onClick={() => {
             backToTheList()

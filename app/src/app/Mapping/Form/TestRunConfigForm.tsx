@@ -9,8 +9,8 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
-  LabelGroup,
   Label,
+  LabelGroup,
   TextInput
 } from '@patternfly/react-core'
 import { useAuth } from '../../User/AuthProvider'
@@ -61,6 +61,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   const [contextVarsValue, setContextVarsValue] = React.useState(testRunConfig.context_vars || '')
 
   // - Optional fields
+  // eslint-disable-next-line  @typescript-eslint/no-unused-vars
   const [pluginVarsValue, setPluginVarsValue] = React.useState(testRunConfig.plugin_vars || '')
   const [pluginPresetValue, setPluginPresetValue] = React.useState('')
 
@@ -95,7 +96,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   const [githubActionsJobValue, setGithubActionsJobValue] = React.useState('')
 
   const load_plugin_presets = (_plugin) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugin-presets?plugin=' + _plugin
+    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
@@ -187,6 +188,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         setGithubActionsPrivateTokenValue(testRunConfig.private_token)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testRunConfig])
 
   React.useEffect(() => {
@@ -302,7 +304,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [githubActionsJobValue, githubActionsUrlValue, githubActionsWorkflowIdValue, githubActionsPrivateTokenValue])
 
   const set_test_run_config_forked = () => {
-    let tmpConfig = testRunConfig
+    const tmpConfig = testRunConfig
     tmpConfig['id'] = 0
     setTestRunConfig(tmpConfig)
     setInfoLabel('new')

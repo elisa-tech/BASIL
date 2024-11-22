@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Route, RouteComponentProps, Switch, useLocation } from 'react-router-dom'
 import { Dashboard } from '@app/Dashboard/Dashboard'
 import { Admin } from '@app/Admin/Admin'
+import { AdminTestRunPluginPresets } from '@app/Admin/AdminTestRunPluginPresets'
 import { Login } from '@app/Login/Login'
 import { Mapping } from '@app/Mapping/Mapping'
 import { NotFound } from '@app/NotFound/NotFound'
@@ -62,6 +63,13 @@ const routes: AppRouteConfig[] = [
     label: 'User Management',
     path: '/admin',
     title: 'BASIL | The Fusa Spice | Admin | User Management'
+  },
+  {
+    component: AdminTestRunPluginPresets,
+    exact: true,
+    label: 'Test Run Plugins Presets',
+    path: '/plugins-presets',
+    title: 'BASIL | The Fusa Spice | Admin | Test Run Plugins Presets'
   },
   {
     component: SSHKey,

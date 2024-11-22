@@ -3,8 +3,6 @@ import * as React from 'react'
 import * as Constants from '../../Constants/constants'
 import {
   Button,
-  CodeBlock,
-  CodeBlockCode,
   Divider,
   Flex,
   FlexItem,
@@ -23,9 +21,7 @@ import {
   TabTitleText,
   Tabs,
   Text,
-  TextContent,
-  TextInput,
-  TextVariants
+  TextInput
 } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import ProcessAutomationIcon from '@patternfly/react-icons/dist/esm/icons/process-automation-icon'
@@ -67,7 +63,6 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [externalTestResults, setExternalTestResults] = React.useState<any[]>([])
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [selectedTestResult, setSelectedTestResult] = React.useState<any>({})
-  const [selectedExternalTestResult, setSelectedExternalTestResult] = React.useState<any>({})
   const [messageValue, setMessageValue] = React.useState('')
   const [searchValue, setSearchValue] = React.useState('')
   const [pluginValue, setPluginValue] = React.useState('')
@@ -76,7 +71,6 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
   const [filterKey, setFilterKey] = React.useState('')
   const [filterValue, setFilterValue] = React.useState('')
-  const [filterString, setFilterString] = React.useState('')
 
   const [searchEnabled, setSearchEnabled] = React.useState(true)
   const [externalSearchEnabled, setExternalSearchEnabled] = React.useState(true)
@@ -126,9 +120,10 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     updated_before: null
   }
 
-  var kernelCIFilterTemplate = {
+  const kernelCIFilterTemplate = {
     id: null,
     name: null,
+    owner: null,
     result: null,
     created_after: null,
     created_before: null,
@@ -154,7 +149,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [kernelCIFilter, setKernelCIFilter] = React.useState(kernelCIFilterTemplate)
 
   const load_plugin_presets = (_plugin) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugin-presets?plugin=' + _plugin
+    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
@@ -200,15 +195,15 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
   const addFilter = () => {
     if (pluginValue == Constants.kernel_ci_plugin) {
-      let tmp = _.cloneDeep(kernelCIFilter)
+      const tmp = _.cloneDeep(kernelCIFilter)
       tmp[filterKey] = filterValue + '' // cast to string
       setKernelCIFilter(tmp)
     } else if (pluginValue == Constants.gitlab_ci_plugin) {
-      let tmp = _.cloneDeep(gitlabCiFilter)
+      const tmp = _.cloneDeep(gitlabCiFilter)
       tmp[filterKey] = filterValue + '' // cast to string
       setGitlabCIFilter(tmp)
     } else if (pluginValue == Constants.github_actions_plugin) {
-      let tmp = _.cloneDeep(githubActionsFilter)
+      const tmp = _.cloneDeep(githubActionsFilter)
       tmp[filterKey] = filterValue + '' // cast to string
       setGithubActionsFilter(tmp)
     } else {
@@ -220,15 +215,15 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
   const removeFilter = (filterKey) => {
     if (pluginValue == Constants.kernel_ci_plugin) {
-      let tmp = _.cloneDeep(kernelCIFilter)
+      const tmp = _.cloneDeep(kernelCIFilter)
       tmp[filterKey] = null
       setKernelCIFilter(tmp)
     } else if (pluginValue == Constants.gitlab_ci_plugin) {
-      let tmp = _.cloneDeep(gitlabCiFilter)
+      const tmp = _.cloneDeep(gitlabCiFilter)
       tmp[filterKey] = null
       setGitlabCIFilter(tmp)
     } else if (pluginValue == Constants.github_actions_plugin) {
-      let tmp = _.cloneDeep(githubActionsFilter)
+      const tmp = _.cloneDeep(githubActionsFilter)
       tmp[filterKey] = null
       setGithubActionsFilter(tmp)
     } else {
@@ -329,7 +324,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     setMessageValue('')
     setTestResults([]) // clean the list before showing it again
     setSearchEnabled(false)
-    let filter = searchValue
+    const filter = searchValue
     if (api?.permissions.indexOf('r') < 0) {
       return
     }
@@ -377,7 +372,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       return
     }
 
-    let params: string[] = []
+    const params: string[] = []
     let currentFilter = null
     if (pluginValue == Constants.kernel_ci_plugin) {
       currentFilter = _.cloneDeep(kernelCIFilter)
@@ -388,7 +383,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     }
     if (currentFilter != null) {
       for (let i = 0; i < Object.keys(currentFilter).length; i++) {
-        let filterKey: string = Object.keys(currentFilter)[i]
+        const filterKey: string = Object.keys(currentFilter)[i]
         if (currentFilter[filterKey] != null) {
           params.push(filterKey + '=' + currentFilter[filterKey])
         }
@@ -433,16 +428,6 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   // Toggle currently active tab
   const handleTabClick = (event: React.MouseEvent | React.KeyboardEvent | MouseEvent, tabIndex: string | number) => {
     setActiveTabKey(tabIndex)
-  }
-
-  const getArtifactUrl = (artifact) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run/artifacts'
-    url += '?api-id=' + api.id
-    url += '&user-id=' + auth.userId
-    url += '&token=' + auth.token
-    url += '&id=' + selectedTestResult.id
-    url += '&artifact=' + artifact
-    return url
   }
 
   const requestTestResult = (test_run) => {
@@ -835,7 +820,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
           <br />
           <Flex>
             {(() => {
-              let validFilters: string[] = []
+              const validFilters: string[] = []
               let currentFilter
               if (pluginValue == Constants.kernel_ci_plugin) {
                 currentFilter = _.cloneDeep(kernelCIFilter)
@@ -847,13 +832,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                 return ''
               }
               for (let i = 0; i < Object.keys(currentFilter).length; i++) {
-                let filterKey: string = Object.keys(currentFilter)[i]
+                const filterKey: string = Object.keys(currentFilter)[i]
                 if (currentFilter[filterKey] != null) {
                   validFilters.push(filterKey)
                 }
               }
-              return validFilters.map((fKey) => (
-                <Label onClose={() => removeFilter(fKey)}>
+              return validFilters.map((fKey, fIndex) => (
+                <Label key={fIndex} onClose={() => removeFilter(fKey)}>
                   {fKey}: {currentFilter[fKey]}
                 </Label>
               ))

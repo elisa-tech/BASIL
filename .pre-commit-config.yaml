@@ -9,13 +9,13 @@ repos:
         language: system
       - id: prettier
         name: prettier
-        entry: "npx prettier . --write"
+        entry: "npx prettier . --write --log-level error"
         pass_filenames: false
         always_run: true
         language: system
       - id: eslint
         name: eslint
-        entry: "cd app && npx eslint src"
+        entry: "cd app && npx eslint --quiet src"
         pass_filenames: false
         always_run: true
         language: system
@@ -27,7 +27,7 @@ repos:
         language: system
       - id: tmt
         name: tmt
-        entry: "tmt lint . --exclude test-mr && tmt lint . --disable-check P005"
+        entry: "tmt lint . --disable-check P005"
         pass_filenames: false
         always_run: true
         language: system

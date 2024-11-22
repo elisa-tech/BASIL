@@ -6247,8 +6247,6 @@ class TestRunArtifacts(Resource):
 
 class TestRunPluginPresets(Resource):
 
-    PLUGIN_PRESET_FILENAME = "testrun_plugin_presets.yaml"
-
     def get(self):
         mandatory_fields = ['api-id', 'plugin']
         args = get_query_string_args(request.args)
@@ -6277,17 +6275,16 @@ class TestRunPluginPresets(Resource):
             dbi.engine.dispose()
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        presets_filepath = os.path.join(currentdir, self.PLUGIN_PRESET_FILENAME)
-        if os.path.exists(presets_filepath):
+        if os.path.exists(TESTRUN_PRESET_FILEPATH):
             try:
-                presets_file = open(presets_filepath, "r")
+                presets_file = open(TESTRUN_PRESET_FILEPATH, "r")
                 presets = yaml.safe_load(presets_file)
                 presets_file.close()
                 if plugin in presets.keys():
                     if isinstance(presets[plugin], list):
                         return [x["name"] for x in presets[plugin] if "name" in x.keys()]
             except Exception:
-                print(f"Unable to read {presets_filepath}")
+                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
                 return []
         return []
 
@@ -6618,6 +6615,68 @@ class ExternalTestRuns(Resource):
         return ret
 
 
+class AdminTestRunPluginsPresets(Resource):
+    def get(self):
+        ret = {"content": ""}
+
+        mandatory_fields = ['token', 'user-id']
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(mandatory_fields, args):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(args, dbi.session)
+        if not isinstance(user, UserModel):
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if os.path.exists(TESTRUN_PRESET_FILEPATH):
+            try:
+                f = open(TESTRUN_PRESET_FILEPATH, "r")
+                fc = f.read()
+                f.close()
+                ret["content"] = fc
+            except Exception:
+                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+        return ret
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        ret = {"content": ""}
+        mandatory_fields = ["content", "user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Validate the content
+        try:
+            new_content = yaml.safe_load(request_data["content"])  # noqa: F841
+        except yaml.YAMLError as exc:
+            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+
+        f = open(TESTRUN_PRESET_FILEPATH, 'w')
+        f.write(request_data["content"])
+        f.close()
+        ret["content"] = request_data["content"]
+        return ret
+
+
 class Version(Resource):
 
     def get(self):
@@ -6657,7 +6716,8 @@ api.add_resource(TestRun, '/mapping/api/test-runs')
 api.add_resource(ExternalTestRuns, '/mapping/api/test-runs/external')
 api.add_resource(TestRunLog, '/mapping/api/test-run/log')
 api.add_resource(TestRunArtifacts, '/mapping/api/test-run/artifacts')
-api.add_resource(TestRunPluginPresets, '/mapping/api/test-run-plugin-presets')
+api.add_resource(TestRunPluginPresets, '/mapping/api/test-run-plugins-presets')
+api.add_resource(AdminTestRunPluginsPresets, '/admin/test-run-plugins-presets')
 
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')

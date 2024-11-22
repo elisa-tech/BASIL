@@ -104,6 +104,7 @@ const Mapping: React.FunctionComponent = () => {
     }
     const tc = Math.round(wa * 100 * 1e1) / 1e1
     updateLastCoverage(tc)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingData])
 
   const updateLastCoverage = (new_coverage) => {
@@ -113,7 +114,7 @@ const Mapping: React.FunctionComponent = () => {
     if (new_coverage == apiData['last_coverage']) {
       return
     }
-    let data = { 'api-id': api_id, 'last-coverage': new_coverage }
+    const data = { 'api-id': api_id, 'last-coverage': new_coverage }
 
     if (auth.isLogged()) {
       data['user-id'] = auth.userId

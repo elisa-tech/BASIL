@@ -1,5 +1,6 @@
 import * as React from 'react'
 import logo from '@app/bgimages/basil.svg'
+import background_image from '@app/bgimages/background.svg'
 import { ListItem, ListVariant, LoginFooterItem, LoginForm, LoginMainFooterBandItem, LoginPage } from '@patternfly/react-core'
 import { Redirect, useLocation } from 'react-router-dom'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
@@ -85,7 +86,7 @@ const Login: React.FunctionComponent = () => {
       footerListVariants={ListVariant.inline}
       brandImgSrc={logo}
       brandImgAlt='BASIL | The FuSa Spice'
-      backgroundImgSrc='/assets/images/pfbg-icon.svg'
+      backgroundImgSrc={background_image}
       footerListItems={listItem}
       textContent='A Software Quality Management Tool.'
       loginTitle='Log in to your account'

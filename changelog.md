@@ -1,5 +1,15 @@
 # CHANGE LOG
 
+## 1.5.x
+
+- Test Run Plugins
+  Adding support for gitlabCI, githubActions and KernelCI
+  as external test environment. It will be possible to navigate results and to
+  trigger test execution in such environments.
+- Test Run Plugins Presets. Admin will be able to define some presets configurations
+  for each supported test run plugins. Users can override same value filing test requests.
+- Highlight current page on the side bar menu
+
 ## 1.4.x
 
 - Api pagination

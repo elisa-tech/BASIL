@@ -1,4 +1,3 @@
-import _ from 'lodash'
 import * as React from 'react'
 import * as Constants from '../../Constants/constants'
 import {
@@ -6,14 +5,11 @@ import {
   CodeBlock,
   CodeBlockCode,
   Divider,
-  Flex,
-  FlexItem,
   Hint,
   HintBody,
   Label,
   Modal,
   ModalVariant,
-  SearchInput,
   Tab,
   TabContent,
   TabContentBody,
@@ -23,13 +19,9 @@ import {
   TextContent,
   TextVariants
 } from '@patternfly/react-core'
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import ProcessAutomationIcon from '@patternfly/react-icons/dist/esm/icons/process-automation-icon'
-import BugIcon from '@patternfly/react-icons/dist/esm/icons/bug-icon'
 import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon'
 import InfoCircleIcon from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
-import TimesIcon from '@patternfly/react-icons/dist/esm/icons/times-icon'
 import { TestRunBugForm } from '../Form/TestRunBugForm'
 import { useAuth } from '../../User/AuthProvider'
 
@@ -55,31 +47,16 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-  const [testResults, setTestResults] = React.useState<any[]>([])
-  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [selectedTestResultArtifacts, setSelectedTestResultArtifacts] = React.useState([])
+
+  // eslint-disable-next-line  @typescript-eslint/no-unused-vars
   const [selectedTestResultLogExec, setSelectedTestResultLogExec] = React.useState('')
   const [selectedTestResultLog, setSelectedTestResultLog] = React.useState('')
   const [selectedTestResultResult, setSelectedTestResultResult] = React.useState(null)
   const [selectedTestResultStatus, setSelectedTestResultStatus] = React.useState(null)
   const [selectedTestResultReport, setSelectedTestResultReport] = React.useState(null)
   const [messageValue, setMessageValue] = React.useState('')
-  const [searchValue, setSearchValue] = React.useState('')
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
-
-  const columnNames = {
-    id: 'ID',
-    title: 'Repositories',
-    sut: 'SUT',
-    result: 'Result',
-    date: 'Date',
-    bug: 'Bug',
-    actions: 'Actions'
-  }
-
-  const onChangeSearchValue = (value) => {
-    setSearchValue(value)
-  }
 
   React.useEffect(() => {
     loadCurrentTestRunLog()
@@ -91,7 +68,6 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
     setModalShowState(new_state)
     setIsModalOpen(new_state)
     if (new_state == false) {
-      setTestResults([])
       setMessageValue('')
     }
   }
@@ -122,9 +98,6 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
     url += '&token=' + auth.token
     url += '&api-id=' + api.id
     url += '&id=' + currentTestResult.id
-    if (searchValue != undefined) {
-      url += '&search=' + searchValue
-    }
 
     fetch(url)
       .then((res) => res.json())
@@ -161,7 +134,6 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
     setTestResultsModalShowState(true)
   }
 
-  const testRunListRef = React.createRef<HTMLElement>()
   const testRunDetailsRef = React.createRef<HTMLElement>()
   const testRunDetailsLogRef = React.createRef<HTMLElement>()
   const testRunArtifactsRef = React.createRef<HTMLElement>()

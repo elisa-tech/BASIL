@@ -134,8 +134,8 @@ export const extend_config_with_plugin_vars = (config) => {
   if (Object.keys(config).indexOf('plugin_vars') < 0) {
     return config
   }
-  let vars_str = config['plugin_vars']
-  let kv = vars_str.split(';')
+  const vars_str = config['plugin_vars']
+  const kv = vars_str.split(';')
   let tmp
   for (let i = 0; i < kv.length; i++) {
     tmp = kv[i].split('=')
@@ -147,7 +147,7 @@ export const extend_config_with_plugin_vars = (config) => {
 }
 
 export const get_config_plugin_var = (_config, _varname) => {
-  let tmp_config = extend_config_with_plugin_vars(_config)
+  const tmp_config = extend_config_with_plugin_vars(_config)
   if (Object.keys(tmp_config).indexOf(_varname) > -1) {
     return tmp_config[_varname]
   }

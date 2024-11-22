@@ -70,6 +70,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [testResultDetailsModalShowState, setTestResultDetailsModalShowState] = React.useState<boolean>(false)
   const [testRunModalShowState, setTestRunModalShowState] = React.useState<boolean>(false)
 
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [currentTestResult, setCurrentTestResult] = React.useState<any>({})
 
   const [currentMappingHistory, setCurrentMappingHistory] = React.useState()

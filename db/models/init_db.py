@@ -48,8 +48,13 @@ def initialization(db_name='basil.db'):
     dbi = db_orm.DbInterface(db_name)
 
     if os.getenv('BASIL_ADMIN_PASSWORD', '') != '':
-        admin = UserModel("admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
-        dbi.session.add(admin)
+        admin_count = dbi.session.query(UserModel).filter(
+            UserModel.email == "admin").filter(
+            UserModel.role == 'ADMIN'
+        ).count()
+        if not admin_count:
+            admin = UserModel("admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
+            dbi.session.add(admin)
         del os.environ['BASIL_ADMIN_PASSWORD']
 
     if db_name == 'test.db':

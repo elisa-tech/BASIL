@@ -21,6 +21,7 @@ const AuthProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(localStorage.getItem('uRole') || '')
   const [userEmail, setUserEmail] = useState(localStorage.getItem('uEmail') || '')
   const [token, setToken] = useState(localStorage.getItem('uToken') || '')
+  const [loginMessage, setLoginMessage] = useState('')
 
   React.useEffect(() => {
     localStorage.setItem('uId', userId == null ? '' : userId)
@@ -30,6 +31,7 @@ const AuthProvider = ({ children }) => {
   }, [userId, userRole, userEmail, token])
 
   const loginAction = (data) => {
+    setLoginMessage('')
     try {
       const requestOptions = {
         method: 'POST',
@@ -37,8 +39,8 @@ const AuthProvider = ({ children }) => {
         body: JSON.stringify(data)
       }
       fetch(Constants.API_BASE_URL + '/user/login', requestOptions)
-        .then((response) => {
-          return response.json()
+        .then((res) => {
+          return res.json()
         })
         .then((response_data) => {
           if (typeof response_data == 'object') {
@@ -48,15 +50,22 @@ const AuthProvider = ({ children }) => {
               setUserId(response_data['id'])
               setUserRole(response_data['role'])
               setToken(response_data['token'])
+              setLoginMessage('Logged with success.')
               window.location.href = '/'
+            } else {
+              setLoginMessage(response_data)
             }
+          } else {
+            setLoginMessage(response_data)
           }
         })
         .catch((err) => {
           console.log(err)
+          setLoginMessage('Error: ' + err)
         })
     } catch (err) {
       console.log(err)
+      setLoginMessage('Error: ' + err)
     }
   }
 
@@ -116,7 +125,7 @@ const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ token, userEmail, userId, userRole, loginAction, logOut, isLogged, isAdmin, isGuest }}>
+    <AuthContext.Provider value={{ token, userEmail, userId, userRole, loginAction, loginMessage, logOut, isLogged, isAdmin, isGuest }}>
       {children}
     </AuthContext.Provider>
   )

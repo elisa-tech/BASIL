@@ -19,11 +19,13 @@ const Login: React.FunctionComponent = () => {
   const handleUsernameChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
     setUsername(value)
     setHelperText('')
+    setShowHelperText(false)
   }
 
   const handlePasswordChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
     setPassword(value)
     setHelperText('')
+    setShowHelperText(false)
   }
 
   const onLoginButtonClick = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
@@ -34,11 +36,20 @@ const Login: React.FunctionComponent = () => {
       setHelperText('Invalid credentials')
       setShowHelperText(true)
       return
+    } else {
+      setShowHelperText(false)
     }
     auth.loginAction({ email: username, password: password })
-    setHelperText(auth.loginMessage)
-    setShowHelperText(true)
   }
+
+  React.useEffect(() => {
+    if (typeof auth.loginMessage != 'undefined') {
+      if (auth.loginMessage.length > 0) {
+        setShowHelperText(true)
+        setHelperText(auth.loginMessage)
+      }
+    }
+  }, [auth.loginMessage])
 
   const signUpForAccountMessage = (
     <LoginMainFooterBandItem>

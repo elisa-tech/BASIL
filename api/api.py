@@ -15,6 +15,7 @@ import yaml
 from flask import Flask, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
+from pyaml_env import parse_config
 from sqlalchemy import and_, or_
 from sqlalchemy.orm.exc import NoResultFound
 from testrun import TestRunner
@@ -29,16 +30,16 @@ JOIN_APIS_TABLE = "apis"
 JOIN_SW_REQUIREMENTS_TABLE = "sw-requirements"
 JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
 MAX_LOGIN_ATTEMPTS = 5
-MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 15  # 15 minutes
+MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 5  # 5 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, 'ssh_keys')
 TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, "testrun_plugin_presets.yaml")
-TMT_LOGS_PATH = os.getenv('BASIL_TMT_WORKDIR_ROOT', '/var/tmp/tmt')
+TEST_RUNS_BASE_DIR = os.getenv('TEST_RUNS_BASE_DIR', '/var/test-runs')
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.mkdir(SSH_KEYS_PATH)
 
-if not os.path.exists(TMT_LOGS_PATH):
-    os.makedirs(TMT_LOGS_PATH, exist_ok=True)
+if not os.path.exists(TEST_RUNS_BASE_DIR):
+    os.makedirs(TEST_RUNS_BASE_DIR, exist_ok=True)
 
 USER_ROLES_DELETE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_EDIT_PERMISSIONS = ['ADMIN', 'USER']
@@ -913,6 +914,7 @@ def add_test_run_config(dbi, request_data, user):
     gitlab_ci_mandatory_fields = ["job", "private_token", "project_id", "stage", "trigger_token", "url"]
     github_actions_mandatory_fields = ["job", "private_token", "url", "workflow_id"]
     kernel_ci_mandatory_fields = []
+    testing_farm_mandatory_fields = ["arch", "compose", "private_token", "url"]
 
     if not check_fields_in_request(mandatory_fields, request_data):
         return f"{BAD_REQUEST_MESSAGE} Miss mandatory fields.", BAD_REQUEST_STATUS
@@ -934,22 +936,6 @@ def add_test_run_config(dbi, request_data, user):
         if not check_fields_in_request(tmt_mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE} Plugin not supported.", BAD_REQUEST_STATUS
 
-    if request_data["plugin"] == TestRunner.TMT:
-        if not check_fields_in_request(tmt_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields.", BAD_REQUEST_STATUS
-
-    if request_data["plugin"] == TestRunner.GITLAB_CI:
-        if not check_fields_in_request(gitlab_ci_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields.", BAD_REQUEST_STATUS
-
-    if request_data["plugin"] == TestRunner.GITHUB_ACTIONS:
-        if not check_fields_in_request(github_actions_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields.", BAD_REQUEST_STATUS
-
-    if request_data["plugin"] == TestRunner.KERNEL_CI:
-        if not check_fields_in_request(kernel_ci_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields.", BAD_REQUEST_STATUS
-
     # Config
     config_title = str(request_data['title']).strip()
     environment_vars = str(request_data['environment_vars']).strip()
@@ -968,36 +954,52 @@ def add_test_run_config(dbi, request_data, user):
         return f"{BAD_REQUEST_MESSAGE} Empty Configuration Title.", BAD_REQUEST_STATUS
 
     if plugin == TestRunner.TMT:
+        if not check_fields_in_request(tmt_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields.", BAD_REQUEST_STATUS
+
         context_vars = str(request_data['context_vars']).strip()
         provision_type = str(request_data['provision_type']).strip()
         provision_guest = str(request_data['provision_guest']).strip()
         provision_guest_port = str(request_data['provision_guest_port']).strip()
         ssh_key_id = request_data['ssh_key']
 
-        if provision_type == '':
-            return f"{BAD_REQUEST_MESSAGE} tmt provision type not defined.", BAD_REQUEST_STATUS
+        if not plugin_preset:
+            if not provision_type:
+                return f"{BAD_REQUEST_MESSAGE} tmt provision type not defined.", BAD_REQUEST_STATUS
 
-        if provision_type == 'connect':
-            if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
-                return f"{BAD_REQUEST_MESSAGE} tmt provision configuration is not correct.", BAD_REQUEST_STATUS
+            if provision_type == 'connect':
+                if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
+                    return f"{BAD_REQUEST_MESSAGE} tmt provision configuration is not correct.", BAD_REQUEST_STATUS
 
-            try:
-                ssh_key = dbi.session.query(SshKeyModel).filter(
-                    SshKeyModel.id == ssh_key_id,
-                    SshKeyModel.created_by_id == user.id
-                ).one()
-            except NoResultFound:
-                return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key.", BAD_REQUEST_STATUS
+                try:
+                    ssh_key = dbi.session.query(SshKeyModel).filter(
+                        SshKeyModel.id == ssh_key_id,
+                        SshKeyModel.created_by_id == user.id
+                    ).one()
+                except NoResultFound:
+                    return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key.", BAD_REQUEST_STATUS
 
     elif plugin == TestRunner.GITLAB_CI:
+        if not check_fields_in_request(gitlab_ci_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields.", BAD_REQUEST_STATUS
         plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
                                  for field in gitlab_ci_mandatory_fields])
     elif plugin == TestRunner.GITHUB_ACTIONS:
+        if not check_fields_in_request(github_actions_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields.", BAD_REQUEST_STATUS
         plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
                                  for field in github_actions_mandatory_fields])
     elif plugin == TestRunner.KERNEL_CI:
+        if not check_fields_in_request(kernel_ci_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields.", BAD_REQUEST_STATUS
         plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
                                  for field in kernel_ci_mandatory_fields])
+    elif plugin == TestRunner.TESTING_FARM:
+        if not check_fields_in_request(testing_farm_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} Testing Farm miss mandatory fields.", BAD_REQUEST_STATUS
+        context_vars = str(request_data['context_vars']).strip()
+        plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
+                                 for field in testing_farm_mandatory_fields])
 
     test_config = TestRunConfigModel(plugin,
                                      plugin_preset,
@@ -5175,7 +5177,8 @@ class UserLogin(Resource):
                 last_attempt_dt = datetime.datetime.strptime(last_attempt_str, DATE_FORMAT)
                 delta_sec = (datetime.datetime.now() - last_attempt_dt).total_seconds()
                 if delta_sec <= MAX_LOGIN_ATTEMPTS_TIMEOUT:
-                    return f"Too many attempts for user {request_data['email']}. Retry in 15 minutes.", 400
+                    return f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user {request_data['email']}." \
+                           f" Retry in {MAX_LOGIN_ATTEMPTS_TIMEOUT/60} minutes.", 400
                 else:
                     login_attempt_cache[cache_key]["attempts"] = 1
 
@@ -5955,7 +5958,7 @@ class TestRun(Resource):
         # Start the detached process to run the test async
         if new_test_run.status == 'created':
             cmd = f"python3 {os.path.join(currentdir, 'testrun.py')} --id {new_test_run.id} " \
-                  f"&> {TMT_LOGS_PATH}/{new_test_run.uid}.log &"
+                  f"&> {TEST_RUNS_BASE_DIR}/{new_test_run.uid}.log &"
             os.system(cmd)
 
             # Notification
@@ -6120,7 +6123,7 @@ class TestRun(Resource):
         dbi.session.commit()
 
         # Remove folder
-        run_path = os.path.join(TMT_LOGS_PATH, run_dict['uid'])
+        run_path = os.path.join(TEST_RUNS_BASE_DIR, run_dict['uid'])
         if os.path.exists(run_path):
             if os.path.isdir(run_path):
                 shutil.rmtree(run_path)
@@ -6179,19 +6182,22 @@ class TestRunLog(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         log_exec = ''
+        log_exec_path = os.path.join(TEST_RUNS_BASE_DIR, f'{run.uid}.log')
 
-        log_exec_path = os.path.join(TMT_LOGS_PATH, f'{run.uid}.log')
+        if run.test_run_config.plugin == TestRunner.TMT:
+            log_exec_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'log.txt')
+
         if os.path.exists(log_exec_path):
             f = open(log_exec_path, 'r')
             log_exec = f.read()
             f.close()
         else:
-            log_exec = "File not found that mean there was an error in the execution."
+            log_exec = "File not found."
 
         # List files in the TMT_PLAN_DATA dir
         artifacts = []
-        if os.path.exists(os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data')):
-            artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data'))
+        if os.path.exists(os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'api', 'tmt-plan', 'data')):
+            artifacts = os.listdir(os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'api', 'tmt-plan', 'data'))
 
         ret = run.as_dict()
         ret['artifacts'] = artifacts
@@ -6237,7 +6243,7 @@ class TestRunArtifacts(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # List files in the TMT_PLAN_DATA dir
-        artifacts_path = os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data')
+        artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'api', 'tmt-plan', 'data')
         artifacts = os.listdir(artifacts_path)
         if args['artifact'] not in artifacts:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
@@ -6277,9 +6283,7 @@ class TestRunPluginPresets(Resource):
 
         if os.path.exists(TESTRUN_PRESET_FILEPATH):
             try:
-                presets_file = open(TESTRUN_PRESET_FILEPATH, "r")
-                presets = yaml.safe_load(presets_file)
-                presets_file.close()
+                presets = parse_config(TESTRUN_PRESET_FILEPATH)
                 if plugin in presets.keys():
                     if isinstance(presets[plugin], list):
                         return [x["name"] for x in presets[plugin] if "name" in x.keys()]
@@ -6333,9 +6337,7 @@ class ExternalTestRuns(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         if preset:
-            presets_file = open(TESTRUN_PRESET_FILEPATH, "r")
-            presets = yaml.safe_load(presets_file)
-            presets_file.close()
+            presets = parse_config(TESTRUN_PRESET_FILEPATH)
 
             if plugin in presets.keys():
                 tmp = [x for x in presets[plugin] if x["name"] == preset]
@@ -6544,7 +6546,7 @@ class ExternalTestRuns(Resource):
 
             if plugin == TestRunner.KERNEL_CI:
                 NODES_ENDPOINT = "nodes"
-                dashboard_base_url = "https://dashboard.kernelci.org/api/tests/test/maestro:"
+                dashboard_base_url = "https://dashboard.kernelci.org/tree/unknown/test/maestro:"
                 kernel_ci_mandatory_fields = ["private_token", "url"]
 
                 if not check_fields_in_request(kernel_ci_mandatory_fields,

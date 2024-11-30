@@ -1,5 +1,4 @@
 #! /bin/python3
-import sys
 import time
 
 import requests
@@ -16,12 +15,13 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
     # implementation, reducing the configuration work for BASIL users
 
     # Constants
-    config_mandatory_fields = ["private_token", "url", ]
+    config_mandatory_fields = ["private_token", "url"]
     HTTP_REQUEST_TIMEOUT = 30
     WAIT_INTERVAL = 60 * 1  # seconds
     SLEEP_DISPATCH = 30  # seconds
 
     # Variables
+    artifacts = []
     conclusion_map_result = {}
     prepare_log = "PREPARATION\n"
     execution_log = "EXECUTION\n"
@@ -98,16 +98,15 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
                 self.execution_log = ""
                 workflow_response = requests.get(url=workflow_url, headers=self.headers)
                 if workflow_response.status_code != 200:
-                    print(f"ERROR: Unable to read workflow runs. Status Code {workflow_response.status_code}")
-                    sys.exit(9)
+                    self.throw_error(f"Unable to read workflow runs. Status Code {workflow_response.status_code}",
+                                     self.MONITOR_ERROR_NUM)
 
                 if "workflow_runs" not in workflow_response.json().keys():
-                    print("ERROR: workflow_runs is not in the response")
-                    sys.exit(9)
+                    self.throw_error("workflow_runs is not in the response",
+                                     self.MONITOR_ERROR_NUM)
 
                 if not workflow_response.json()["workflow_runs"]:
-                    print("ERROR: workflow_runs is empty")
-                    sys.exit(9)
+                    self.throw_error("workflow_runs is empty", self.MONITOR_ERROR_NUM)
 
                 workflow_runs = workflow_response.json()["workflow_runs"]
                 workflow_runs = [x for x in workflow_runs if self.uuid in x["name"]]
@@ -127,16 +126,14 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
 
                     jobs_response = requests.get(url=jobs_url)
                     if jobs_response.status_code != 200:
-                        print(f"ERROR: Unable to read jobs. Status Code {jobs_response.status_code}")
-                        sys.exit(9)
+                        self.throw_error(f"Unable to read jobs. Status Code {jobs_response.status_code}",
+                                         self.MONITOR_ERROR_NUM)
 
                     if "jobs" not in jobs_response.json().keys():
-                        print("ERROR: jobs is not in the response")
-                        sys.exit(9)
+                        self.throw_error("`jobs` is not in the response", self.MONITOR_ERROR_NUM)
 
                     if not jobs_response.json()["jobs"]:
-                        print("ERROR: Job list is empty")
-                        sys.exit(9)
+                        self.throw_error("Job list is empty", self.MONITOR_ERROR_NUM)
 
                     jobs = jobs_response.json()["jobs"]
                     self.execution_log += f"jobs: {' - '.join([x['name'] for x in jobs])}\n"
@@ -153,8 +150,8 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
 
                     if not job_exists:
                         if workflow_run['conclusion']:
-                            print("ERROR: Selected job is not part of the workflow")
-                            sys.exit(9)
+                            self.throw_error("Selected job is not part of the workflow",
+                                             self.MONITOR_ERROR_NUM)
 
                 if not completed:
                     self.execution_log += f"Not completed yet at iteration {iteration}\n"
@@ -170,6 +167,8 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
 
             except Exception as e:
                 print(f"Exception: {e}")
+                self.append_log(f"Exception: {e}")
+                self.status_update()  # Update the log
 
         self.test_status = self.runner.STATUS_COMPLETED
         self.test_result = overall_result
@@ -188,6 +187,10 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
         if "inputs" in self.config.keys():
             for k, v in self.config["inputs"].items():
                 data["inputs"][k] = v
+
+        # Remove delay from the inputs
+        if "delay" in data["inputs"].keys():
+            del data["inputs"]["delay"]
 
         if "uuid" not in data["inputs"].keys():
             data["inputs"]["uuid"] = self.runner.config["uid"]
@@ -217,18 +220,12 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
         # Validate mandatory fields
         for f in self.config_mandatory_fields:
             if f not in self.config.keys():
-                self.prepare_log += f"ERROR: Wrong configuration. Miss mandatory field {f}\n"
-                print(f"ERROR: Wrong configuration. Miss mandatory field {f}\n")
-                self.append_log(self.prepare_log)
-                self.status_update()
-                sys.exit(7)
+                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
+                                 self.VALIDATION_ERROR_NUM)
             else:
                 if not self.config[f]:
-                    self.prepare_log += f"ERROR: Wrong configuration. Miss mandatory field {f}\n"
-                    print(f"ERROR: Wrong configuration. Miss mandatory field {f}\n")
-                    self.append_log(self.prepare_log)
-                    self.status_update()
-                    sys.exit(7)
+                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
+                                     self.VALIDATION_ERROR_NUM)
 
         # Expected url format examples:
         # - https://github.com/elisa-tech/BASIL
@@ -244,13 +241,11 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
             if self.config['workflow_id']:
                 self.workflow_id = self.config['workflow_id']
         if not self.workflow_id:
-            print("ERROR: Github workflow_id is not valid")
-            sys.exit(7)
+            self.throw_error("Github workflow_id is not valid", self.VALIDATION_ERROR_NUM)
 
         url_split = self.config['url'].split('/')
         if len(url_split) < 2:
-            print("ERROR: Github repository url is not valid")
-            sys.exit(7)
+            self.throw_error("Github repository url is not valid", self.VALIDATION_ERROR_NUM)
 
         self.owner = url_split[-2]
         self.repo = url_split[-1]

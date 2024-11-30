@@ -1,20 +1,22 @@
 import datetime
-from db import db_orm
-from db.models.api import ApiModel
-from db.models.api_sw_requirement import ApiSwRequirementModel
-from db.models.api_test_specification import ApiTestSpecificationModel
-from db.models.api_test_case import ApiTestCaseModel
-from db.models.api_justification import ApiJustificationModel
-from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
-from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
-from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 import hashlib
 import json
-from spdx_tools.spdx.model import (Document, CreationInfo, Checksum, ChecksumAlgorithm, File,
-                                   FileType, Relationship, RelationshipType, Snippet)
+
+from spdx_tools.spdx.model import (Checksum, ChecksumAlgorithm, CreationInfo, Document, File, FileType, Relationship,
+                                   RelationshipType, Snippet)
 from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
 from spdx_tools.spdx.writer.write_anything import write_file
+
+from db import db_orm
+from db.models.api import ApiModel
+from db.models.api_justification import ApiJustificationModel
+from db.models.api_sw_requirement import ApiSwRequirementModel
+from db.models.api_test_case import ApiTestCaseModel
+from db.models.api_test_specification import ApiTestSpecificationModel
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
+from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
+from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 
 
 class SPDXManager():

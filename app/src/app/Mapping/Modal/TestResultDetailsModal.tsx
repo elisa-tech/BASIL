@@ -330,7 +330,6 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
                         <Text component={TextVariants.p}>
                           <b>Provision: </b>container
                         </Text>
-                        )
                         <Text component={TextVariants.p}>
                           <b>Context variables: </b>
                           {currentTestResult.config.context_vars}
@@ -403,7 +402,10 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
             </TextContent>
             <br />
             <CodeBlock>
-              <CodeBlockCode id='code-block-test-run-details-log'>{selectedTestResultLog}</CodeBlockCode>
+              <CodeBlockCode id='code-block-test-run-details-log'>
+                {selectedTestResultLog}
+                {currentTestResult.status == 'running' ? '\n------------------------------\n' + selectedTestResultLogExec : ''}
+              </CodeBlockCode>
             </CodeBlock>
           </TabContentBody>
         </TabContent>

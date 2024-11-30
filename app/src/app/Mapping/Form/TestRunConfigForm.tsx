@@ -9,6 +9,8 @@ import {
   FormSelectOption,
   HelperText,
   HelperTextItem,
+  Hint,
+  HintBody,
   Label,
   LabelGroup,
   TextInput
@@ -35,6 +37,8 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   setInfoLabel
 }: TestRunConfigFormProps) => {
   const auth = useAuth()
+
+  const [messageValue, setMessageValue] = React.useState('')
 
   const [pluginPresetsValue, setPluginPresetsValue] = React.useState([])
   const [pluginValue, setPluginValue] = React.useState(testRunConfig.plugin || 'tmt')
@@ -94,6 +98,59 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   // - Optional fields
   const [githubActionsWorkflowIdValue, setGithubActionsWorkflowIdValue] = React.useState('')
   const [githubActionsJobValue, setGithubActionsJobValue] = React.useState('')
+
+  // Testing Farm
+  // - Mandatory fields
+  const [testingFarmArchValue, setTestingFarmArchValue] = React.useState('')
+  const [validatedTestingFarmArchValue, setValidatedTestingFarmArchValue] = React.useState<Constants.validate>('error')
+
+  const [testingFarmComposeValue, setTestingFarmComposeValue] = React.useState('')
+  const [validatedTestingFarmComposeValue, setValidatedTestingFarmComposeValue] = React.useState<Constants.validate>('error')
+
+  const [testingFarmPrivateTokenValue, setTestingFarmPrivateTokenValue] = React.useState('')
+  const [validatedTestingFarmPrivateTokenValue, setValidatedTestingFarmPrivateTokenValue] = React.useState<Constants.validate>('error')
+
+  const [testingFarmUrlValue, setTestingFarmUrlValue] = React.useState('')
+  const [validatedTestingFarmUrlValue, setValidatedTestingFarmUrlValue] = React.useState<Constants.validate>('error')
+
+  const [testingFarmComposes, setTestingFarmComposes] = React.useState<string[]>([])
+
+  const loadTestingFarmCompose = () => {
+    setMessageValue('')
+    setTestingFarmComposes([]) // clean the list before showing it again
+
+    fetch(Constants.TESTING_FARM_COMPOSES_URL)
+      .then((res) => {
+        if (!res.ok) {
+          setMessageValue('Error loading Testing Farm Composes')
+          return []
+        } else {
+          return res.json()
+        }
+      })
+      .then((data) => {
+        let tmp: string[] = []
+        let skip_chars: string[] = ['+', '*']
+        let skip: boolean = false
+        for (let i = 0; i < data['composes'].length; i++) {
+          skip = false
+          for (let j = 0; j < skip_chars.length; j++) {
+            if (data['composes'][i]['name'].indexOf(skip_chars[j]) > -1) {
+              skip = true
+              break
+            }
+          }
+          if (!skip) {
+            tmp.push(data['composes'][i]['name'])
+          }
+        }
+        setTestingFarmComposes(tmp)
+      })
+      .catch((err) => {
+        console.log(err.message)
+        setMessageValue('Error reading Testing Farm composes: ' + err.message)
+      })
+  }
 
   const load_plugin_presets = (_plugin) => {
     let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
@@ -155,7 +212,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
       setRefValue(testRunConfig.git_repo_ref)
     }
     //gitlab_ci
-    if (testRunConfig?.plugin == 'gillab_ci') {
+    if (testRunConfig?.plugin == Constants.gitlab_ci_plugin) {
       if (testRunConfig?.url != null) {
         setGitlabCIUrlValue(testRunConfig.url)
       }
@@ -174,7 +231,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
       if (testRunConfig?.job != null) {
         setGitlabCIJobValue(testRunConfig.job)
       }
-    } else if (testRunConfig?.plugin == 'github_actions') {
+    } else if (testRunConfig?.plugin == Constants.github_actions_plugin) {
       if (testRunConfig?.job != null) {
         setGithubActionsJobValue(testRunConfig.job)
       }
@@ -186,6 +243,19 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
       }
       if (testRunConfig?.private_token != null) {
         setGithubActionsPrivateTokenValue(testRunConfig.private_token)
+      }
+    } else if (testRunConfig?.plugin == Constants.testing_farm_plugin) {
+      if (testRunConfig?.compose != null) {
+        setTestingFarmComposes(testRunConfig.compose)
+      }
+      if (testRunConfig?.arch != null) {
+        setTestingFarmArchValue(testRunConfig.arch)
+      }
+      if (testRunConfig?.private_token != null) {
+        setTestingFarmPrivateTokenValue(testRunConfig.private_token)
+      }
+      if (testRunConfig?.url != null) {
+        setTestingFarmUrlValue(testRunConfig.url)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -254,6 +324,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
 
   React.useEffect(() => {
     updateTestRunConfig()
+    load_plugin_presets(pluginValue)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pluginValue, pluginPresetValue])
 
@@ -303,6 +374,35 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [githubActionsJobValue, githubActionsUrlValue, githubActionsWorkflowIdValue, githubActionsPrivateTokenValue])
 
+  React.useEffect(() => {
+    if (testingFarmArchValue.trim() === '') {
+      setValidatedTestingFarmArchValue('error')
+    } else {
+      setValidatedTestingFarmArchValue('success')
+    }
+
+    if (testingFarmComposeValue.trim() === '') {
+      setValidatedTestingFarmComposeValue('error')
+    } else {
+      setValidatedTestingFarmComposeValue('success')
+    }
+
+    if (testingFarmPrivateTokenValue.trim() === '') {
+      setValidatedTestingFarmPrivateTokenValue('error')
+    } else {
+      setValidatedTestingFarmPrivateTokenValue('success')
+    }
+
+    if (testingFarmUrlValue.trim() === '') {
+      setValidatedTestingFarmUrlValue('error')
+    } else {
+      setValidatedTestingFarmUrlValue('success')
+    }
+
+    updateTestRunConfig()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testingFarmArchValue, testingFarmComposeValue, testingFarmUrlValue, testingFarmPrivateTokenValue])
+
   const set_test_run_config_forked = () => {
     const tmpConfig = testRunConfig
     tmpConfig['id'] = 0
@@ -318,6 +418,11 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   const handlePluginChange = (_event, value: string) => {
     setPluginValue(value)
     load_plugin_presets(value)
+    if (value == Constants.testing_farm_plugin) {
+      if (testingFarmComposes.length == 0) {
+        loadTestingFarmCompose()
+      }
+    }
     set_test_run_config_forked()
   }
 
@@ -413,6 +518,27 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     set_test_run_config_forked()
   }
 
+  //Testing Farm
+  const handleTestingFarmArchChange = (_event, value: string) => {
+    setTestingFarmArchValue(value)
+    set_test_run_config_forked()
+  }
+
+  const handleTestingFarmComposeChange = (_event, value: string) => {
+    setTestingFarmComposeValue(value)
+    set_test_run_config_forked()
+  }
+
+  const handleTestingFarmUrlChange = (_event, value: string) => {
+    setTestingFarmUrlValue(value)
+    set_test_run_config_forked()
+  }
+
+  const handleTestingFarmPrivateTokenChange = (_event, value: string) => {
+    setTestingFarmPrivateTokenValue(value)
+    set_test_run_config_forked()
+  }
+
   const updateTestRunConfig = () => {
     const tmpConfig = testRunConfig
 
@@ -422,32 +548,45 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     tmpConfig['plugin_preset'] = pluginPresetValue
     tmpConfig['environment_vars'] = envVarsValue
 
-    if (pluginValue == 'gitlab_ci') {
+    if (pluginValue == Constants.gitlab_ci_plugin) {
       tmpConfig['job'] = pluginPresetValue == '' ? gitlabCIJobValue : ''
       tmpConfig['private_token'] = pluginPresetValue == '' ? gitlabCIPrivateTokenValue : ''
       tmpConfig['project_id'] = pluginPresetValue == '' ? gitlabCIProjectIdValue : ''
       tmpConfig['stage'] = pluginPresetValue == '' ? gitlabCIStageValue : ''
       tmpConfig['trigger_token'] = pluginPresetValue == '' ? gitlabCITriggerTokenValue : ''
       tmpConfig['url'] = pluginPresetValue == '' ? gitlabCIUrlValue : ''
-    } else if (pluginValue == 'github_actions') {
+    } else if (pluginValue == Constants.github_actions_plugin) {
       tmpConfig['job'] = pluginPresetValue == '' ? githubActionsJobValue : ''
       tmpConfig['private_token'] = pluginPresetValue == '' ? githubActionsPrivateTokenValue : ''
       tmpConfig['workflow_id'] = pluginPresetValue == '' ? githubActionsWorkflowIdValue : ''
       tmpConfig['url'] = pluginPresetValue == '' ? githubActionsUrlValue : ''
-    } else if (pluginValue == 'tmt') {
+    } else if (pluginValue == Constants.tmt_plugin) {
       tmpConfig['context_vars'] = contextVarsValue
       tmpConfig['provision_type'] = pluginPresetValue == '' ? provisionTypeValue : ''
       tmpConfig['provision_guest'] = pluginPresetValue == '' ? guestValue : ''
       tmpConfig['provision_guest_port'] = pluginPresetValue == '' ? guestPortValue : ''
       tmpConfig['ssh_key'] = pluginPresetValue == '' ? sshKeyValue : ''
+    } else if (pluginValue == Constants.testing_farm_plugin) {
+      tmpConfig['context_vars'] = contextVarsValue
+      tmpConfig['compose'] = testingFarmComposeValue
+      tmpConfig['arch'] = testingFarmArchValue
+      tmpConfig['private_token'] = pluginPresetValue == '' ? testingFarmPrivateTokenValue : ''
+      tmpConfig['url'] = pluginPresetValue == '' ? testingFarmUrlValue : ''
     }
   }
 
-  // Init preset list for the default plugin
-  ;() => load_plugin_presets(pluginValue)
-
   return (
     <Form>
+      {messageValue ? (
+        <>
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+          <br />
+        </>
+      ) : (
+        ''
+      )}
       <LabelGroup categoryName='This config is'>
         <Label>{infoLabel}</Label>
       </LabelGroup>
@@ -477,7 +616,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
           aria-label='Test Run Config Plugin'
         >
           {Constants.test_run_plugins.map((option, index) => (
-            <FormSelectOption isDisabled={option.disabled} key={index} value={option.value} label={option.label} />
+            <FormSelectOption isDisabled={!option.trigger} key={index} value={option.value} label={option.label} />
           ))}
         </FormSelect>
       </FormGroup>
@@ -510,7 +649,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         />
       </FormGroup>
 
-      {pluginValue == 'tmt' && pluginPresetValue == '' ? (
+      {pluginValue == Constants.tmt_plugin && pluginPresetValue == '' ? (
         <FormGroup label='Provision type' isRequired fieldId={`select-test-run-config-provision-type-${testRunConfig.id || `0`}`}>
           <FormSelect
             value={provisionTypeValue}
@@ -534,7 +673,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         ''
       )}
 
-      {pluginValue == 'tmt' && pluginPresetValue == '' && provisionTypeValue == 'connect' ? (
+      {pluginValue == Constants.tmt_plugin && pluginPresetValue == '' && provisionTypeValue == 'connect' ? (
         <>
           <FormGroup label='Hostname or IP address' isRequired fieldId={`input-test-run-config-guest-${testRunConfig.id || `0`}`}>
             <TextInput
@@ -593,6 +732,96 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         ''
       )}
 
+      {pluginValue == Constants.testing_farm_plugin && pluginPresetValue == '' ? (
+        <>
+          <FormGroup label='Url (Testing Farm)' isRequired fieldId={`input-test-run-config-tf-url-${testRunConfig.id || `0`}`}>
+            <TextInput
+              isRequired
+              id={`input-test-run-config-tf-url-${testRunConfig.id || `0`}`}
+              name={`input-test-run-config-tf-url-${testRunConfig.id || `0`}`}
+              value={testingFarmUrlValue || ''}
+              placeholder={`example: https://api.dev.testing-farm.io/v0.1/requests`}
+              onChange={(_ev, value) => handleTestingFarmUrlChange(_ev, value)}
+            />
+            {validatedTestingFarmUrlValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>
+                    {validatedTestingFarmUrlValue === 'error' ? 'This field is mandatory' : ''}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+
+          <FormGroup label='Api Token (Testing Farm)' isRequired fieldId={`input-test-run-config-tf-token-${testRunConfig.id || `0`}`}>
+            <TextInput
+              isRequired
+              id={`input-test-run-config-tf-token-${testRunConfig.id || `0`}`}
+              name={`input-test-run-config-tf-token-${testRunConfig.id || `0`}`}
+              value={testingFarmPrivateTokenValue || ''}
+              placeholder={`your token`}
+              onChange={(_ev, value) => handleTestingFarmPrivateTokenChange(_ev, value)}
+            />
+            {validatedTestingFarmPrivateTokenValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>
+                    {validatedTestingFarmPrivateTokenValue === 'error' ? 'This field is mandatory' : ''}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+
+          <FormGroup label='Compose' isRequired fieldId={`input-test-run-config-tf-compose-${testRunConfig.id || `0`}`}>
+            <FormSelect
+              value={testingFarmComposeValue}
+              id={`input-test-run-config-tf-compose-${testRunConfig.id || `0`}`}
+              onChange={handleTestingFarmComposeChange}
+              aria-label='Test Run Config Testing Farm Compose'
+            >
+              <FormSelectOption key={0} value='' label='' />
+              {testingFarmComposes?.map((option, index) => <FormSelectOption key={index} value={option} label={option} />)}
+            </FormSelect>
+            {validatedTestingFarmComposeValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>
+                    {validatedTestingFarmComposeValue === 'error' ? 'This field is mandatory' : ''}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+
+          <FormGroup label='Arch' isRequired fieldId={`input-test-run-config-tf-arch-${testRunConfig.id || `0`}`}>
+            <FormSelect
+              value={testingFarmArchValue}
+              id={`input-test-run-config-tf-arch-${testRunConfig.id || `0`}`}
+              onChange={handleTestingFarmArchChange}
+              aria-label='Test Run Config Testing Farm Arch'
+            >
+              <FormSelectOption key={0} value='' label='' />
+              {Constants.testing_farm_archs?.map((option, index) => (
+                <FormSelectOption key={index} value={option.value} label={option.label} />
+              ))}
+            </FormSelect>
+            {validatedTestingFarmArchValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>
+                    {validatedTestingFarmArchValue === 'error' ? 'This field is mandatory' : ''}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+        </>
+      ) : (
+        ''
+      )}
+
       <FormGroup label='Environment variables' fieldId={`input-test-run-config-env-vars-${testRunConfig.id || `0`}`}>
         <TextInput
           id={`input-test-run-config-env-vars-${testRunConfig.id || `0`}`}
@@ -603,7 +832,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         />
       </FormGroup>
 
-      {pluginValue == 'tmt' ? (
+      {pluginValue == Constants.tmt_plugin || pluginValue == Constants.testing_farm_plugin ? (
         <FormGroup label='tmt context variables' fieldId={`input-test-run-config-context-vars-${testRunConfig.id || `0`}`}>
           <TextInput
             id={`input-test-run-config-context-vars-${testRunConfig.id || `0`}`}
@@ -617,7 +846,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         ''
       )}
 
-      {pluginValue == 'gitlab_ci' && pluginPresetValue == '' ? (
+      {pluginValue == Constants.gitlab_ci_plugin && pluginPresetValue == '' ? (
         <>
           <FormGroup label='Url (gitlab ci)' isRequired fieldId={`input-test-run-config-gitlab-ci-url-${testRunConfig.id || `0`}`}>
             <TextInput
@@ -733,7 +962,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         ''
       )}
 
-      {pluginValue == 'github_actions' && pluginPresetValue == '' ? (
+      {pluginValue == Constants.github_actions_plugin && pluginPresetValue == '' ? (
         <>
           <FormGroup
             label='Url (github actions)'

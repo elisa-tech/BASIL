@@ -1,5 +1,5 @@
-export const API_BASE_URL = 'http://localhost:5000'
-
+export const API_BASE_URL = 'http://localhost:3001'
+export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
 export const _A = 'api'
@@ -37,16 +37,25 @@ export const provision_type = [
   { value: 'connect', label: 'SSH', disabled: false }
 ]
 
+export const testing_farm_archs = [
+  { value: 'x86_64', label: 'x86_64', diasbled: false },
+  { value: 'aarch64', label: 'aarch64', diasbled: false },
+  { value: 's390x', label: 's390x', diasbled: false },
+  { value: 'ppc64le', label: 'ppc64le', diasbled: false }
+]
+
 export const gitlab_ci_plugin = 'gitlab_ci'
 export const github_actions_plugin = 'github_actions'
 export const kernel_ci_plugin = 'KernelCI'
+export const testing_farm_plugin = 'testing_farm'
 export const tmt_plugin = 'tmt'
 
 export const test_run_plugins = [
-  { value: tmt_plugin, label: 'tmt', disabled: false, trigger: true },
-  { value: github_actions_plugin, label: 'github actions', disabled: false, trigger: true },
-  { value: gitlab_ci_plugin, label: 'gitlab ci', disabled: false, trigger: true },
-  { value: kernel_ci_plugin, label: 'KernelCI', disabled: false, trigger: false }
+  { value: tmt_plugin, label: 'tmt', disabled: false, trigger: true, fetch: false },
+  { value: testing_farm_plugin, label: 'Testing Farm', disabled: false, trigger: true, fetch: false },
+  { value: github_actions_plugin, label: 'github actions', disabled: false, trigger: true, fetch: true },
+  { value: gitlab_ci_plugin, label: 'gitlab ci', disabled: false, trigger: true, fetch: true },
+  { value: kernel_ci_plugin, label: 'KernelCI', disabled: false, trigger: false, fetch: true }
 ]
 
 export const spdx_relations = [

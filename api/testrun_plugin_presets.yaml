@@ -4,8 +4,8 @@
 #    url: https://www.gitlab.com/
 #    git_repo_ref: main
 #    project_id: 1000000
-#    trigger_token: aaaa-bbbb-cccc
-#    private_token: xxx-yyy-zzz
+#    trigger_token: !ENV ${GITLAB_CI_xxx_TRIGGER_TOKEN}
+#    private_token: !ENV ${GITLAB_CI_xxx_PRIVATE_TOKEN}
 #    stage: test-stage
 #    job: unit-test-job
 #    env:
@@ -15,7 +15,7 @@
 #  - name: basil-test
 #    url: https://www.github.com/elisa-tech/BASIL
 #    git_repo_ref: main
-#    private_token: xxx-yyy-zzz
+#    private_token: !ENV ${GITHUB_ACTIONS_xxx_PRIVATE_TOKEN}
 #    workflow_id: build.yaml
 #    job: test
 #    inputs:
@@ -24,6 +24,19 @@
 #  - name: ltp_syscall
 #    git_repo_ref: main
 #    provision_type: container
+#    context:
+#      var1: value1
+#      var2: value2
+#    env:
+#      var1: value1
+#      var2: value2
+#testing_farm:
+#  - name: public_ranch
+#    arch: x86_64
+#    compose: Fedora-40
+#    git_repo_ref: main
+#    private_token: !ENV ${TESTING_FARM_API_TOKEN}
+#    url: https://api.dev.testing-farm.io/v0.1/requests
 #    context:
 #      var1: value1
 #      var2: value2

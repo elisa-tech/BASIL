@@ -739,7 +739,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                 >
                   <FormSelectOption isDisabled={false} key={0} value={``} label={`Select a Plugin`} />
                   {Constants.test_run_plugins.map((option, index) => (
-                    <FormSelectOption isDisabled={option.value == 'tmt'} key={index + 1} value={option.value} label={option.label} />
+                    <FormSelectOption isDisabled={!option.fetch} key={index + 1} value={option.value} label={option.label} />
                   ))}
                 </FormSelect>
               </FormGroup>

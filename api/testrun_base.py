@@ -1,5 +1,7 @@
 #! /bin/python3
 import datetime
+import sys
+import time
 
 
 class TestRunnerBasePlugin():
@@ -10,6 +12,10 @@ class TestRunnerBasePlugin():
     8: execution issue
     9: monitor issue
     """
+    VALIDATION_ERROR_NUM = 7
+    EXECUTION_ERROR_NUM = 8
+    MONITOR_ERROR_NUM = 9
+
     config = None
     currentdir = None
     execution_result = None
@@ -24,6 +30,7 @@ class TestRunnerBasePlugin():
         self.config = runner.config
         self.currentdir = currentdir
         self.test_status = runner.STATUS_CREATED
+        self.validate()
 
     def append_log(self, _log):
         self.log += f"\n\n----------> {self.timestamp()}"
@@ -31,14 +38,43 @@ class TestRunnerBasePlugin():
         self.log += "\n<------------"
 
     def cleanup(self):
+        """
+        Called by testrun
+        """
+        pass
+
+    def collect_artifacts(self):
+        """
+        Called by testrun
+        """
         pass
 
     def get_result(self):
+        """
+        Should be called inside each plugin by the run()
+        """
         pass
 
+    def delay_run(self, minutes=0):
+        delay_log = f"Delayed request, it will start in {minutes} minutes"
+        self.append_log(delay_log)
+        self.status_update()
+        time.sleep(minutes*60)
+
     def run(self):
+        """
+        Called by testrun
+        """
         self.test_status = self.runner.STATUS_RUNNING
         self.status_update()
+
+        # Delay must be specified in minutes
+        if "delay" in self.config.keys():
+            if str(self.config["delay"]).isnumeric() and not str(self.config["delay"]).startswith("0"):
+                self.delay_run(int(self.config["delay"]))
+        elif "delay" in self.config["env"].keys():
+            if str(self.config["env"]["delay"]).isnumeric() and not str(self.config["env"]["delay"]).startswith("0"):
+                self.delay_run(int(self.config["env"]["delay"]))
 
     def timestamp(self):
         TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -56,4 +92,15 @@ class TestRunnerBasePlugin():
         self.runner.publish()
 
     def validate(self):
+        """
+        Called at init to verify the config
+        """
         pass
+
+    def throw_error(self, message: str, return_value: int):
+        print(f"ERROR: {message}")
+        self.append_log(f"ERROR: {message}\nRETURN VALUE: {return_value}")
+        self.test_status = self.runner.STATUS_ERROR
+        self.test_result = self.runner.STATUS_ERROR
+        self.status_update()
+        sys.exit(return_value)

@@ -161,7 +161,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
       setActiveTabKey(1)
       return false
     }
-    if (testRunConfig['plugin'].trim() == 'tmt') {
+    if (testRunConfig['plugin'].trim() == Constants.tmt_plugin) {
       if (testRunConfig['plugin_preset'].trim() == '') {
         if (testRunConfig['provision_type'].trim() == '') {
           setMessageValue('Test Configuration Provision Type is mandatory')
@@ -185,7 +185,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           }
         }
       }
-    } else if (testRunConfig['plugin'].trim() == 'gitlab_ci') {
+    } else if (testRunConfig['plugin'].trim() == Constants.gitlab_ci_plugin) {
       if (testRunConfig['plugin_preset'].trim() == '') {
         if (testRunConfig['url'].trim() == '') {
           setMessageValue('Test Configuration Url is mandatory')
@@ -208,7 +208,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           return false
         }
       }
-    } else if (testRunConfig['plugin'].trim() == 'github_actions') {
+    } else if (testRunConfig['plugin'].trim() == Constants.github_actions_plugin) {
       if (testRunConfig['plugin_preset'].trim() == '') {
         if (testRunConfig['url'].trim() == '') {
           setMessageValue('Test Configuration Url is mandatory')
@@ -217,6 +217,34 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
         }
         if (testRunConfig['private_token'].trim() == '') {
           setMessageValue('Test Configuration Private Token is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+      }
+    } else if (testRunConfig['plugin'].trim() == Constants.testing_farm_plugin) {
+      if (testRunConfig['plugin_preset'].trim() == '') {
+        if (testRunConfig['url'].trim() == '') {
+          setMessageValue('Testing Farm Url is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['private_token'].trim() == '') {
+          setMessageValue('Testing Farm Token is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['compose'].trim() == '') {
+          setMessageValue('Testing Farm Compose is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['arch'].trim() == '') {
+          setMessageValue('Testing Farm Architecture is mandatory')
+          setActiveTabKey(1)
+          return false
+        }
+        if (testRunConfig['git_repo_ref'].trim() == '') {
+          setMessageValue('Test Configuration Git repo Ref is mandatory')
           setActiveTabKey(1)
           return false
         }

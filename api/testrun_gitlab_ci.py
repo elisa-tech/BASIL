@@ -1,6 +1,5 @@
 #! /bin/python3
 import json
-import sys
 import time
 
 import gitlab
@@ -16,6 +15,7 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
     WAIT_INTERVAL = 60 * 1  # seconds
 
     # Variables
+    artifacts = []
     status_map_result = {}
     job_id = None
     pipeline_id = None
@@ -60,14 +60,15 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
         self.status_update()
 
     def connect(self):
+        project = None
         try:
             gl = gitlab.Gitlab(url=self.config["url"],
                                private_token=self.config["private_token"])
             gl.auth()
             project = gl.projects.get(id=self.config["project_id"])
         except Exception as e:
-            print(f"ERROR: Unable to connect to gitlab instance {e}")
-            sys.exit(9)
+            self.throw_error(f"Unable to connect to gitlab instance {e}",
+                             self.MONITOR_ERROR_NUM)
         return project
 
     def log_pipeline_job(self, pipeline_job):
@@ -85,6 +86,10 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
         self.append_log(self.execution_log)
 
         project = self.connect()
+
+        if not project:
+            self.throw_error("Unable to connect to gitlab instance",
+                             self.MONITOR_ERROR_NUM)
 
         iteration = 1
         while not completed:
@@ -163,7 +168,9 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
                 self.status_update()  # Update the log
 
             except Exception as e:
-                print(f"ERROR: Unable to connect to gitlab: {e}")
+                print(f"Unable to connect to gitlab: {e}")
+                self.append_log(f"Unable to connect to gitlab: {e}")
+                self.status_update()  # Update the log
 
         self.test_status = self.local_status
         if self.test_status == 'wait-all':
@@ -207,18 +214,12 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
         # Validate mandatory fields
         for f in self.config_mandatory_fields:
             if f not in self.config.keys():
-                self.prepare_log += f"ERROR: Wrong configuration. Miss mandatory field {f}\n"
-                print(f"ERROR: Wrong configuration. Miss mandatory field {f}\n")
-                self.append_log(self.prepare_log)
-                self.status_update()
-                sys.exit(7)
+                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
+                                 self.VALIDATION_ERROR_NUM)
             else:
                 if not self.config[f]:
-                    self.prepare_log += f"ERROR: Wrong configuration. Miss mandatory field {f}\n"
-                    print(f"ERROR: Wrong configuration. Miss mandatory field {f}\n")
-                    self.append_log(self.prepare_log)
-                    self.status_update()
-                    sys.exit(7)
+                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
+                                     self.VALIDATION_ERROR_NUM)
 
         if "stage" in self.config.keys():
             if isinstance(self.config["stage"], str):

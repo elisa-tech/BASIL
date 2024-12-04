@@ -15,6 +15,9 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
     config_mandatory_fields = ["arch", "compose", "git_repo_ref", "private_token", "url"]
     HTTP_REQUEST_TIMEOUT = 30
     WAIT_INTERVAL = 60 * 1  # seconds
+    TMT_PLAN_URL = "https://github.com/elisa-tech/BASIL.git"
+    TMT_PLAN_REF = "main"
+    TMT_PLAN_NAME = "/api/tmt-plan"
 
     # Variables
     artifacts = []
@@ -91,9 +94,9 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
         self.payload["environments"][0]["variables"]["basil_test_run_config_title"] = self.config["title"]
         self.payload["environments"][0]["variables"]["basil_user_email"] = self.runner.db_test_run.created_by.email
 
-        self.payload["test"]["fmf"]["url"] = self.runner.mapping.test_case.repository
-        self.payload["test"]["fmf"]["ref"] = self.config["git_repo_ref"]
-        self.payload["test"]["fmf"]["name"] = self.runner.mapping.test_case.relative_path
+        self.payload["test"]["fmf"]["url"] = self.TMT_PLAN_URL
+        self.payload["test"]["fmf"]["ref"] = self.TMT_PLAN_REF
+        self.payload["test"]["fmf"]["name"] = self.TMT_PLAN_NAME
 
         self.payload["environments"][0]["arch"] = self.config["arch"]
         self.payload["environments"][0]["os"]["compose"] = self.config["compose"]
@@ -189,7 +192,10 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
     def run(self):
         super().run()
 
-        self.append_log(f"CI trigger payload: {self.payload}")
+        payload_to_log = self.payload.copy()
+        payload_to_log["api_key"] = "***"  # Hide api key in the log
+
+        self.append_log(f"CI trigger payload: {payload_to_log}")
 
         response = requests.post(url=self.config['url'],
                                  json=self.payload,

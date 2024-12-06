@@ -11,7 +11,6 @@ from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
 import gitlab
-import yaml
 from flask import Flask, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
@@ -6283,7 +6282,7 @@ class TestRunPluginPresets(Resource):
 
         if os.path.exists(TESTRUN_PRESET_FILEPATH):
             try:
-                presets = parse_config(TESTRUN_PRESET_FILEPATH)
+                presets = parse_config(path=TESTRUN_PRESET_FILEPATH)
                 if plugin in presets.keys():
                     if isinstance(presets[plugin], list):
                         return [x["name"] for x in presets[plugin] if "name" in x.keys()]
@@ -6337,7 +6336,7 @@ class ExternalTestRuns(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         if preset:
-            presets = parse_config(TESTRUN_PRESET_FILEPATH)
+            presets = parse_config(path=TESTRUN_PRESET_FILEPATH)
 
             if plugin in presets.keys():
                 tmp = [x for x in presets[plugin] if x["name"] == preset]
@@ -6668,8 +6667,8 @@ class AdminTestRunPluginsPresets(Resource):
 
         # Validate the content
         try:
-            new_content = yaml.safe_load(request_data["content"])  # noqa: F841
-        except yaml.YAMLError as exc:
+            new_content = parse_config(data=request_data["content"])  # noqa: F841
+        except Exception as exc:
             return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
 
         f = open(TESTRUN_PRESET_FILEPATH, 'w')

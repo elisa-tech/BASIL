@@ -64,7 +64,6 @@ def initialization(db_name='basil.db'):
         dbi.session.add(test_user)
 
     dbi.session.commit()
-    dbi.engine.dispose()
 
 
 if __name__ == "__main__":

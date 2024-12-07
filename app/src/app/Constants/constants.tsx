@@ -219,6 +219,18 @@ export const getLimitedText = (_text, _length) => {
   return _text
 }
 
+export const _trim = (_var) => {
+  try {
+    if (_var == undefined) {
+      return ''
+    } else {
+      return String(_var).trim()
+    }
+  } catch {
+    return ''
+  }
+}
+
 export const logObject = (obj) => {
   let i
   let k

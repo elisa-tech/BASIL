@@ -17,9 +17,9 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
   parentType
 }: TestRunBugFormProps) => {
   const auth = useAuth()
-  const [bugsValue, setBugsValue] = React.useState(modalTestRun.bugs)
-  const [fixesValue, setFixesValue] = React.useState(modalTestRun.fixes)
-  const [notesValue, setNotesValue] = React.useState(modalTestRun.notes)
+  const [bugsValue, setBugsValue] = React.useState(modalTestRun?.bugs || '')
+  const [fixesValue, setFixesValue] = React.useState(modalTestRun?.fixes || '')
+  const [notesValue, setNotesValue] = React.useState(modalTestRun?.notes || '')
   const [messageValue, setMessageValue] = React.useState('')
 
   const handleBugsValueChange = (value: string) => {
@@ -56,9 +56,9 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
     const data = {
       'api-id': api.id,
       id: modalTestRun.id,
-      bugs: bugsValue.trim(),
-      fixes: fixesValue.trim(),
-      notes: notesValue.trim(),
+      bugs: Constants._trim(bugsValue),
+      fixes: Constants._trim(fixesValue),
+      notes: Constants._trim(notesValue),
       'user-id': auth.userId,
       token: auth.token,
       mapped_to_type: mapping_to,
@@ -77,7 +77,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
         if (response.status !== 200) {
           setMessageValue(response.statusText)
         } else {
-          setMessageValue('')
+          setMessageValue('SAVED')
         }
       })
       .catch((err) => {

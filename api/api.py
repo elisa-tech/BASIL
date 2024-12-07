@@ -2245,6 +2245,7 @@ class ApiTestCasesMapping(Resource):
             # Check if the same Test Case is already associated with the same snippet
             if len(dbi.session.query(ApiTestCaseModel).join(TestCaseModel).filter(
                         ApiTestCaseModel.section == section).filter(
+                    TestCaseModel.title == title).filter(
                     TestCaseModel.repository == repository).filter(
                     TestCaseModel.relative_path == relative_path).all()) > 0:
                 return "Test Case already associated to the current api.", 409

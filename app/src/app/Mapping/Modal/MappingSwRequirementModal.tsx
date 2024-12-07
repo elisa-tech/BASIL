@@ -131,7 +131,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
           />
         </Tabs>
         <div>
-          <TabContent eventKey={0} id='tabContentSwRequirementForm' ref={newItemRef}>
+          <TabContent eventKey={0} id='tabContentSwRequirementForm' ref={newItemRef} hidden={0 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SwRequirementForm
                 api={api}
@@ -152,7 +152,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={1} id='tabContentSwRequirementSection' ref={sectionItemsRef} hidden>
+          <TabContent eventKey={1} id='tabContentSwRequirementSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
@@ -166,7 +166,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={2} id='tabContentSwRequirementExisting' ref={existingItemsRef} hidden>
+          <TabContent eventKey={2} id='tabContentSwRequirementExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SwRequirementSearch
                 api={api}

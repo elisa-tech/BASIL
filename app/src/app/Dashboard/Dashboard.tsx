@@ -190,14 +190,10 @@ const Dashboard: React.FunctionComponent = () => {
       <APIListingPageSection
         currentLibrary={currentLibrary}
         apis={apis}
-        loadApi={loadApi}
         totalCoverage={totalCoverage}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
-        pageCount={pageCount}
-        setPageCount={setPageCount}
         apiCount={apiCount}
-        setApiCount={setApiCount}
         perPage={perPage}
         setPerPage={setPerPage}
       />

@@ -60,7 +60,7 @@ export interface MappingListingTableProps {
   setDetailsModalInfo
   setForkModalInfo
   setHistoryModalInfo
-  setTestResultModalInfo
+  setTestResultsModalInfo
   setTestRunModalInfo
   setUsageModalInfo
   mappingViewSelectValue
@@ -92,7 +92,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   setDetailsModalInfo,
   setForkModalInfo,
   setHistoryModalInfo,
-  setTestResultModalInfo,
+  setTestResultsModalInfo,
   setTestRunModalInfo,
   setUsageModalInfo,
   mappingViewSelectValue,
@@ -341,7 +341,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     setTcModalInfo={setTcModalInfo}
                     setDeleteModalInfo={setDeleteModalInfo}
                     setTestRunModalInfo={setTestRunModalInfo}
-                    setTestResultModalInfo={setTestResultModalInfo}
+                    setTestResultsModalInfo={setTestResultsModalInfo}
                     mappingParentType={parent_type}
                     mappingParentRelatedToType={parent_related_to_type}
                     mappingIndex={cIndex}
@@ -765,7 +765,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <TextContent>
                     <Text className='work-item-detail-document-url'>
                       <b>Url:</b>{' '}
-                      <a target='_blank' href={mappedItem[Constants._D]['url']}>
+                      <a target='_blank' rel='noopener noreferrer' href={mappedItem[Constants._D]['url']}>
                         {mappedItem[Constants._D]['url']}
                       </a>
                     </Text>

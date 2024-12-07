@@ -1,5 +1,6 @@
 import * as React from 'react'
 import logo from '@app/bgimages/basil.svg'
+import background_image from '@app/bgimages/background.svg'
 import { ListItem, ListVariant, LoginFooterItem, LoginForm, LoginMainFooterBandItem, LoginPage } from '@patternfly/react-core'
 import { Redirect, useLocation } from 'react-router-dom'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
@@ -18,11 +19,13 @@ const Login: React.FunctionComponent = () => {
   const handleUsernameChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
     setUsername(value)
     setHelperText('')
+    setShowHelperText(false)
   }
 
   const handlePasswordChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
     setPassword(value)
     setHelperText('')
+    setShowHelperText(false)
   }
 
   const onLoginButtonClick = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
@@ -33,11 +36,20 @@ const Login: React.FunctionComponent = () => {
       setHelperText('Invalid credentials')
       setShowHelperText(true)
       return
+    } else {
+      setShowHelperText(false)
     }
     auth.loginAction({ email: username, password: password })
-    setHelperText(auth.loginMessage)
-    setShowHelperText(true)
   }
+
+  React.useEffect(() => {
+    if (typeof auth.loginMessage != 'undefined') {
+      if (auth.loginMessage.length > 0) {
+        setShowHelperText(true)
+        setHelperText(auth.loginMessage)
+      }
+    }
+  }, [auth.loginMessage])
 
   const signUpForAccountMessage = (
     <LoginMainFooterBandItem>
@@ -85,7 +97,7 @@ const Login: React.FunctionComponent = () => {
       footerListVariants={ListVariant.inline}
       brandImgSrc={logo}
       brandImgAlt='BASIL | The FuSa Spice'
-      backgroundImgSrc='/assets/images/pfbg-icon.svg'
+      backgroundImgSrc={background_image}
       footerListItems={listItem}
       textContent='A Software Quality Management Tool.'
       loginTitle='Log in to your account'

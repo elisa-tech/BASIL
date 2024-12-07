@@ -16,6 +16,9 @@ class TestRunConfigModel(Base):
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)
+    plugin: Mapped[Optional[str]] = mapped_column(String(20), default='tmt')
+    plugin_preset: Mapped[Optional[str]] = mapped_column(String(50), default='')
+    plugin_vars: Mapped[Optional[str]] = mapped_column(String(), default='')
     title: Mapped[Optional[str]] = mapped_column(String())
     git_repo_ref: Mapped[str] = mapped_column(String())
     context_vars: Mapped[Optional[str]] = mapped_column(String())
@@ -32,9 +35,12 @@ class TestRunConfigModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, title, git_repo_ref, context_vars, environment_vars,
+    def __init__(self, plugin, plugin_preset, plugin_vars, title, git_repo_ref, context_vars, environment_vars,
                  provision_type, provision_guest, provision_guest_port,
                  ssh_key, created_by):
+        self.plugin = plugin
+        self.plugin_preset = plugin_preset
+        self.plugin_vars = plugin_vars
         self.title = title
         self.git_repo_ref = git_repo_ref
         self.context_vars = context_vars
@@ -57,6 +63,9 @@ class TestRunConfigModel(Base):
 
     def as_dict(self, full_data=False):
         _dict = {'id': self.id,
+                 'plugin': self.plugin,
+                 'plugin_preset': self.plugin_preset,
+                 'plugin_vars': self.plugin_vars,
                  'title': self.title,
                  'git_repo_ref': self.git_repo_ref,
                  'context_vars': self.context_vars,

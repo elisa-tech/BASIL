@@ -1,18 +1,23 @@
 import base64
-from flask_cors import CORS
-from flask import Flask, request, send_file, send_from_directory
-from flask_restful import Resource, Api, reqparse
-import os
 import datetime
+import json
 import logging
 import math
+import os
 import shutil
-from sqlalchemy import and_, or_
-from sqlalchemy.orm.exc import NoResultFound
 import sys
 import urllib
 from urllib.error import HTTPError, URLError
 from uuid import uuid4
+
+import gitlab
+from flask import Flask, request, send_file, send_from_directory
+from flask_cors import CORS
+from flask_restful import Api, Resource, reqparse
+from pyaml_env import parse_config
+from sqlalchemy import and_, or_
+from sqlalchemy.orm.exc import NoResultFound
+from testrun import TestRunner
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
@@ -24,15 +29,16 @@ JOIN_APIS_TABLE = "apis"
 JOIN_SW_REQUIREMENTS_TABLE = "sw-requirements"
 JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
 MAX_LOGIN_ATTEMPTS = 5
-MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 15  # 15 minutes
+MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 5  # 5 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, 'ssh_keys')
-TMT_LOGS_PATH = os.getenv('BASIL_TMT_WORKDIR_ROOT', '/var/tmp/tmt')
+TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, "testrun_plugin_presets.yaml")
+TEST_RUNS_BASE_DIR = os.getenv('TEST_RUNS_BASE_DIR', '/var/test-runs')
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.mkdir(SSH_KEYS_PATH)
 
-if not os.path.exists(TMT_LOGS_PATH):
-    os.makedirs(TMT_LOGS_PATH, exist_ok=True)
+if not os.path.exists(TEST_RUNS_BASE_DIR):
+    os.makedirs(TEST_RUNS_BASE_DIR, exist_ok=True)
 
 USER_ROLES_DELETE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_EDIT_PERMISSIONS = ['ADMIN', 'USER']
@@ -40,6 +46,8 @@ USER_ROLES_WRITE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_MANAGE_PERMISSIONS = ['ADMIN', 'USER']
 USER_ROLES_MANAGE_USERS = ['ADMIN', ]
 
+OK_STATUS = 200
+CREATED_STATUS = 201
 BAD_REQUEST_MESSAGE = 'Bad request'
 BAD_REQUEST_STATUS = 400
 UNAUTHORIZED_MESSAGE = 'User not authorized'
@@ -65,31 +73,29 @@ API_PERMISSION_FIELDS = ['delete_permissions',
                          'write_permissions']
 
 from db import db_orm
-from db.models.api_document import ApiDocumentModel, ApiDocumentHistoryModel
-from db.models.api_justification import ApiJustificationModel, ApiJustificationHistoryModel
-from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirementHistoryModel
-from db.models.api_test_case import ApiTestCaseModel, ApiTestCaseHistoryModel
-from db.models.api_test_specification import ApiTestSpecificationModel
-from db.models.api_test_specification import ApiTestSpecificationHistoryModel
-from db.models.api import ApiModel, ApiHistoryModel
+from db.models.api import ApiHistoryModel, ApiModel
+from db.models.api_document import ApiDocumentHistoryModel, ApiDocumentModel
+from db.models.api_justification import ApiJustificationHistoryModel, ApiJustificationModel
+from db.models.api_sw_requirement import ApiSwRequirementHistoryModel, ApiSwRequirementModel
+from db.models.api_test_case import ApiTestCaseHistoryModel, ApiTestCaseModel
+from db.models.api_test_specification import ApiTestSpecificationHistoryModel, ApiTestSpecificationModel
 from db.models.comment import CommentModel
-from db.models.document import DocumentModel, DocumentHistoryModel
-from db.models.justification import JustificationModel, JustificationHistoryModel
+from db.models.document import DocumentHistoryModel, DocumentModel
+from db.models.justification import JustificationHistoryModel, JustificationModel
 from db.models.notification import NotificationModel
 from db.models.ssh_key import SshKeyModel
-from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
-from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementHistoryModel
-from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
-from db.models.sw_requirement_test_case import SwRequirementTestCaseHistoryModel
-from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
-from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationHistoryModel
-from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
-from db.models.test_case import TestCaseModel, TestCaseHistoryModel
+from db.models.sw_requirement import SwRequirementHistoryModel, SwRequirementModel
+from db.models.sw_requirement_sw_requirement import (SwRequirementSwRequirementHistoryModel,
+                                                     SwRequirementSwRequirementModel)
+from db.models.sw_requirement_test_case import SwRequirementTestCaseHistoryModel, SwRequirementTestCaseModel
+from db.models.sw_requirement_test_specification import (SwRequirementTestSpecificationHistoryModel,
+                                                         SwRequirementTestSpecificationModel)
+from db.models.test_case import TestCaseHistoryModel, TestCaseModel
 from db.models.test_run import TestRunModel
 from db.models.test_run_config import TestRunConfigModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
-from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
+from db.models.test_specification import TestSpecificationHistoryModel, TestSpecificationModel
+from db.models.test_specification_test_case import (TestSpecificationTestCaseHistoryModel,
+                                                    TestSpecificationTestCaseModel)
 from db.models.user import UserModel
 
 app = Flask("BASIL-API")
@@ -614,11 +620,18 @@ def get_split_sections(_specification, _mapping, _work_item_types):
     return sorted(mapped_sections, key=lambda k: k['offset'])
 
 
-def check_fields_in_request(fields, request):
+def check_fields_in_request(fields, request, allow_empty_string=True):
     for field in fields:
         if field not in request.keys():
             print(f'field: {field} not in request: {request.keys()}')
             return False
+        else:
+            if allow_empty_string:
+                pass
+            else:
+                if not str(request[field]):
+                    print(f'field {field} is empty')
+                    return False
     return True
 
 
@@ -629,8 +642,9 @@ def get_query_string_args(args):
     order_how = args.get("order_how", default="", type=str)
 
     permitted_keys = ["api-id", "artifact", "id", "library", "mapped_to_type", "mapped_to_id",
-                      "mode", "parent_id", "parent_table", "relation_id", "search",
-                      "token", "url", "user-id", "work_item_type", "page", "per_page"]
+                      "mode", "parent_id", "parent_table", "plugin", "relation_id", "search",
+                      "token", "url", "user-id", "work_item_type", "page", "per_page", "preset",
+                      "job", "stage", "ref", "params"]
 
     ret = {"db": db,
            "limit": limit,
@@ -889,6 +903,118 @@ class Token:
         if token == app.secret_key:
             return True
         return False
+
+
+def add_test_run_config(dbi, request_data, user):
+    mandatory_fields = ['environment_vars', 'git_repo_ref', 'id', 'plugin', 'plugin_preset',
+                        'title']
+    tmt_mandatory_fields = ['context_vars', 'provision_guest', 'provision_guest_port', 'provision_type',
+                            'ssh_key']
+    gitlab_ci_mandatory_fields = ["job", "private_token", "project_id", "stage", "trigger_token", "url"]
+    github_actions_mandatory_fields = ["job", "private_token", "url", "workflow_id"]
+    kernel_ci_mandatory_fields = []
+    testing_farm_mandatory_fields = ["arch", "compose", "private_token", "url"]
+
+    if not check_fields_in_request(mandatory_fields, request_data):
+        return f"{BAD_REQUEST_MESSAGE} Miss mandatory fields.", BAD_REQUEST_STATUS
+
+    if request_data["id"] not in ["", 0]:
+        if str(request_data["id"]).strip().isnumeric():
+            testrun_config_id = int(str(request_data["id"]))
+            try:
+                existing_config = dbi.session.query(TestRunConfigModel).filter(
+                    TestRunConfigModel.id == testrun_config_id
+                ).one()
+                return existing_config, OK_STATUS
+            except NoResultFound:
+                return f"{BAD_REQUEST_MESSAGE} Unable to find the Test Run Configuration.", BAD_REQUEST_STATUS
+        else:
+            return f"{BAD_REQUEST_MESSAGE} Test Run Configuration ID is not valid.", BAD_REQUEST_STATUS
+
+    if request_data["plugin"] not in TestRunner.test_run_plugin_models.keys():
+        if not check_fields_in_request(tmt_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} Plugin not supported.", BAD_REQUEST_STATUS
+
+    # Config
+    config_title = str(request_data['title']).strip()
+    environment_vars = str(request_data['environment_vars']).strip()
+    git_repo_ref = str(request_data['git_repo_ref']).strip()
+    plugin = str(request_data['plugin']).strip()
+    plugin_preset = str(request_data['plugin_preset']).strip()
+    plugin_vars = ""
+    context_vars = ""
+    provision_type = ""
+    provision_guest = ""
+    provision_guest_port = ""
+    ssh_key = None
+
+    # Check mandatory fields
+    if config_title == '':
+        return f"{BAD_REQUEST_MESSAGE} Empty Configuration Title.", BAD_REQUEST_STATUS
+
+    if plugin == TestRunner.TMT:
+        if not check_fields_in_request(tmt_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields.", BAD_REQUEST_STATUS
+
+        context_vars = str(request_data['context_vars']).strip()
+        provision_type = str(request_data['provision_type']).strip()
+        provision_guest = str(request_data['provision_guest']).strip()
+        provision_guest_port = str(request_data['provision_guest_port']).strip()
+        ssh_key_id = request_data['ssh_key']
+
+        if not plugin_preset:
+            if not provision_type:
+                return f"{BAD_REQUEST_MESSAGE} tmt provision type not defined.", BAD_REQUEST_STATUS
+
+            if provision_type == 'connect':
+                if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
+                    return f"{BAD_REQUEST_MESSAGE} tmt provision configuration is not correct.", BAD_REQUEST_STATUS
+
+                try:
+                    ssh_key = dbi.session.query(SshKeyModel).filter(
+                        SshKeyModel.id == ssh_key_id,
+                        SshKeyModel.created_by_id == user.id
+                    ).one()
+                except NoResultFound:
+                    return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key.", BAD_REQUEST_STATUS
+
+    elif plugin == TestRunner.GITLAB_CI:
+        if not check_fields_in_request(gitlab_ci_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields.", BAD_REQUEST_STATUS
+        plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
+                                 for field in gitlab_ci_mandatory_fields])
+    elif plugin == TestRunner.GITHUB_ACTIONS:
+        if not check_fields_in_request(github_actions_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields.", BAD_REQUEST_STATUS
+        plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
+                                 for field in github_actions_mandatory_fields])
+    elif plugin == TestRunner.KERNEL_CI:
+        if not check_fields_in_request(kernel_ci_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields.", BAD_REQUEST_STATUS
+        plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
+                                 for field in kernel_ci_mandatory_fields])
+    elif plugin == TestRunner.TESTING_FARM:
+        if not check_fields_in_request(testing_farm_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} Testing Farm miss mandatory fields.", BAD_REQUEST_STATUS
+        context_vars = str(request_data['context_vars']).strip()
+        plugin_vars += ";".join([f"{field}={str(request_data[field]).strip()}"
+                                 for field in testing_farm_mandatory_fields])
+
+    test_config = TestRunConfigModel(plugin,
+                                     plugin_preset,
+                                     plugin_vars,
+                                     config_title,
+                                     git_repo_ref,
+                                     context_vars,
+                                     environment_vars,
+                                     provision_type,
+                                     provision_guest,
+                                     provision_guest_port,
+                                     ssh_key,
+                                     user)
+    dbi.session.add(test_config)
+    dbi.session.commit()
+    return test_config, CREATED_STATUS
 
 
 tokenManager = Token()
@@ -5050,7 +5176,8 @@ class UserLogin(Resource):
                 last_attempt_dt = datetime.datetime.strptime(last_attempt_str, DATE_FORMAT)
                 delta_sec = (datetime.datetime.now() - last_attempt_dt).total_seconds()
                 if delta_sec <= MAX_LOGIN_ATTEMPTS_TIMEOUT:
-                    return f"Too many attempts for user {request_data['email']}. Retry in 15 minutes.", 400
+                    return f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user {request_data['email']}." \
+                           f" Retry in {MAX_LOGIN_ATTEMPTS_TIMEOUT/60} minutes.", 400
                 else:
                     login_attempt_cache[cache_key]["attempts"] = 1
 
@@ -5670,12 +5797,6 @@ class TestRunConfig(Resource):
 
     def post(self):
         request_data = request.get_json(force=True)
-        mandatory_fields = ['context_vars', 'environment_vars',
-                            'git_repo_ref',
-                            'provision_guest', 'provision_guest_port', 'provision_type',
-                            'ssh_key', 'title']
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5684,47 +5805,14 @@ class TestRunConfig(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        # Config
-        config_title = str(request_data['title']).strip()
-        git_repo_ref = str(request_data['git_repo_ref']).strip()
-        context_vars = str(request_data['context_vars']).strip()
-        environment_vars = str(request_data['environment_vars']).strip()
-        provision_type = str(request_data['provision_type']).strip()
-        provision_guest = str(request_data['provision_guest']).strip()
-        provision_guest_port = str(request_data['provision_guest_port']).strip()
-        ssh_key_id = request_data['ssh_key']
-
-        # Check mandatory fields
-        if config_title == '' or provision_type == '':
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        if provision_type == 'connect':
-            if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-            try:
-                ssh_key = dbi.session.query(SshKeyModel).filter(
-                    SshKeyModel.id == ssh_key_id,
-                    SshKeyModel.created_by_id == user.id
-                ).one()
-            except NoResultFound:
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-        else:
-            ssh_key = None
-
-        test_config = TestRunConfigModel(config_title,
-                                         git_repo_ref,
-                                         context_vars,
-                                         environment_vars,
-                                         provision_type,
-                                         provision_guest,
-                                         provision_guest_port,
-                                         ssh_key,
-                                         user)
-
-        dbi.session.add(test_config)
-        dbi.session.commit()
         dbi.engine.dispose()
+
+        # Test Run Configuration
+        test_config_ret, test_config_status = add_test_run_config(dbi, request_data, user)
+        if test_config_status not in [OK_STATUS, CREATED_STATUS]:
+            return test_config_ret, test_config_status
+        else:
+            test_config = test_config_ret
 
         return test_config.as_dict()
 
@@ -5772,8 +5860,10 @@ class TestRun(Resource):
                 TestRunModel.id.like(f'%{search}%'),
                 TestRunModel.uid.like(f'%{search}%'),
                 TestRunModel.title.like(f'%{search}%'),
-                TestRunModel.note.like(f'%{search}%'),
+                TestRunModel.notes.like(f'%{search}%'),
                 TestRunModel.bugs.like(f'%{search}%'),
+                TestRunModel.fixes.like(f'%{search}%'),
+                TestRunModel.report.like(f'%{search}%'),
                 TestRunModel.result.like(f'%{search}%'),
                 TestRunModel.created_at.like(f'%{search}%'),
                 TestRunConfigModel.title.like(f'%{search}%'),
@@ -5793,15 +5883,8 @@ class TestRun(Resource):
 
     def post(self):
         request_data = request.get_json(force=True)
-        mandatory_fields = ['api-id', 'title', 'note', 'test-run-config', 'mapped_to_type', 'mapped_to_id']
+        mandatory_fields = ['api-id', 'title', 'notes', 'test-run-config', 'mapped_to_type', 'mapped_to_id']
         if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        config_mandatory_fields = ['context_vars', 'environment_vars',
-                                   'from_db', 'id',
-                                   'title', 'git_repo_ref', 'ssh_key',
-                                   'provision_type', 'provision_guest', 'provision_guest_port']
-        if not check_fields_in_request(config_mandatory_fields, request_data['test-run-config']):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
@@ -5817,65 +5900,16 @@ class TestRun(Resource):
             dbi.engine.dispose()
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
-        # Config
-        test_run_config_id = str(request_data['test-run-config']['id']).strip()
-        config_title = str(request_data['test-run-config']['title']).strip()
-        git_repo_ref = str(request_data['test-run-config']['git_repo_ref']).strip()
-        context_vars = str(request_data['test-run-config']['context_vars']).strip()
-        environment_vars = str(request_data['test-run-config']['environment_vars']).strip()
-        provision_type = str(request_data['test-run-config']['provision_type']).strip()
-        provision_guest = str(request_data['test-run-config']['provision_guest']).strip()
-        provision_guest_port = str(request_data['test-run-config']['provision_guest_port']).strip()
-        ssh_key_id = request_data['test-run-config']['ssh_key']
-
-        if test_run_config_id == '0':
-            # Check mandatory fields
-            if config_title == '' or provision_type == '':
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-            if provision_type == 'connect':
-                if provision_guest == '' or provision_guest_port == '' or ssh_key_id == '' or ssh_key_id == '0':
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-                try:
-                    ssh_key = dbi.session.query(SshKeyModel).filter(
-                        SshKeyModel.id == ssh_key_id,
-                        SshKeyModel.created_by_id == user.id
-                    ).one()
-                except NoResultFound:
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-            else:
-                ssh_key = None
-
-            test_config = TestRunConfigModel(config_title,
-                                             git_repo_ref,
-                                             context_vars,
-                                             environment_vars,
-                                             provision_type,
-                                             provision_guest,
-                                             provision_guest_port,
-                                             ssh_key,
-                                             user)
-
-            dbi.session.add(test_config)
-
+        # Test Run Configuration
+        test_config_ret, test_config_status = add_test_run_config(dbi, request_data['test-run-config'], user)
+        if test_config_status not in [OK_STATUS, CREATED_STATUS]:
+            return test_config_ret, test_config_status
         else:
-            # Reuse existing Test Config
-            try:
-                test_config = dbi.session.query(TestRunConfigModel).filter(
-                    TestRunConfigModel.id == test_run_config_id
-                ).one()
-            except NoResultFound:
-                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-            # Check the ssh_key still exists
-            if test_config.provision_type == 'connect':
-                if not test_config.ssh_key:
-                    return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            test_config = test_config_ret
 
         # Test Run
         title = request_data['title'].strip()
-        note = request_data['note'].strip()
+        notes = request_data['notes'].strip()
         mapping_to = str(request_data['mapped_to_type']).strip()
         mapping_id = request_data['mapped_to_id']
 
@@ -5902,42 +5936,49 @@ class TestRun(Resource):
 
         # Create the Test Config only if the Test Run data is consistent
         dbi.session.commit()
-
         new_test_run = TestRunModel(api,
                                     title,
-                                    note,
+                                    notes,
                                     test_config,
                                     mapping_to,
                                     mapping_id,
                                     user)
 
+        if 'report' in request_data.keys():
+            new_test_run.report = request_data['report']
+        if 'result' in request_data.keys():
+            new_test_run.result = request_data['result']
+        if 'status' in request_data.keys():
+            new_test_run.status = request_data['status']
+
         dbi.session.add(new_test_run)
         dbi.session.commit()
 
         # Start the detached process to run the test async
-        cmd = f"python3 {os.path.join(currentdir, 'tmttestrun.py')} --id {new_test_run.id} " \
-              f"&> {TMT_LOGS_PATH}/{new_test_run.uid}.log &"
-        os.system(cmd)
+        if new_test_run.status == 'created':
+            cmd = f"python3 {os.path.join(currentdir, 'testrun.py')} --id {new_test_run.id} " \
+                  f"&> {TEST_RUNS_BASE_DIR}/{new_test_run.uid}.log &"
+            os.system(cmd)
 
-        # Notification
-        notification = f'{user.email} started a Test Run for Test Case ' \
-                       f'{mapping.test_case.title} as part of the sw component ' \
-                       f'{api.api}, library {api.library}'
-        notifications = NotificationModel(api,
-                                          'info',
-                                          f'Test Run for {api.api} has been requested',
-                                          notification,
-                                          str(user.id),
-                                          f'/mapping/{api.id}')
-        dbi.session.add(notifications)
-        dbi.session.commit()
+            # Notification
+            notification = f'{user.email} started a Test Run for Test Case ' \
+                           f'{mapping.test_case.title} as part of the sw component ' \
+                           f'{api.api}, library {api.library}'
+            notifications = NotificationModel(api,
+                                              'info',
+                                              f'Test Run for {api.api} has been requested',
+                                              notification,
+                                              str(user.id),
+                                              f'/mapping/{api.id}')
+            dbi.session.add(notifications)
+            dbi.session.commit()
         dbi.engine.dispose()
 
         return new_test_run.as_dict()
 
     def put(self):
         request_data = request.get_json(force=True)
-        mandatory_fields = ['api-id', 'id', 'bugs', 'note', 'mapped_to_type', 'mapped_to_id']
+        mandatory_fields = ['api-id', 'id', 'bugs', 'fixes', 'notes', 'mapped_to_type', 'mapped_to_id']
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
@@ -5994,9 +6035,13 @@ class TestRun(Resource):
             test_run_modified = True
             run.bugs = request_data['bugs']
 
-        if run.note != request_data['note']:
+        if run.fixes != request_data['fixes']:
             test_run_modified = True
-            run.note = request_data['note']
+            run.fixes = request_data['fixes']
+
+        if run.notes != request_data['notes']:
+            test_run_modified = True
+            run.notes = request_data['notes']
 
         if test_run_modified:
             dbi.session.add(run)
@@ -6077,7 +6122,7 @@ class TestRun(Resource):
         dbi.session.commit()
 
         # Remove folder
-        run_path = os.path.join(TMT_LOGS_PATH, run_dict['uid'])
+        run_path = os.path.join(TEST_RUNS_BASE_DIR, run_dict['uid'])
         if os.path.exists(run_path):
             if os.path.isdir(run_path):
                 shutil.rmtree(run_path)
@@ -6135,34 +6180,28 @@ class TestRunLog(Resource):
         except NoResultFound:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
-        log_txt = ''
         log_exec = ''
-        log_txt_path = os.path.join(TMT_LOGS_PATH, run.uid, 'log.txt')
+        log_exec_path = os.path.join(TEST_RUNS_BASE_DIR, f'{run.uid}.log')
 
-        if os.path.exists(log_txt_path):
-            f = open(log_txt_path, 'r')
-            log_txt = f.read()
-            f.close()
-        else:
-            log_txt = "File not found that mean there was an error in the execution. See the stdout/stderr section."
+        if run.test_run_config.plugin == TestRunner.TMT:
+            log_exec_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'log.txt')
 
-        log_exec_path = os.path.join(TMT_LOGS_PATH, f'{run.uid}.log')
         if os.path.exists(log_exec_path):
             f = open(log_exec_path, 'r')
             log_exec = f.read()
             f.close()
         else:
-            log_exec = "File not found that mean there was an error in the execution."
+            log_exec = "File not found."
 
         # List files in the TMT_PLAN_DATA dir
         artifacts = []
-        if os.path.exists(os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data')):
-            artifacts = os.listdir(os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data'))
+        if os.path.exists(os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'api', 'tmt-plan', 'data')):
+            artifacts = os.listdir(os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'api', 'tmt-plan', 'data'))
 
-        return {'artifacts': artifacts,
-                'log_txt': log_txt,
-                'log_exec': log_exec,
-                'stdout_stderr': run.log}
+        ret = run.as_dict()
+        ret['artifacts'] = artifacts
+        ret['log_exec'] = log_exec
+        return ret
 
 
 class TestRunArtifacts(Resource):
@@ -6179,9 +6218,8 @@ class TestRunArtifacts(Resource):
         user = get_active_user_from_request(args, dbi.session)
         if isinstance(user, UserModel):
             user_id = user.id
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
         else:
-            user_id = 0
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -6204,12 +6242,440 @@ class TestRunArtifacts(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # List files in the TMT_PLAN_DATA dir
-        artifacts_path = os.path.join(TMT_LOGS_PATH, run.uid, 'api', 'tmt-plan', 'data')
+        artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, 'api', 'tmt-plan', 'data')
         artifacts = os.listdir(artifacts_path)
         if args['artifact'] not in artifacts:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         return send_from_directory(artifacts_path, args['artifact'])
+
+
+class TestRunPluginPresets(Resource):
+
+    def get(self):
+        mandatory_fields = ['api-id', 'plugin']
+        args = get_query_string_args(request.args)
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        plugin = args["plugin"]
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(args, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
+        else:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if os.path.exists(TESTRUN_PRESET_FILEPATH):
+            try:
+                presets = parse_config(path=TESTRUN_PRESET_FILEPATH)
+                if plugin in presets.keys():
+                    if isinstance(presets[plugin], list):
+                        return [x["name"] for x in presets[plugin] if "name" in x.keys()]
+            except Exception:
+                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+                return []
+        return []
+
+
+class ExternalTestRuns(Resource):
+    def get(self):
+        PARAM_DATE_FORMAT = "%Y-%m-%d"
+        GITLAB_CI_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+        KERNEL_CI_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
+        mandatory_fields = ["api-id", "plugin", "preset"]
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        ret = []
+        ret_pipelines = []
+        all_pipelines = []
+        filtered_pipelines = []
+        plugin = args["plugin"].strip()
+        preset = args["preset"].strip()
+        params_strings = []
+        params = {}
+
+        preset_config = None
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(args, dbi.session)
+        if isinstance(user, UserModel):
+            user_id = user.id
+        else:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Find api
+        api = get_api_from_request(args, dbi.session)
+        if not api:
+            dbi.engine.dispose()
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user_id, dbi.session)
+        if 'r' not in permissions:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if preset:
+            presets = parse_config(path=TESTRUN_PRESET_FILEPATH)
+
+            if plugin in presets.keys():
+                tmp = [x for x in presets[plugin] if x["name"] == preset]
+                if tmp:
+                    # Init the config with the preset
+                    # Values from test_run_config will override preset values
+                    preset_config = tmp[0]
+
+            if not preset_config:
+                return "Preset not found", NOT_FOUND_STATUS
+
+            if "params" in args.keys():
+                params_strings = args["params"].split(";")
+                params_strings = [x for x in params_strings if "=" in x]
+                for param_string in params_strings:
+                    k = param_string.split("=")[0].strip()
+                    v = param_string.split("=")[1].strip()
+                    if k and v:
+                        params[k] = v
+                        # Override preset config with params
+                        preset_config[k] = v
+
+            if plugin == TestRunner.GITLAB_CI:
+                gitlab_ci_mandatory_fields = ["private_token", "project_id", "url"]
+
+                # Skip pending pipelines from the list
+                gitlab_ci_valid_status = ["success", "failed"]
+
+                if not check_fields_in_request(gitlab_ci_mandatory_fields, preset_config, allow_empty_string=False):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+                gl = gitlab.Gitlab(url=preset_config["url"],
+                                   private_token=preset_config["private_token"])
+                gl.auth()
+                project = gl.projects.get(id=preset_config["project_id"])
+
+                job = None
+                ref = None
+                stage = None
+
+                if "job" in preset_config.keys():
+                    if preset_config["job"]:
+                        job = preset_config["job"]
+
+                if "ref" in preset_config.keys():
+                    if preset_config["ref"]:
+                        ref = preset_config["ref"]
+                elif "git_repo_ref" in preset_config.keys():
+                    if preset_config["git_repo_ref"]:
+                        ref = preset_config["git_repo_ref"]
+
+                if "stage" in preset_config.keys():
+                    if preset_config["stage"]:
+                        stage = preset_config["stage"]
+
+                if ref:
+                    all_pipelines = project.pipelines.list(ref=ref)
+                else:
+                    all_pipelines = project.pipelines.list()
+
+                # Filter
+                all_pipelines = [x for x in all_pipelines if x.status in gitlab_ci_valid_status]
+                if not all_pipelines:
+                    return []
+                pipeline_attrs = all_pipelines[0].__dict__["_attrs"].keys()
+                params_pipelines = all_pipelines
+                filtered_by_params = False
+                filtered_pipelines = []
+
+                if params.keys():
+                    for k, v in params.items():
+                        if k in pipeline_attrs:
+                            params_pipelines = [x for x in params_pipelines
+                                                if x.__dict__["_attrs"][k] == v]
+                            filtered_by_params = True
+
+                    if "updated_after" in params.keys():
+                        if params["updated_after"]:
+                            try:
+                                compare_date = datetime.datetime.strptime(params["updated_after"], PARAM_DATE_FORMAT)
+                                params_pipelines = [x for x in params_pipelines
+                                                    if datetime.datetime.strptime(
+                                                        x.updated_at,
+                                                        GITLAB_CI_DATE_FORMAT
+                                                    ) >= compare_date]
+                                filtered_by_params = True
+                            except ValueError as e:
+                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                pass
+
+                    if "updated_before" in params.keys():
+                        if params["updated_before"]:
+                            try:
+                                compare_date = datetime.datetime.strptime(params["updated_before"], PARAM_DATE_FORMAT)
+                                params_pipelines = [x for x in params_pipelines
+                                                    if datetime.datetime.strptime(
+                                                        x.updated_at,
+                                                        GITLAB_CI_DATE_FORMAT
+                                                    ) <= compare_date]
+                                filtered_by_params = True
+                            except ValueError as e:
+                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                pass
+
+                if not filtered_by_params:
+                    params_pipelines = all_pipelines
+
+                if stage:
+                    for pipeline in params_pipelines:
+                        pipeline_jobs = pipeline.jobs.list()
+                        for pipeline_job in pipeline_jobs:
+                            if pipeline_job.__dict__["_attrs"]["stage"] == stage:
+                                if job:
+                                    if pipeline_job.__dict__["_attrs"]["name"] == job:
+                                        filtered_pipelines.append(pipeline)
+                                        break
+                                else:
+                                    filtered_pipelines.append(pipeline)
+                                    break
+                else:
+                    for pipeline in params_pipelines:
+                        pipeline_jobs = pipeline.jobs.list()
+                        for pipeline_job in pipeline_jobs:
+                            if job:
+                                if pipeline_job.__dict__["_attrs"]["name"] == job:
+                                    filtered_pipelines.append(pipeline)
+                                    break
+                            else:
+                                filtered_pipelines.append(pipeline)
+                                break
+
+                for p in filtered_pipelines:
+                    ret.append({"created_at": p.created_at,
+                                "id": p.id,
+                                "project": project.name,
+                                "ref": p.ref,
+                                "details": p.name,
+                                "status": "pass" if p.status == "success" else "fail",
+                                "web_url": p.web_url})
+
+            if plugin == TestRunner.GITHUB_ACTIONS:
+                github_actions_mandatory_fields = ["private_token", "url"]
+                ref = None
+
+                if not check_fields_in_request(github_actions_mandatory_fields,
+                                               preset_config,
+                                               allow_empty_string=False):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+                if preset_config['url'].endswith("/"):
+                    preset_config['url'] = preset_config['url'][:-1]
+                if preset_config['url'].endswith(".git"):
+                    preset_config['url'] = preset_config['url'][:-4]
+
+                url_split = preset_config['url'].split('/')
+                if len(url_split) < 2:
+                    return f"{BAD_REQUEST_MESSAGE} Github repository url is not valid", BAD_REQUEST_STATUS
+
+                owner = url_split[-2]
+                repo = url_split[-1]
+                workflows_url = f"https://api.github.com/repos/{owner}/{repo}/actions/runs?"
+
+                if "ref" in preset_config.keys():
+                    if preset_config["ref"]:
+                        ref = preset_config["ref"]
+                elif "git_repo_ref" in preset_config.keys():
+                    if preset_config["git_repo_ref"]:
+                        ref = preset_config["git_repo_ref"]
+
+                if ref:
+                    workflows_url += f"&branch={ref}"
+
+                if "workflow_id" in preset_config.keys():
+                    workflows_url += f"&workflow_id={preset_config['workflow_id']}"
+
+                if params_strings:
+                    workflows_url += "&" + "&".join(params_strings)
+
+                headers = {
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {preset_config['private_token']}",
+                    "X-GitHub-Api-Version": "2022-11-28"
+                }
+
+                try:
+                    request_params = urllib.request.Request(
+                        url=workflows_url,
+                        headers=headers
+                    )
+
+                    response_data = urllib.request.urlopen(request_params).read()
+                    content = json.loads(response_data.decode("utf-8"))
+                except Exception as e:
+                    return f"{BAD_REQUEST_MESSAGE} Unable to read workflows {e}", BAD_REQUEST_STATUS
+                else:
+                    ret_pipelines = content["workflow_runs"]
+
+                for p in ret_pipelines:
+                    ret.append({"created_at": p['created_at'],
+                                "id": p['id'],
+                                "project": f"{owner}/{repo}",
+                                "ref": p['head_branch'],
+                                "details": p['name'],
+                                "status": "pass" if p['conclusion'] == "success" else "fail",
+                                "web_url": f"{preset_config['url']}/actions/runs/{p['id']}"})
+
+            if plugin == TestRunner.KERNEL_CI:
+                NODES_ENDPOINT = "nodes"
+                dashboard_base_url = "https://dashboard.kernelci.org/tree/unknown/test/maestro:"
+                kernel_ci_mandatory_fields = ["private_token", "url"]
+
+                if not check_fields_in_request(kernel_ci_mandatory_fields,
+                                               preset_config,
+                                               allow_empty_string=False):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+                if preset_config['url'].endswith("/"):
+                    preset_config['url'] = preset_config['url'][:-1]
+
+                # We use double underscore in the param key for kernelCI
+                # that should be replace with a . when used in the kernelCI API
+                for i in range(len(params_strings)):
+                    kv = params_strings[i].split("=")
+                    k = kv[0]
+                    v = kv[1]
+                    if k == "created_after":
+                        try:
+                            compare_date = datetime.datetime.strptime(params["created_after"], PARAM_DATE_FORMAT)
+                            compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
+                            params_strings[i] = f"created__gt={compare_date_str}"
+                        except ValueError as e:
+                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            pass
+                    elif k == "created_before":
+                        try:
+                            compare_date = datetime.datetime.strptime(params["created_before"], PARAM_DATE_FORMAT)
+                            compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
+                            params_strings[i] = f"created__lt={compare_date_str}"
+                        except ValueError as e:
+                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            pass
+                    else:
+                        params_strings[i] = f"{k.replace('__', '.')}={v}"
+
+                kernel_ci_url = f"{preset_config['url']}/{NODES_ENDPOINT}?kind=test&state=done"
+                if params_strings:
+                    kernel_ci_url += f"&{'&'.join(params_strings)}"
+
+                headers = {
+                    "Authorization": f"Bearer {preset_config['private_token']}",
+                }
+
+                try:
+                    kernel_ci_request = urllib.request.Request(
+                        url=kernel_ci_url,
+                        headers=headers
+                    )
+
+                    response_data = urllib.request.urlopen(kernel_ci_request).read()
+                    content = json.loads(response_data.decode("utf-8"))
+                except Exception as e:
+                    return f"{BAD_REQUEST_MESSAGE} Unable to read workflows {e}", BAD_REQUEST_STATUS
+                else:
+                    ret_pipelines = content["items"]
+
+                for p in ret_pipelines:
+                    project = p["data"]["kernel_revision"]["tree"]
+                    branch = p["data"]["kernel_revision"]["branch"]
+                    ret.append({"created_at": p['created'],
+                                "id": p['id'],
+                                "project": project,
+                                "ref": branch,
+                                "details": p['name'],
+                                "status": "pass" if p['result'] == "pass" else "fail",
+                                "web_url": f"{dashboard_base_url}{p['id']}"})
+
+        return ret
+
+
+class AdminTestRunPluginsPresets(Resource):
+    def get(self):
+        ret = {"content": ""}
+
+        mandatory_fields = ['token', 'user-id']
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(mandatory_fields, args):
+            return 'bad request!', 400
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(args, dbi.session)
+        if not isinstance(user, UserModel):
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if os.path.exists(TESTRUN_PRESET_FILEPATH):
+            try:
+                f = open(TESTRUN_PRESET_FILEPATH, "r")
+                fc = f.read()
+                f.close()
+                ret["content"] = fc
+            except Exception:
+                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+        return ret
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        ret = {"content": ""}
+        mandatory_fields = ["content", "user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            dbi.engine.dispose()
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Validate the content
+        try:
+            new_content = parse_config(data=request_data["content"])  # noqa: F841
+        except Exception as exc:
+            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+
+        f = open(TESTRUN_PRESET_FILEPATH, 'w')
+        f.write(request_data["content"])
+        f.close()
+        ret["content"] = request_data["content"]
+        return ret
 
 
 class Version(Resource):
@@ -6248,8 +6714,11 @@ api.add_resource(ApiTestSpecificationsMapping, '/mapping/api/test-specifications
 api.add_resource(ApiTestCasesMapping, '/mapping/api/test-cases')
 api.add_resource(TestRunConfig, '/mapping/api/test-run-configs')
 api.add_resource(TestRun, '/mapping/api/test-runs')
+api.add_resource(ExternalTestRuns, '/mapping/api/test-runs/external')
 api.add_resource(TestRunLog, '/mapping/api/test-run/log')
 api.add_resource(TestRunArtifacts, '/mapping/api/test-run/artifacts')
+api.add_resource(TestRunPluginPresets, '/mapping/api/test-run-plugins-presets')
+api.add_resource(AdminTestRunPluginsPresets, '/admin/test-run-plugins-presets')
 
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')

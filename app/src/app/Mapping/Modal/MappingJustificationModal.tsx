@@ -103,7 +103,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
           />
         </Tabs>
         <div>
-          <TabContent eventKey={0} id='tabContentJustificationForm' ref={newItemRef}>
+          <TabContent eventKey={0} id='tabContentJustificationForm' ref={newItemRef} hidden={0 !== activeTabKey}>
             <TabContentBody hasPadding>
               <JustificationForm
                 api={api}
@@ -124,7 +124,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={1} id='tabContentJustificationSection' ref={sectionItemsRef} hidden>
+          <TabContent eventKey={1} id='tabContentJustificationSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
@@ -138,7 +138,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={2} id='tabContentJustificationExisting' ref={existingItemsRef} hidden>
+          <TabContent eventKey={2} id='tabContentJustificationExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
             <TabContentBody hasPadding>
               <JustificationSearch
                 api={api}

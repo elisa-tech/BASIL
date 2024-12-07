@@ -24,7 +24,9 @@ class TestRunModel(Base):
     result: Mapped[Optional[str]] = mapped_column(String(20))
     log: Mapped[Optional[str]] = mapped_column(String())
     bugs: Mapped[Optional[str]] = mapped_column(String())
-    note: Mapped[Optional[str]] = mapped_column(String())
+    fixes: Mapped[Optional[str]] = mapped_column(String())
+    notes: Mapped[Optional[str]] = mapped_column(String())
+    report: Mapped[Optional[str]] = mapped_column(String(), default='')
     api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="TestRunModel.api_id")
     mapping_to: Mapped[str] = mapped_column(String())
@@ -38,13 +40,14 @@ class TestRunModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __init__(self, api, title, note, test_run_config, mapping_to, mapping_id, created_by):
+    def __init__(self, api, title, notes, test_run_config, mapping_to, mapping_id, created_by):
         self.api = api
         self.api_id = api.id
         self.title = title
-        self.note = note
+        self.notes = notes
+        self.report = ''
         self.uid = str(uuid.uuid4())
-        self.status = 'new'
+        self.status = 'created'
         self.test_run_config_id = test_run_config.id
         self.test_run_config = test_run_config
         self.mapping_to = mapping_to
@@ -64,10 +67,12 @@ class TestRunModel(Base):
     def as_dict(self, full_data=False):
         _dict = {'id': self.id,
                  'bugs': self.bugs,
+                 'fixes': self.fixes,
                  'config': self.test_run_config.as_dict(),
                  'created_by': self.created_by.email,
                  'log': self.log,
-                 'note': self.note,
+                 'notes': self.notes,
+                 'report': self.report,
                  'result': self.result,
                  'title': self.title,
                  'status': self.status,

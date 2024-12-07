@@ -127,7 +127,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
           />
         </Tabs>
         <div>
-          <TabContent eventKey={0} id='tabContentTestCaseForm' ref={newItemRef}>
+          <TabContent eventKey={0} id='tabContentTestCaseForm' ref={newItemRef} hidden={0 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestCaseForm
                 api={api}
@@ -148,7 +148,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={1} id='tabContentTestCaseSection' ref={sectionItemsRef} hidden>
+          <TabContent eventKey={1} id='tabContentTestCaseSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
@@ -162,7 +162,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
               />
             </TabContentBody>
           </TabContent>
-          <TabContent eventKey={2} id='tabContentTestCaseExisting' ref={existingItemsRef} hidden>
+          <TabContent eventKey={2} id='tabContentTestCaseExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
             <TabContentBody hasPadding>
               <TestCaseSearch
                 api={api}

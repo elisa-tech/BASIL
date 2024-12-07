@@ -1,5 +1,5 @@
-export const API_BASE_URL = 'http://localhost:5000'
-
+export const API_BASE_URL = 'http://localhost:3001'
+export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
 export const _A = 'api'
@@ -35,6 +35,27 @@ export const provision_type = [
   { value: '', label: '', disabled: false },
   { value: 'container', label: 'Fedora Container', disabled: false },
   { value: 'connect', label: 'SSH', disabled: false }
+]
+
+export const testing_farm_archs = [
+  { value: 'x86_64', label: 'x86_64', diasbled: false },
+  { value: 'aarch64', label: 'aarch64', diasbled: false },
+  { value: 's390x', label: 's390x', diasbled: false },
+  { value: 'ppc64le', label: 'ppc64le', diasbled: false }
+]
+
+export const gitlab_ci_plugin = 'gitlab_ci'
+export const github_actions_plugin = 'github_actions'
+export const kernel_ci_plugin = 'KernelCI'
+export const testing_farm_plugin = 'testing_farm'
+export const tmt_plugin = 'tmt'
+
+export const test_run_plugins = [
+  { value: tmt_plugin, label: 'tmt', disabled: false, trigger: true, fetch: false },
+  { value: testing_farm_plugin, label: 'Testing Farm', disabled: false, trigger: true, fetch: false },
+  { value: github_actions_plugin, label: 'github actions', disabled: false, trigger: true, fetch: true },
+  { value: gitlab_ci_plugin, label: 'gitlab ci', disabled: false, trigger: true, fetch: true },
+  { value: kernel_ci_plugin, label: 'KernelCI', disabled: false, trigger: false, fetch: true }
 ]
 
 export const spdx_relations = [
@@ -118,6 +139,30 @@ export const capitalizeFirstWithoutHashes = (_string: string) => {
   return tmp.charAt(0).toUpperCase() + tmp.slice(1)
 }
 
+export const extend_config_with_plugin_vars = (config) => {
+  if (Object.keys(config).indexOf('plugin_vars') < 0) {
+    return config
+  }
+  const vars_str = config['plugin_vars']
+  const kv = vars_str.split(';')
+  let tmp
+  for (let i = 0; i < kv.length; i++) {
+    tmp = kv[i].split('=')
+    if (tmp.length == 2) {
+      config[tmp[0].trim()] = tmp[1].trim()
+    }
+  }
+  return config
+}
+
+export const get_config_plugin_var = (_config, _varname) => {
+  const tmp_config = extend_config_with_plugin_vars(_config)
+  if (Object.keys(tmp_config).indexOf(_varname) > -1) {
+    return tmp_config[_varname]
+  }
+  return ''
+}
+
 export const tcFormEmpty = {
   coverage: 0,
   description: '',
@@ -172,6 +217,18 @@ export const getLimitedText = (_text, _length) => {
     return _text.substr(0, _length) + '...'
   }
   return _text
+}
+
+export const _trim = (_var) => {
+  try {
+    if (_var == undefined) {
+      return ''
+    } else {
+      return String(_var).trim()
+    }
+  } catch {
+    return ''
+  }
 }
 
 export const logObject = (obj) => {

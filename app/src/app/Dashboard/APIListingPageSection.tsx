@@ -25,14 +25,10 @@ import { useAuth } from '../User/AuthProvider'
 export interface APIListingPageSectionProps {
   currentLibrary: string
   apis
-  loadApi
   totalCoverage
   currentPage
   setCurrentPage
-  pageCount
-  setPageCount
   apiCount
-  setApiCount
   perPage
   setPerPage
 }
@@ -40,20 +36,15 @@ export interface APIListingPageSectionProps {
 const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps> = ({
   currentLibrary,
   apis,
-  loadApi,
   totalCoverage,
   currentPage,
   setCurrentPage,
-  pageCount,
-  setPageCount,
   apiCount,
-  setApiCount,
   perPage,
   setPerPage
 }: APIListingPageSectionProps) => {
   const auth = useAuth()
   const rows = []
-  const [page, setPage] = React.useState(1)
   const [modalShowState, setModalShowState] = React.useState(false)
 
   const [modalCheckSpecShowState, setModalCheckSpecShowState] = React.useState(false)
@@ -218,7 +209,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         setModalShowState={setModalShowState}
         //setCurrentLibrary={setCurrentLibrary}
         //loadLibraries={loadLibraries}
-        //loadApi={loadApi}
       />
       <APIDeleteModal
         modalShowState={modalDeleteShowState}

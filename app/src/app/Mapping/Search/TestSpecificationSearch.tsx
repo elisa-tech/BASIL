@@ -110,7 +110,9 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
           <DataListItemCells
             dataListCells={[
               <DataListCell key={tsIndex}>
-                <span id={'clickable-action-item-' + test_specification.id}>{test_specification.title}</span>
+                <span id={'clickable-action-item-' + test_specification.id}>
+                  {test_specification.id} - {test_specification.title}
+                </span>
               </DataListCell>
             ]}
           />

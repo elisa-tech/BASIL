@@ -16,13 +16,17 @@ export interface TestRunConfigSearchProps {
   modalShowState
   loadTestRunConfigs
   testRunConfigs
+  setInfoLabel
+  setActiveTabKey
 }
 
 export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchProps> = ({
   handleSelectExistingTestConfig,
   loadTestRunConfigs,
   modalShowState,
-  testRunConfigs
+  testRunConfigs,
+  setInfoLabel,
+  setActiveTabKey
 }: TestRunConfigSearchProps) => {
   const [searchValue, setSearchValue] = React.useState('')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
@@ -36,8 +40,9 @@ export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchPro
     if (document.getElementById(id) != null) {
       setSelectedDataListItemId(id)
       const tmpConfig = testRunConfigs[document.getElementById(id)?.dataset.index as string | number]
-      tmpConfig['from_db'] = 1
       handleSelectExistingTestConfig(tmpConfig)
+      setInfoLabel('existing')
+      setActiveTabKey(1)
       setSelectedDataListItemId('')
     }
   }
@@ -70,7 +75,9 @@ export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchPro
           <DataListItemCells
             dataListCells={[
               <DataListCell key={tcIndex}>
-                <span id={'clickable-action-item-' + test_run_config.id}>{test_run_config.title}</span>
+                <span id={'clickable-action-item-' + test_run_config.id}>
+                  {test_run_config.id} - {test_run_config.title}
+                </span>
               </DataListCell>
             ]}
           />

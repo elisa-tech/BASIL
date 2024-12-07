@@ -73,6 +73,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const adminDropdownItems = (
     <>
+      <DropdownItem key='admin test run plugins presets'>
+        <Button component='a' href='/plugins-presets' variant='link'>
+          Test Run Plugins Presets
+        </Button>
+      </DropdownItem>
       <DropdownItem key='admin ssh keys'>
         <Button component='a' href='/ssh-keys' variant='link'>
           SSH Keys

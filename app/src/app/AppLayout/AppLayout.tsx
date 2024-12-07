@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Brand,
   Button,
@@ -29,6 +30,7 @@ interface IAppLayout {
 
 const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const auth = useAuth()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
   const [notificationDrawerExpanded, setNotificationDrawerExpanded] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification[]>([])
@@ -37,6 +39,10 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const [libraries, setLibraries] = React.useState([])
   const [fetchNotificationCount, setFetchNotificationCount] = React.useState(0)
   const [fetchLibrariesCount, setFetchLibrariesCount] = React.useState(0)
+
+  const search = window.location.search
+  const params = new URLSearchParams(search)
+  const queryCurrentLibrary = params.get('currentLibrary')
 
   /*
   const onNavigationSelect = (
@@ -133,13 +139,13 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const getLibrariesNavItems = () => {
     return libraries.map((library, index) => (
       <NavItem
-        key={'nav-group-libraries-item-1' + index}
+        key={'nav-group-libraries-item-' + index}
         preventDefault
         id='mixed-1'
         to='#mixed-1'
         onClick={() => redirect('/?currentLibrary=' + library)}
-        itemId={'nav-group-libraries-item-1' + index}
-        isActive={false}
+        itemId={'nav-group-libraries-item-' + index}
+        isActive={location.pathname == '/' && queryCurrentLibrary == library}
       >
         {library}
       </NavItem>
@@ -155,7 +161,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
           to='#nav-item-home'
           onClick={() => redirect('/')}
           itemId='ungrouped-item-1'
-          isActive={false}
+          isActive={location.pathname == '/' && queryCurrentLibrary == null}
         >
           Home
         </NavItem>
@@ -167,7 +173,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
             to='#nav-item-login'
             onClick={() => redirect('/login')}
             itemId='ungrouped-item-2'
-            isActive={false}
+            isActive={location.pathname == '/login'}
           >
             Login
           </NavItem>
@@ -182,7 +188,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
             to='#nav-item-signin'
             onClick={() => redirect('/signin')}
             itemId='ungrouped-item-3'
-            isActive={false}
+            isActive={location.pathname == '/signin'}
           >
             Sign In
           </NavItem>
@@ -191,16 +197,28 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         )}
 
         {auth.isLogged() && auth.isAdmin() ? (
-          <NavItem
-            preventDefault
-            id='nav-item-user-management'
-            to='#nav-item-user-management'
-            onClick={() => redirect('/admin')}
-            itemId='ungrouped-item-4'
-            isActive={false}
-          >
-            User Management
-          </NavItem>
+          <>
+            <NavItem
+              preventDefault
+              id='nav-item-user-management'
+              to='#nav-item-user-management'
+              onClick={() => redirect('/admin')}
+              itemId='ungrouped-item-4'
+              isActive={location.pathname == '/admin'}
+            >
+              User Management
+            </NavItem>
+            <NavItem
+              preventDefault
+              id='nav-item-test-run-plugins-presets'
+              to='#nav-item-test-run-plugins-presets'
+              onClick={() => redirect('/plugins-presets')}
+              itemId='ungrouped-item-5'
+              isActive={location.pathname == '/plugins-presets'}
+            >
+              Test Run Plugin Presets
+            </NavItem>
+          </>
         ) : (
           ''
         )}
@@ -212,7 +230,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
             to='#nav-item-user-ssh-keys'
             onClick={() => redirect('/ssh-keys')}
             itemId='ungrouped-item-5'
-            isActive={false}
+            isActive={location.pathname == '/ssh-keys'}
           >
             SSH Keys
           </NavItem>
@@ -220,7 +238,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
           ''
         )}
 
-        <NavExpandable title='Libraries' groupId='nav-group-libraries' isActive={false}>
+        <NavExpandable title='Libraries' groupId='nav-group-libraries' isExpanded={location.pathname == '/' && queryCurrentLibrary != null}>
           {getLibrariesNavItems()}
         </NavExpandable>
         <NavExpandable title='Useful Links' groupId='nav-useful-links' isActive={false}>

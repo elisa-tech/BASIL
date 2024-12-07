@@ -117,7 +117,9 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
           <DataListItemCells
             dataListCells={[
               <DataListCell key={jIndex}>
-                <span id={'clickable-action-item-' + justification.id}>{justification.description}</span>
+                <span id={'clickable-action-item-' + justification.id}>
+                  {justification.id} - {justification.description}
+                </span>
               </DataListCell>
             ]}
           />

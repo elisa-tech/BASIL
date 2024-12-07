@@ -12,8 +12,8 @@ import {
   Hint,
   HintBody,
   Radio,
-  TextInput,
-  Text
+  Text,
+  TextInput
 } from '@patternfly/react-core'
 import * as Constants from '../../Constants/constants'
 import { useAuth } from '../../User/AuthProvider'

@@ -82,10 +82,6 @@ class TestRunner:
     mapping = None
     DB_NAME = 'basil.db'
 
-    def __del__(self):
-        if self.dbi:
-            self.dbi.engine.dispose()
-
     def __init__(self, id):
         self.id = id
         self.dbi = db_orm.DbInterface(self.DB_NAME)

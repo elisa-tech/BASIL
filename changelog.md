@@ -3,19 +3,19 @@
 ## 1.5.x
 
 - Test Run Plugins
-  Adding support for gitlabCI, githubActions and KernelCI
+  Adding support for Gitlab CI, GitHub Actions, Testing Farm and KernelCI
   as external test environment. It will be possible to navigate results and to
   trigger test execution in such environments.
 - Test Run Plugins Presets. Admin will be able to define some presets configurations
   for each supported test run plugins. Users can override same value filing test requests.
-- Highlight current page on the side bar menu
+- Highlight current page on the sidebar menu
 
 ## 1.4.x
 
 - Api pagination
-- By default sort api by name, library_version instead of by id
+- By default, sort api by name, library_version instead of by id
 - Show and manage unmapped Document
-- Avoid to increate the api version on case of last_coverage (field used as cached coverage value) changes
+- Avoid to increase the api version on case of last_coverage (field used as cached coverage value) changes
 - Fix warning of Document work items
 - Fix document link
 - Fix Dockerfile-api to init tmt to configure test execution framework

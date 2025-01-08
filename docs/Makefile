@@ -4,7 +4,7 @@
 # You can set these variables from the command line, and also
 # from the environment for the first two.
 SPHINXOPTS    ?=
-SPHINXBUILD   ?= /usr/local/opt/sphinx-doc/bin/sphinx-build
+SPHINXBUILD   ?= $(shell which sphinx-build)
 SOURCEDIR     = source
 BUILDDIR      = build
 

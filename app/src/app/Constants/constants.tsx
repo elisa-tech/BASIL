@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:3001'
+export const API_BASE_URL = 'http://localhost:5000'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 

@@ -19,7 +19,7 @@ jobs:
         id: global_variables
         run: |
           echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
-          echo "CONTAINER_ID=${BRANCH_NAME}_${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "CONTAINER_ID=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -35,8 +35,9 @@ jobs:
           context: .
           file: Dockerfile-api
           push: false
+          no-cache: true
           tags: basil-api_${{ env.CONTAINER_ID }}
-          outputs: type=docker,dest=/tmp/basil-api.tar
+          outputs: type=docker,dest=/tmp/basil-api_${{ env.CONTAINER_ID }}.tar
       - name: Build App
         env:
           CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
@@ -48,8 +49,9 @@ jobs:
           context: .
           file: Dockerfile-app
           push: false
+          no-cache: true
           tags: basil-app_${{ env.CONTAINER_ID }}
-          outputs: type=docker,dest=/tmp/basil-app.tar
+          outputs: type=docker,dest=/tmp/basil-app_${{ env.CONTAINER_ID }}.tar
       - name: Upload basil-api artifact
         env:
           CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
@@ -74,7 +76,7 @@ jobs:
         id: global_variables
         run: |
           echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
-          echo "CONTAINER_ID=${BRANCH_NAME}_${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "CONTAINER_ID=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
       - name: Download basil-api artifacts
         uses: actions/download-artifact@v4
         with:

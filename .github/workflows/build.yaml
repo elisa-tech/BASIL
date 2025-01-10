@@ -8,7 +8,7 @@ on:
       uuid:
         description: 'Unique ID'
         required: false
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,19 +18,19 @@ jobs:
       - name: Print current branch
         run: echo "${BRANCH_NAME}"
         env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Api
         env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            ADMIN_PASSWORD=admin
-            API_PORT=5000
+            ADMIN_PASSWORD=dummy_password
+            API_PORT=5005
           context: .
           file: Dockerfile-api
           push: false
@@ -38,11 +38,12 @@ jobs:
           outputs: type=docker,dest=/tmp/basil-api.tar
       - name: Build App
         env:
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            API_ENDPOINT=http://localhost:5000
+            API_ENDPOINT=http://localhost:5005
+            APP_PORT=9056
           context: .
           file: Dockerfile-app
           push: false
@@ -79,11 +80,13 @@ jobs:
           docker load --input /tmp/basil-api.tar
           docker load --input /tmp/basil-app.tar
           docker image ls -a
-          docker run -d --privileged --network=host basil-api_${{ env.BRANCH_NAME }}
+          docker run -d --network=host basil-api_${{ env.BRANCH_NAME }}
           docker run -d --network=host basil-app_${{ env.BRANCH_NAME }}
           sleep 60
           docker ps
           echo "Test Api is running"
-          curl -vf http://localhost:5000/version
+          curl -vf http://localhost:5005/version
           echo "Test App is running"
-          curl -vf http://localhost:9000
+          curl -vf http://localhost:9056
+          echo "End2End Testing with Cypress on Chrome"
+          npx cypress run --browser chrome --spec cypress/e2e/login.cy.js

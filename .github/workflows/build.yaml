@@ -91,8 +91,8 @@ jobs:
         env:
           CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
         run: |
-          docker load --input /tmp/basil-api.tar
-          docker load --input /tmp/basil-app.tar
+          docker load --input /tmp/basil-api_${{ env.CONTAINER_ID }}.tar
+          docker load --input /tmp/basil-app_${{ env.CONTAINER_ID }}.tar
           docker image ls -a
           docker run -d --network=host basil-api_${{ env.CONTAINER_ID }}
           docker run -d --network=host basil-app_${{ env.CONTAINER_ID }}

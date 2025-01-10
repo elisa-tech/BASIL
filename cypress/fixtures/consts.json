@@ -1,6 +1,10 @@
 {
-  "app_base_url": "http://localhost:9000",
-  "api_base_url": "http://localhost:5000",
+  "app_base_url": "http://localhost:9056",
+  "api_base_url": "http://localhost:5005",
+  "login": {
+    "input_username": "#pf-login-username-id",
+    "input_password": "#pf-login-password-id"
+  },
   "api": {
     "modal_button_confirm_id": "#btn-modal-api-confirm",
     "table_listing_id": "#table-api-listing"
@@ -9,6 +13,13 @@
     "select_view_id": "#select-mapping-view",
     "table_matching_id": "#table-matching-sections",
     "table_unmatching_id": "#table-unmatching-sections"
+  },
+  "users": {
+    "admin": {
+      "username": "admin",
+      "password": "dummy_password",
+      "role": "ADMIN"
+    }
   },
   "long_wait": 1500,
   "fast_wait": 500

@@ -100,5 +100,4 @@ jobs:
           browser: chrome
           spec: cypress/e2e/login.cy.js
         env:
-          CYPRESS_INSTALL_BINARY: 0
           LIBGL_ALWAYS_SOFTWARE: 1

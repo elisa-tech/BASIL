@@ -63,6 +63,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Print current branch
+        run: echo "${BRANCH_NAME}"
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       - name: Download basil-api artifacts
         uses: actions/download-artifact@v4
         with:

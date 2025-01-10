@@ -95,4 +95,5 @@ jobs:
           echo "Test App is running"
           curl -vf http://localhost:9056
           echo "End2End Testing with Cypress on Chrome"
+          npm install cypress --save-dev
           npx cypress run --browser chrome --spec cypress/e2e/login.cy.js

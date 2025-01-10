@@ -21,6 +21,6 @@
       "role": "ADMIN"
     }
   },
-  "long_wait": 1500,
-  "fast_wait": 500
+  "long_wait": 5000,
+  "fast_wait": 1000
 }

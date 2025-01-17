@@ -13,14 +13,14 @@ It is possible to use a different type of database configuring the SQLAlchemy **
 
 The database is not shipped with the source code because can be generated running a python script.
 
-To generate the default empty **db/basil.db** database:
+To generate the default empty **db/sqlite3/basil.db** database:
 
 ```sh
 
 # Move to the db/models directory
 cd db && cd models
 
-# Initialize the sqlite database, you will find it in db/basil.db
+# Initialize the sqlite database, you will find it in db/sqlite3/basil.db
 pdm run python3 init_db.py
 
 ```

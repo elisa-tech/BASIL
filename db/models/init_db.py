@@ -42,10 +42,8 @@ def initialization(db_name='basil.db'):
         if os.path.exists(db_path):
             os.unlink(db_path)
 
-    engine = create_engine(f"sqlite:///{db_path}", echo=True)
-    Base.metadata.create_all(bind=engine)
-
     dbi = db_orm.DbInterface(db_name)
+    Base.metadata.create_all(bind=dbi.engine)
 
     if os.getenv('BASIL_ADMIN_PASSWORD', '') != '':
         admin_count = dbi.session.query(UserModel).filter(

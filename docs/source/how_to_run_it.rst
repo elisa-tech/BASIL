@@ -149,7 +149,7 @@ You can copy the db file locally with the following docker command:
 
 .. code-block:: bash
 
-   docker cp basil-api-container:/BASIL-API/db/basil.db </YOUR/LOCAL/LOCATION>
+   docker cp basil-api-container:/BASIL-API/db/sqlite3/basil.db </YOUR/LOCAL/LOCATION>
 
 # Stop Containers
 ^^^^^^^^^^^^^^^^^

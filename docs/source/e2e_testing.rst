@@ -17,7 +17,7 @@ From BASIL project root directory:
    pdm run api/api.py --testing
 
 
-That will create a test database **db/test.db** preventing the modification of your production db **db/basil.db**
+That will create a test database **db/test.db** preventing the modification of your production db **db/sqlite3/basil.db**
 
 
 -----------

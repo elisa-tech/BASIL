@@ -97,6 +97,7 @@ from db.models.test_specification import TestSpecificationHistoryModel, TestSpec
 from db.models.test_specification_test_case import (TestSpecificationTestCaseHistoryModel,
                                                     TestSpecificationTestCaseModel)
 from db.models.user import UserModel
+from spdx_manager import SPDXManager
 
 app = Flask("BASIL-API")
 api = Api(app)
@@ -1023,33 +1024,69 @@ class SPDXLibrary(Resource):
     fields = ['library']
 
     def get(self):
-        from spdx_manager import SPDXManager
+        request_data = request.args
 
-        args = get_query_string_args(request.args)
+        if not check_fields_in_request(self.fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
         dbi = db_orm.DbInterface(get_db())
 
         query = dbi.session.query(ApiModel).filter(
-            ApiModel.library == args['library']
+            ApiModel.library == request_data['library']
         )
         apis = query.all()
+        if not apis:
+            return f"Nothing to export, no apis found as part of library {request_data['library']}", 400
 
-        spdxManager = SPDXManager(f"SPDX-{args['library'].upper()}-EXPORT")
+        spdxManager = SPDXManager(request_data['library'])
         for api in apis:
-            spdxManager.add_api_to_export(api.id)
+            spdxManager.add_api_to_export(api)
         dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        spdx_base_path = os.path.dirname(currentdir)
-        spdx_relative_path = f"app{os.sep}public{os.sep}spdx_export"
-        spdx_filename = f"{args['library']}-{dt}.json"
-        spdx_filepath = os.path.join(spdx_base_path, spdx_relative_path, spdx_filename)
-        for iRP in range(1, len(spdx_relative_path.split(os.sep))):
-            currentRelativePath = os.sep.join(spdx_relative_path.split(os.sep)[:iRP+1])
-            if not os.path.exists(os.path.join(spdx_base_path, currentRelativePath)):
-                os.mkdir(os.path.join(spdx_base_path, currentRelativePath))
+        spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
+        spdx_filename = f"{request_data['library']}-{dt}"
+        spdx_filepath = os.path.join(spdx_public_path, spdx_filename)
+        if not os.path.exists(spdx_public_path):
+            os.makedirs(spdx_public_path, exist_ok=True)
 
         spdxManager.export(spdx_filepath)
 
-        return send_file(spdx_filepath)
+        return send_file(f"{spdx_filepath}.jsonld")
+
+
+class SPDXApi(Resource):
+    fields = ['id']
+
+    def get(self):
+        request_data = request.args
+
+        if not check_fields_in_request(self.fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        query = dbi.session.query(ApiModel).filter(
+            ApiModel.id == request_data['id']
+        )
+        try:
+            api = query.one()
+        except NoResultFound:
+            if not api:
+                return f"Nothing to export, no apis found with id {request_data['id']}", 400
+
+        spdxManager = SPDXManager(api.library)
+        spdxManager.add_api_to_export(api)
+        dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
+        spdx_filename = f"{api.library}-{api.id}-{dt}"
+        spdx_filepath = os.path.join(spdx_public_path, spdx_filename)
+        if not os.path.exists(spdx_public_path):
+            os.makedirs(spdx_public_path, exist_ok=True)
+
+        spdxManager.export(spdx_filepath)
+
+        return send_file(f"{spdx_filepath}.jsonld")
 
 
 class Comment(Resource):
@@ -6433,6 +6470,7 @@ api.add_resource(ApiHistory, '/apis/history')
 api.add_resource(ApiSpecification, '/api-specifications')
 api.add_resource(Library, '/libraries')
 api.add_resource(SPDXLibrary, '/spdx/libraries')
+api.add_resource(SPDXApi, '/spdx/apis')
 api.add_resource(Document, '/documents')
 api.add_resource(RemoteDocument, '/remote-documents')
 api.add_resource(Justification, '/justifications')

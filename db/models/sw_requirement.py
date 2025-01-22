@@ -13,6 +13,7 @@ from typing import Optional
 class SwRequirementModel(Base):
     __tablename__ = 'sw_requirements'
     __table_args__ = {"sqlite_autoincrement": True}
+    _description = 'Software Requirement'
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)

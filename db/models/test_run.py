@@ -15,6 +15,7 @@ import uuid
 class TestRunModel(Base):
     __tablename__ = "test_runs"
     __table_args__ = {"sqlite_autoincrement": True}
+    _description = 'Test Run'
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)

@@ -1,20 +1,24 @@
 #/bin/sh
 
-echo -e "\n### prepairing BASIL Demo ###\n"
+echo -e "################################"
+echo -e "### prepairing BASIL Demo ###\n"
 
-echo -e "\n### pbuilding api container ###\n"
+echo -e "################################"
+echo -e "### pbuilding api container ###\n"
 
 podman build \
   -f Containerfile-api \
   -t basil-api-image-default .
 
-echo -e "\n### pbuilding app container ###\n"
+echo -e "################################"
+echo -e "### pbuilding app container ###\n"
 
 podman build \
   -f Containerfile-app \
   -t basil-app-image-default .
 
-echo -e "\n### pcreate and mount volumes ###\n"
+echo -e "################################"
+echo -e "### pcreate and mount volumes ###\n"
 
 podman volume create basil-db-vol
 podman volume create basil-ssh-keys-vol
@@ -24,7 +28,8 @@ podman volume mount basil-db-vol
 podman volume mount basil-ssh-keys-vol
 podman volume mount basil-tmt-logs-vol
 
-echo -e "\n### pstart api container ###\n"
+echo -e "################################"
+echo -e "### pstart api container ###\n"
 
 podman run \
 -d \
@@ -32,7 +37,8 @@ podman run \
 --network=host \
 basil-api-image-default
 
-echo -e "\n### pstart app container ###\n"
+echo -e "################################"
+echo -e "### pstart app container ###\n"
 
 podman run \
 -d \
@@ -43,9 +49,11 @@ podman run \
 -v "basil-tmt-logs-vol:/var/tmp/tmt" \
 basil-app-image-default
 
-echo -e "\n### plist running containers ###\n"
+echo -e "################################"
+echo -e "### plist running containers ###\n"
 
 podman ps
 
-echo -e "\n### start now the app via chrome browser: http://localhost:9000/ ###\n"
+echo -e "################################"
+echo -e "### start now the app via chrome browser: http://localhost:9000/ ###\n"
 

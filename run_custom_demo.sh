@@ -1,24 +1,31 @@
 #/bin/sh
 
-echo -e "\n### prepairing BASIL Demo ###\n"
+echo -e "################################"
+echo -e "### prepairing BASIL Demo ###"
+echo -e "### kill all running podman container ###"
+podman stop --all
 
 api_server_url=localhost
 api_port=5000
 app_port=9000
+admin_pw=1234
 
-echo -e "\n### api_server_url = $api_server_url ###\n"
-echo -e "\n### api port = $api_port ###\n"
-echo -e "\n### app port = $app_port ###\n"
+echo -e "\n### api_server_url = $api_server_url ###"
+echo -e "### api port = $api_port ###"
+echo -e "### app port = $app_port ###"
+echo -e "### admin pw = $admin_pw ###\n"
 
-echo -e "\n### building api container ###\n"
+echo -e "################################"
+echo -e "### building api container ###\n"
 
 podman build \
-  --build-arg="ADMIN_PASSWORD=admin" \
+  --build-arg="ADMIN_PASSWORD=$admin_pw" \
   --build-arg="API_PORT=$api_port" \
   -f Containerfile-api \
   -t basil-api-image-default .
 
-echo -e "\n### building app container ###\n"
+echo -e "################################"
+echo -e "### building app container ###\n"
 
 podman build \
   --build-arg="API_ENDPOINT=http://$api_server_url:$api_port" \
@@ -26,7 +33,8 @@ podman build \
   -f Containerfile-app \
   -t basil-app-image-default .
 
-echo -e "\n### create and mount volumes ###\n"
+echo -e "################################"
+echo -e "### create and mount volumes ###\n"
 
 podman volume create basil-db-vol
 podman volume create basil-ssh-keys-vol
@@ -36,7 +44,8 @@ podman volume mount basil-db-vol
 podman volume mount basil-ssh-keys-vol
 podman volume mount basil-tmt-logs-vol
 
-echo -e "\n### start api container ###\n"
+echo -e "################################"
+echo -e "### start api container ###\n"
 
 podman run \
 -d \
@@ -44,7 +53,8 @@ podman run \
 --network=host \
 basil-api-image-default
 
-echo -e "\n### start app container ###\n"
+echo -e "################################"
+echo -e "### start app container ###\n"
 
 podman run \
 -d \
@@ -55,9 +65,11 @@ podman run \
 -v "basil-tmt-logs-vol:/var/tmp/tmt" \
 basil-app-image-default
 
-echo -e "\n### list running containers ###\n"
+echo -e "################################"
+echo -e "### list running containers ###\n"
 
 podman ps
 
-echo -e "\n### start now the app via chrome browser: http://$api_server_url:$app_port ###\n"
+echo -e "################################"
+echo -e "### start now the app via chrome browser: http://$api_server_url:$app_port ###\n"
 

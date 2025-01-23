@@ -12,6 +12,7 @@ from sqlalchemy.orm import relationship
 class TestCaseModel(Base):
     __tablename__ = "test_cases"
     __table_args__ = {"sqlite_autoincrement": True}
+    _description = 'Test Case'
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)

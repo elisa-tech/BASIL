@@ -13,6 +13,7 @@ from typing import Optional
 class TestRunConfigModel(Base):
     __tablename__ = "test_run_configs"
     __table_args__ = {"sqlite_autoincrement": True}
+    _description = 'Test Run Configuration'
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)

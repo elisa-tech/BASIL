@@ -13,6 +13,7 @@ from typing import Optional
 class JustificationModel(Base):
     __tablename__ = 'justifications'
     __table_args__ = {"sqlite_autoincrement": True}
+    _description = 'Justification'
     extend_existing = True
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
                                     primary_key=True)

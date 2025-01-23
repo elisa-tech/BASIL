@@ -1,6 +1,7 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
 import { Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core'
+import { APIExportSPDXModal } from '../Dashboard/Modal/APIExportSPDXModal'
 import { MappingListingTable } from './MappingListingTable'
 import { MappingSwRequirementModal } from './Modal/MappingSwRequirementModal'
 import { MappingTestSpecificationModal } from './Modal/MappingTestSpecificationModal'
@@ -55,6 +56,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [modalSection, setModalSection] = React.useState('')
   const [modalOffset, setModalOffset] = React.useState('')
 
+  const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false)
+  const [SPDXContent, setSPDXContent] = React.useState('')
+
   const [srModalShowState, setSrModalShowState] = React.useState<boolean>(false)
   const [tsModalShowState, setTsModalShowState] = React.useState<boolean>(false)
   const [tcModalShowState, setTcModalShowState] = React.useState<boolean>(false)
@@ -84,6 +88,18 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestSpecifications, setShowIndirectTestSpecifications] = React.useState<boolean>(true)
   const [showIndirectTestCasesOld, setShowIndirectTestCasesOld] = React.useState<boolean>(true)
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
+
+  const exportSPDX = () => {
+    fetch(Constants.API_BASE_URL + '/spdx/apis?id=' + api.id)
+      .then((res) => res.json())
+      .then((data) => {
+        setSPDXContent(JSON.stringify(data, null, 2))
+        setModalSPDXExportShowState(true)
+      })
+      .catch((err) => {
+        console.log(err.message)
+      })
+  }
 
   const getWorkItemDescription = (_work_item_type) => {
     const work_item_types = [Constants._A, Constants._D, Constants._J, Constants._SR, Constants._TS, Constants._TC]
@@ -382,6 +398,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               </Flex>
               {api?.permissions?.indexOf('w') >= 0 ? (
                 <Flex align={{ default: 'alignRight' }}>
+                  <FlexItem>
+                    <Button id='btn-export-sw-component-to-spdx' variant='secondary' onClick={() => exportSPDX()}>
+                      Export to SPDX
+                    </Button>
+                  </FlexItem>
                   <FlexItem>
                     <Button
                       variant='secondary'
@@ -685,6 +706,12 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         modalShowState={testRunModalShowState}
         modalRelationData={modalRelationData}
         parentType={modalParentType}
+      />
+      <APIExportSPDXModal
+        SPDXContent={SPDXContent}
+        setSPDXContent={setSPDXContent}
+        modalShowState={modalSPDXExportShowState}
+        setModalShowState={setModalSPDXExportShowState}
       />
     </React.Fragment>
   )

@@ -33,7 +33,7 @@ jobs:
             ADMIN_PASSWORD=dummy_password
             API_PORT=5005
           context: .
-          file: Dockerfile-api
+          file: Containerfile-api
           push: false
           no-cache: true
           tags: basil-api_${{ env.CONTAINER_ID }}
@@ -47,7 +47,7 @@ jobs:
             API_ENDPOINT=http://localhost:5005
             APP_PORT=9056
           context: .
-          file: Dockerfile-app
+          file: Containerfile-app
           push: false
           no-cache: true
           tags: basil-app_${{ env.CONTAINER_ID }}

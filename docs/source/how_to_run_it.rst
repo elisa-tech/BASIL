@@ -35,17 +35,22 @@ So it is suggested to use those images for evaluation or to modify them, changin
 You can build the API project using the Containerfile-api.
 
 Building this container you will also initialize the database.
+BASIL default configuration will start the api project on the port 5000 and will
+create an ADMIN user with name **admin** and password **admin**.
 
-If you need to host BASIL on a server you should specify following build argument:
+.. code-block:: bash
+
+   podman build \
+      -f Containerfile-api \
+      -t basil-api-image-default .
+
+You can customize your container, configuring a different port and admin password using following 
+build arguments:
 
  + API_PORT (default is 5000)
+ + ADMIN_PASSWORD (default is **admin**) 
 
-BASIL will be configured with an admin user named **admin**.
-You can specify the **admin** user password with the following build argument:
-
- + ADMIN_PASSWORD (default is **admin**)
-
-Here an example of podman container build command:
+Here an example of a build command for a custom container:
 
 .. code-block:: bash
 
@@ -58,7 +63,18 @@ Here an example of podman container build command:
 
 At the same way you can build the APP project using Containerfile-app
 
-To be able to reach the API project you need to specify the following build argument:
+The default configuration will start the web application on the port 9000 and 
+will try to communicate with the api project on the port 5000.
+
+.. code-block:: bash
+
+   podman build \
+      -f Containerfile-app \
+      -t basil-app-image-default .
+
+
+You can customize your container specifying a differnt api endpoint and application port
+using the following build arguments:
 
  + API_ENDPOINT (e.g. http://api-server-it:yourport)
  + APP_PORT
@@ -93,7 +109,18 @@ In order to keep persistent data across deployments you can specify following vo
 # Start the Containers
 ^^^^^^^^^^^^^^^^^^^^^^
 
-You can start the API Container above created with the name **basil-api-image** with the following command
+You can start the api default container above created with the following command:
+
+.. code-block:: bash
+
+  podman run \
+    -d \
+    --privileged \
+    --network=host \
+    basil-api-image-def
+
+
+Here an example of usage of volumes:
 
 .. code-block:: bash
 
@@ -104,21 +131,19 @@ You can start the API Container above created with the name **basil-api-image** 
     -v "basil-db-vol:/BASIL-API/db/sqlite3" \
     -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
     -v "basil-tmt-logs-vol:/var/tmp/tmt" \
-    --name basil-api-container \
     basil-api-image
 
 
 the ``--privileged`` options is needed to be able to run fedora container as a possible testing environment inside api container.
 
-You can start the APP Container above created with the name **basil-app-image** with the following command
+You can start the app default container above created with the following command
 
 .. code-block:: bash
 
    podman run \
       -d \
       --network=host \
-      --name basil-app-container \ 
-      basil-app-image
+      basil-app-image-def
 
 
 # Check Containers Status
@@ -143,6 +168,15 @@ You can inspect an image overriding the --entrypoint
       --tty \
       --network=host \
       --entrypoint=/bin/bash <YOUR IMAGE>
+
+Once you are inside the api container you can, as an example, read the database to check your data.
+To do that you need to install **sqlite3** that is not installed by default and then
+connect to the db:
+
+.. code-block:: bash
+
+   dnf install -y sqlite3
+   sqlite3 db/sqlite3/basil.db
 
 
 # Backup BASIL DB from Container

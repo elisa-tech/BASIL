@@ -41,10 +41,11 @@ podman run \
 -v "basil-db-vol:/BASIL-API/db/sqlite3" \
 -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
 -v "basil-tmt-logs-vol:/var/tmp/tmt" \
-basil-api-image-default
+basil-app-image-default
 
 echo -e "\n### plist running containers ###\n"
 
 podman ps
 
-echo -e "\n### start now the app via chrome browser: http://IP:APP-Port ###\n"
+echo -e "\n### start now the app via chrome browser: http://localhost:9000/ ###\n"
+

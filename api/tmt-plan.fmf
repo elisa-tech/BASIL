@@ -15,12 +15,20 @@ discover: []
 
 adjust:
   - discover+:
-    - name: General purpose discover
+    - name: General purpose discover from remote repo
       how: fmf
       url: $basil_test_repo_url
       ref: $basil_test_repo_ref
       test:
         - $basil_test_relative_path
+    when: plan_type == remote or plan_type is not defined
+  - discover+:
+    - name: General purpose discover from api machine
+      how: fmf
+      path: $basil_test_repo_url
+      test:
+        - $basil_test_relative_path
+    when: plan_type == local
     
 execute:
   how: tmt

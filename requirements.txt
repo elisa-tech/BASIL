@@ -8,6 +8,6 @@ pyaml-env==1.2.1
 python-gitlab==3.15.0
 requests==2.28.2
 spdx-tools==0.8.3
-tmt==1.31.0
+tmt==1.36.0
 tmt[provision-container]
 Werkzeug==2.2.2

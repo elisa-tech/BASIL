@@ -33,7 +33,7 @@ export const document_type = [
 
 export const provision_type = [
   { value: '', label: '', disabled: false },
-  { value: 'container', label: 'Fedora Container', disabled: false },
+  { value: 'container', label: 'Container', disabled: false },
   { value: 'connect', label: 'SSH', disabled: false }
 ]
 

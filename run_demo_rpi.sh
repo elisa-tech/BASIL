@@ -7,7 +7,7 @@
 #   SMP PREEMPT Debian 1:6.6.51-1+rpt3 (2024-10-08) aarch64 GNU/Linux"
 #   Raspbian GNU/Linux 12
 
-api_server_url=localhost
+api_server_url=http://localhost
 api_port=5000
 app_port=9000
 admin_pw=1234
@@ -26,7 +26,7 @@ usage()
         -f APP_PORT         App (frontend) port                        
         -p ADMIN_PASSWRORD  Admin user default password (username: admin)
                             use single quote around your password
-        -u URL              Url, depending on the raspberry ip address in the local
+        -u URL              Full base url, depending on the raspberry ip address in the local
                             network (e.g.: http://192.168.1.15)
         
         example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
@@ -81,7 +81,7 @@ echo -e "\n###################################################################"
 echo -e "### building app container\n"
 
 podman build \
-  --build-arg="API_ENDPOINT=http://${api_server_url}:${api_port}" \
+  --build-arg="API_ENDPOINT=${api_server_url}:${api_port}" \
   --build-arg="APP_PORT=${app_port}" \
   -f Containerfile-app \
   -t basil-app-image-rpi .
@@ -119,9 +119,8 @@ echo -e "### start app container\n"
 
 podman run \
    -d \
-   --privileged \
    --network=host \
-   basil-app-image-default
+   basil-app-image-rpi
 
 echo -e "\n###################################################################"
 echo -e "### list running containers\n"
@@ -129,4 +128,4 @@ echo -e "### list running containers\n"
 podman ps
 
 echo -e "\n###################################################################"
-echo -e "### start now BASIL via chrome browser: http://${api_server_url}:${app_port}\n"
+echo -e "### start now BASIL via chrome browser: ${api_server_url}:${app_port}\n"

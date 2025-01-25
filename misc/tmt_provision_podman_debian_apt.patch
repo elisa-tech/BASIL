@@ -1,0 +1,9 @@
+--- package_managers/apt.py
++++ package_managers/apt_modified.py
+@@ -53,6 +53,7 @@ class Apt(tmt.package_managers.PackageManager):
+         return (command, options)
+ 
+     def _enable_apt_file(self) -> None:
++        self.guest.execute(ShellScript(f'{self._sudo_prefix} apt update'))
+         self.install(Package('apt-file'))
+         self.guest.execute(ShellScript(f'{self._sudo_prefix} apt-file update'))

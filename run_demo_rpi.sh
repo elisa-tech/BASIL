@@ -29,11 +29,11 @@ usage()
         -u URL              Url, depending on the raspberry ip address in the local
                             network (e.g.: http://192.168.1.15)
         
-        example: ${0##*/} -b 5005 -u 'http://198.162.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
+        example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
 
-        BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://198.162.1.15:9005
-        BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://198.162.1.15:5005
-        To test the Api you can check the /version endpoint e.g. http://198.162.1.15:5005/version
+        BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://192.168.1.15:9005
+        BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://192.168.1.15:5005
+        To test the Api you can check the /version endpoint e.g. http://192.168.1.15:5005/version
 
 	EOF
 exit 0
@@ -63,17 +63,17 @@ echo -e "### prepairing BASIL Demo for Raspberry Pi Debian "
 echo -e "### kill all running podman container\n"
 podman stop --all
 
-echo -e "\n### api_server_url = $api_server_url"
-echo -e "### api port = $api_port"
-echo -e "### app port = $app_port"
-echo -e "### admin pw = $admin_pw"
-
-exit 0;
+echo -e "\n### api_server_url = ${api_server_url}"
+echo -e "### api port = ${api_port}"
+echo -e "### app port = ${app_port}"
+echo -e "### admin pw = ${admin_pw}"
 
 echo -e "\n###################################################################"
 echo -e "### building api container\n"
 
 podman build \
+  --build-arg="ADMIN_PASSWORD=${admin_pw}" \
+  --build-arg="API_PORT=${api_port}" \
   -f Containerfile-api-rpi \
   -t basil-api-image-rpi .
 
@@ -81,6 +81,8 @@ echo -e "\n###################################################################"
 echo -e "### building app container\n"
 
 podman build \
+  --build-arg="API_ENDPOINT=http://${api_server_url}:${api_port}" \
+  --build-arg="APP_PORT=${app_port}" \
   -f Containerfile-app \
   -t basil-app-image-rpi .
 
@@ -127,4 +129,4 @@ echo -e "### list running containers\n"
 podman ps
 
 echo -e "\n###################################################################"
-echo -e "### start now the app via chrome browser: http://localhost:9000/\n"
+echo -e "### start now BASIL via chrome browser: http://${api_server_url}:${app_port}\n"

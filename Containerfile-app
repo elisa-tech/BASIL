@@ -3,13 +3,15 @@ USER root
 RUN mkdir BASIL-APP
 COPY ./app /BASIL-APP
 WORKDIR /BASIL-APP
+
 # Set the public ip
-ARG API_ENDPOINT=http://localhost:5000
-ARG APP_PORT=9000
+ARG API_ENDPOINT=http://localhost:5000 \
+    APP_PORT=9000
+
 RUN sed -i "s#http://localhost:5000#${API_ENDPOINT}#g" src/app/Constants/constants.tsx && \
-    sed -i "s#--port 9000#--port ${APP_PORT}#g" package.json
-RUN npm install -d --verbose
-RUN npm run build
+    sed -i "s#--port 9000#--port ${APP_PORT}#g" package.json && \
+    npm install -d --verbose && \
+    npm run build
 
 # In case of reverse proxy
 # RUN sed -i "s/src=\"\//src=\"/g" dist/index.html

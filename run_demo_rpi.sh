@@ -92,12 +92,12 @@ echo -e "### create and mount volumes\n"
 list='basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol'
 for element in $list;
 do
-    exists="$(podman volume exists "${element}")"   # check if volume already exists
-    if [ "${exists}" ]; then
+    podman volume exists "${element}"   # check if volume already exists
+    if [ $? == 0 ]; then
+       echo "volume "${element}" already exists"
+    else
        echo "volume $element does not exist"
        podman volume create "${element}"
-    else
-       echo "volume "${element}" already exists"
     fi
     podman volume mount "${element}"
 done
@@ -109,6 +109,9 @@ podman run \
    -d \
    --privileged \
    --network=host \
+   -v "basil-db-vol:/BASIL-API/db/sqlite3" \
+   -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
+   -v "basil-tmt-logs-vol:/var/tmp/tmt" \
    basil-api-image-rpi
 
 echo -e "\n###################################################################"
@@ -118,9 +121,6 @@ podman run \
    -d \
    --privileged \
    --network=host \
-   -v "basil-db-vol:/BASIL-API/db/sqlite3" \
-   -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
-   -v "basil-tmt-logs-vol:/var/tmp/tmt" \
    basil-app-image-default
 
 echo -e "\n###################################################################"

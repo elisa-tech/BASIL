@@ -8,7 +8,7 @@ api_port=5000
 app_port=9000
 admin_pw=1234
 
-OPTSTRING=":b:d:f:h:p:u"
+OPTSTRING=":b:d:f:p:u:h"
 
 usage()
 {

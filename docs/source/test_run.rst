@@ -162,10 +162,10 @@ You can create a new one or re-use an existing one.
 
 BASIL *tmt* plugin supports 2 different provisioning types:
 
- + Fedora Container
+ + Container
  + Remote machine via SSH
 
-To be able to run a test in a Fedora Container you should deploy BASIL following the instruction provided in **How to run it**.
+To be able to run a test in a Container (Fedora or Debian depending on your deployment) you should deploy BASIL following the instruction provided in **How to run it**.
 We will see in details both provisioning types, but let take a look to other fields that you can specify in this page.
 
  + Title
@@ -194,10 +194,10 @@ Pay attention that BASIL is automatically exporting some environment variables t
 Any other environment variable can be added by default in your BASIL instance customizing the api/testrun_tmt.py file at TestRunnerTmtPlugin() class initialization.
 
 
-# Test in Fedora Container
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Test in Container
+^^^^^^^^^^^^^^^^^^^
 
-Selecting **Fedora Container** as provisioning type you will trigger the execution against that environment that runs as part of the BASIL deployment.
+Selecting **Container** as provisioning type you will trigger the execution against that environment that runs as part of the BASIL deployment.
 That is possible thanks to the package tmt[provision-container].
 
 .. image:: _static/_images/test_run_config_container.png

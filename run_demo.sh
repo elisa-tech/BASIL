@@ -14,7 +14,7 @@ usage()
 {
     cat <<-EOF >&2
 
-        BASIL Deployment script for Raspberry Pi in a local network
+        BASIL Deployment script
 
         usage: ${0##*/} [ -b API_PORT ] [ -u URL ] [ -f APP_PORT ] [ -p ADMIN_PASSWRORD ]
         
@@ -25,8 +25,10 @@ usage()
         -f APP_PORT         App (frontend) port                        
         -p ADMIN_PASSWRORD  Admin user default password (username: admin)
                             use single quote around your password
-        -u URL              Full base url, depending on the raspberry ip address in the local
-                            network (e.g.: http://192.168.1.15)
+        -u URL              Full base url
+                            - http://localhost if you want to evaluate it on your machine
+                            - http://<ip address> if you want to use a centralized machine 
+                            in the local network (e.g.: http://192.168.1.15)
         
         example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
 
@@ -63,7 +65,7 @@ while getopts ${OPTSTRING} opt; do
 done
 
 echo -e "\n###################################################################"
-echo -e "### prepairing BASIL Demo for Raspberry Pi Debian "
+echo -e "### prepairing BASIL deployment "
 echo -e "### kill all running podman container\n"
 
 podman stop --all

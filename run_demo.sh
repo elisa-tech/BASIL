@@ -77,9 +77,9 @@ echo -e "### admin pw = ${admin_pw}"
 echo -e "\n###################################################################"
 echo -e "### building api container\n"
 
-api_containerfile=Container-api-fedora
+api_containerfile=Containerfile-api-fedora
 if [ ${api_distro} == "debian" ]; then
-  api_containerfile=Container-api-debian
+  api_containerfile=Containerfile-api-debian
 fi
 
 podman build \

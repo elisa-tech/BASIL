@@ -1,14 +1,19 @@
-#/bin/sh
+#!/bin/bash
 
 # Example BASIL deployment script
 
 api_server_url=http://localhost
 api_distro=fedora
+api_containerfile=Containerfile-api-fedora
 api_port=5000
 app_port=9000
 admin_pw=1234
 
 OPTSTRING=":b:d:f:p:u:h"
+TITLE_COLOR_STR="\033[0;92;40m"
+BODY_COLOR_STR="\033[0;97;40m"
+ALERT_COLOR_STR="\033[0;31;40m"
+RESET_COLORS_STR="\033[0m"
 
 usage()
 {
@@ -41,109 +46,139 @@ exit 0
 }
 
 while getopts ${OPTSTRING} opt; do
-  case ${opt} in
-    b)
-      api_port=${OPTARG}
-      ;;
-    d)
-      if [ ${OPTARG} == "debian" ]; then
-        api_distro=debian
-      fi
-      ;;
-    f)
-      app_port=${OPTARG}
-      ;;
-    p)
-      admin_pw=${OPTARG}
-      ;;
-    u)
-      api_server_url=${OPTARG}
-      ;;
-    h)
-      usage
-  esac
+    case ${opt} in
+        b)
+        api_port=${OPTARG}
+        ;;
+        d)
+        if [ ${OPTARG} == "debian" ]; then
+            api_distro=debian
+            api_containerfile=Containerfile-api-debian
+        fi
+        ;;
+        f)
+        app_port=${OPTARG}
+        ;;
+        p)
+        admin_pw=${OPTARG}
+        ;;
+        u)
+        api_server_url=${OPTARG}
+        ;;
+        h)
+        usage
+    esac
 done
 
-echo -e "\n###################################################################"
-echo -e "### prepairing BASIL deployment "
-echo -e "### kill all running podman container\n"
+echo -e "${TITLE_COLOR_STR}"
+clear
+echo -e "###################################################################"
+echo -e "###                 Prepairing BASIL deployment"
+echo -e "###################################################################"
 
+echo -e "${TITLE_COLOR_STR}\n> kill all running podman container\n${BODY_COLOR_STR}"
 podman stop --all
 
-echo -e "\n### api_server_url = ${api_server_url}"
-echo -e "### api distro = ${api_distro}"
-echo -e "### api port = ${api_port}"
-echo -e "### app port = ${app_port}"
-echo -e "### admin pw = ${admin_pw}"
+echo -e "${TITLE_COLOR_STR}\n> Parameters\n${BODY_COLOR_STR}"
+echo -e " - api_server_url = ${api_server_url}"
+echo -e " - api distro = ${api_distro}"
+echo -e " - api port = ${api_port}"
+echo -e " - app port = ${app_port}"
+echo -e " - admin pw = ${admin_pw}"
 
-echo -e "\n###################################################################"
-echo -e "### building api container\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 Building API container"
+echo -e "###################################################################"
 
-api_containerfile=Containerfile-api-fedora
-if [ ${api_distro} == "debian" ]; then
-  api_containerfile=Containerfile-api-debian
-fi
-
+echo -e "\n${BODY_COLOR_STR}"
 podman build \
-  --build-arg="ADMIN_PASSWORD=${admin_pw}" \
-  --build-arg="API_PORT=${api_port}" \
-  -f ${api_containerfile} \
-  -t basil-api-image .
+    --build-arg="ADMIN_PASSWORD=${admin_pw}" \
+    --build-arg="API_PORT=${api_port}" \
+    -f ${api_containerfile} \
+    -t basil-api-image .
 
-echo -e "\n###################################################################"
-echo -e "### building app container\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 Building APP container"
+echo -e "###################################################################"
 
+echo -e "\n${BODY_COLOR_STR}"
 podman build \
-  --build-arg="API_ENDPOINT=${api_server_url}:${api_port}" \
-  --build-arg="APP_PORT=${app_port}" \
-  -f Containerfile-app \
-  -t basil-app-image .
+    --build-arg="API_ENDPOINT=${api_server_url}:${api_port}" \
+    --build-arg="APP_PORT=${app_port}" \
+    -f Containerfile-app \
+    -t basil-app-image .
 
-echo -e "\n###################################################################"
-echo -e "### create and mount volumes\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 Create and mount volumes"
+echo -e "###################################################################"
 
+echo -e "\n${BODY_COLOR_STR}"
 list='basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol'
 for element in $list;
 do
-    podman volume exists "${element}"   # check if volume already exists
+    podman volume exists "${element}"  # check if volume already exists
     if [ $? == 0 ]; then
-       echo "volume "${element}" already exists"
+        echo "volume "${element}" already exists"
+        if [ "${element}" == "basil-db-vol" ]; then
+            echo -e "${ALERT_COLOR_STR}API container will use existing db volume ${element}."
+            echo -e "The admin password is the one in the existing volume ${element}."
+            echo -e "To set and use the password '${admin_pw}', please delete/rename the existing volume ${element}."
+            echo -e "\n${BODY_COLOR_STR}"
+        fi
     else
-       echo "volume $element does not exist"
-       podman volume create "${element}"
+        echo "volume $element does not exist"
+        podman volume create "${element}"
     fi
-    podman volume mount "${element}"
+    podman volume mount "${element}" || true
 done
 
-echo -e "\n###################################################################"
-echo -e "### install cronjobs\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 Install cronjobs"
+echo -e "###################################################################"
 
-cp -a misc/cronjobs/daily/. /etc/cron.daily/
+echo -e "\n${BODY_COLOR_STR}"
+cp -va misc/cronjobs/daily/. /etc/cron.daily/
 
-echo -e "\n###################################################################"
-echo -e "### start api container\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 Start API container"
+echo -e "###################################################################"
 
+echo -e "\n${BODY_COLOR_STR}"
 podman run \
-   -d \
-   --privileged \
-   --network=host \
-   -v "basil-db-vol:/BASIL-API/db/sqlite3" \
-   -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
-   -v "basil-tmt-logs-vol:/var/tmp/tmt" \
-   basil-api-image
+    -d \
+    --privileged \
+    --network=host \
+    -v "basil-db-vol:/BASIL-API/db/sqlite3" \
+    -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
+    -v "basil-tmt-logs-vol:/var/tmp/tmt" \
+    basil-api-image
 
-echo -e "\n###################################################################"
-echo -e "### start app container\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 Start APP container"
+echo -e "###################################################################"
 
+echo -e "\n${BODY_COLOR_STR}"
 podman run \
-   -d \
-   --network=host \
-   basil-app-image
+    -d \
+    --network=host \
+    basil-app-image
 
-echo -e "\n###################################################################"
-echo -e "### list running containers\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "###                 List running containers"
+echo -e "###################################################################"
 
+echo -e "\n${BODY_COLOR_STR}"
 podman ps
 
-echo -e "\n###################################################################"
-echo -e "### start now BASIL via chrome browser: ${api_server_url}:${app_port}\n"
+echo -e "\n${TITLE_COLOR_STR}"
+echo -e "###################################################################"
+echo -e "### Start now BASIL via chrome browser: ${ALERT_COLOR_STR}${api_server_url}:${app_port}"
+echo -e "${TITLE_COLOR_STR}###################################################################"
+echo -e "${RESET_COLORS_STR}"

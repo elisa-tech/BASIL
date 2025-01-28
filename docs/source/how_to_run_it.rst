@@ -23,25 +23,47 @@ Architecture
 Podman Containers
 -----------------
 
-You can deploy BASIL via podman using Containerfile-api and Containerfile-app provided as part of the source code.
+`run_demo.sh` is an example script that can be used to deploy a BASIL instance.
+It comes with a default configuration but relevant parameters can be changed using different arguments.
+To see all the possible parameters that can be changed, run the following command:
 
-Or you can download images built in the [GitHub actions](https://github.com/elisa-tech/BASIL/actions).
+.. code-block:: bash
+
+   ./run_demo.sh -h
+
+Here and example command to deploy BASIL using Debian on a Raspberry Pi that is available at the ip 192.168.1.13 in a local netowork with API running on port 5005, APP running on port 9005, and admin password eqaul to **dummy_password**
+
+.. code-block:: bash
+   
+   sudo ./run_demo.sh -b 5005 -f 9005 -d debian -p 'dummy_password' -u http://192.168.1.13
+
+Here and example command to deploy BASIL for evaluation on localhost with default configuration.
+
+.. code-block:: bash
+
+   sudo ./run_demo.sh
+
+In this case API will run on port 5000, APP on port 9000 and admin default password is **1234**.
+
+BASIL can be also deployed building Containerfile-api-fedora (or Containerfile-api-debian) and Containerfile-app provided as part of the source code.
+
+For evaluation purposes it is also possible to use images built in the repository [CI](https://github.com/elisa-tech/BASIL/actions).
 Pay attention that those images are built with default value of build argument, as an example the ADMIN user password.
-So it is suggested to use those images for evaluation or to modify them, changing critical informations before deploiying a BASIL instance.
+So it is recommended to modify them, changing critical informations before deploiying a BASIL instance.
 
 # Build the Containers
 ^^^^^^^^^^^^^^^^^^^^^^
 
-You can build the API project using the Containerfile-api.
+The API project can be built using the Containerfile-api-fedora (or Container-file-debian) file.
 
-Building this container you will also initialize the database.
+This process will also initialize the database.
 BASIL default configuration will start the api project on the port 5000 and will
 create an ADMIN user with name **admin** and password **admin**.
 
 .. code-block:: bash
 
    podman build \
-      -f Containerfile-api \
+      -f Containerfile-api-fedora \
       -t basil-api-image-default .
 
 You can customize your container, configuring a different port and admin password using following 
@@ -57,9 +79,8 @@ Here an example of a build command for a custom container:
    podman build \
       --build-arg="ADMIN_PASSWORD=your-desired-password" \
       --build-arg="API_PORT=1234" \
-      -f Containerfile-api \
+      -f Containerfile-api-fedora \
       -t basil-api-image .
-
 
 At the same way you can build the APP project using Containerfile-app
 
@@ -117,7 +138,7 @@ You can start the api default container above created with the following command
     -d \
     --privileged \
     --network=host \
-    basil-api-image-def
+    basil-api-image-default
 
 
 Here an example of usage of volumes:
@@ -134,7 +155,7 @@ Here an example of usage of volumes:
     basil-api-image
 
 
-the ``--privileged`` options is needed to be able to run fedora container as a possible testing environment inside api container.
+the ``--privileged`` options is needed to be able to run fedora (or debian) container as a possible testing environment inside api container.
 
 You can start the app default container above created with the following command
 
@@ -143,7 +164,7 @@ You can start the app default container above created with the following command
    podman run \
       -d \
       --network=host \
-      basil-app-image-def
+      basil-app-image-default
 
 
 # Check Containers Status
@@ -182,12 +203,21 @@ connect to the db:
 # Backup BASIL DB from Container
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Only the API project is able to interact with the database and due to that you should refer to the **basil-api** container.
+BASIL default sqlite3 database is part of the API project and due to that you should refer to the **basil-api** container.
 You can copy the db file locally with the following command:
 
 .. code-block:: bash
 
    podman cp basil-api-container:/BASIL-API/db/sqlite3/basil.db </YOUR/LOCAL/LOCATION>
+
+or you can backup the podman volume if you have configured it
+
+.. code-block:: bash
+
+   podman volume export basil-db-vol --output basil-db-vol_$(date '+%Y%m%d_%H%M').tar
+
+We also provide a cronjob in the **misc/cronjobs/daily** folder that can be installed in the **/etc/cron.daily** folder of 
+the machine running the api container to automatically backup the database volume each day.
 
 # Stop Containers
 ^^^^^^^^^^^^^^^^^

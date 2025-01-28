@@ -24,7 +24,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build Api
+      - name: Build Api - fedora
         env:
           CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
         uses: docker/build-push-action@v6
@@ -33,11 +33,24 @@ jobs:
             ADMIN_PASSWORD=dummy_password
             API_PORT=5005
           context: .
-          file: Containerfile-api
+          file: Containerfile-api-fedora
           push: false
           no-cache: true
           tags: basil-api_${{ env.CONTAINER_ID }}
           outputs: type=docker,dest=/tmp/basil-api_${{ env.CONTAINER_ID }}.tar
+      - name: Build Api - debian
+        env:
+          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            ADMIN_PASSWORD=dummy_password
+            API_PORT=5005
+          context: .
+          file: Containerfile-api-debian
+          push: false
+          no-cache: true
+          tags: basil-api-debian_${{ env.CONTAINER_ID }}
       - name: Build App
         env:
           CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}

@@ -2,15 +2,32 @@
 
 # BASIL
 
-A tool developed to manage software related work items, design their traceability towards specifications and ensure completeness of analysis.
+A tool developed to manage software related work items, design their traceability towards specifications and source code and ensure completeness of analysis.
 
-It comes with a web user interface to provide a simplified view of work item relationships and with a REST web api to simplify the integration in other toolchains.
+It comes with a web user interface to provide a simplified view of work item relationships and with a REST api to simplify the integration in other toolchains.
 
 ## What is it for?
 
 With BASIL you can decompose a Software Component Specification (or source code directly) in snippets and assign to each one a set of desired work items.
 
 BASIL will help you on identifying gaps and on tracking progress.
+
+## Differentiating Factors
+
+- Web User Interface
+- HTTP REST Api (to simplify integration in automated workflows)
+- User management
+- Granular user permissions (e.g restrict access to critical info or provide read account to an assessor)
+- Manage multiple work items in the same place (see **Supported Work Items**)
+- Work items history and lifecycle (keep track of any changes and support work items states like new, in progress, in review, ...)
+- Test Infratructure (To run your test and track results in the same place where you define requirements)
+- Support multiple test environment (Container, Virtual Machines, Physical Hardwares)
+- Trace tests executed on external test infrastructures (GitlabCI, Github Actions, Testing Farm, KernelCI)
+- Collaboration (comments, notifications)
+- Clarifies gaps (each relationship support a percentage of completeness)
+- Impact analysis of specification changes and automatic fix of warnings
+- Parallelize teams work (supporting multiple mapping views)
+- Export in SPDX Model 3
 
 ## Supported Work Items
 
@@ -43,14 +60,12 @@ to test cases.
 
 ## How to run it
 
-BASIL consists of 2 sub projects, follow links for further details:
+BASIL consists of 2 sub projects
 
-- api - [README](api/README.md)
-- app - [README](app/README.md)
+- API - Python Flask backend
+- APP - React Patternfly frontend
 
-Moreover you need to init a database to be able to use BASIL:
-
-- db - [README](db/README.md)
+To run those applications, you can follow instructions provided into the [documentation](https://basil-the-fusa-spice.readthedocs.io/en/latest/how_to_run_it.html).
 
 ## Documentation
 

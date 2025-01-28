@@ -19,6 +19,7 @@ BASIL will help you on identifying gaps and on tracking progress.
 - User management
 - Granular user permissions (e.g restrict access to critical info or provide read account to an assessor)
 - Manage multiple work items in the same place (see **Supported Work Items**)
+- Reuse work items across software components and libraries
 - Work items history and lifecycle (keep track of any changes and support work items states like new, in progress, in review, ...)
 - Test Infratructure (To run your test and track results in the same place where you define requirements)
 - Support multiple test environment (Container, Virtual Machines, Physical Hardwares)

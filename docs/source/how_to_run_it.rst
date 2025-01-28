@@ -24,12 +24,26 @@ Podman Containers
 -----------------
 
 `run_demo.sh` is an example script that can be used to deploy a BASIL instance.
-It comes with a default configuration but relevant parameter can be changed using different arguments.
-To see all the possible parameter that can be changed, run the following command:
+It comes with a default configuration but relevant parameters can be changed using different arguments.
+To see all the possible parameters that can be changed, run the following command:
 
 .. code-block:: bash
 
    ./run_demo.sh -h
+
+Here and example command to deploy BASIL using Debian on a Raspberry Pi that is available at the ip 192.168.1.13 in a local netowork with API running on port 5005, APP running on port 9005, and admin password eqaul to **dummy_password**
+
+.. code-block:: bash
+   
+   sudo ./run_demo.sh -b 5005 -f 9005 -d debian -p 'dummy_password' -u http://192.168.1.13
+
+Here and example command to deploy BASIL for evaluation on localhost with default configuration.
+
+.. code-block:: bash
+
+   sudo ./run_demo.sh
+
+In this case API will run on port 5000, APP on port 9000 and admin default password is **1234**.
 
 BASIL can be also deployed building Containerfile-api-fedora (or Containerfile-api-debian) and Containerfile-app provided as part of the source code.
 

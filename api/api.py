@@ -97,7 +97,7 @@ from db.models.test_specification import TestSpecificationHistoryModel, TestSpec
 from db.models.test_specification_test_case import (TestSpecificationTestCaseHistoryModel,
                                                     TestSpecificationTestCaseModel)
 from db.models.user import UserModel
-from spdx_manager import SPDXManager
+from spdx_manager import SPDXImport, SPDXManager
 
 app = Flask("BASIL-API")
 api = Api(app)
@@ -3606,6 +3606,49 @@ class ApiSwRequirementsMapping(Resource):
         return True
 
 
+class SwRequirementImport(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+
+        if "file_content" not in request_data:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        spdx_importer = SPDXImport()
+        return spdx_importer.getBasilSwRequirementsToSelect(request_data["file_content"])
+
+    def put(self):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(['file_content', 'filter_ids'], request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        spdx_importer = SPDXImport()
+        filter_ids = [f.strip() for f in request_data["filter_ids"].split(",") if len(f.strip())]
+        sw_requirements = spdx_importer.getBasilSwRequirementsToImport(request_data["file_content"],
+                                                                       filter_ids,
+                                                                       user)
+
+        # Pay attention: we actually doesn't check if the requirement already exists
+        # (if already exists a requirement with same content)
+        if sw_requirements:
+            dbi.session.add_all(sw_requirements)
+            dbi.session.commit()
+            return [sr.as_dict() for sr in sw_requirements]
+
+        return []
+
+
 class Justification(Resource):
     fields = get_model_editable_fields(JustificationModel, False)
     fields_hashes = [x.replace('_', '-') for x in fields]
@@ -6494,11 +6537,15 @@ api.add_resource(TestRunArtifacts, '/mapping/api/test-run/artifacts')
 api.add_resource(TestRunPluginPresets, '/mapping/api/test-run-plugins-presets')
 api.add_resource(AdminTestRunPluginsPresets, '/admin/test-run-plugins-presets')
 
+# - Import
+api.add_resource(SwRequirementImport, '/import/sw-requirements')
+
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, '/mapping/sw-requirement/sw-requirements')
 api.add_resource(SwRequirementTestSpecificationsMapping, '/mapping/sw-requirement/test-specifications')
 api.add_resource(SwRequirementTestCasesMapping, '/mapping/sw-requirement/test-cases')
 api.add_resource(TestSpecificationTestCasesMapping, '/mapping/test-specification/test-cases')
+
 # History
 api.add_resource(MappingHistory, '/mapping/history')
 api.add_resource(CheckSpecification, '/apis/check-specification')

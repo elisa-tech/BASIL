@@ -4,6 +4,7 @@ import * as Constants from '../../Constants/constants'
 import { SectionForm } from '../Form/SectionForm'
 import { SwRequirementForm } from '../Form/SwRequirementForm'
 import { SwRequirementSearch } from '../Search/SwRequirementSearch'
+import { SwRequirementImport } from '../Import/SwRequirementImport'
 
 export interface MappingSwRequirementModalProps {
   api
@@ -110,7 +111,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
             id='tab-btn-sw-requirement-data'
             eventKey={0}
             title={<TabTitleText>Sw Requirement Data</TabTitleText>}
-            tabContentId='tabNewTestCase'
+            tabContentId='tabNewSwRequirement'
             tabContentRef={newItemRef}
           />
           <Tab
@@ -126,7 +127,15 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
             eventKey={2}
             isDisabled={modalVerb == 'POST' ? false : true}
             title={<TabTitleText>Existing</TabTitleText>}
-            tabContentId='tabExistingTestCase'
+            tabContentId='tabExistingSwRequirement'
+            tabContentRef={existingItemsRef}
+          />
+          <Tab
+            id='tab-btn-sw-requirement-import'
+            eventKey={3}
+            isDisabled={false}
+            title={<TabTitleText>Import</TabTitleText>}
+            tabContentId='tabImportSwRequirement'
             tabContentRef={existingItemsRef}
           />
         </Tabs>
@@ -186,6 +195,11 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
                 formMessage={''}
                 formData={null}
               />
+            </TabContentBody>
+          </TabContent>
+          <TabContent eventKey={3} id='tabContentSwRequirementImport' ref={existingItemsRef} hidden={3 !== activeTabKey}>
+            <TabContentBody hasPadding>
+              <SwRequirementImport />
             </TabContentBody>
           </TabContent>
         </div>

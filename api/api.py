@@ -3614,7 +3614,7 @@ class SwRequirementImport(Resource):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         spdx_importer = SPDXImport()
-        return spdx_importer.getBasilSwRequirementsToSelect(request_data["file_content"])
+        return {_SRs: spdx_importer.getBasilSwRequirementsToSelect(request_data["file_content"])}
 
     def put(self):
         request_data = request.get_json(force=True)
@@ -3644,9 +3644,9 @@ class SwRequirementImport(Resource):
         if sw_requirements:
             dbi.session.add_all(sw_requirements)
             dbi.session.commit()
-            return [sr.as_dict() for sr in sw_requirements]
+            return {_SRs: [sr.as_dict() for sr in sw_requirements]}
 
-        return []
+        return {_SRs: []}
 
 
 class Justification(Resource):

@@ -142,11 +142,11 @@ export const SwRequirementImport: React.FunctionComponent = () => {
       })
       .then((data) => {
         const reqs: SwRequirement[] = []
-        for (let i = 0; i < data.length; i++) {
+        for (let i = 0; i < data['sw_requirements'].length; i++) {
           const req: SwRequirement = {
-            id: data[i].id,
-            title: data[i].title,
-            description: data[i].description
+            id: data['sw_requirements'][i].id,
+            title: data['sw_requirements'][i].title,
+            description: data['sw_requirements'][i].description
           }
           reqs.push(req)
         }

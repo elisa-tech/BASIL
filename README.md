@@ -59,6 +59,11 @@ BASIL is also able to trace test cases executed on external test infrastructure 
 
 to test cases.
 
+## DESIGN SBOM
+
+BASIL supports the export of DESIGN SBOM based on SPDX Model 3 in JSON format.
+It also supports the import of Software Requirements from SBOM exported from BASIL.
+
 ## How to run it
 
 BASIL consists of 2 sub projects
@@ -79,6 +84,7 @@ BASIL The FuSa Spice documentation is available [here](https://basil-the-fusa-sp
 - [Critical Software Summit - OSS North America Seattle 2024](https://www.youtube.com/watch?v=1xmcpco14nE)
 - [Critical Software Summit - OSS Europe Wien 2024](https://www.youtube.com/watch?v=dTXGpzM6eYw&pp=ygUVc3VtbWl0IHNvZnR3YXJlIGJhc2ls)
 - [Linux Plumbers - Wien 2024](https://www.youtube.com/watch?v=3QuEXTafxT0&pp=ygUZbGludXggcGx1bWJlcnMgMjAyNCBiYXNpbA%3D%3D)
+- [ELISA Workshop at NASA Goddard](https://directory.elisa.tech/workshops/index.html#december-2024-maryland)
 - [Youtube - BASIL The Fusa Spice](https://www.youtube.com/@basil-the-fusa-spice/videos)
 - [ELISA Blog](https://elisa.tech/blog/)
 - [tmt - github](https://github.com/teemtee/tmt)

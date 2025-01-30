@@ -1,5 +1,16 @@
 # CHANGE LOG
 
+## 1.6.x
+
+- SPDX export based on Model 3
+- Software Requirements import from SPDX Model 3 BASIL files
+- Deployment script
+- Containerfile to deploy the API project on Debian
+- Moved sqlite3 db to db/sqlite3 to simplify volume mapping
+- Enabled e2e testing for Login in CI
+- Updated scripts and documentation to use podman
+- tmt support to execute tests from files stored in the API machine
+
 ## 1.5.x
 
 - Test Run Plugins

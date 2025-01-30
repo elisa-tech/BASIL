@@ -15,8 +15,8 @@ from spdx_tools.spdx3.model import (
     Relationship,
     RelationshipCompleteness,
     RelationshipType,
-    SpdxDocument)
-from spdx_tools.spdx3.model.software import File, Snippet
+)
+from spdx_tools.spdx3.model.software import File, Sbom, SBOMType, Snippet
 from spdx_tools.spdx3.writer.json_ld import json_ld_writer
 from typing import List
 
@@ -33,13 +33,15 @@ from db.models.api_test_specification import ApiTestSpecificationModel  # noqa E
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel  # noqa E402
 from db.models.sw_requirement_test_case import SwRequirementTestCaseModel  # noqa E402
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel  # noqa E402
+from db.models.sw_requirement import SwRequirementModel  # noqa E402
 from db.models.test_run import TestRunModel  # noqa E402
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel  # noqa E402
+from db.models.user import UserModel  # noqa E402
 
 
-class SPDXManager():
+class SPDXManager:
 
-    document = None
+    sbom = None
 
     API_REFERENCE_DOC_SPDX_ID_PREFIX = "API-REFERENCE-DOCUMENT"
     API_SPDX_ID_PREFIX = "API"
@@ -52,17 +54,22 @@ class SPDXManager():
 
     def __init__(self, library_name):
         spdx_id = f"SPDX-{library_name.strip()}-EXPORT"
-        ci = CreationInfo(spec_version=Version(version_string="1.0.0"),
-                          profile=[ProfileIdentifierType.SOFTWARE],
-                          created_by=["BASIL"],
-                          created=datetime.datetime.now())
-        self.document = SpdxDocument(creation_info=ci,
-                                     spdx_id=spdx_id,
-                                     element=[],
-                                     root_element=[],
-                                     name=library_name)
+        ci = CreationInfo(
+            spec_version=Version(version_string="1.0.0"),
+            profile=[ProfileIdentifierType.SOFTWARE],
+            created_by=["BASIL"],
+            created=datetime.datetime.now(),
+        )
+        self.sbom = Sbom(
+            creation_info=ci,
+            spdx_id=spdx_id,
+            element=[],
+            root_element=[],
+            name=library_name,
+            sbom_type=[SBOMType.DESIGN],
+        )
         self.payload = Payload()
-        self.payload.add_element(self.document)
+        self.payload.add_element(self.sbom)
 
     def add_files_to_payload(self, _files: List[File]):
         """Add a File to Payload if not already there"""
@@ -189,99 +196,115 @@ class SPDXManager():
             mapping_to_id_prefix = self.JUSTIFICATION_SPDX_ID_PREFIX
 
         mapping_dict = _mapping.as_dict(full_data=True, db_session=_dbsession)
-        api = mapping_dict['api']['api']
-        api_id = mapping_dict['api']['id']
-        relation_id = mapping_dict['relation_id']
+        api = mapping_dict["api"]["api"]
+        api_id = mapping_dict["api"]["id"]
+        relation_id = mapping_dict["relation_id"]
         mapping_dict = self.clean_api_relation_dict(mapping_dict)
 
-        return Snippet(spdx_id=f"SNIPPET-{mapping_from_id_prefix}-"
-                               f"{mapping_to_id_prefix}-"
-                               f"{api_id}-"
-                               f"{relation_id}",
-                       name=f"Snippet of api {api} reference document",
-                       comment="",
-                       byte_range=PositiveIntegerRange(mapping_dict['offset'],
-                                                       mapping_dict['offset'] + len(mapping_dict['section'])),
-                       attribution_text=f"{mapping_dict}")
+        return Snippet(
+            spdx_id=f"SNIPPET-{mapping_from_id_prefix}-" f"{mapping_to_id_prefix}-" f"{api_id}-" f"{relation_id}",
+            name=f"Snippet of api {api} reference document",
+            comment="",
+            byte_range=PositiveIntegerRange(
+                mapping_dict["offset"], mapping_dict["offset"] + len(mapping_dict["section"])
+            ),
+            attribution_text=json.dumps(mapping_dict),
+        )
 
     def ApiSPDX(self, _api, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Software Component"""
         api_dict = _api.as_dict(full_data=True, db_session=_dbsession)
         api_dict["__tablename__"] = _api.__tablename__
-        return File(spdx_id=f"{self.API_SPDX_ID_PREFIX}-{api_dict['id']}",
-                    name=f"{api_dict['api']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(api_dict))],
-                    attribution_text=f"{api_dict}",
-                    comment=_api._description)
+        return File(
+            spdx_id=f"{self.API_SPDX_ID_PREFIX}-{api_dict['id']}",
+            name=f"{api_dict['api']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(api_dict))],
+            attribution_text=json.dumps(api_dict),
+            summary=_api._description,
+        )
 
     def ApiReferenceDocumentSPDX(self, _api, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Software Component Reference Document"""
         api_dict = _api.as_dict(full_data=True, db_session=_dbsession)
-        return File(spdx_id=f"{self.API_REFERENCE_DOC_SPDX_ID_PREFIX}-{api_dict['id']}",
-                    name=f"{api_dict['raw_specification_url']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(api_dict))],
-                    attribution_text=f"{api_dict}",
-                    comment=_api._description)
+        return File(
+            spdx_id=f"{self.API_REFERENCE_DOC_SPDX_ID_PREFIX}-{api_dict['id']}",
+            name=f"{api_dict['raw_specification_url']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(api_dict))],
+            attribution_text=json.dumps(api_dict),
+            summary=_api._description,
+        )
 
     def SwRequirementSPDX(self, _sr, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Software Requirement"""
         sr_dict = _sr.as_dict(full_data=True, db_session=_dbsession)
         sr_dict["__tablename__"] = _sr.__tablename__
-        return File(spdx_id=f"{self.SW_REQUIREMENT_SPDX_ID_PREFIX}_{sr_dict['id']}",
-                    name=f"{sr_dict['title']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(sr_dict))],
-                    attribution_text=f"{sr_dict}",
-                    comment=_sr._description)
+        return File(
+            spdx_id=f"{self.SW_REQUIREMENT_SPDX_ID_PREFIX}_{sr_dict['id']}",
+            name=f"{sr_dict['title']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(sr_dict))],
+            attribution_text=json.dumps(sr_dict),
+            summary=_sr._description,
+        )
 
     def TestSpecificationSPDX(self, _ts, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Test Specification"""
         ts_dict = _ts.as_dict(full_data=True, db_session=_dbsession)
         ts_dict["__tablename__"] = _ts.__tablename__
-        return File(spdx_id=f"{self.TEST_SPECIFICATION_SPDX_ID_PREFIX}_{ts_dict['id']}",
-                    name=f"{ts_dict['title']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(ts_dict))],
-                    attribution_text=f"{ts_dict}",
-                    comment=_ts._description)
+        return File(
+            spdx_id=f"{self.TEST_SPECIFICATION_SPDX_ID_PREFIX}_{ts_dict['id']}",
+            name=f"{ts_dict['title']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(ts_dict))],
+            attribution_text=json.dumps(ts_dict),
+            summary=_ts._description,
+        )
 
     def TestCaseSPDX(self, _tc, _mapping_to_prefix, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Test Case"""
         tc_dict = _tc.as_dict(full_data=True, db_session=_dbsession)
         tc_dict["__tablename__"] = _tc.__tablename__
-        return File(spdx_id=f"{self.TEST_CASE_SPDX_ID_PREFIX}@{_mapping_to_prefix}_{tc_dict['id']}",
-                    name=f"{tc_dict['title']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(tc_dict))],
-                    attribution_text=f"{tc_dict}",
-                    comment=_tc._description)
+        return File(
+            spdx_id=f"{self.TEST_CASE_SPDX_ID_PREFIX}@{_mapping_to_prefix}_{tc_dict['id']}",
+            name=f"{tc_dict['title']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(tc_dict))],
+            attribution_text=json.dumps(tc_dict),
+            summary=_tc._description,
+        )
 
     def TestRunSPDX(self, _tr, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Test Run"""
         tr_dict = _tr.as_dict(full_data=True)
         tr_dict["__tablename__"] = _tr.__tablename__
-        return File(spdx_id=f"{self.TEST_RUN_SPDX_ID_PREFIX}_{tr_dict['id']}",
-                    name=f"{tr_dict['title']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(tr_dict))],
-                    attribution_text=f"{tr_dict}",
-                    comment=_tr._description)
+        return File(
+            spdx_id=f"{self.TEST_RUN_SPDX_ID_PREFIX}_{tr_dict['id']}",
+            name=f"{tr_dict['title']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(tr_dict))],
+            attribution_text=json.dumps(tr_dict),
+            summary=_tr._description,
+        )
 
     def JustificationSPDX(self, _js, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Justification"""
         js_dict = _js.as_dict(full_data=True, db_session=_dbsession)
         js_dict["__tablename__"] = _js.__tablename__
-        return File(spdx_id=f"{self.JUSTIFICATION_SPDX_ID_PREFIX}_{js_dict['id']}",
-                    name=f"{js_dict['description']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(js_dict))],
-                    attribution_text=f"{js_dict}",
-                    comment=_js._description)
+        return File(
+            spdx_id=f"{self.JUSTIFICATION_SPDX_ID_PREFIX}_{js_dict['id']}",
+            name=f"{js_dict['description']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(js_dict))],
+            attribution_text=json.dumps(js_dict),
+            summary=_js._description,
+        )
 
     def DocumentSPDX(self, _doc, _dbsession) -> File:
         """This function create SPDX File class describing a BASIL Document"""
         doc_dict = _doc.as_dict(full_data=True, db_session=_dbsession)
         doc_dict["__tablename__"] = _doc.__tablename__
-        return File(spdx_id=f"{self.DOCUMENT_SPDX_ID_PREFIX}_{doc_dict['id']}",
-                    name=f"{doc_dict['title']}",
-                    verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(doc_dict))],
-                    attribution_text=f"{doc_dict}",
-                    comment=_doc._description)
+        return File(
+            spdx_id=f"{self.DOCUMENT_SPDX_ID_PREFIX}_{doc_dict['id']}",
+            name=f"{doc_dict['title']}",
+            verified_using=[Hash(algorithm=HashAlgorithm.MD5, hash_value=self.dict_hash(doc_dict))],
+            attribution_text=json.dumps(doc_dict),
+            summary=_doc._description,
+        )
 
     def get_x_sr_children(self, xsr, spdx_sr, dbi):
         """In BASIL user can create a complex hierarchy of Software Requirements.
@@ -292,25 +315,29 @@ class SPDXManager():
         relationships = []
 
         if isinstance(xsr, ApiSwRequirementModel):
-            mapping_field_id = 'sw_requirement_mapping_api_id'
+            mapping_field_id = "sw_requirement_mapping_api_id"
             api_id = xsr.api_id
         elif isinstance(xsr, SwRequirementSwRequirementModel):
-            mapping_field_id = 'sw_requirement_mapping_sw_requirement_id'
+            mapping_field_id = "sw_requirement_mapping_sw_requirement_id"
             api_id = xsr.sw_requirement_mapping_api.api.id
         else:
             return files, relationships
 
         # SwRequirementSwRequirementModel
-        sr_srs = dbi.session.query(SwRequirementSwRequirementModel).filter(
-            getattr(SwRequirementSwRequirementModel, mapping_field_id) == xsr.id
-        ).all()
+        sr_srs = (
+            dbi.session.query(SwRequirementSwRequirementModel)
+            .filter(getattr(SwRequirementSwRequirementModel, mapping_field_id) == xsr.id)
+            .all()
+        )
         for sr_sr in sr_srs:
             spdx_sr_sr = self.SwRequirementSPDX(sr_sr.sw_requirement, dbi.session)
-            spdx_sr_sr_rel = Relationship(spdx_id=f"REL_{spdx_sr.spdx_id}_{spdx_sr_sr.spdx_id}",
-                                          from_element=spdx_sr.spdx_id,
-                                          completeness=self.get_completeness(sr_sr.coverage),
-                                          relationship_type=RelationshipType.GENERATES,
-                                          to=[spdx_sr_sr.spdx_id])
+            spdx_sr_sr_rel = Relationship(
+                spdx_id=f"REL_{spdx_sr.spdx_id}_{spdx_sr_sr.spdx_id}",
+                from_element=spdx_sr.spdx_id,
+                completeness=self.get_completeness(sr_sr.coverage),
+                relationship_type=RelationshipType.GENERATES,
+                to=[spdx_sr_sr.spdx_id],
+            )
 
             files += [spdx_sr_sr]
             relationships += [spdx_sr_sr_rel]
@@ -320,32 +347,38 @@ class SPDXManager():
             relationships += child_relationships
 
         # SwRequirementTestSpecificationModel
-        sr_tss = dbi.session.query(SwRequirementTestSpecificationModel).filter(
-            getattr(SwRequirementTestSpecificationModel, mapping_field_id) == xsr.id
-        ).all()
+        sr_tss = (
+            dbi.session.query(SwRequirementTestSpecificationModel)
+            .filter(getattr(SwRequirementTestSpecificationModel, mapping_field_id) == xsr.id)
+            .all()
+        )
         for sr_ts in sr_tss:
             spdx_ts = self.TestSpecificationSPDX(sr_ts.test_specification, dbi.session)
-            spdx_sr_ts_rel = Relationship(spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_sr.spdx_id}",
-                                          from_element=spdx_ts.spdx_id,
-                                          completeness=self.get_completeness(sr_ts.coverage),
-                                          relationship_type=RelationshipType.TEST,
-                                          to=[spdx_sr.spdx_id])
+            spdx_sr_ts_rel = Relationship(
+                spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_sr.spdx_id}",
+                from_element=spdx_ts.spdx_id,
+                completeness=self.get_completeness(sr_ts.coverage),
+                relationship_type=RelationshipType.TEST,
+                to=[spdx_sr.spdx_id],
+            )
             files += [spdx_ts]
             relationships += [spdx_sr_ts_rel]
 
             # TestSpecificationTestCaseModel
-            ts_tcs = dbi.session.query(TestSpecificationTestCaseModel).filter(
-                TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == sr_ts.id
-            ).all()
+            ts_tcs = (
+                dbi.session.query(TestSpecificationTestCaseModel)
+                .filter(TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == sr_ts.id)
+                .all()
+            )
             for ts_tc in ts_tcs:
-                spdx_tc = self.TestCaseSPDX(ts_tc.test_case,
-                                            self.TEST_SPECIFICATION_SPDX_ID_PREFIX,
-                                            dbi.session)
-                spdx_ts_tc_rel = Relationship(spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_tc.spdx_id}",
-                                              from_element=spdx_ts.spdx_id,
-                                              completeness=self.get_completeness(ts_tc.coverage),
-                                              relationship_type=RelationshipType.SPECIFICATION_FOR,
-                                              to=[spdx_tc.spdx_id])
+                spdx_tc = self.TestCaseSPDX(ts_tc.test_case, self.TEST_SPECIFICATION_SPDX_ID_PREFIX, dbi.session)
+                spdx_ts_tc_rel = Relationship(
+                    spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_tc.spdx_id}",
+                    from_element=spdx_ts.spdx_id,
+                    completeness=self.get_completeness(ts_tc.coverage),
+                    relationship_type=RelationshipType.SPECIFICATION_FOR,
+                    to=[spdx_tc.spdx_id],
+                )
                 files += [spdx_tc]
                 relationships += [spdx_ts_tc_rel]
 
@@ -355,18 +388,20 @@ class SPDXManager():
                 relationships += spdx_trs_rel
 
         # SwRequirementTestCaseModel
-        sr_tcs = dbi.session.query(SwRequirementTestCaseModel).filter(
-            getattr(SwRequirementTestCaseModel, mapping_field_id) == xsr.id
-        ).all()
+        sr_tcs = (
+            dbi.session.query(SwRequirementTestCaseModel)
+            .filter(getattr(SwRequirementTestCaseModel, mapping_field_id) == xsr.id)
+            .all()
+        )
         for sr_tc in sr_tcs:
-            spdx_tc = self.TestCaseSPDX(sr_tc.test_case,
-                                        self.SW_REQUIREMENT_SPDX_ID_PREFIX,
-                                        dbi.session)
-            spdx_sr_tc_rel = Relationship(spdx_id=f"REL_{spdx_tc.spdx_id}_{spdx_sr.spdx_id}",
-                                          from_element=spdx_tc.spdx_id,
-                                          completeness=self.get_completeness(sr_tc.coverage),
-                                          relationship_type=RelationshipType.TEST_CASE,
-                                          to=[spdx_sr.spdx_id])
+            spdx_tc = self.TestCaseSPDX(sr_tc.test_case, self.SW_REQUIREMENT_SPDX_ID_PREFIX, dbi.session)
+            spdx_sr_tc_rel = Relationship(
+                spdx_id=f"REL_{spdx_tc.spdx_id}_{spdx_sr.spdx_id}",
+                from_element=spdx_tc.spdx_id,
+                completeness=self.get_completeness(sr_tc.coverage),
+                relationship_type=RelationshipType.TEST_CASE,
+                to=[spdx_sr.spdx_id],
+            )
             files += [spdx_tc]
             relationships += [spdx_sr_tc_rel]
 
@@ -385,21 +420,27 @@ class SPDXManager():
         or to different work items. BASIL Test Runs refers to the mapping ot the Test Case, not to
         the Test Case itself.
         """
-        trs = dbi.session.query(TestRunModel).filter(
-            TestRunModel.api_id == api_id,
-            TestRunModel.mapping_to == mapping_model_instance.__tablename__,
-            TestRunModel.mapping_id == mapping_model_instance.id,
-        ).all()
+        trs = (
+            dbi.session.query(TestRunModel)
+            .filter(
+                TestRunModel.api_id == api_id,
+                TestRunModel.mapping_to == mapping_model_instance.__tablename__,
+                TestRunModel.mapping_id == mapping_model_instance.id,
+            )
+            .all()
+        )
 
         spdx_trs = []
         spdx_trs_rel = []
 
         for tr in trs:
             spdx_tr = self.TestRunSPDX(tr, dbi.session)
-            spdx_tr_rel = Relationship(spdx_id=f"REL_{spdx_tr.spdx_id}_{spdx_tc.spdx_id}",
-                                       from_element=spdx_tr.spdx_id,
-                                       relationship_type=RelationshipType.EVIDENCE_FOR,
-                                       to=[spdx_tc.spdx_id])
+            spdx_tr_rel = Relationship(
+                spdx_id=f"REL_{spdx_tr.spdx_id}_{spdx_tc.spdx_id}",
+                from_element=spdx_tr.spdx_id,
+                relationship_type=RelationshipType.EVIDENCE_FOR,
+                to=[spdx_tc.spdx_id],
+            )
             spdx_trs.append(spdx_tr)
             spdx_trs_rel.append(spdx_tr_rel)
         return spdx_trs, spdx_trs_rel
@@ -413,31 +454,37 @@ class SPDXManager():
         # Api
         spdx_api = self.ApiSPDX(api, dbi.session)
         spdx_api_ref_doc = self.ApiReferenceDocumentSPDX(api, dbi.session)
-        api_api_ref_doc_rel = Relationship(spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_api.spdx_id}",
-                                           from_element=spdx_api_ref_doc.spdx_id,
-                                           relationship_type=RelationshipType.DESCRIBES,
-                                           to=[spdx_api.spdx_id])
+        api_api_ref_doc_rel = Relationship(
+            spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_api.spdx_id}",
+            from_element=spdx_api_ref_doc.spdx_id,
+            relationship_type=RelationshipType.DESCRIBES,
+            to=[spdx_api.spdx_id],
+        )
 
         self.add_files_to_payload([spdx_api, spdx_api_ref_doc])
         self.add_files_to_payload([api_api_ref_doc_rel])
 
         # ApiSwRequirement
-        api_sw_requirements = dbi.session.query(ApiSwRequirementModel).filter(
-            ApiSwRequirementModel.api_id == api.id
-        ).all()
+        api_sw_requirements = (
+            dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.api_id == api.id).all()
+        )
         for asr in api_sw_requirements:
             # ApiSwRequirement
             spdx_asr_snippet = self.SnippetSPDX(asr, dbi.session)
-            spdx_asr_snippet_rel = Relationship(spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_asr_snippet.spdx_id}",
-                                                from_element=spdx_api_ref_doc.spdx_id,
-                                                relationship_type=RelationshipType.CONTAINS,
-                                                to=[spdx_asr_snippet.spdx_id])
+            spdx_asr_snippet_rel = Relationship(
+                spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_asr_snippet.spdx_id}",
+                from_element=spdx_api_ref_doc.spdx_id,
+                relationship_type=RelationshipType.CONTAINS,
+                to=[spdx_asr_snippet.spdx_id],
+            )
             spdx_sr = self.SwRequirementSPDX(asr.sw_requirement, dbi.session)
-            spdx_asr_sr_rel = Relationship(spdx_id=f"REL_{spdx_sr.spdx_id}_{spdx_asr_snippet.spdx_id}",
-                                           from_element=spdx_sr.spdx_id,
-                                           completeness=self.get_completeness(asr.coverage),
-                                           relationship_type=RelationshipType.REQUIREMENT_FOR,
-                                           to=[spdx_asr_snippet.spdx_id])
+            spdx_asr_sr_rel = Relationship(
+                spdx_id=f"REL_{spdx_sr.spdx_id}_{spdx_asr_snippet.spdx_id}",
+                from_element=spdx_sr.spdx_id,
+                completeness=self.get_completeness(asr.coverage),
+                relationship_type=RelationshipType.REQUIREMENT_FOR,
+                to=[spdx_asr_snippet.spdx_id],
+            )
 
             self.add_files_to_payload([spdx_asr_snippet])
             self.add_files_to_payload([spdx_sr])
@@ -448,39 +495,45 @@ class SPDXManager():
             self.add_files_to_payload(child_relationships)
 
         # ApiTestSpecification
-        api_test_specifications = dbi.session.query(ApiTestSpecificationModel).filter(
-            ApiTestSpecificationModel.api_id == api.id
-        ).all()
+        api_test_specifications = (
+            dbi.session.query(ApiTestSpecificationModel).filter(ApiTestSpecificationModel.api_id == api.id).all()
+        )
         for ats in api_test_specifications:
             spdx_ats_snippet = self.SnippetSPDX(ats, dbi.session)
-            spdx_ats_snippet_rel = Relationship(spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_ats_snippet.spdx_id}",
-                                                from_element=spdx_api_ref_doc.spdx_id,
-                                                relationship_type=RelationshipType.CONTAINS,
-                                                to=[spdx_ats_snippet.spdx_id])
+            spdx_ats_snippet_rel = Relationship(
+                spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_ats_snippet.spdx_id}",
+                from_element=spdx_api_ref_doc.spdx_id,
+                relationship_type=RelationshipType.CONTAINS,
+                to=[spdx_ats_snippet.spdx_id],
+            )
             spdx_ts = self.TestSpecificationSPDX(ats.test_specification, dbi.session)
-            spdx_ats_ts_rel = Relationship(spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_ats_snippet.spdx_id}",
-                                           from_element=spdx_ts.spdx_id,
-                                           completeness=self.get_completeness(ats.coverage),
-                                           relationship_type=RelationshipType.TEST,
-                                           to=[spdx_ats_snippet.spdx_id])
+            spdx_ats_ts_rel = Relationship(
+                spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_ats_snippet.spdx_id}",
+                from_element=spdx_ts.spdx_id,
+                completeness=self.get_completeness(ats.coverage),
+                relationship_type=RelationshipType.TEST,
+                to=[spdx_ats_snippet.spdx_id],
+            )
 
             self.add_files_to_payload([spdx_ats_snippet])
             self.add_files_to_payload([spdx_ts])
             self.add_files_to_payload([spdx_ats_snippet_rel, spdx_ats_ts_rel])
 
             # TestSpecificationTestCase
-            ts_tcs = dbi.session.query(TestSpecificationTestCaseModel).filter(
-                TestSpecificationTestCaseModel.test_specification_mapping_api_id == ats.id
-            ).all()
+            ts_tcs = (
+                dbi.session.query(TestSpecificationTestCaseModel)
+                .filter(TestSpecificationTestCaseModel.test_specification_mapping_api_id == ats.id)
+                .all()
+            )
             for ts_tc in ts_tcs:
-                spdx_tc = self.TestCaseSPDX(ts_tc.test_case,
-                                            self.TEST_SPECIFICATION_SPDX_ID_PREFIX,
-                                            dbi.session)
-                spdx_ts_tc_rel = Relationship(spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_tc.spdx_id}",
-                                              from_element=spdx_ts.spdx_id,
-                                              completeness=self.get_completeness(ts_tc.coverage),
-                                              relationship_type=RelationshipType.SPECIFICATION_FOR,
-                                              to=[spdx_tc.spdx_id])
+                spdx_tc = self.TestCaseSPDX(ts_tc.test_case, self.TEST_SPECIFICATION_SPDX_ID_PREFIX, dbi.session)
+                spdx_ts_tc_rel = Relationship(
+                    spdx_id=f"REL_{spdx_ts.spdx_id}_{spdx_tc.spdx_id}",
+                    from_element=spdx_ts.spdx_id,
+                    completeness=self.get_completeness(ts_tc.coverage),
+                    relationship_type=RelationshipType.SPECIFICATION_FOR,
+                    to=[spdx_tc.spdx_id],
+                )
                 self.add_files_to_payload([spdx_tc])
                 self.add_files_to_payload([spdx_ts_tc_rel])
 
@@ -490,23 +543,23 @@ class SPDXManager():
                 self.add_files_to_payload(spdx_trs_rel)
 
         # ApiTestCase
-        api_test_cases = dbi.session.query(ApiTestCaseModel).filter(
-            ApiTestCaseModel.api_id == api.id
-        ).all()
+        api_test_cases = dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == api.id).all()
         for atc in api_test_cases:
             spdx_atc_snippet = self.SnippetSPDX(atc, dbi.session)
-            spdx_atc_snippet_rel = Relationship(spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_atc_snippet.spdx_id}",
-                                                from_element=spdx_api_ref_doc.spdx_id,
-                                                relationship_type=RelationshipType.CONTAINS,
-                                                to=[spdx_atc_snippet.spdx_id])
-            spdx_tc = self.TestCaseSPDX(atc.test_case,
-                                        self.API_SPDX_ID_PREFIX,
-                                        dbi.session)
-            spdx_atc_tc_rel = Relationship(spdx_id=f"REL_{spdx_tc.spdx_id}_{spdx_atc_snippet.spdx_id}",
-                                           from_element=spdx_tc.spdx_id,
-                                           completeness=self.get_completeness(atc.coverage),
-                                           relationship_type=RelationshipType.TEST_CASE,
-                                           to=[spdx_atc_snippet.spdx_id])
+            spdx_atc_snippet_rel = Relationship(
+                spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_atc_snippet.spdx_id}",
+                from_element=spdx_api_ref_doc.spdx_id,
+                relationship_type=RelationshipType.CONTAINS,
+                to=[spdx_atc_snippet.spdx_id],
+            )
+            spdx_tc = self.TestCaseSPDX(atc.test_case, self.API_SPDX_ID_PREFIX, dbi.session)
+            spdx_atc_tc_rel = Relationship(
+                spdx_id=f"REL_{spdx_tc.spdx_id}_{spdx_atc_snippet.spdx_id}",
+                from_element=spdx_tc.spdx_id,
+                completeness=self.get_completeness(atc.coverage),
+                relationship_type=RelationshipType.TEST_CASE,
+                to=[spdx_atc_snippet.spdx_id],
+            )
 
             self.add_files_to_payload([spdx_atc_snippet])
             self.add_files_to_payload([spdx_tc])
@@ -518,43 +571,48 @@ class SPDXManager():
             self.add_files_to_payload(spdx_trs_rel)
 
         # ApiJustification
-        api_justifications = dbi.session.query(ApiJustificationModel).filter(
-            ApiJustificationModel.api_id == api.id
-        ).all()
+        api_justifications = (
+            dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).all()
+        )
         for aj in api_justifications:
             spdx_aj_snippet = self.SnippetSPDX(aj, dbi.session)
-            spdx_aj_snippet_rel = Relationship(spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_aj_snippet.spdx_id}",
-                                               from_element=spdx_api_ref_doc.spdx_id,
-                                               relationship_type=RelationshipType.CONTAINS,
-                                               to=[spdx_aj_snippet.spdx_id])
+            spdx_aj_snippet_rel = Relationship(
+                spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_aj_snippet.spdx_id}",
+                from_element=spdx_api_ref_doc.spdx_id,
+                relationship_type=RelationshipType.CONTAINS,
+                to=[spdx_aj_snippet.spdx_id],
+            )
             spdx_j = self.JustificationSPDX(aj.justification, dbi.session)
-            spdx_aj_j_rel = Relationship(spdx_id=f"REL_{spdx_j.spdx_id}_{spdx_aj_snippet.spdx_id}",
-                                         from_element=spdx_j.spdx_id,
-                                         completeness=self.get_completeness(aj.coverage),
-                                         relationship_type=RelationshipType.DESCRIBES,
-                                         to=[spdx_aj_snippet.spdx_id])
+            spdx_aj_j_rel = Relationship(
+                spdx_id=f"REL_{spdx_j.spdx_id}_{spdx_aj_snippet.spdx_id}",
+                from_element=spdx_j.spdx_id,
+                completeness=self.get_completeness(aj.coverage),
+                relationship_type=RelationshipType.DESCRIBES,
+                to=[spdx_aj_snippet.spdx_id],
+            )
 
             self.add_files_to_payload([spdx_aj_snippet])
             self.add_files_to_payload([spdx_j])
             self.add_files_to_payload([spdx_aj_snippet_rel, spdx_aj_j_rel])
 
         # ApiDocument
-        api_documents = dbi.session.query(ApiDocumentModel).filter(
-            ApiDocumentModel.api_id == api.id
-        ).all()
+        api_documents = dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).all()
         for adoc in api_documents:
             spdx_adoc_snippet = self.SnippetSPDX(adoc, dbi.session)
-            spdx_adoc_snippet_rel = Relationship(spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_adoc_snippet.spdx_id}",
-                                                 from_element=spdx_api_ref_doc.spdx_id,
-                                                 relationship_type=RelationshipType.CONTAINS,
-                                                 to=[spdx_adoc_snippet.spdx_id])
+            spdx_adoc_snippet_rel = Relationship(
+                spdx_id=f"REL_{spdx_api_ref_doc.spdx_id}_{spdx_adoc_snippet.spdx_id}",
+                from_element=spdx_api_ref_doc.spdx_id,
+                relationship_type=RelationshipType.CONTAINS,
+                to=[spdx_adoc_snippet.spdx_id],
+            )
             spdx_doc = self.DocumentSPDX(adoc.document, dbi.session)
-            spdx_adoc_doc_rel = Relationship(spdx_id=f"REL_{spdx_doc.spdx_id}_{spdx_adoc_snippet.spdx_id}",
-                                             from_element=spdx_doc.spdx_id,
-                                             completeness=self.get_completeness(adoc.coverage),
-                                             relationship_type=self.get_relationship_from_str(
-                                                 adoc.document.spdx_relation),
-                                             to=[spdx_adoc_snippet.spdx_id])
+            spdx_adoc_doc_rel = Relationship(
+                spdx_id=f"REL_{spdx_doc.spdx_id}_{spdx_adoc_snippet.spdx_id}",
+                from_element=spdx_doc.spdx_id,
+                completeness=self.get_completeness(adoc.coverage),
+                relationship_type=self.get_relationship_from_str(adoc.document.spdx_relation),
+                to=[spdx_adoc_snippet.spdx_id],
+            )
 
             self.add_files_to_payload([spdx_adoc_snippet])
             self.add_files_to_payload([spdx_doc])
@@ -563,3 +621,88 @@ class SPDXManager():
     def export(self, filepath):
         """Export payload into json"""
         json_ld_writer.write_payload(self.payload, filepath)
+
+
+class SPDXImport:
+
+    GRAPH_KEY = "@graph"
+
+    def getBasilSwRequirementsToSelect(self, file_content: str) -> List[dict]:
+        """Read a json file exported by a BASIL instance and
+        return a list of dictionaries with requirements data
+        That list will be used by the user to select which one to import
+
+        :param file_content: content of the sbom file generated by a BASIL instance
+        :return: list of dictionaries
+        """
+        mandatory_fields = ["title", "description"]
+        sw_requirements = []
+
+        try:
+            file_content = json.loads(file_content)
+        except Exception as e:
+            print(f"Error: exception at getBasilSwRequirementsToSelect: {e}")
+            return sw_requirements
+
+        spdx_files = [_file for _file in file_content[self.GRAPH_KEY] if _file["@type"] == "File"]
+        spdx_sw_requirements = [_file for _file in spdx_files if _file["summary"] == SwRequirementModel._description]
+        for spdx_sw_requirement in spdx_sw_requirements:
+            sr_data = json.loads(spdx_sw_requirement["attributionText"])
+            # Check work item mandatory fields
+            valid_data = True
+            for data_field in mandatory_fields:
+                if data_field not in sr_data.keys():
+                    valid_data = False
+                    break
+
+            if valid_data:
+                sw_requirements.append(
+                    {
+                        "id": spdx_sw_requirement["@id"],
+                        "title": sr_data["title"],
+                        "description": sr_data["description"],
+                    }
+                )
+        return sw_requirements
+
+    def getBasilSwRequirementsToImport(
+        self, file_content: str, filter_ids: List[str], user: UserModel
+    ) -> List[SwRequirementModel]:
+        """Read a json file exported by a BASIL instance and
+        generate instances of SwRequirementModels
+
+        :param file_content: content of the sbom file generated by a BASIL instance
+        :param filter_ids: list of idx that user want to import
+        :param user: UserModel of who is importing the sw requirements
+        :return: list of SwRequirementModels
+        """
+        mandatory_fields = ["id", "title", "description"]
+        sw_requirements = []
+
+        try:
+            file_content = json.loads(file_content)
+        except Exception as e:
+            print(f"Error: exception at getBasilSwRequirementsToImport: {e}")
+            return sw_requirements
+
+        spdx_files = [_file for _file in file_content[self.GRAPH_KEY] if _file["@type"] == "File"]
+        spdx_sw_requirements = [_file for _file in spdx_files if _file["summary"] == SwRequirementModel._description]
+        for spdx_sw_requirement in spdx_sw_requirements:
+            sr_data = json.loads(spdx_sw_requirement["attributionText"])
+
+            # Check work item mandatory fields
+            valid_data = True
+            for data_field in mandatory_fields:
+                if data_field not in sr_data.keys():
+                    valid_data = False
+                    break
+
+            # Check the id match with user request
+            if spdx_sw_requirement["@id"] not in filter_ids:
+                valid_data = False
+
+            if valid_data:
+                sw_requirements.append(
+                    SwRequirementModel(title=sr_data["title"], description=sr_data["description"], created_by=user)
+                )
+        return sw_requirements

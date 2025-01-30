@@ -259,6 +259,12 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
   }, [api])
 
   const handleModalConfirm = () => {
+    let sr_count = 0
+    let ts_count = 0
+    let tc_count = 0
+    let j_count = 0
+    let doc_count = 0
+    let analysis_message = ''
     if (validatedRawSpecificationUrlValue == 'error') {
       setMessageValue('Raw Specification Url is mandatory')
       return
@@ -273,8 +279,31 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
       })
         .then((response) => response.json())
         .then((response) => {
-          if (Object.keys(response).includes('sw-requirements')) {
+          if (Object.keys(response).includes(Constants._SRs)) {
             setCheckResult(response)
+            sr_count =
+              response[Constants._SRs]['ok'].length + response[Constants._SRs]['ko'].length + response[Constants._SRs]['warning'].length
+            ts_count =
+              response[Constants._TSs]['ok'].length + response[Constants._TSs]['ko'].length + response[Constants._TSs]['warning'].length
+            tc_count =
+              response[Constants._TCs]['ok'].length + response[Constants._TCs]['ko'].length + response[Constants._TCs]['warning'].length
+            j_count =
+              response[Constants._Js]['ok'].length + response[Constants._Js]['ko'].length + response[Constants._Js]['warning'].length
+            doc_count =
+              response[Constants._Ds]['ok'].length + response[Constants._Ds]['ko'].length + response[Constants._Ds]['warning'].length
+            const tot_count = sr_count + ts_count + tc_count + j_count + doc_count
+            analysis_message = 'Analyzed ' + tot_count + ' work items'
+            analysis_message += ' - Software Requirements: ' + sr_count
+            analysis_message += ' - Test Specifications: ' + ts_count
+            analysis_message += ' - Test Cases: ' + tc_count
+            analysis_message += ' - Justifications: ' + j_count
+            analysis_message += ' - Documents: ' + doc_count
+            if (api.raw_specification_url === rawSpecificationUrlValue) {
+              analysis_message += ' - NOTE: you are analyzing the current version of the reference document.'
+            }
+            setMessageValue(analysis_message)
+          } else {
+            setMessageValue('Error in the server response.')
           }
         })
         .catch((err) => {

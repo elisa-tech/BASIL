@@ -71,7 +71,6 @@ const UserFiles: React.FunctionComponent = () => {
           <UserFilesListingTable
             modalAction={modal_action}
             modalFileName={modal_filename}
-            modalShowState={modalShowState}
             setModalShowState={setModalShowState}
             userFiles={userFiles}
           />

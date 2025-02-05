@@ -129,8 +129,8 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         }
       })
       .then((data) => {
-        let tmp: string[] = []
-        let skip_chars: string[] = ['+', '*']
+        const tmp: string[] = []
+        const skip_chars: string[] = ['+', '*']
         let skip: boolean = false
         for (let i = 0; i < data['composes'].length; i++) {
           skip = false

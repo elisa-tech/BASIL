@@ -8,6 +8,7 @@ import { Mapping } from '@app/Mapping/Mapping'
 import { NotFound } from '@app/NotFound/NotFound'
 import { Signin } from '@app/Signin/Signin'
 import { SSHKey } from '@app/SSHKey/SSHKey'
+import { UserFiles } from './UserFiles/UserFiles'
 import { useDocumentTitle } from '@app/utils/useDocumentTitle'
 
 let routeFocusTimer: number
@@ -77,6 +78,13 @@ const routes: AppRouteConfig[] = [
     label: 'SSH Keys',
     path: '/ssh-keys',
     title: 'BASIL | The Fusa Spice | User | SSH Keys'
+  },
+  {
+    component: UserFiles,
+    exact: true,
+    label: 'User Files',
+    path: '/user-files',
+    title: 'BASIL | The Fusa Spice | User | Files'
   }
 ]
 

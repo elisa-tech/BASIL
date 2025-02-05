@@ -26,6 +26,14 @@ export const DEFAULT_VIEW = _SRs
 export const DEFAULT_PER_PAGE = 10
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'
 
+export const API_USER_FILES_ENDPOINT = '/user/files'
+export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
+
+export const JSON_HEADER = {
+  Accept: 'application/json',
+  'Content-Type': 'application/json'
+}
+
 export const document_type = [
   { value: 'file', label: 'file', disabled: false },
   { value: 'text', label: 'text', disabled: false }

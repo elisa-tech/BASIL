@@ -224,16 +224,28 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         )}
 
         {auth.isLogged() && !auth.isGuest() ? (
-          <NavItem
-            preventDefault
-            id='nav-item-user-ssh-keys'
-            to='#nav-item-user-ssh-keys'
-            onClick={() => redirect('/ssh-keys')}
-            itemId='ungrouped-item-5'
-            isActive={location.pathname == '/ssh-keys'}
-          >
-            SSH Keys
-          </NavItem>
+          <>
+            <NavItem
+              preventDefault
+              id='nav-item-user-ssh-keys'
+              to='#nav-item-user-ssh-keys'
+              onClick={() => redirect('/ssh-keys')}
+              itemId='ungrouped-item-5'
+              isActive={location.pathname == '/ssh-keys'}
+            >
+              SSH Keys
+            </NavItem>
+            <NavItem
+              preventDefault
+              id='nav-item-user-files'
+              to='#nav-item-user-files'
+              onClick={() => redirect('/user-files')}
+              itemId='ungrouped-item-6'
+              isActive={location.pathname == '/user-files'}
+            >
+              User Files
+            </NavItem>
+          </>
         ) : (
           ''
         )}

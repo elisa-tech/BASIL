@@ -7,6 +7,8 @@ import {
   Form,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   Hint,
@@ -52,6 +54,17 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   setModalFormSubmitState
 }: APIFormProps) => {
   const auth = useAuth()
+  const [referenceSource, setReferenceSource] = React.useState<string>('url')
+  const [referenceFileName, setReferenceFileName] = React.useState<string>('')
+  const [referenceUrl, setReferenceUrl] = React.useState(formData.raw_specification_url)
+  const [validatedReferenceValue, setValidatedReferenceValue] = React.useState<Constants.validate>('error')
+
+  const [implementationSource, setImplementationSource] = React.useState<string>('url')
+  const [implementationFileName, setImplementationFileName] = React.useState<string>('')
+  const [implementationUrl, setImplementationUrl] = React.useState(formData.implementation_file)
+
+  const [userFiles, setUserFiles] = React.useState([])
+
   const [apiValue, setApiValue] = React.useState(formData.api)
   const [validatedApiValue, setValidatedApiValue] = React.useState<Constants.validate>('error')
 
@@ -61,15 +74,10 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   const [libraryVersionValue, setLibraryVersionValue] = React.useState(formAction == 'fork' ? '' : formData.library_version)
   const [validatedLibraryVersionValue, setValidatedLibraryVersionValue] = React.useState<Constants.validate>('error')
 
-  const [rawSpecificationUrlValue, setRawSpecificationUrlValue] = React.useState(formData.raw_specification_url)
-  const [validatedRawSpecificationUrlValue, setValidatedRawSpecificationUrlValue] = React.useState<Constants.validate>('error')
-
   const [categoryValue, setCategoryValue] = React.useState(formData.category)
   const [defaultViewValue, setDefaultViewValue] = React.useState(formData.default_view)
 
   const [tagsValue, setTagsValue] = React.useState(formData.tags)
-
-  const [implementationFileValue, setImplementationFileValue] = React.useState(formData.implementation_file)
 
   const [implementationFileFromRowValue, setImplementationFileFromRowValue] = React.useState(formData.implementation_file_from_row)
   const [validatedImplementationFileFromRowValue, setValidatedImplementationFileFromRowValue] = React.useState<Constants.validate>('error')
@@ -125,12 +133,20 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
   }, [libraryVersionValue])
 
   React.useEffect(() => {
-    if (rawSpecificationUrlValue.trim() === '') {
-      setValidatedRawSpecificationUrlValue('error')
+    if (referenceSource == 'url') {
+      if (referenceUrl.trim() === '') {
+        setValidatedReferenceValue('error')
+      } else {
+        setValidatedReferenceValue('success')
+      }
     } else {
-      setValidatedRawSpecificationUrlValue('success')
+      if (referenceFileName.trim() === '') {
+        setValidatedReferenceValue('error')
+      } else {
+        setValidatedReferenceValue('success')
+      }
     }
-  }, [rawSpecificationUrlValue])
+  }, [referenceUrl, referenceFileName])
 
   React.useEffect(() => {
     if (implementationFileFromRowValue === '') {
@@ -151,6 +167,15 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       setValidatedImplementationFileToRowValue('error')
     }
   }, [implementationFileToRowValue])
+
+  React.useEffect(() => {
+    if (referenceSource == 'user-files' || implementationSource == 'user-files') {
+      if (userFiles.length == 0) {
+        Constants.loadUserFiles(auth, setUserFiles)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referenceSource, implementationSource])
 
   React.useEffect(() => {
     if (statusValue == 'submitted') {
@@ -178,12 +203,12 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     setLibraryVersionValue(value)
   }
 
-  const handleRawSpecificationUrlValueChange = (_event, value: string) => {
-    setRawSpecificationUrlValue(value)
+  const handleReferenceUrlChange = (_event, value: string) => {
+    setReferenceUrl(value)
   }
 
-  const handleImplementationFileValueChange = (_event, value: string) => {
-    setImplementationFileValue(value)
+  const handleImplementationUrlChange = (_event, value: string) => {
+    setImplementationUrl(value)
   }
 
   const handleImplementationFileFromRowValueChange = (_event, value: string) => {
@@ -202,15 +227,25 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     setTagsValue(value)
   }
 
+  const handleReferenceFileNameChange = (_event, value: string) => {
+    setReferenceFileName(value)
+  }
+
+  const handleImplementationFileNameChange = (_event, value: string) => {
+    setImplementationFileName(value)
+  }
+
   const resetForm = () => {
+    setReferenceSource('url')
+    setImplementationSource('url')
     setApiValue(formData.api)
     setLibraryValue(formData.library)
     setLibraryVersionValue(formAction == 'fork' ? '' : formData.library_version)
-    setRawSpecificationUrlValue(formData.raw_specification_url)
+    setReferenceUrl(formData.raw_specification_url)
     setCategoryValue(formData.category)
     setDefaultViewValue(formData.default_view)
     setTagsValue(formData.tags)
-    setImplementationFileValue(formData.implementation_file)
+    setImplementationUrl(formData.implementation_file)
     setImplementationFileFromRowValue(formData.implementation_file_from_row)
     setImplementationFileToRowValue(formData.implementation_file_to_row)
   }
@@ -239,7 +274,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     } else if (validatedLibraryVersionValue != 'success') {
       setMessageValue('Software Component Library Version is mandatory.')
       return
-    } else if (validatedRawSpecificationUrlValue != 'success') {
+    } else if (validatedReferenceValue != 'success') {
       setMessageValue('Software Component Specification Url/Path is mandatory.')
       return
     } else if (validatedImplementationFileFromRowValue == 'error') {
@@ -259,10 +294,10 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       'library-version': libraryVersionValue,
       category: categoryValue,
       tags: tagsValue,
-      'implementation-file': implementationFileValue,
+      'implementation-file': implementationSource == 'url' ? implementationUrl : implementationFileName,
       'implementation-file-from-row': implementationFileFromRowValue,
       'implementation-file-to-row': implementationFileToRowValue,
-      'raw-specification-url': rawSpecificationUrlValue,
+      'raw-specification-url': referenceSource == 'url' ? referenceUrl : referenceFileName,
       'user-id': auth.userId,
       token: auth.token
     }
@@ -353,20 +388,43 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         label='Specification Url/Path (plain text format):'
         isRequired
         fieldId={`input-api-${formAction}-raw-specification-url-${formData.id}`}
+        labelIcon={
+          referenceSource == 'url' ? (
+            <Button variant='link' onClick={() => setReferenceSource('user-files')}>
+              From user files
+            </Button>
+          ) : (
+            <Button variant='link' onClick={() => setReferenceSource('url')}>
+              From url
+            </Button>
+          )
+        }
       >
-        <TextInput
-          isRequired
-          id={`input-api-${formAction}-raw-specification-url-${formData.id}`}
-          name={`input-api-${formAction}-raw-specification-url-${formData.id}`}
-          value={rawSpecificationUrlValue || ''}
-          onChange={(_ev, value) => handleRawSpecificationUrlValueChange(_ev, value)}
-        />
-        {validatedRawSpecificationUrlValue !== 'success' && (
+        {referenceSource == 'url' ? (
+          <TextInput
+            isRequired
+            id={`input-api-${formAction}-raw-specification-url-${formData.id}`}
+            name={`input-api-${formAction}-raw-specification-url-${formData.id}`}
+            value={referenceUrl || ''}
+            onChange={(_ev, value) => handleReferenceUrlChange(_ev, value)}
+          />
+        ) : (
+          <FormSelect
+            value={referenceFileName}
+            id={`select-api-${formAction}-raw-specification-path-${formData.id}`}
+            onChange={handleReferenceFileNameChange}
+            aria-label='Software specification from user file'
+          >
+            <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
+            {userFiles.map((userFile, index) => (
+              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+            ))}
+          </FormSelect>
+        )}
+        {validatedReferenceValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedRawSpecificationUrlValue === 'error' ? 'This field is mandatory' : ''}
-              </HelperTextItem>
+              <HelperTextItem variant='error'>{validatedReferenceValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}
@@ -380,14 +438,42 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           onChange={(_ev, value) => handleCategoryValueChange(_ev, value)}
         />
       </FormGroup>
-      <FormGroup label='Implementation file Url/Path:' fieldId={`input-api-${formAction}-implementation-file-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-api-${formAction}-implementation-file-${formData.id}`}
-          name={`input-api-${formAction}-implementation-file-${formData.id}`}
-          value={implementationFileValue || ''}
-          onChange={(_ev, value) => handleImplementationFileValueChange(_ev, value)}
-        />
+      <FormGroup
+        label='Implementation file Url/Path:'
+        fieldId={`input-api-${formAction}-implementation-file-${formData.id}`}
+        labelIcon={
+          implementationSource == 'url' ? (
+            <Button variant='link' onClick={() => setImplementationSource('user-files')}>
+              From user files
+            </Button>
+          ) : (
+            <Button variant='link' onClick={() => setImplementationSource('url')}>
+              From url
+            </Button>
+          )
+        }
+      >
+        {implementationSource == 'url' ? (
+          <TextInput
+            isRequired
+            id={`input-api-${formAction}-implementation-file-${formData.id}`}
+            name={`input-api-${formAction}-implementation-file-${formData.id}`}
+            value={implementationUrl || ''}
+            onChange={(_ev, value) => handleImplementationUrlChange(_ev, value)}
+          />
+        ) : (
+          <FormSelect
+            value={implementationFileName}
+            id={`select-api-${formAction}-implementation-file-path-${formData.id}`}
+            onChange={handleImplementationFileNameChange}
+            aria-label='Implementation from user file'
+          >
+            <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
+            {userFiles.map((userFile, index) => (
+              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+            ))}
+          </FormSelect>
+        )}
       </FormGroup>
       <FormGroup
         label='Implementation file from row number:'

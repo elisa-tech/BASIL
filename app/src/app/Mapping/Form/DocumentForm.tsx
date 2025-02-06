@@ -49,16 +49,20 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   parentData
 }: DocumentFormProps) => {
   const auth = useAuth()
+  const [userFiles, setUserFiles] = React.useState([])
+  const [documentSource, setDocumentSource] = React.useState('url')
+  const [documentFileNameValue, setDocumentFileNameValue] = React.useState('')
+  const [documentUrlValue, setDocumentUrlValue] = React.useState(formData.url)
+  const [validatedDocumentSourceValue, setValidatedvalidatedDocumentSourceValue] = React.useState<Constants.validate>('error')
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
   const [SPDXRelationValue, setSPDXRelationValue] = React.useState(formData.spdx_relation)
+  const [validatedSPDXRelationValue, setValidatedSPDXRelationValue] = React.useState<Constants.validate>('error')
   const [documentContentValue, setDocumentContentValue] = React.useState('')
   const [titleValue, setTitleValue] = React.useState(formData.title)
-  const [urlValue, setUrlValue] = React.useState(formData.url)
   const [offsetValue, setOffsetValue] = React.useState(formData.offset)
   const [sectionValue, setSectionValue] = React.useState(formData.section)
   const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
   const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')
-  const [validatedUrlValue, setValidatedUrlValue] = React.useState<Constants.validate>('error')
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
   const [documentStatusValue, setDocumentStatusValue] = React.useState(formData.status)
@@ -69,9 +73,10 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   const resetForm = () => {
+    setDocumentSource('url')
     setDescriptionValue('')
     setTitleValue('')
-    setUrlValue('')
+    setDocumentUrlValue('')
     setSectionValue('')
     setOffsetValue(0)
     setSPDXRelationValue('')
@@ -104,16 +109,49 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   }, [titleValue])
 
   React.useEffect(() => {
-    if (urlValue == undefined) {
-      setUrlValue('')
+    if (SPDXRelationValue.trim() === '') {
+      setValidatedSPDXRelationValue('error')
     } else {
-      if (urlValue.trim() === '') {
-        setValidatedUrlValue('error')
+      setValidatedSPDXRelationValue('success')
+    }
+  }, [SPDXRelationValue])
+
+  React.useEffect(() => {
+    if (validatedDocumentSourceValue == 'success') {
+      readFileContent()
+    }
+  }, [documentTypeValue])
+
+  React.useEffect(() => {
+    if (documentSource == 'url') {
+      if (documentUrlValue == undefined) {
+        setDocumentUrlValue('')
       } else {
-        setValidatedUrlValue('success')
+        if (documentUrlValue.trim() === '') {
+          setValidatedvalidatedDocumentSourceValue('error')
+        } else {
+          setValidatedvalidatedDocumentSourceValue('success')
+          readFileContent()
+        }
+      }
+    } else {
+      if (documentFileNameValue.trim() === '') {
+        setValidatedvalidatedDocumentSourceValue('error')
+      } else {
+        setValidatedvalidatedDocumentSourceValue('success')
+        readFileContent()
       }
     }
-  }, [urlValue])
+  }, [documentUrlValue, documentFileNameValue])
+
+  React.useEffect(() => {
+    if (documentSource == 'user-files') {
+      if (userFiles.length == 0) {
+        Constants.loadUserFiles(auth, setUserFiles)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentSource])
 
   React.useEffect(() => {
     if (coverageValue === '') {
@@ -175,7 +213,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   }
 
   const handleUrlValueChange = (_event, value: string) => {
-    setUrlValue(value)
+    setDocumentUrlValue(value)
   }
 
   const handleSPDXRelationValueChange = (_event, value: string) => {
@@ -206,25 +244,35 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
     setDocumentTypeValue(value)
   }
 
+  const handleDocumentFileNameChange = (_event, value: string) => {
+    setDocumentFileNameValue(value)
+  }
+
   const handleSubmit = () => {
-    if (validatedDescriptionValue != 'success') {
-      setMessageValue('Document Description is mandatory.')
-      setStatusValue('waiting')
-      return
-    } else if (validatedTitleValue != 'success') {
+    if (validatedTitleValue != 'success') {
       setMessageValue('Document Title is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (validatedUrlValue != 'success') {
-      setMessageValue('Document Url is mandatory.')
+    } else if (validatedDescriptionValue != 'success') {
+      setMessageValue('Document Description is mandatory.')
       setStatusValue('waiting')
       return
+    } else if (validatedSPDXRelationValue != 'success') {
+      setMessageValue('Relationship is mandatory.')
+      setStatusValue('waiting')
+      return
+    } else if (validatedDocumentSourceValue != 'success') {
+      setMessageValue('Document url or filename is mandatory.')
+      setStatusValue('waiting')
+      return
+    } else if (documentTypeValue == 'text') {
+      if (validatedSectionValue != 'success') {
+        setMessageValue('Section of the document is mandatory.')
+        setStatusValue('waiting')
+        return
+      }
     } else if (validatedCoverageValue != 'success') {
       setMessageValue('Document Coverage is mandatory and must be a integer value in the range 0-100.')
-      setStatusValue('waiting')
-      return
-    } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
       setStatusValue('waiting')
       return
     }
@@ -237,7 +285,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
         title: titleValue,
         description: descriptionValue,
         document_type: documentTypeValue,
-        url: urlValue,
+        url: documentSource == 'url' ? documentUrlValue : documentFileNameValue,
         spdx_relation: SPDXRelationValue,
         offset: offsetValue,
         section: sectionValue
@@ -283,12 +331,21 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       })
   }
 
-  const readRemoteTextFile = () => {
+  const readFileContent = () => {
+    // In case of text file read the content
+    // to let the user able to select the snippet
     if (documentTypeValue != 'text') {
       return
     }
 
-    let url = Constants.API_BASE_URL + '/remote-documents?url=' + urlValue
+    if (documentSource == 'url') {
+      readRemoteTextFile()
+    } else {
+      Constants.loadFileContent(auth, documentFileNameValue, setMessageValue, setDocumentContentValue)
+    }
+  }
+  const readRemoteTextFile = () => {
+    let url = Constants.API_BASE_URL + '/remote-documents?url=' + documentUrlValue
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
@@ -395,19 +452,48 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           ))}
         </FormSelect>
       </FormGroup>
-      <FormGroup label='Url' isRequired fieldId={`input-document-${formAction}-url-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-document-${formAction}-url-${formData.id}`}
-          name={`input-document-${formAction}-url-${formData.id}`}
-          value={urlValue || ''}
-          onChange={(_ev, value) => handleUrlValueChange(_ev, value)}
-          onBlur={readRemoteTextFile}
-        />
-        {validatedUrlValue !== 'success' && (
+      <FormGroup
+        label='Url'
+        isRequired
+        fieldId={`input-document-${formAction}-url-${formData.id}`}
+        labelIcon={
+          documentSource == 'url' ? (
+            <Button variant='link' onClick={() => setDocumentSource('user-files')}>
+              From user files
+            </Button>
+          ) : (
+            <Button variant='link' onClick={() => setDocumentSource('url')}>
+              From url
+            </Button>
+          )
+        }
+      >
+        {documentSource == 'url' ? (
+          <TextInput
+            isRequired
+            id={`input-document-${formAction}-url-${formData.id}`}
+            name={`input-document-${formAction}-url-${formData.id}`}
+            value={documentUrlValue || ''}
+            onChange={(_ev, value) => handleUrlValueChange(_ev, value)}
+            onBlur={readFileContent}
+          />
+        ) : (
+          <FormSelect
+            value={documentFileNameValue}
+            id={`select-document-${formAction}-file-${formData.id}`}
+            onChange={handleDocumentFileNameChange}
+            aria-label='Document from user file'
+          >
+            <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
+            {userFiles.map((userFile, index) => (
+              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+            ))}
+          </FormSelect>
+        )}
+        {validatedDocumentSourceValue !== 'success' && (
           <FormHelperText>
             <HelperText>
-              <HelperTextItem variant='error'>{validatedUrlValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+              <HelperTextItem variant='error'>{validatedDocumentSourceValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
             </HelperText>
           </FormHelperText>
         )}

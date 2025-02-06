@@ -10,6 +10,7 @@
 - Enabled e2e testing for Login in CI
 - Updated scripts and documentation to use podman
 - tmt support to execute tests from files stored in the API machine
+- User files managament (user can upload files to reuse as ref docs, documents or test cases)
 
 ## 1.5.x
 

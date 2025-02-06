@@ -9,7 +9,7 @@ exclude =
   api/test/.pytest_cache
   examples
 per-file-ignores =
-    api/api.py:E402
+    api/api.py:E402,E203
     api/testrun.py
     api/test/*.py:E402
     db/models/init_db.py:E402,F401

@@ -248,37 +248,44 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   }
 
   const isValidRemoteDocument = (_id) => {
-    let ret = ''
+    if (!auth.isLogged()) {
+      return false
+    }
+
+    const valid_class = 'pf-m-green'
+    const unvalid_class = 'pf-m-red'
+
     let url = Constants.API_BASE_URL + '/remote-documents?id=' + _id
     url += '&api-id=' + api.id
-
-    if (auth.isLogged()) {
-      url += '&user-id=' + auth.userId + '&token=' + auth.token
-    } else {
-      return ret
-    }
+    url += '&user-id=' + auth.userId + '&token=' + auth.token
 
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if ('valid' in data) {
-          ret = data['valid']
           const label = document.getElementById('label-document-valid-' + _id)
-          if (ret) {
-            if (label) {
-              label.innerHTML = ret
+          if (label) {
+            if (label.classList.contains(valid_class)) {
+              label.classList.remove(valid_class)
             }
-            document.getElementById('label-document-valid-' + _id)?.classList.add('pf-m-green')
-          } else {
-            document.getElementById('label-document-valid-' + _id)?.classList.add('pf-m-red')
+            if (label.classList.contains(unvalid_class)) {
+              label.classList.remove(unvalid_class)
+            }
+            if (data['valid']) {
+              label.classList.add('pf-m-green')
+              label.innerHTML = 'yes'
+            } else {
+              label.classList.add('pf-m-red')
+              label.innerHTML = 'no'
+            }
           }
         }
-        return ret
       })
       .catch((err) => {
         console.log(err.message)
+        return false
       })
-    return ret
+      return true
   }
 
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {
@@ -744,7 +751,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <b>Valid: </b>{' '}
                     <Label id={`label-document-valid-${mappedItem[Constants._D]['id']}`} isCompact>
-                      ...{isValidRemoteDocument(mappedItem[Constants._D]['id'])}
+                      {isValidRemoteDocument(mappedItem[Constants._D]['id']) ? '' : ''}
                     </Label>
                   </FlexItem>
                 </Flex>

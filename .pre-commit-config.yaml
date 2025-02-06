@@ -31,3 +31,9 @@ repos:
         pass_filenames: false
         always_run: true
         language: system
+      - id: app_build
+        name: app_build
+        entry: "cd app && npm run build"
+        pass_filenames: false
+        always_run: true
+        language: system

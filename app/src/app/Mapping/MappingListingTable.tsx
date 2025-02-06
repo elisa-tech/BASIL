@@ -249,7 +249,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
 
   const isValidRemoteDocument = (_id) => {
     if (!auth.isLogged()) {
-      return
+      return false
     }
 
     const valid_class = 'pf-m-green'
@@ -278,11 +278,15 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               label.classList.add('pf-m-red')
               label.innerHTML = 'no'
             }
+            return true
+          } else {
+            return false
           }
         }
       })
       .catch((err) => {
         console.log(err.message)
+        return false
       })
   }
 
@@ -749,7 +753,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <b>Valid: </b>{' '}
                     <Label id={`label-document-valid-${mappedItem[Constants._D]['id']}`} isCompact>
-                      {isValidRemoteDocument(mappedItem[Constants._D]['id'])}
+                      {isValidRemoteDocument(mappedItem[Constants._D]['id']) ? '' : ''}
                     </Label>
                   </FlexItem>
                 </Flex>

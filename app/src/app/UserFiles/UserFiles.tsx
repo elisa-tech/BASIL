@@ -14,29 +14,8 @@ const UserFiles: React.FunctionComponent = () => {
   const [userFiles, setUserFiles] = React.useState([])
   const [modalShowState, setModalShowState] = React.useState(false)
 
-  const loadUserFiles = () => {
-    if (!auth.isLogged()) {
-      return
-    }
-    let url
-    url = Constants.API_BASE_URL + Constants.API_USER_FILES_ENDPOINT
-    url += '?user-id=' + auth.userId
-    url += '&token=' + auth.token
-    fetch(url, {
-      method: 'GET',
-      headers: Constants.JSON_HEADER
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setUserFiles(data)
-      })
-      .catch((err) => {
-        console.log(err.message)
-      })
-  }
-
   React.useEffect(() => {
-    loadUserFiles()
+    Constants.loadUserFiles(auth, setUserFiles)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -26,6 +26,7 @@ export const DEFAULT_VIEW = _SRs
 export const DEFAULT_PER_PAGE = 10
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'
 
+export const PATH_SEP = '/'
 export const API_USER_FILES_ENDPOINT = '/user/files'
 export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
 
@@ -140,6 +141,69 @@ export const status_options = [
   { value: 'REWORK', label: 'Rework', disabled: false },
   { value: 'APPROVED', label: 'Approved', disabled: false }
 ]
+
+export const getFilenameFromFilepath = (filepath: string) => {
+  return filepath.split(PATH_SEP).pop()
+}
+
+export const loadUserFiles = (_auth, _setFiles) => {
+  // _set is a useState Set variable used to populate the useState
+  if (!_auth.isLogged()) {
+    return
+  }
+  let url
+  url = API_BASE_URL + API_USER_FILES_ENDPOINT
+  url += '?user-id=' + _auth.userId
+  url += '&token=' + _auth.token
+  fetch(url, {
+    method: 'GET',
+    headers: JSON_HEADER
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      for (let i = 0; i < data.length; i++) {
+        data[i]['filename'] = getFilenameFromFilepath(data[i]['filepath'])
+      }
+      _setFiles(data)
+    })
+    .catch((err) => {
+      console.log(err.message)
+    })
+}
+
+export const loadFileContent = (_auth, _filename, _setMessage, _setContent) => {
+  if (!_filename) {
+    return
+  }
+
+  if (_filename == '') {
+    return
+  }
+
+  _setMessage('')
+  _setContent('')
+
+  let url = API_BASE_URL + API_USER_FILES_CONTENT_ENDPOINT
+  url += '?user-id=' + _auth.userId
+  url += '&token=' + _auth.token
+  url += '&filename=' + _filename
+  fetch(url)
+    .then((res) => {
+      if (!res.ok) {
+        _setMessage('Error loading content of ' + _filename)
+        return ''
+      } else {
+        return res.json()
+      }
+    })
+    .then((data) => {
+      _setContent(data['filecontent'])
+    })
+    .catch((err) => {
+      _setMessage(err.message)
+      console.log(err.message)
+    })
+}
 
 export const capitalizeFirstWithoutHashes = (_string: string) => {
   let tmp = _string.split('-').join(' ')

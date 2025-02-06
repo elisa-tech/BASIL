@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as Constants from '@app/Constants/constants'
-import { Button, Divider, Flex, FlexItem, Hint, HintBody, PageSection } from '@patternfly/react-core'
+import { Divider, Hint, HintBody, PageSection } from '@patternfly/react-core'
 import { Editor } from '@monaco-editor/react'
 import { useAuth } from '@app/User/AuthProvider'
 
@@ -26,36 +26,9 @@ export const UserFilesEditForm: React.FunctionComponent<UserFilesEditFormProps> 
 
   const onEditorDidMount = () => {
     //
-    loadFileContent()
-  }
-
-  const loadFileContent = () => {
-    if (!modalFileName) {
-      return
+    if (modalFileName) {
+      Constants.loadFileContent(auth, modalFileName.current, setMessageValue, setFileContent)
     }
-
-    setMessageValue('')
-    setFileContent('')
-
-    let url = Constants.API_BASE_URL + Constants.API_USER_FILES_CONTENT_ENDPOINT
-    url += '?user-id=' + auth.userId
-    url += '&token=' + auth.token
-    url += '&filename=' + modalFileName.current
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) {
-          setMessageValue('Error loading content of ' + modalFileName.current)
-          return ''
-        } else {
-          return res.json()
-        }
-      })
-      .then((data) => {
-        setFileContent(data['filecontent'])
-      })
-      .catch((err) => {
-        console.log(err.message)
-      })
   }
 
   React.useEffect(() => {
@@ -85,7 +58,9 @@ export const UserFilesEditForm: React.FunctionComponent<UserFilesEditFormProps> 
         if (response.status !== 200) {
           setMessageValue(response.statusText)
         } else {
-          loadFileContent()
+          if (modalFileName) {
+            Constants.loadFileContent(auth, modalFileName.current, setMessageValue, setFileContent)
+          }
           setMessageValue('SAVED')
         }
       })
@@ -122,30 +97,6 @@ export const UserFilesEditForm: React.FunctionComponent<UserFilesEditFormProps> 
           fontSize: 20
         }}
       />
-
-      <Divider />
-      <br />
-
-      <Flex>
-        <FlexItem>
-          <Button
-            onClick={() => {
-              loadFileContent()
-            }}
-          >
-            Reload
-          </Button>
-        </FlexItem>
-        <FlexItem>
-          <Button
-            onClick={() => {
-              saveFileContent()
-            }}
-          >
-            Save
-          </Button>
-        </FlexItem>
-      </Flex>
     </PageSection>
   )
 }

@@ -34,7 +34,7 @@ MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 5  # 5 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, "ssh_keys")
 TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, "testrun_plugin_presets.yaml")
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
-USER_FILES_BASE_DIR = os.environ.get("BASIL_USER_FILES_PATH", os.path.join(currentdir, "user-files"))
+USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.makedirs(SSH_KEYS_PATH, exist_ok=True)
@@ -5849,13 +5849,13 @@ class UserFiles(Resource):
         for user_file in os.listdir(user_files_path):
             tmp = {
                 "index": i,
-                "filename": user_file,
+                "filepath": os.path.join(user_files_path, user_file),
                 "updated_at": time.ctime(os.path.getmtime(os.path.join(user_files_path, user_file))),
             }
             ret.append(tmp)
             i += 1
 
-        ret = sorted(ret, key=lambda f: f["filename"], reverse=False)  # sort by filename
+        ret = sorted(ret, key=lambda f: f["filepath"], reverse=False)  # sort by filename
         return ret
 
     def post(self):
@@ -5896,7 +5896,11 @@ class UserFiles(Resource):
         if not os.path.exists(filepath):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
-        ret = {"index": 0, "filename": filename, "updated_at": time.ctime(os.path.getmtime(filepath))}
+        ret = {
+            "index": 0,
+            "filepath": filepath,
+            "updated_at": time.ctime(os.path.getmtime(filepath))
+            }
         return ret
 
     def delete(self):
@@ -5935,7 +5939,9 @@ class UserFiles(Resource):
         if os.path.exists(filepath):
             return CONFLICT_MESSAGE, CONFLICT_STATUS
 
-        ret = {"index": 0, "filename": filename, "updated_at": ""}
+        ret = {"index": 0,
+               "filepath": filepath,
+               "updated_at": ""}
         return ret
 
 
@@ -5974,7 +5980,7 @@ class UserFileContent(Resource):
 
         ret = {
             "index": 0,
-            "filename": args["filename"],
+            "filepath": filepath,
             "filecontent": filecontent,
             "updated_at": time.ctime(os.path.getmtime(os.path.join(filepath))),
         }
@@ -6022,7 +6028,7 @@ class UserFileContent(Resource):
 
         ret = {
             "index": 0,
-            "filename": filename,
+            "filepath": filepath,
             "filecontent": filecontent,
             "updated_at": time.ctime(os.path.getmtime(filepath)),
         }

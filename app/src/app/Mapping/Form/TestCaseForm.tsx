@@ -54,15 +54,19 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 }: TestCaseFormProps) => {
   const auth = useAuth()
 
+  const [userFiles, setUserFiles] = React.useState([])
+
   const [titleValue, setTitleValue] = React.useState(formData.title)
   const [validatedTitleValue, setValidatedTitleValue] = React.useState<Constants.validate>('error')
 
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
   const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
 
+  const [implementationSource, setImplementationSource] = React.useState('url')
+  const [implementationFilePath, setImplementationFilePath] = React.useState('')
+  const [validatedImplementationFilePath, setValidatedImplementationFilePath] = React.useState<Constants.validate>('error')
   const [repositoryValue, setRepositoryValue] = React.useState(formData.repository)
   const [validatedRepositoryValue, setValidatedRepositoryValue] = React.useState<Constants.validate>('error')
-
   const [relativePathValue, setRelativePathValue] = React.useState(formData.relative_path)
   const [validatedRelativePathValue, setValidatedRelativePathValue] = React.useState<Constants.validate>('error')
 
@@ -106,6 +110,23 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       setValidatedRepositoryValue('success')
     }
   }, [repositoryValue])
+
+  React.useEffect(() => {
+    if (implementationFilePath.trim() == '') {
+      setValidatedImplementationFilePath('error')
+    } else {
+      setValidatedImplementationFilePath('success')
+    }
+  }, [implementationFilePath])
+
+  React.useEffect(() => {
+    if (implementationSource == 'user-files') {
+      if (userFiles.length == 0) {
+        Constants.loadUserFiles(auth, setUserFiles)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [implementationSource])
 
   React.useEffect(() => {
     if (relativePathValue.trim() === '') {
@@ -166,6 +187,9 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
   const handleTestCaseStatusChange = (_event, value: string) => {
     setTestCaseStatusValue(value)
   }
+  const handleImplementationFilePathChange = (_event, value: string) => {
+    setImplementationFilePath(value)
+  }
 
   const handleSubmit = () => {
     if (validatedTitleValue != 'success') {
@@ -176,14 +200,22 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       setMessageValue('Test Case Description is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (validatedRepositoryValue != 'success') {
-      setMessageValue('Test Case Repository is mandatory.')
-      setStatusValue('waiting')
-      return
-    } else if (validatedRelativePathValue != 'success') {
-      setMessageValue('Test Case Relative Path is mandatory.')
-      setStatusValue('waiting')
-      return
+    } else if (implementationSource == 'url') {
+      if (validatedRepositoryValue != 'success') {
+        setMessageValue('Test Case Repository is mandatory.')
+        setStatusValue('waiting')
+        return
+      } else if (validatedRelativePathValue != 'success') {
+        setMessageValue('Test Case Relative Path is mandatory.')
+        setStatusValue('waiting')
+        return
+      }
+    } else if (implementationSource == 'user-files') {
+      if (validatedImplementationFilePath != 'success') {
+        setMessageValue('Test Case user file is mandatory.')
+        setStatusValue('waiting')
+        return
+      }
     } else if (validatedCoverageValue != 'success') {
       setMessageValue('Test Case Coverage of Parent Item is mandatory and must be an integer in the range 0-100.')
       setStatusValue('waiting')
@@ -196,9 +228,17 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     setMessageValue('')
 
+    const tc_repository: string = implementationSource == 'url' ? repositoryValue : implementationFilePath.split('/api/')[0]
+    const tc_relative_path: string = implementationSource == 'url' ? relativePathValue : implementationFilePath.slice(tc_repository.length)
+
     const data = {
       'api-id': api.id,
-      'test-case': { title: titleValue, description: descriptionValue, repository: repositoryValue, 'relative-path': relativePathValue },
+      'test-case': {
+        title: titleValue,
+        description: descriptionValue,
+        repository: tc_repository,
+        'relative-path': tc_relative_path
+      },
       section: modalSection,
       offset: modalOffset,
       coverage: coverageValue,
@@ -301,39 +341,84 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Repository' isRequired fieldId={`input-test-case-${formAction}-repository-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-test-case-${formAction}-repository-${formData.id}`}
-          name={`input-test-case-${formAction}-repository-${formData.id}`}
-          value={repositoryValue || ''}
-          onChange={(_ev, value) => handleRepositoryValueChange(_ev, value)}
-        />
-        {validatedRepositoryValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>{validatedRepositoryValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
+      <FormGroup
+        label={implementationSource == 'url' ? 'Repository' : 'User file'}
+        isRequired
+        fieldId={`input-test-case-${formAction}-repository-${formData.id}`}
+        labelIcon={
+          implementationSource == 'url' ? (
+            <Button variant='link' onClick={() => setImplementationSource('user-files')}>
+              From user files
+            </Button>
+          ) : (
+            <Button variant='link' onClick={() => setImplementationSource('url')}>
+              From url
+            </Button>
+          )
+        }
+      >
+        {implementationSource == 'url' ? (
+          <>
+            <TextInput
+              isRequired
+              id={`input-test-case-${formAction}-repository-${formData.id}`}
+              name={`input-test-case-${formAction}-repository-${formData.id}`}
+              value={repositoryValue || ''}
+              onChange={(_ev, value) => handleRepositoryValueChange(_ev, value)}
+            />
+            {validatedRepositoryValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>{validatedRepositoryValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </>
+        ) : (
+          <>
+            <FormSelect
+              value={implementationFilePath}
+              id={`select-test-case-${formAction}-file-${formData.id}`}
+              onChange={handleImplementationFilePathChange}
+              aria-label='Test Case from user file'
+            >
+              <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
+              {userFiles.map((userFile, index) => (
+                <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+              ))}
+            </FormSelect>
+            {validatedImplementationFilePath !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>
+                    {validatedImplementationFilePath === 'error' ? 'This field is mandatory' : ''}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </>
         )}
       </FormGroup>
-      <FormGroup label='Relative Path' isRequired fieldId={`input-test-case-${formAction}-relative-path-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-test-case-${formAction}-relative-path-${formData.id}`}
-          name={`input-test-case-${formAction}-relative-path-${formData.id}`}
-          value={relativePathValue || ''}
-          onChange={(_ev, value) => handleRelativePathValueChange(_ev, value)}
-        />
-        {validatedRelativePathValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>{validatedRelativePathValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
-
+      {implementationSource == 'url' ? (
+        <FormGroup label='Relative Path' isRequired fieldId={`input-test-case-${formAction}-relative-path-${formData.id}`}>
+          <TextInput
+            isRequired
+            id={`input-test-case-${formAction}-relative-path-${formData.id}`}
+            name={`input-test-case-${formAction}-relative-path-${formData.id}`}
+            value={relativePathValue || ''}
+            onChange={(_ev, value) => handleRelativePathValueChange(_ev, value)}
+          />
+          {validatedRelativePathValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>{validatedRelativePathValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      ) : (
+        ''
+      )}
       <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-case-${formAction}-coverage-${formData.id}`}>
         <TextInput
           isRequired

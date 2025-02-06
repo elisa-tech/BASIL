@@ -38,6 +38,7 @@ export const UserFilesModal: React.FunctionComponent<UserFilesModalProps> = ({
   return (
     <React.Fragment>
       <Modal
+        width={'70%'}
         bodyAriaLabel='UserFilesModal'
         aria-label='user files modal'
         tabIndex={0}

@@ -285,7 +285,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         console.log(err.message)
         return false
       })
-      return true
+    return true
   }
 
   const getTestCases = (section, offset, test_cases, indirect, parent_type, parent_related_to_type) => {

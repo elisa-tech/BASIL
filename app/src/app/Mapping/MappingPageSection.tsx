@@ -703,6 +703,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       <TestRunModal
         api={api}
         setModalShowState={setTestRunModalShowState}
+        setTestResultsModalShowState={setTestResultsModalShowState}
         modalShowState={testRunModalShowState}
         modalRelationData={modalRelationData}
         parentType={modalParentType}

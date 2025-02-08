@@ -25,6 +25,7 @@ export interface TestRunModalProps {
   modalShowState: boolean
   parentType
   setModalShowState
+  setTestResultsModalShowState
 }
 
 export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
@@ -32,7 +33,8 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   modalRelationData,
   modalShowState,
   parentType,
-  setModalShowState
+  setModalShowState,
+  setTestResultsModalShowState
 }: TestRunModalProps) => {
   const auth = useAuth()
   const [infoLabel, setInfoLabel] = React.useState('new')
@@ -300,6 +302,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           setMessageValue(response.statusText)
         } else {
           handleModalToggle()
+          setTestResultsModalShowState(true)
           setMessageValue('')
           resetForms()
         }

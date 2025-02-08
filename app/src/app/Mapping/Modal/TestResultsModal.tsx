@@ -460,7 +460,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
         if (response.status !== 200) {
           setMessageValue(response.statusText)
         } else {
-          handleModalToggle()
+          loadTestResults()
           setMessageValue('')
         }
       })

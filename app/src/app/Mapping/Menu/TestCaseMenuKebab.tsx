@@ -136,7 +136,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
               key='test result'
               onClick={() => setTestResultsModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}
             >
-              Test Result
+              Test Results
             </DropdownItem>
           </>
         ) : (

@@ -27,6 +27,9 @@ export const DEFAULT_PER_PAGE = 10
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'
 
 export const PATH_SEP = '/'
+export const API_USER_APIS_ENDPOINT = '/user/apis'
+export const API_USER_PERMISSIONS_API_ENDPOINT = '/user/permissions/api'
+export const API_USER_PERMISSIONS_API_COPY_ENDPOINT = '/user/permissions/copy'
 export const API_USER_FILES_ENDPOINT = '/user/files'
 export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
 

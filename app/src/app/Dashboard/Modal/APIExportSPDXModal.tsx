@@ -1,4 +1,5 @@
 import React from 'react'
+import * as Constants from '@app/Constants/constants'
 import { Button, ClipboardCopyButton, CodeBlock, CodeBlockAction, CodeBlockCode, Modal, ModalVariant } from '@patternfly/react-core'
 
 export interface APIExportSPDXModalProps {
@@ -61,6 +62,7 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APIExportSPDXModal'
         aria-label='api export spdx modal'
         tabIndex={0}

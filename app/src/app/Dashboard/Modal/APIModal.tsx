@@ -1,6 +1,7 @@
 import React from 'react'
 import { Button, Modal, ModalVariant } from '@patternfly/react-core'
 import { APIForm } from '../Form/APIForm'
+import * as Constants from '@app/Constants/constants'
 
 export interface APIModalProps {
   modalAction: string
@@ -41,6 +42,7 @@ export const APIModal: React.FunctionComponent<APIModalProps> = ({
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APIModal'
         aria-label='api modal'
         tabIndex={0}

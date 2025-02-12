@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import * as React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   Button,
   Divider,
@@ -315,6 +315,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='TestRunModal'
         aria-label='test run modal'
         tabIndex={0}

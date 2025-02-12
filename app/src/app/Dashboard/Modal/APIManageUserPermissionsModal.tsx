@@ -15,7 +15,7 @@ import {
   ModalVariant,
   SearchInput
 } from '@patternfly/react-core'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { useAuth } from '../../User/AuthProvider'
 
 export interface ManageUserPermissionsProps {
@@ -190,6 +190,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APIManageUserPermissionsModal'
         aria-label='api manage user permissions modal'
         tabIndex={0}

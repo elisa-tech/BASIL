@@ -354,6 +354,7 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APICheckSpecModal'
         aria-label='api check spec modal'
         tabIndex={0}

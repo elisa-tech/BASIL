@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Modal, ModalVariant } from '@patternfly/react-core'
 import { Text, TextContent, TextList, TextListItem } from '@patternfly/react-core'
 import { Panel, PanelMain, PanelMainBody } from '@patternfly/react-core'
@@ -115,6 +115,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingCommentModal'
         aria-label='mapping comment modal'
         tabIndex={0}

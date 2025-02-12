@@ -58,6 +58,7 @@ export const MappingUsageModal: React.FunctionComponent<MappingUsageModalProps> 
   return (
     <React.Fragment>
       <Modal
+        width={'80%'}
         bodyAriaLabel='MappingUsageModal'
         aria-label='mapping usage modal'
         tabIndex={0}

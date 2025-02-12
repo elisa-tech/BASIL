@@ -1,35 +1,43 @@
 import * as React from 'react'
+import * as XLSX from 'xlsx'
 import * as Constants from '../../Constants/constants'
-import { DropEvent, FileUpload } from '@patternfly/react-core'
+import { FileUpload } from '@patternfly/react-core'
 import { ActionGroup, Button, Hint, HintBody } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useAuth } from '../../User/AuthProvider'
 
 interface SwRequirement {
   id: string
+  index: number
   title: string
   description: string
 }
 
-export const SwRequirementImport: React.FunctionComponent = () => {
+export interface SwRequirementImportProps {
+  loadSwRequirements
+}
+
+export const SwRequirementImport: React.FunctionComponent<SwRequirementImportProps> = ({
+  loadSwRequirements
+}: SwRequirementImportProps) => {
   const auth = useAuth()
   const importUrl = Constants.API_BASE_URL + '/import/sw-requirements'
   const [messageValue, setMessageValue] = React.useState('')
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   // Table
-  const [SwRequirements, setSwRequirements] = React.useState<SwRequirement[]>([])
+  const [workItems, setWorkItems] = React.useState<SwRequirement[]>([])
 
-  const [selectedRowsIds, setSelectedRowsIds] = React.useState<string[]>([])
-  const areAllRowsSelected = selectedRowsIds.length === SwRequirements.length
+  const [selectedIndexes, setSelectedIndexes] = React.useState<number[]>([])
+  const areAllRowsSelected = selectedIndexes.length === workItems.length
   const [shifting, setShifting] = React.useState(false)
   const [recentSelectedRowIndex, setRecentSelectedRowIndex] = React.useState<number | null>(null)
-  const isRowSelected = (id) => selectedRowsIds.includes(id)
+  const isRowSelected = (_index) => selectedIndexes.includes(_index)
 
   const setRowSelected = (row: SwRequirement, isSelecting = true) =>
-    setSelectedRowsIds((prevSelected) => {
-      const otherSelectedRowsIds = prevSelected.filter((r) => r !== row.id)
-      return isSelecting ? [...otherSelectedRowsIds, row.id] : otherSelectedRowsIds
+    setSelectedIndexes((prevSelected) => {
+      const otherSelectedRows = prevSelected.filter((r) => r !== row.index)
+      return isSelecting ? [...otherSelectedRows, row.index] : otherSelectedRows
     })
 
   const onSelectRow = (row: SwRequirement, rowIndex: number, isSelecting: boolean) => {
@@ -40,7 +48,7 @@ export const SwRequirementImport: React.FunctionComponent = () => {
         numberSelected > 0
           ? Array.from(new Array(numberSelected + 1), (_x, i) => i + recentSelectedRowIndex)
           : Array.from(new Array(Math.abs(numberSelected) + 1), (_x, i) => i + rowIndex)
-      intermediateIndexes.forEach((index) => setRowSelected(SwRequirements[index], isSelecting))
+      intermediateIndexes.forEach((index) => setRowSelected(workItems[index], isSelecting))
     } else {
       setRowSelected(row, isSelecting)
     }
@@ -48,7 +56,7 @@ export const SwRequirementImport: React.FunctionComponent = () => {
     setMessageValue('')
   }
 
-  const selectAllRows = (isSelecting = true) => setSelectedRowsIds(isSelecting ? SwRequirements.map((r) => r.id) : [])
+  const selectAllRows = (isSelecting = true) => setSelectedIndexes(isSelecting ? workItems.map((r) => r.index) : [])
 
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -71,34 +79,47 @@ export const SwRequirementImport: React.FunctionComponent = () => {
   }, [])
 
   // File Upload
-  const [fileContent, setFileContent] = React.useState('')
+  const [fileContent, setFileContent] = React.useState<string>('')
   const [fileName, setFileName] = React.useState('')
-  const [isLoading, setIsLoading] = React.useState(false)
+
+  const readTextFile = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFileContent(reader.result)
+      }
+    }
+    reader.readAsText(file)
+  }
+
+  const readXlsxFile = (file: File) => {
+    const reader = new FileReader()
+
+    reader.onload = (event) => {
+      const workbook = XLSX.read(event.target?.result, { type: 'binary' })
+      const sheetName = workbook.SheetNames[0]
+      const sheet = workbook.Sheets[sheetName]
+      const sheetData = XLSX.utils.sheet_to_json(sheet)
+      setFileContent(JSON.stringify(sheetData))
+    }
+    reader.readAsArrayBuffer(file)
+  }
 
   const handleFileInputChange = (_, file: File) => {
+    setSelectedIndexes([])
     setFileName(file.name)
-  }
-
-  const handleTextChange = (_event: React.ChangeEvent<HTMLTextAreaElement>, value: string) => {
-    setFileContent(value)
-  }
-
-  const handleDataChange = (_event: DropEvent, value: string) => {
-    setFileContent(value)
+    if (file.name.endsWith('xlsx')) {
+      readXlsxFile(file)
+    } else {
+      readTextFile(file)
+    }
   }
 
   const handleClear = () => {
     setFileName('')
     setFileContent('')
+    setSelectedIndexes([])
     setMessageValue('Data erased')
-  }
-
-  const handleFileReadStarted = () => {
-    setIsLoading(true)
-  }
-
-  const handleFileReadFinished = () => {
-    setIsLoading(false)
   }
 
   const columnNames = {
@@ -110,31 +131,32 @@ export const SwRequirementImport: React.FunctionComponent = () => {
   const resetForm = () => {
     setFileName('')
     setFileContent('')
-    setSwRequirements([])
-    setSelectedRowsIds([])
+    setWorkItems([])
+    setSelectedIndexes([])
   }
 
   React.useEffect(() => {
-    console.log(fileContent)
-    if (fileContent?.length > 0) {
-      getSwRequirementsList()
+    if (fileContent) {
+      if (fileContent.length > 0) {
+        getWorkItemsList()
+      }
     }
   }, [fileContent])
 
-  const getSwRequirementsList = () => {
-    const data = { file_content: fileContent }
+  const getWorkItemsList = () => {
+    const data = {
+      file_name: fileName,
+      file_content: fileContent
+    }
     fetch(importUrl, {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((res) => {
         if (!res.ok) {
           setMessageValue('Error loading data')
-          setSwRequirements([])
+          setWorkItems([])
           return {}
         } else {
           return res.json()
@@ -145,20 +167,21 @@ export const SwRequirementImport: React.FunctionComponent = () => {
         for (let i = 0; i < data['sw_requirements'].length; i++) {
           const req: SwRequirement = {
             id: data['sw_requirements'][i].id,
+            index: i,
             title: data['sw_requirements'][i].title,
             description: data['sw_requirements'][i].description
           }
           reqs.push(req)
         }
-        setSwRequirements(reqs)
-        if (setSwRequirements.length > 0) {
+        setWorkItems(reqs)
+        if (reqs.length > 0) {
           setMessageValue('Data loaded')
         }
       })
       .catch((err) => {
         console.log(err.message)
         setMessageValue(err.message)
-        setSwRequirements([])
+        setWorkItems([])
       })
   }
 
@@ -170,26 +193,30 @@ export const SwRequirementImport: React.FunctionComponent = () => {
   }, [statusValue])
 
   const handleSubmit = () => {
-    if (selectedRowsIds.length == 0) {
+    if (selectedIndexes.length == 0) {
       setMessageValue('Please, select at least one row.')
       return
+    }
+
+    const items: SwRequirement[] = []
+    for (let i = 0; i < workItems.length; i++) {
+      if (selectedIndexes.includes(workItems[i].index)) {
+        items.push(workItems[i])
+      }
     }
 
     setMessageValue('')
 
     const data = {
       file_content: fileContent,
-      filter_ids: selectedRowsIds.join(','),
+      items: items,
       'user-id': auth.userId,
       token: auth.token
     }
 
     fetch(importUrl, {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -199,6 +226,7 @@ export const SwRequirementImport: React.FunctionComponent = () => {
         } else {
           setStatusValue('waiting')
           setMessageValue('Requirements imported!')
+          loadSwRequirements('')
           resetForm()
         }
       })
@@ -212,56 +240,52 @@ export const SwRequirementImport: React.FunctionComponent = () => {
     <React.Fragment>
       <FileUpload
         id='sw-requirement-spdx-file-upload'
-        type='text'
         hideDefaultPreview={true}
         value={fileContent}
         filename={fileName}
         filenamePlaceholder='Drag and drop a file or upload one'
         onFileInputChange={handleFileInputChange}
-        onDataChange={handleDataChange}
-        onTextChange={handleTextChange}
-        onReadStarted={handleFileReadStarted}
-        onReadFinished={handleFileReadFinished}
         onClearClick={handleClear}
-        isLoading={isLoading}
         allowEditingUploadedText={false}
         browseButtonText='Upload'
       />
       <br />
-      {fileContent && (
-        <Table aria-label='Selectable table'>
-          <Thead>
-            <Tr>
-              <Th
-                select={{
-                  onSelect: (_event, isSelecting) => selectAllRows(isSelecting),
-                  isSelected: areAllRowsSelected
-                }}
-                aria-label='Row select'
-              />
-              <Th>{columnNames.id}</Th>
-              <Th>{columnNames.title}</Th>
-              <Th>{columnNames.description}</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {SwRequirements.map((sw_requirement, rowIndex) => (
-              <Tr key={rowIndex}>
-                <Td
+      <div style={{ height: '600px', overflowY: 'scroll' }}>
+        {fileContent && (
+          <Table aria-label='Selectable table'>
+            <Thead>
+              <Tr>
+                <Th
                   select={{
-                    rowIndex,
-                    onSelect: (_event, isSelecting) => onSelectRow(sw_requirement, rowIndex, isSelecting),
-                    isSelected: isRowSelected(sw_requirement.id)
+                    onSelect: (_event, isSelecting) => selectAllRows(isSelecting),
+                    isSelected: areAllRowsSelected
                   }}
+                  aria-label='Row select'
                 />
-                <Td dataLabel={columnNames.id}>{sw_requirement.id}</Td>
-                <Td dataLabel={columnNames.title}>{sw_requirement.title}</Td>
-                <Td dataLabel={columnNames.description}>{sw_requirement.description}</Td>
+                <Th>{columnNames.id}</Th>
+                <Th>{columnNames.title}</Th>
+                <Th>{columnNames.description}</Th>
               </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      )}
+            </Thead>
+            <Tbody>
+              {workItems.map((workItem, rowIndex) => (
+                <Tr key={rowIndex}>
+                  <Td
+                    select={{
+                      rowIndex,
+                      onSelect: (_event, isSelecting) => onSelectRow(workItem, rowIndex, isSelecting),
+                      isSelected: isRowSelected(workItem.index)
+                    }}
+                  />
+                  <Td dataLabel={columnNames.id}>{workItem.id}</Td>
+                  <Td dataLabel={columnNames.title}>{workItem.title}</Td>
+                  <Td dataLabel={columnNames.description}>{workItem.description}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </div>
       <br />
       {messageValue ? (
         <>

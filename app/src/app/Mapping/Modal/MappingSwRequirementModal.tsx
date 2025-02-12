@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Button, Modal, ModalVariant, Tab, TabContent, TabContentBody, TabTitleText, Tabs } from '@patternfly/react-core'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { SectionForm } from '../Form/SectionForm'
 import { SwRequirementForm } from '../Form/SwRequirementForm'
 import { SwRequirementSearch } from '../Search/SwRequirementSearch'
@@ -82,10 +82,12 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
   const newItemRef = React.createRef<HTMLElement>()
   const sectionItemsRef = React.createRef<HTMLElement>()
   const existingItemsRef = React.createRef<HTMLElement>()
+  const importItemsRef = React.createRef<HTMLElement>()
 
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingSwRequirementModal'
         aria-label='mapping sw requirement modal'
         tabIndex={0}
@@ -135,74 +137,70 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
             eventKey={3}
             isDisabled={false}
             title={<TabTitleText>Import</TabTitleText>}
-            tabContentId='tabImportSwRequirement'
-            tabContentRef={existingItemsRef}
+            tabContentId='tabContentSwRequirementImport'
+            tabContentRef={importItemsRef}
           />
         </Tabs>
-        <div>
-          <TabContent eventKey={0} id='tabContentSwRequirementForm' ref={newItemRef} hidden={0 !== activeTabKey}>
-            <TabContentBody hasPadding>
-              <SwRequirementForm
-                api={api}
-                formAction={modalAction}
-                formData={modalFormData}
-                formVerb={modalVerb}
-                parentData={parentData}
-                parentType={parentType}
-                parentRelatedToType={parentRelatedToType}
-                handleModalToggle={handleModalToggle}
-                loadMappingData={loadMappingData}
-                modalIndirect={modalIndirect}
-                modalOffset={modalOffset}
-                modalSection={modalSection}
-                formDefaultButtons={1}
-                formMessage={''}
-                modalFormSubmitState={'waiting'}
-              />
-            </TabContentBody>
-          </TabContent>
-          <TabContent eventKey={1} id='tabContentSwRequirementSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
-            <TabContentBody hasPadding>
-              <SectionForm
-                api={api}
-                //formVerb={modalVerb}
-                //handleModalToggle={handleModalToggle}
-                //modalIndirect={modalIndirect}
-                modalOffset={modalOffset}
-                modalSection={modalSection}
-                setModalOffset={setModalOffset}
-                setModalSection={setModalSection}
-              />
-            </TabContentBody>
-          </TabContent>
-          <TabContent eventKey={2} id='tabContentSwRequirementExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
-            <TabContentBody hasPadding>
-              <SwRequirementSearch
-                api={api}
-                parentData={parentData}
-                parentType={parentType}
-                formVerb={modalVerb}
-                parentRelatedToType={parentRelatedToType}
-                handleModalToggle={handleModalToggle}
-                loadMappingData={loadMappingData}
-                loadSwRequirements={loadSwRequirements}
-                modalIndirect={modalIndirect}
-                modalOffset={modalOffset}
-                modalSection={modalSection}
-                modalShowState={modalShowState}
-                swRequirements={swRequirements}
-                formDefaultButtons={1}
-                formMessage={''}
-                formData={null}
-              />
-            </TabContentBody>
-          </TabContent>
-          <TabContent eventKey={3} id='tabContentSwRequirementImport' ref={existingItemsRef} hidden={3 !== activeTabKey}>
-            <TabContentBody hasPadding>
-              <SwRequirementImport />
-            </TabContentBody>
-          </TabContent>
-        </div>
+
+        <TabContent eventKey={0} id='tabContentSwRequirementForm' ref={newItemRef} hidden={0 !== activeTabKey}>
+          <TabContentBody hasPadding>
+            <SwRequirementForm
+              api={api}
+              formAction={modalAction}
+              formData={modalFormData}
+              formVerb={modalVerb}
+              parentData={parentData}
+              parentType={parentType}
+              parentRelatedToType={parentRelatedToType}
+              handleModalToggle={handleModalToggle}
+              loadMappingData={loadMappingData}
+              modalIndirect={modalIndirect}
+              modalOffset={modalOffset}
+              modalSection={modalSection}
+              formDefaultButtons={1}
+              formMessage={''}
+              modalFormSubmitState={'waiting'}
+            />
+          </TabContentBody>
+        </TabContent>
+        <TabContent eventKey={1} id='tabContentSwRequirementSection' ref={sectionItemsRef} hidden={1 !== activeTabKey}>
+          <TabContentBody hasPadding>
+            <SectionForm
+              api={api}
+              modalOffset={modalOffset}
+              modalSection={modalSection}
+              setModalOffset={setModalOffset}
+              setModalSection={setModalSection}
+            />
+          </TabContentBody>
+        </TabContent>
+        <TabContent eventKey={2} id='tabContentSwRequirementExisting' ref={existingItemsRef} hidden={2 !== activeTabKey}>
+          <TabContentBody hasPadding>
+            <SwRequirementSearch
+              api={api}
+              parentData={parentData}
+              parentType={parentType}
+              formVerb={modalVerb}
+              parentRelatedToType={parentRelatedToType}
+              handleModalToggle={handleModalToggle}
+              loadMappingData={loadMappingData}
+              loadSwRequirements={loadSwRequirements}
+              modalIndirect={modalIndirect}
+              modalOffset={modalOffset}
+              modalSection={modalSection}
+              modalShowState={modalShowState}
+              swRequirements={swRequirements}
+              formDefaultButtons={1}
+              formMessage={''}
+              formData={null}
+            />
+          </TabContentBody>
+        </TabContent>
+        <TabContent eventKey={3} id='tabContentSwRequirementImport' ref={importItemsRef} hidden={3 !== activeTabKey}>
+          <TabContentBody hasPadding>
+            <SwRequirementImport loadSwRequirements={loadSwRequirements} />
+          </TabContentBody>
+        </TabContent>
       </Modal>
     </React.Fragment>
   )

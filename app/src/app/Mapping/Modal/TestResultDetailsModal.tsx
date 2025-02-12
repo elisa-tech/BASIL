@@ -1,5 +1,5 @@
 import * as React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   Button,
   CodeBlock,
@@ -142,6 +142,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='TestResultDetailsModal'
         aria-label='test result details modal'
         tabIndex={0}

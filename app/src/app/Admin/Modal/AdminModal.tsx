@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Divider, Hint, HintBody, Modal, ModalVariant, Text, TextContent, TextVariants } from '@patternfly/react-core'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { encode as base64_encode } from 'base-64'
 import CopyIcon from '@patternfly/react-icons/dist/esm/icons/copy-icon'
 import { useAuth } from '../../User/AuthProvider'
@@ -90,6 +90,7 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='Scrollable modal content'
         tabIndex={0}
         variant={ModalVariant.large}

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Button, Modal, ModalVariant } from '@patternfly/react-core'
 import { SSHKeyForm } from '../Form/SSHKeyForm'
+import * as Constants from '@app/Constants/constants'
 
 export interface SSHKeyModalProps {
   modalShowState
@@ -28,6 +29,7 @@ export const SSHKeyModal: React.FunctionComponent<SSHKeyModalProps> = ({ modalSh
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='SSHKeyModal'
         aria-label='ssh key modal'
         tabIndex={0}

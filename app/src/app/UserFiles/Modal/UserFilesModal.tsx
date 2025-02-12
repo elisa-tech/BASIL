@@ -2,6 +2,7 @@ import React from 'react'
 import { Button, Modal, ModalVariant } from '@patternfly/react-core'
 import { UserFilesAddForm } from '../Form/UserFilesAddForm'
 import { UserFilesEditForm } from '../Form/UserFilesEditForm'
+import * as Constants from '@app/Constants/constants'
 
 export interface UserFilesModalProps {
   modalAction
@@ -38,7 +39,7 @@ export const UserFilesModal: React.FunctionComponent<UserFilesModalProps> = ({
   return (
     <React.Fragment>
       <Modal
-        width={'70%'}
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='UserFilesModal'
         aria-label='user files modal'
         tabIndex={0}

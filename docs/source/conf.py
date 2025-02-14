@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'BASIL'
-copyright = '2023, Luigi Pellecchia'
+copyright = '2025, Luigi Pellecchia'
 author = 'Luigi Pellecchia'
 release = '1.0.0'
 

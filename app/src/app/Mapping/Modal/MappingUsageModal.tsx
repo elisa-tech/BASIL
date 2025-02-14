@@ -1,5 +1,6 @@
 import React from 'react'
 import { Button, Modal, ModalVariant, TextContent, TextList, TextListItem } from '@patternfly/react-core'
+import * as Constants from '@app/Constants/constants'
 
 export interface MappingUsageModalProps {
   modalShowState
@@ -58,7 +59,7 @@ export const MappingUsageModal: React.FunctionComponent<MappingUsageModalProps> 
   return (
     <React.Fragment>
       <Modal
-        width={'80%'}
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingUsageModal'
         aria-label='mapping usage modal'
         tabIndex={0}

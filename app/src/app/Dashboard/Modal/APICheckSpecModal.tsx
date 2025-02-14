@@ -16,7 +16,7 @@ import {
   ModalVariant,
   TextInput
 } from '@patternfly/react-core'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 
 export interface checkSpecResultsProps {
   checkResultData

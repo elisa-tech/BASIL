@@ -101,7 +101,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
           </Button>
         ]}
       >
-        <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Test Specification' role='region'>
+        <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Test Case' role='region'>
           <Tab
             eventKey={0}
             id='tab-btn-test-case-data'

@@ -112,7 +112,8 @@ from db.models.test_specification_test_case import (
     TestSpecificationTestCaseModel,
 )
 from db.models.user import UserModel
-from spdx_manager import SPDXImport, SPDXManager
+from spdx_manager import SPDXManager
+from import_manager import SPDXImportSwRequirements
 
 app = Flask("BASIL-API")
 api = Api(app)
@@ -3798,18 +3799,27 @@ class ApiSwRequirementsMapping(Resource):
 
 class SwRequirementImport(Resource):
     def post(self):
+        """Return a list of Requirements from an input file to let the user able
+        to select the ones he want to import
+
+        :return: dictionary with list of requirements under a proper key
+        """
         request_data = request.get_json(force=True)
 
-        if "file_content" not in request_data:
+        mandatory_fields = ["file_name", "file_content"]
+
+        if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        spdx_importer = SPDXImport()
-        return {_SRs: spdx_importer.getBasilSwRequirementsToSelect(request_data["file_content"])}
+        spdx_importer = SPDXImportSwRequirements()
+        sw_requirements = spdx_importer.extractWorkItems(file_name=request_data["file_name"],
+                                                         file_content=request_data["file_content"])
+        return {_SRs: sw_requirements}
 
     def put(self):
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(["file_content", "filter_ids"], request_data):
+        if not check_fields_in_request(["file_content", "items"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
@@ -3823,9 +3833,9 @@ class SwRequirementImport(Resource):
         if user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        spdx_importer = SPDXImport()
-        filter_ids = [f.strip() for f in request_data["filter_ids"].split(",") if len(f.strip())]
-        sw_requirements = spdx_importer.getBasilSwRequirementsToImport(request_data["file_content"], filter_ids, user)
+        spdx_importer = SPDXImportSwRequirements()
+        sw_requirements = spdx_importer.getFilteredSwRequirementModels(items=request_data["items"],
+                                                                       user=user)
 
         # Pay attention: we actually doesn't check if the requirement already exists
         # (if already exists a requirement with same content)

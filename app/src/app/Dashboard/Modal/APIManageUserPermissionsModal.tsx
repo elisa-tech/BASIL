@@ -15,9 +15,9 @@ import {
   TabContentBody,
   TabTitleText
 } from '@patternfly/react-core'
+import * as Constants from '@app/Constants/constants'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import * as Constants from '../../Constants/constants'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface ManageUserPermissionsProps {
   api
@@ -398,7 +398,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   return (
     <React.Fragment>
       <Modal
-        width={'80%'}
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APIManageUserPermissionsModal'
         aria-label='api manage user permissions modal'
         tabIndex={0}

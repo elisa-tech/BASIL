@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 
 export interface APIDeleteModalProps {
   api
@@ -69,6 +69,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APIDeleteModal'
         aria-label='api delete modal'
         tabIndex={0}

@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Modal, ModalVariant, Text, TextContent, TextList, TextListItem } from '@patternfly/react-core'
 
 export interface MappingDeleteModalProps {
@@ -61,6 +61,7 @@ export const MappingDetailsModal: React.FunctionComponent<MappingDeleteModalProp
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingDetailsModal'
         aria-label='mapping details modal'
         tabIndex={0}

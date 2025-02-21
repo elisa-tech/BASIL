@@ -16,7 +16,7 @@ import {
   ModalVariant,
   TextInput
 } from '@patternfly/react-core'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 
 export interface checkSpecResultsProps {
   checkResultData
@@ -354,6 +354,7 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='APICheckSpecModal'
         aria-label='api check spec modal'
         tabIndex={0}

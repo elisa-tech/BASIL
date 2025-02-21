@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Divider, Modal, ModalVariant, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
 
 export interface MappingHistoryModalProps {
@@ -95,6 +95,7 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingHistoryModal'
         aria-label='mapping history modal'
         tabIndex={0}

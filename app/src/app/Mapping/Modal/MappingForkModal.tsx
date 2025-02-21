@@ -1,5 +1,5 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
 import { useAuth } from '../../User/AuthProvider'
 
@@ -69,6 +69,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingForkModal'
         aria-label='mapping fork modal'
         tabIndex={0}

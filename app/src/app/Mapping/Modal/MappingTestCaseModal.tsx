@@ -1,5 +1,5 @@
 import * as React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Modal, ModalVariant, Tab, TabContent, TabContentBody, TabTitleText, Tabs } from '@patternfly/react-core'
 import { SectionForm } from '../Form/SectionForm'
 import { TestCaseForm } from '../Form/TestCaseForm'
@@ -87,6 +87,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingTestCaseModal'
         aria-label='mapping test case modal'
         tabIndex={0}

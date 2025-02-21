@@ -1,5 +1,5 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
 import { useAuth } from '../../User/AuthProvider'
 
@@ -70,6 +70,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingDeleteModal'
         aria-label='mapping delete modal'
         tabIndex={0}

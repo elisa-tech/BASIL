@@ -1,5 +1,5 @@
 import * as React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import { Button, Modal, ModalVariant, Tab, TabContent, TabContentBody, TabTitleText, Tabs } from '@patternfly/react-core'
 import { JustificationForm } from '../Form/JustificationForm'
 import { SectionForm } from '../Form/SectionForm'
@@ -64,6 +64,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   return (
     <React.Fragment>
       <Modal
+        width={Constants.MODAL_WIDTH}
         bodyAriaLabel='MappingJustificationModal'
         aria-label='mapping justification modal'
         tabIndex={0}

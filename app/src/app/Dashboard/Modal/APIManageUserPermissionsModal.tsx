@@ -16,6 +16,7 @@ import {
   TabTitleText
 } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface ManageUserPermissionsProps {

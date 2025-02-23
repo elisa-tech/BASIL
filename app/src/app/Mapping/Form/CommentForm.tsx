@@ -1,8 +1,10 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   FormHelperText,
@@ -12,13 +14,14 @@ import {
   HintBody,
   TextArea
 } from '@patternfly/react-core'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface CommentFormProps {
   relationData
   workItemType
   parentType
   handleModalToggle
+  loadComments
   loadMappingData
 }
 
@@ -27,6 +30,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
   workItemType,
   parentType,
   handleModalToggle,
+  loadComments,
   loadMappingData
 }: CommentFormProps) => {
   const auth = useAuth()
@@ -60,40 +64,13 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
   }
 
   const handleSubmit = () => {
-    let parent_table = ''
-    let parent_id = ''
+    let parent_table = Constants.getMappingTableName(workItemType, parentType)
+    const parent_id = relationData.relation_id
 
     if (validatedCommentValue != 'success') {
       setMessageValue('Comment is mandatory.')
       setStatusValue('waiting')
       return
-    }
-
-    if (workItemType == Constants._J) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._J + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._D) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._D + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._SR) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._SR_ + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._TS) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._TS_ + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._TC) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._TC_ + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
     }
 
     if (parent_table == '' || parent_id == '') {
@@ -114,10 +91,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
 
     fetch(Constants.API_BASE_URL + '/comments', {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -125,10 +99,12 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
           setMessageValue(response.statusText)
           setStatusValue('waiting')
         } else {
+          loadComments(parent_table, parent_id)
           loadMappingData(Constants.force_reload)
-          handleModalToggle()
-          setMessageValue('')
+          setMessageValue('Comment saved')
           setStatusValue('waiting')
+          setCommentValue('')
+          focusInputComment()
         }
       })
       .catch((err) => {
@@ -137,17 +113,33 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       })
   }
 
+  // Form elements focus
+  const focusInputComment = () => {
+    document.getElementById('input-comment-comment')?.focus()
+  }
+
+  // Keyboard events
+  const handleCommentKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      handleSubmit()
+    }
+  }
+
   return (
-    <Form>
+    <Form
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
+    >
       <FormGroup label='Comment' isRequired fieldId={`input-comment-comment`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Comment comment field'
           id={`input-comment-comment`}
-          name={`input-comment-comment`}
           value={commentValue || ''}
           onChange={(_ev, value) => handleCommentValueChange(_ev, value)}
+          onKeyUp={handleCommentKeyUp}
         />
         {validatedCommentValue !== 'success' && (
           <FormHelperText>
@@ -170,12 +162,18 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       )}
 
       <ActionGroup>
-        <Button variant='primary' onClick={() => setStatusValue('submitted')}>
-          Submit
-        </Button>
-        <Button variant='secondary' onClick={resetForm}>
-          Reset
-        </Button>
+        <Flex>
+          <FlexItem>
+            <Button variant='primary' onClick={() => setStatusValue('submitted')}>
+              Submit
+            </Button>
+          </FlexItem>
+          <FlexItem>
+            <Button variant='secondary' onClick={resetForm}>
+              Reset
+            </Button>
+          </FlexItem>
+        </Flex>
       </ActionGroup>
     </Form>
   )

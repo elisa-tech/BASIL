@@ -31,6 +31,10 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
   }
 
   React.useEffect(() => {
+    if (modalShowState == true) {
+      loadDocuments('')
+      setActiveTabKey(0)
+    }
     setIsModalOpen(modalShowState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState])
@@ -73,11 +77,6 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Cancel
-          </Button>
-        ]}
       >
         <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Document' role='region'>
           <Tab
@@ -119,9 +118,6 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
                 formDefaultButtons={1}
                 formMessage={''}
                 modalFormSubmitState={'waiting'}
-                //modalIndirect={modalIndirect}
-                //parentType={parentType}
-                //parentRelatedToType={parentRelatedToType}
               />
             </TabContentBody>
           </TabContent>
@@ -129,9 +125,6 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
-                //formVerb={modalVerb}
-                //handleModalToggle={handleModalToggle}
-                //modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
                 setModalOffset={setModalOffset}
@@ -144,14 +137,10 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
               <DocumentSearch
                 api={api}
                 formVerb={modalVerb}
-                //parentData={parentData}
-                //parentType={parentType}
-                //parentRelatedToType={parentRelatedToType}
                 documents={documents}
                 handleModalToggle={handleModalToggle}
                 loadMappingData={loadMappingData}
                 loadDocuments={loadDocuments}
-                //modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
                 modalShowState={modalShowState}

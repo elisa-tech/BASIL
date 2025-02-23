@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import * as Constants from '@app/Constants/constants'
-import { Button, Divider, Modal, ModalVariant, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
+import { Button, Divider, Modal, ModalVariant, Text, TextContent, TextVariants } from '@patternfly/react-core'
 
 export interface MappingHistoryModalProps {
   modalShowState
@@ -48,18 +48,13 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
               <>
                 <Text component={TextVariants.h4}>Work Item</Text>
                 <Divider />
-                <TextList>
-                  {Object.keys(version.object).map((key, index) => (
-                    <TextListItem key={index}>
-                      <em>
-                        <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
-                      </em>
-                      <Text>
-                        <ReactMarkdown>{version.object[key]?.toString()}</ReactMarkdown>
-                      </Text>
-                    </TextListItem>
-                  ))}
-                </TextList>
+                {Object.keys(version.object).map((key, index) => (
+                  <Text component={TextVariants.p}>
+                    <ReactMarkdown>
+                      {' + **' + Constants.capitalizeFirstWithoutHashes(key) + '**: ' + version.object[key]?.toString()}
+                    </ReactMarkdown>
+                  </Text>
+                ))}
               </>
             ) : (
               ''
@@ -69,18 +64,13 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
               <>
                 <Text component={TextVariants.h4}>Mapping</Text>
                 <Divider />
-                <TextList>
-                  {Object.keys(version.mapping).map((key, index) => (
-                    <TextListItem key={index}>
-                      <em>
-                        <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
-                      </em>
-                      <Text>
-                        <ReactMarkdown>{version.mapping[key]?.toString()}</ReactMarkdown>
-                      </Text>
-                    </TextListItem>
-                  ))}
-                </TextList>
+                {Object.keys(version.mapping).map((key, index) => (
+                  <Text component={TextVariants.p}>
+                    <ReactMarkdown>
+                      {' + **' + Constants.capitalizeFirstWithoutHashes(key) + '**: ' + version.mapping[key]?.toString()}
+                    </ReactMarkdown>
+                  </Text>
+                ))}
               </>
             ) : (
               ''
@@ -104,11 +94,6 @@ export const MappingHistoryModal: React.FunctionComponent<MappingHistoryModalPro
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Close
-          </Button>
-        ]}
       >
         {getHistory()}
       </Modal>

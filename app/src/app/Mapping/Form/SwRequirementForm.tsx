@@ -1,5 +1,5 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   ActionGroup,
   Button,
@@ -8,6 +8,9 @@ import {
   FormHelperText,
   FormSelect,
   FormSelectOption,
+  Flex,
+  FlexItem,
+  Grid,
   HelperText,
   HelperTextItem,
   Hint,
@@ -15,7 +18,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface SwRequirementFormProps {
   api
@@ -68,6 +71,10 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
 
+  // Form constants
+  const INPUT_BASE_NAME = 'input-sw-requirement'
+  const SELECT_BASE_NAME = 'select-sw-requirement'
+
   const resetForm = () => {
     setTitleValue('')
     setDescriptionValue('')
@@ -99,17 +106,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
   }, [descriptionValue])
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('error')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   React.useEffect(() => {
@@ -146,17 +143,20 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     if (validatedTitleValue != 'success') {
       setMessageValue('Sw Requirement Title is mandatory.')
       setStatusValue('waiting')
+      focusInputTitle()
       return
     } else if (validatedDescriptionValue != 'success') {
       setMessageValue('Sw Requirement Description is mandatory.')
       setStatusValue('waiting')
+      focusInputDescription()
       return
     } else if (validatedCoverageValue != 'success') {
       setMessageValue('Sw Requirement Coverage of Parent Item is mandatory and must be a integer value in the range 0-100.')
       setStatusValue('waiting')
+      focusInputCoverage()
       return
     } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -190,10 +190,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/sw-requirements', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -213,14 +210,57 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       })
   }
 
+  // Form elements focus
+  const focusInputTitle = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-title-' + formData.id)?.focus()
+  }
+
+  const focusInputDescription = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-description-' + formData.id)?.focus()
+  }
+
+  const focusInputCoverage = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-coverage-' + formData.id)?.focus()
+  }
+
+  // Keyboard events
+  const handleStatusKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputTitle()
+    }
+  }
+
+  const handleTitleKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputDescription()
+    }
+  }
+
+  const handleDescriptionKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      focusInputCoverage()
+    }
+  }
+
+  const handleCoverageKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmit()
+    }
+  }
+
   return (
-    <Form>
+    <Form
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
+    >
       {formAction == 'edit' ? (
-        <FormGroup label='Status' isRequired fieldId={`input-sw-requirement-${formAction}-status-${formData.id}`}>
+        <FormGroup label='Status' isRequired fieldId={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}>
           <FormSelect
             value={swRequirementStatusValue}
-            id={`input-sw-requirement-${formAction}-status-${formData.id}`}
+            id={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}
             onChange={handleSwRequirementStatusChange}
+            onKeyUp={handleStatusKeyUp}
             aria-label='Sw Requirement Status Input'
           >
             {Constants.status_options.map((option, index) => (
@@ -232,13 +272,13 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
         ''
       )}
 
-      <FormGroup label='Sw Requirement Title' isRequired fieldId={`input-sw-requirement-${formAction}-title-${formData.id}`}>
+      <FormGroup label='Sw Requirement Title' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}>
         <TextInput
           isRequired
-          id={`input-sw-requirement-${formAction}-title-${formData.id}`}
-          name={`input-sw-requirement-${formAction}-title-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}
           value={titleValue || ''}
           onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
+          onKeyUp={handleTitleKeyUp}
         />
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
@@ -248,15 +288,15 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Description' isRequired fieldId={`input-sw-requirement-${formAction}-description-${formData.id}`}>
+      <FormGroup label='Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Sw Requirement description field'
-          id={`input-sw-requirement-${formAction}-description-${formData.id}`}
-          name={`input-sw-requirement-${formAction}-description-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}
           value={descriptionValue || ''}
           onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
+          onKeyUp={handleDescriptionKeyUp}
         />
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
@@ -266,23 +306,25 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Unique Coverage:' fieldId={`input-sw-requirement-${formAction}-coverage-${formData.id}`}>
-        <TextInput
-          id={`input-sw-requirement-${formAction}-coverage-${formData.id}`}
-          name={`input-sw-requirement-${formAction}-coverage-${formData.id}`}
-          value={coverageValue || ''}
-          onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-        />
-        {validatedCoverageValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
+      <Grid hasGutter md={3}>
+        <FormGroup label='Unique Coverage:' fieldId={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}>
+          <TextInput
+            id={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}
+            value={coverageValue || ''}
+            onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
+            onKeyUp={handleCoverageKeyUp}
+          />
+          {validatedCoverageValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>
+                  {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </Grid>
 
       {messageValue ? (
         <>
@@ -297,12 +339,18 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-mapping-sw-requirement-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-mapping-sw-requirement-reset' variant='secondary' onClick={resetForm}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-mapping-sw-requirement-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-mapping-sw-requirement-reset' variant='secondary' onClick={resetForm}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         <span></span>

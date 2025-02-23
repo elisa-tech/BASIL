@@ -811,9 +811,9 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification is None:
         api_specification = (
-            "WARNING: Unable to load the Reference Document. "
-            "Please check the url/path value in the Software Component properties"
-            " and that the file still exists in the expected location."
+            "WARNING: Unable to load the Reference Document, "
+            "please check the url/path value in the Software Component properties "
+            "and that the file still exists in the expected location"
         )
 
     sr = (
@@ -987,7 +987,7 @@ def add_test_run_config(dbi, request_data, user):
     testing_farm_mandatory_fields = ["arch", "compose", "private_token", "url"]
 
     if not check_fields_in_request(mandatory_fields, request_data):
-        return f"{BAD_REQUEST_MESSAGE} Miss mandatory fields.", BAD_REQUEST_STATUS
+        return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
     if request_data["id"] not in ["", 0]:
         if str(request_data["id"]).strip().isnumeric():
@@ -998,13 +998,13 @@ def add_test_run_config(dbi, request_data, user):
                 )
                 return existing_config, OK_STATUS
             except NoResultFound:
-                return f"{BAD_REQUEST_MESSAGE} Unable to find the Test Run Configuration.", BAD_REQUEST_STATUS
+                return f"{BAD_REQUEST_MESSAGE} Unable to find the Test Run Configuration", BAD_REQUEST_STATUS
         else:
-            return f"{BAD_REQUEST_MESSAGE} Test Run Configuration ID is not valid.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} Test Run Configuration ID is not valid", BAD_REQUEST_STATUS
 
     if request_data["plugin"] not in TestRunner.test_run_plugin_models.keys():
         if not check_fields_in_request(tmt_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Plugin not supported.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} Plugin not supported", BAD_REQUEST_STATUS
 
     # Config
     config_title = str(request_data["title"]).strip()
@@ -1021,11 +1021,11 @@ def add_test_run_config(dbi, request_data, user):
 
     # Check mandatory fields
     if config_title == "":
-        return f"{BAD_REQUEST_MESSAGE} Empty Configuration Title.", BAD_REQUEST_STATUS
+        return f"{BAD_REQUEST_MESSAGE} Empty Configuration Title", BAD_REQUEST_STATUS
 
     if plugin == TestRunner.TMT:
         if not check_fields_in_request(tmt_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields", BAD_REQUEST_STATUS
 
         context_vars = str(request_data["context_vars"]).strip()
         provision_type = str(request_data["provision_type"]).strip()
@@ -1035,11 +1035,11 @@ def add_test_run_config(dbi, request_data, user):
 
         if not plugin_preset:
             if not provision_type:
-                return f"{BAD_REQUEST_MESSAGE} tmt provision type not defined.", BAD_REQUEST_STATUS
+                return f"{BAD_REQUEST_MESSAGE} tmt provision type not defined", BAD_REQUEST_STATUS
 
             if provision_type == "connect":
                 if provision_guest == "" or provision_guest_port == "" or ssh_key_id == "" or ssh_key_id == "0":
-                    return f"{BAD_REQUEST_MESSAGE} tmt provision configuration is not correct.", BAD_REQUEST_STATUS
+                    return f"{BAD_REQUEST_MESSAGE} tmt provision configuration is not correct", BAD_REQUEST_STATUS
 
                 try:
                     ssh_key = (
@@ -1048,29 +1048,29 @@ def add_test_run_config(dbi, request_data, user):
                         .one()
                     )
                 except NoResultFound:
-                    return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key.", BAD_REQUEST_STATUS
+                    return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key", BAD_REQUEST_STATUS
 
     elif plugin == TestRunner.GITLAB_CI:
         if not check_fields_in_request(gitlab_ci_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields", BAD_REQUEST_STATUS
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in gitlab_ci_mandatory_fields]
         )
     elif plugin == TestRunner.GITHUB_ACTIONS:
         if not check_fields_in_request(github_actions_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields", BAD_REQUEST_STATUS
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in github_actions_mandatory_fields]
         )
     elif plugin == TestRunner.KERNEL_CI:
         if not check_fields_in_request(kernel_ci_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields", BAD_REQUEST_STATUS
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in kernel_ci_mandatory_fields]
         )
     elif plugin == TestRunner.TESTING_FARM:
         if not check_fields_in_request(testing_farm_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Testing Farm miss mandatory fields.", BAD_REQUEST_STATUS
+            return f"{BAD_REQUEST_MESSAGE} Testing Farm miss mandatory fields", BAD_REQUEST_STATUS
         context_vars = str(request_data["context_vars"]).strip()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in testing_farm_mandatory_fields]
@@ -1171,7 +1171,7 @@ class Comment(Resource):
         args = get_query_string_args(request.args)
 
         if "parent_table" not in args.keys() or "parent_id" not in args.keys():
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1196,7 +1196,7 @@ class Comment(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1207,15 +1207,15 @@ class Comment(Resource):
 
         parent_table = request_data["parent_table"].strip()
         if parent_table == "":
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         parent_id = request_data["parent_id"]
         if parent_id == "":
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         comment = request_data["comment"].strip()
         if comment == "":
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         new_comment = CommentModel(parent_table, parent_id, user, comment)
         dbi.session.add(new_comment)
@@ -1277,7 +1277,7 @@ class CheckSpecification(Resource):
         args = get_query_string_args(request.args)
 
         if not check_fields_in_request(self.fields, args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1285,7 +1285,7 @@ class CheckSpecification(Resource):
         apis = query.all()
 
         if len(apis) != 1:
-            return "Unable to find the api", 400
+            return "Unable to find the api", NOT_FOUND_STATUS
 
         api = apis[0]
 
@@ -1378,7 +1378,7 @@ class FixNewSpecificationWarnings(Resource):
         args = get_query_string_args(request.args)
 
         if not check_fields_in_request(self.fields, args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1386,7 +1386,7 @@ class FixNewSpecificationWarnings(Resource):
         apis = query.all()
 
         if len(apis) != 1:
-            return "Unable to find the api", 400
+            return "Unable to find the api", NOT_FOUND_STATUS
 
         api = apis[0]
 
@@ -1532,7 +1532,7 @@ class Api(Resource):
         post_fields.append("action")
         post_fields.remove("default-view")
         if not check_fields_in_request(post_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1546,7 +1546,7 @@ class Api(Resource):
         )
 
         if len(api) > 0:
-            return "Api is already in the db for the selected library", 409
+            return "Api is already in the db for the selected library", CONFLICT_STATUS
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -1557,11 +1557,11 @@ class Api(Resource):
         if request_data["action"] == "fork":
             source_api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).all()
             if len(source_api) != 1:
-                return "Source Api not found", 409
+                return "Api not found", NOT_FOUND_STATUS
             if source_api[0].api != request_data["api"]:
-                return "Source Api name differ from new Api name", 409
+                return "New Api name differ from the original one", CONFLICT_STATUS
             if source_api[0].library != request_data["library"]:
-                return "Source Api library differ from new Api library", 409
+                return "New Api library differ from the original one", CONFLICT_STATUS
 
         new_api = ApiModel(
             request_data["api"],
@@ -1707,13 +1707,13 @@ class Api(Resource):
             dbi.session.query(ApiModel)
             .filter(ApiModel.api == request_data["api"])
             .filter(ApiModel.library == request_data["library"])
-            .filter(ApiModel.library == request_data["library-version"])
+            .filter(ApiModel.library_version == request_data["library-version"])
             .filter(ApiModel.id != request_data["api-id"])
             .all()
         )
 
         if len(same_existing_apis) > 0:
-            return "An Api with selected name and library already exist in the db", 409
+            return "An Api with selected name and library already exist in the db", CONFLICT_STATUS
 
         api_modified = False
         for field in self.fields:
@@ -1746,7 +1746,7 @@ class Api(Resource):
         delete_fields = self.fields_hashes.copy()
         delete_fields.append("api-id")
         if not check_fields_in_request(delete_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -1979,7 +1979,7 @@ class ApiTestSpecificationsMapping(Resource):
     def get(self):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         undesired_keys = ["section", "offset"]
 
@@ -2063,7 +2063,7 @@ class ApiTestSpecificationsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2091,25 +2091,22 @@ class ApiTestSpecificationsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestSpecification.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-specification"].keys():
-                    return "Bad request. Unconsistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             title = request_data["test-specification"]["title"]
             preconditions = request_data["test-specification"]["preconditions"]
             test_description = request_data["test-specification"]["test-description"]
             expected_behavior = request_data["test-specification"]["expected-behavior"]
 
-            if (
-                len(
-                    dbi.session.query(TestSpecificationModel)
-                    .filter(TestSpecificationModel.title == title)
-                    .filter(TestSpecificationModel.preconditions == preconditions)
-                    .filter(TestSpecificationModel.test_description == test_description)
-                    .filter(TestSpecificationModel.expected_behavior == expected_behavior)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Specification already associated to the selected api Specification section.", 409
+            # Check for existing Test Specification
+            existing_tss = dbi.session.query(TestSpecificationModel).filter(
+                TestSpecificationModel.title == title).filter(
+                    TestSpecificationModel.preconditions == preconditions).filter(
+                        TestSpecificationModel.test_description == test_description).filter(
+                            TestSpecificationModel.expected_behavior == expected_behavior).all()
+            if len(existing_tss):
+                return f"Test Specification {existing_tss[0].id} has same content, " \
+                       f"consider to use the existing one, or to edit at least one field", CONFLICT_STATUS
 
             new_test_specification = TestSpecificationModel(
                 title, preconditions, test_description, expected_behavior, user
@@ -2123,17 +2120,15 @@ class ApiTestSpecificationsMapping(Resource):
 
         else:
             id = request_data["test-specification"]["id"]
-            if (
-                len(
-                    dbi.session.query(ApiTestSpecificationModel)
-                    .filter(ApiTestSpecificationModel.api_id == api.id)
-                    .filter(ApiTestSpecificationModel.test_specification_id == id)
-                    .filter(ApiTestSpecificationModel.section == section)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Specification already associated to the selected api Specification section.", 409
+
+            # Check for existing mapping
+            existing_tss_mapping = dbi.session.query(ApiTestSpecificationModel).filter(
+                ApiTestSpecificationModel.api_id == api.id).filter(
+                    ApiTestSpecificationModel.test_specification_id == id).filter(
+                        ApiTestSpecificationModel.section == section).filter(
+                            ApiTestSpecificationModel.offset == offset).all()
+            if len(existing_tss_mapping):
+                return f"Test Specification {id} already associated to the selected api", CONFLICT_STATUS
 
             try:
                 existing_test_specification = (
@@ -2172,7 +2167,7 @@ class ApiTestSpecificationsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2254,7 +2249,7 @@ class ApiTestSpecificationsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2282,7 +2277,7 @@ class ApiTestSpecificationsMapping(Resource):
             return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
 
         if test_specification_mapping_api.api.id != api.id:
-            return "bad request!", 401
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         notification_ts_id = test_specification_mapping_api.test_specification.id
         notification_ts_title = test_specification_mapping_api.test_specification.title
@@ -2321,7 +2316,7 @@ class ApiTestCasesMapping(Resource):
     def get(self):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2390,7 +2385,7 @@ class ApiTestCasesMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2418,27 +2413,22 @@ class ApiTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    return "Bad request. Not consistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             repository = request_data["test-case"]["repository"]
             relative_path = request_data["test-case"]["relative-path"]
             title = request_data["test-case"]["title"]
             description = request_data["test-case"]["description"]
 
-            # Check if the same Test Case is already associated with the same snippet
-            if (
-                len(
-                    dbi.session.query(ApiTestCaseModel)
-                    .join(TestCaseModel)
-                    .filter(ApiTestCaseModel.section == section)
-                    .filter(TestCaseModel.title == title)
-                    .filter(TestCaseModel.repository == repository)
-                    .filter(TestCaseModel.relative_path == relative_path)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Case already associated to the current api.", 409
+            # Check for existing Test Case
+            existing_tcs = dbi.session.query(TestCaseModel).filter(
+                TestCaseModel.title == title).filter(
+                    TestCaseModel.description == description).filter(
+                        TestCaseModel.repository == repository).filter(
+                            TestCaseModel.relative_path == relative_path).all()
+            if len(existing_tcs):
+                return f"Test Case {existing_tcs[0].id} has same content, " \
+                       f"consider to use the exsting one or to edit at least one field", CONFLICT_STATUS
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -2447,17 +2437,15 @@ class ApiTestCasesMapping(Resource):
             dbi.session.add(new_test_case_mapping_api)
         else:
             id = request_data["test-case"]["id"]
-            if (
-                len(
-                    dbi.session.query(ApiTestCaseModel)
-                    .filter(ApiTestCaseModel.api_id == api.id)
-                    .filter(ApiTestCaseModel.test_case_id == id)
-                    .filter(ApiTestCaseModel.section == section)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Case already associated to the selected api Specification section.", 409
+
+            # Check for existing mapping
+            existing_tcs_mapping = dbi.session.query(ApiTestCaseModel).filter(
+                ApiTestCaseModel.api_id == api.id).filter(
+                    ApiTestCaseModel.test_case_id == id).filter(
+                        ApiTestCaseModel.section == section).filter(
+                            ApiTestCaseModel.offset == offset).all()
+            if len(existing_tcs_mapping):
+                return f"Test Case {id} already associated to the selected api", CONFLICT_STATUS
 
             try:
                 existing_test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == id).one()
@@ -2491,7 +2479,7 @@ class ApiTestCasesMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2567,7 +2555,7 @@ class ApiTestCasesMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2595,7 +2583,7 @@ class ApiTestCasesMapping(Resource):
             return f"Unable to find the Test Case mapping to Api id {request_data['relation-id']}", 400
 
         if test_case_mapping_api.api.id != api.id:
-            return "bad request!", 401
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         notification_tc_id = test_case_mapping_api.test_case.id
         notification_tc_title = test_case_mapping_api.test_case.title
@@ -2879,7 +2867,7 @@ class ApiSpecificationsMapping(Resource):
     def get(self):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # undesired_keys = ['section', 'offset']
 
@@ -2920,7 +2908,7 @@ class ApiJustificationsMapping(Resource):
     def get(self):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # undesired_keys = ['section', 'offset']
 
@@ -2973,7 +2961,7 @@ class ApiJustificationsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -2998,6 +2986,14 @@ class ApiJustificationsMapping(Resource):
 
         if "id" not in request_data["justification"].keys():
             description = request_data["justification"]["description"]
+
+            # Check for existing Justification
+            existing_js = dbi.session.query(JustificationModel).filter(
+                JustificationModel.description == description).all()
+            if len(existing_js):
+                return f"Justification {existing_js[0].id} has same content, " \
+                       f"consider to use the exsting one or to edit at least one field", CONFLICT_STATUS
+
             new_justification = JustificationModel(description, user)
             new_justification_mapping_api = ApiJustificationModel(
                 api, new_justification, section, offset, coverage, user
@@ -3006,24 +3002,23 @@ class ApiJustificationsMapping(Resource):
             dbi.session.add(new_justification_mapping_api)
         else:
             id = request_data["justification"]["id"]
-            if (
-                len(
-                    dbi.session.query(ApiJustificationModel)
-                    .filter(ApiJustificationModel.api_id == api.id)
-                    .filter(ApiJustificationModel.justification_id == id)
-                    .filter(ApiJustificationModel.section == section)
-                    .all()
-                )
-                > 0
-            ):
-                return "Justification already associated to the selected api Specification section.", 409
+
+            #  Check for existing mapping
+            existing_js_mapping = dbi.session.query(ApiJustificationModel).filter(
+                ApiJustificationModel.api_id == api.id).filter(
+                    ApiJustificationModel.justification_id == id).filter(
+                        ApiJustificationModel.section == section).filter(
+                            ApiJustificationModel.offset == offset).all()
+            if len(existing_js_mapping):
+                return f"Justification {id} already associated to " \
+                       "the selected api Specification section", CONFLICT_STATUS
 
             try:
                 existing_justification = (
                     dbi.session.query(JustificationModel).filter(JustificationModel.id == id).one()
                 )
             except NoResultFound:
-                return f"Unable to find the Justification id {id}", 400
+                return f"Unable to find the Justification id {id}", NOT_FOUND_STATUS
 
             new_justification_mapping_api = ApiJustificationModel(
                 api, existing_justification, section, offset, coverage, user
@@ -3056,7 +3051,7 @@ class ApiJustificationsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields + ["relation-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3083,7 +3078,7 @@ class ApiJustificationsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Justification mapping to Api id {request_data['relation-id']}", 400
+            return f"Unable to find the Justification mapping id {request_data['relation-id']}", NOT_FOUND_STATUS
 
         justification = justification_mapping_api.justification
 
@@ -3138,7 +3133,7 @@ class ApiJustificationsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3165,12 +3160,12 @@ class ApiJustificationsMapping(Resource):
         )
 
         if len(justification_mapping_api) != 1:
-            return "bad request!", 401
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
         justification_mapping_api = justification_mapping_api[0]
 
         if justification_mapping_api.api.id != api.id:
-            return "bad request!", 401
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
         notification_j_id = justification_mapping_api.justification.id
         dbi.session.delete(justification_mapping_api)
@@ -3214,7 +3209,7 @@ class ApiDocumentsMapping(Resource):
     def get(self):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3265,7 +3260,7 @@ class ApiDocumentsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3291,7 +3286,7 @@ class ApiDocumentsMapping(Resource):
         if "id" not in request_data["document"].keys():
 
             if not check_fields_in_request(self.document_fields, request_data["document"]):
-                return "bad request!!", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             doc_title = request_data["document"]["title"]
             doc_description = request_data["document"]["description"]
@@ -3320,17 +3315,16 @@ class ApiDocumentsMapping(Resource):
 
         else:
             id = request_data["document"]["id"]
-            if (
-                len(
-                    dbi.session.query(ApiDocumentModel)
-                    .filter(ApiDocumentModel.api_id == api.id)
-                    .filter(ApiDocumentModel.document_id == id)
-                    .filter(ApiDocumentModel.section == mapping_section)
-                    .all()
-                )
-                > 0
-            ):
-                return "Document already associated to the selected api Specification section.", 409
+
+            # Check for existing mapping
+            existing_docs_mapping = dbi.session.query(ApiDocumentModel).filter(
+                ApiDocumentModel.api_id == api.id).filter(
+                    ApiDocumentModel.document_id == id).filter(
+                        ApiDocumentModel.section == mapping_section).filter(
+                            ApiDocumentModel.offset == mapping_offset).all()
+            if len(existing_docs_mapping):
+                return f"Document {existing_docs_mapping[0].document_id} " \
+                        "already associated to the selected api", CONFLICT_STATUS
 
             try:
                 existing_document = dbi.session.query(DocumentModel).filter(DocumentModel.id == id).one()
@@ -3368,10 +3362,10 @@ class ApiDocumentsMapping(Resource):
         document_fields = self.document_fields + ["status"]
 
         if not check_fields_in_request(self.fields + ["relation-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         if not check_fields_in_request(document_fields, request_data["document"]):
-            return "bad request!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3454,7 +3448,7 @@ class ApiDocumentsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3479,12 +3473,12 @@ class ApiDocumentsMapping(Resource):
         )
 
         if len(document_mapping_api) != 1:
-            return "bad request!", 401
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
         document_mapping_api = document_mapping_api[0]
 
         if document_mapping_api.api.id != api.id:
-            return "bad request!", 401
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
         notification_d_id = document_mapping_api.document.id
         dbi.session.delete(document_mapping_api)
@@ -3526,7 +3520,7 @@ class ApiSwRequirementsMapping(Resource):
     def get(self):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # undesired_keys = ['section', 'offset']
 
@@ -3554,7 +3548,7 @@ class ApiSwRequirementsMapping(Resource):
         request_data = request.get_json(force=True)
         notification_sr_title = ""
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3582,21 +3576,18 @@ class ApiSwRequirementsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in SwRequirement.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["sw-requirement"].keys():
-                    return "Bad request. Not consistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             title = request_data["sw-requirement"]["title"]
             description = request_data["sw-requirement"]["description"]
 
-            if (
-                len(
-                    dbi.session.query(SwRequirementModel)
-                    .filter(SwRequirementModel.title == title)
-                    .filter(SwRequirementModel.description == description)
-                    .all()
-                )
-                > 0
-            ):
-                return "SW Requirement already associated to the selected api Specification section.", 409
+            # Check for existing Software Requirements
+            existing_srs = dbi.session.query(SwRequirementModel).filter(
+                SwRequirementModel.title == title).filter(
+                    SwRequirementModel.description == description).all()
+            if len(existing_srs):
+                return f"SW Requirement {existing_srs[0].id} has same content, " \
+                        "consider to use the existing one or to edit at least on field", CONFLICT_STATUS
 
             new_sw_requirement = SwRequirementModel(title, description, user)
 
@@ -3610,17 +3601,16 @@ class ApiSwRequirementsMapping(Resource):
         else:
             # Re using existing sw requirement
             id = request_data["sw-requirement"]["id"]
-            if (
-                len(
-                    dbi.session.query(ApiSwRequirementModel)
-                    .filter(ApiSwRequirementModel.api_id == api.id)
-                    .filter(ApiSwRequirementModel.sw_requirement_id == id)
-                    .filter(ApiSwRequirementModel.section == section)
-                    .all()
-                )
-                > 0
-            ):
-                return "SW Requirement already associated to the selected api Specification section.", 409
+
+            # Check for existing mapping
+            existing_srs_mapping = dbi.session.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.api_id == api.id).filter(
+                    ApiSwRequirementModel.sw_requirement_id == id).filter(
+                        ApiSwRequirementModel.section == section).filter(
+                            ApiSwRequirementModel.offset == offset).all()
+            if len(existing_srs_mapping):
+                return f"SW Requirement {id} already associated to " \
+                       "the selected api", CONFLICT_STATUS
 
             try:
                 existing_sw_requirement = (
@@ -3628,7 +3618,7 @@ class ApiSwRequirementsMapping(Resource):
                 )
                 notification_sr_title = existing_sw_requirement.title
             except NoResultFound:
-                return f"SW Requirement {id} not found in the database.", 404
+                return f"SW Requirement {id} not found", NOT_FOUND_STATUS
 
             new_sw_requirement_mapping_api = ApiSwRequirementModel(
                 api, existing_sw_requirement, section, offset, coverage, user
@@ -3656,7 +3646,7 @@ class ApiSwRequirementsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -3944,10 +3934,10 @@ class SwRequirementSwRequirementsMapping(Resource):
 
         post_mandatory_fields = self.fields + ["relation-id", "relation-to", "parent-sw-requirement"]
         if not check_fields_in_request(post_mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         if "id" not in request_data["parent-sw-requirement"].keys():
-            return "bad request!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
         dbi = db_orm.DbInterface(get_db())
@@ -3965,7 +3955,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", 404
+                return "Parent mapping not found", NOT_FOUND_STATUS
 
             api_id = relation_to_item.api.id
         elif request_data["relation-to"] == "sw-requirement":
@@ -3975,14 +3965,14 @@ class SwRequirementSwRequirementsMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", 404
+                return "Parent mapping not found", NOT_FOUND_STATUS
 
             api_id = get_parent_api_id(relation_to_item, dbi.session)
             if not api_id:
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         else:
-            return "Bad request!!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -4016,7 +4006,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in SwRequirement.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["sw-requirement"].keys():
-                    return "Bad request. Not consistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             title = request_data["sw-requirement"]["title"]
             description = request_data["sw-requirement"]["description"]
@@ -4036,7 +4026,7 @@ class SwRequirementSwRequirementsMapping(Resource):
                     .all()
                 )
                 if len(sr_mapping) > 0:
-                    return "Sw Requirement already associated to the selected Sw Requirement.", 409
+                    return "Sw Requirement already associated to the selected Sw Requirement", CONFLICT_STATUS
 
             new_sw_requirement = SwRequirementModel(title, description, user)
 
@@ -4060,17 +4050,17 @@ class SwRequirementSwRequirementsMapping(Resource):
                 )
                 > 0
             ):
-                return "Sw Requirement already associated to the selected Sw Requirement.", 409
+                return "Sw Requirement already associated to the selected Sw Requirement", CONFLICT_STATUS
 
             try:
                 sw_requirement = (
                     dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == sw_requirement_id).one()
                 )
             except NoResultFound:
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             if not isinstance(sw_requirement, SwRequirementModel):
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             new_sw_requirement_mapping_sw_requirement = SwRequirementSwRequirementModel(
                 api_sr, sr_sr, sw_requirement, coverage, user
@@ -4100,7 +4090,7 @@ class SwRequirementSwRequirementsMapping(Resource):
 
         mandatory_fields = self.fields + ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -4175,7 +4165,7 @@ class SwRequirementSwRequirementsMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -4192,7 +4182,7 @@ class SwRequirementSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return "bad request!", 401
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
         api_id = get_parent_api_id(sr_mapping_sr, dbi.session)
         if not api_id:
@@ -4250,10 +4240,10 @@ class SwRequirementTestSpecificationsMapping(Resource):
         request_data = request.get_json(force=True)
         mandatory_fields = self.fields + ["relation-id", "relation-to"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         if "id" not in request_data["sw-requirement"].keys():
-            return "bad request!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -4273,7 +4263,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == sw_requirement_id).one()
             )
         except NoResultFound:
-            return "Sw Requirement not found", 400
+            return "Sw Requirement not found", NOT_FOUND_STATUS
 
         del sw_requirement  # Just need to check it exists
 
@@ -4284,7 +4274,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", 404
+                return "Parent mapping not found", NOT_FOUND_STATUS
 
             api_id = relation_to_item.api.id
         elif relation_to == "sw-requirement":
@@ -4294,13 +4284,13 @@ class SwRequirementTestSpecificationsMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", 404
+                return "Parent mapping not found", NOT_FOUND_STATUS
 
             api_id = get_parent_api_id(relation_to_item, dbi.session)
             if not api_id:
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
-            return "Bad request!!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -4314,39 +4304,32 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         if relation_to == "api":
             api_sr = relation_to_item
+            mapping_id_field = "sw_requirement_mapping_api_id"
         elif relation_to == "sw-requirement":
             sr_sr = relation_to_item
+            mapping_id_field = "sw_requirement_mapping_sw_requirement_id"
 
         if "id" not in request_data["test-specification"].keys():
             # Create a new one
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestSpecification.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-specification"].keys():
-                    return "Bad request. Not consistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             title = request_data["test-specification"]["title"]
             preconditions = request_data["test-specification"]["preconditions"]
             test_description = request_data["test-specification"]["test-description"]
             expected_behavior = request_data["test-specification"]["expected-behavior"]
 
-            """
-            TODO: Evaluate if the following check is needed
-
-            existing_test_specifications = dbi.session.query(TestSpecificationModel).filter(
+            # Check for existing Test Specifications
+            existing_tss = dbi.session.query(TestSpecificationModel).filter(
                 TestSpecificationModel.title == title).filter(
                 TestSpecificationModel.preconditions == preconditions).filter(
                 TestSpecificationModel.test_description == test_description).filter(
                 TestSpecificationModel.expected_behavior == expected_behavior).all()
-
-            for ts in existing_test_specifications:
-                ts_mapping = dbi.session.query(SwRequirementTestSpecificationModel).join(
-                    ApiSwRequirementModel).filter(
-                    ApiSwRequirementModel.sw_requirement_id == sw_requirement_id).filter(
-                    SwRequirementTestSpecificationModel.test_specification_id == ts.id).filter(
-                    ApiSwRequirementModel.api_id == api.id).all()
-                if len(ts_mapping) > 0:
-                    return "Test Specification already associated to the selected api Specification section.", 409
-            """
+            if len(existing_tss) > 0:
+                return f"Test Specification `{existing_tss[0].id}` with same content already exists, " \
+                       f"consider to use the existing one or to change at least one field", CONFLICT_STATUS
 
             new_test_specification = TestSpecificationModel(
                 title, preconditions, test_description, expected_behavior, user
@@ -4362,19 +4345,15 @@ class SwRequirementTestSpecificationsMapping(Resource):
         else:
             test_specification_id = request_data["test-specification"]["id"]
 
-            if (
-                len(
-                    dbi.session.query(SwRequirementTestSpecificationModel)
-                    .filter(
-                        SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id
-                        == request_data["relation-id"]
-                    )
-                    .filter(SwRequirementTestSpecificationModel.test_specification_id == test_specification_id)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Specification already associated to the selected Api and Sw Requirement.", 409
+            # Check existing mapping
+            existing_tss = dbi.session.query(SwRequirementTestSpecificationModel).filter(
+                        getattr(SwRequirementTestSpecificationModel, mapping_id_field)
+                        == request_data["relation-id"]).filter(
+                        SwRequirementTestSpecificationModel.test_specification_id == test_specification_id).all()
+            if existing_tss:
+                return f"Test Specification `{existing_tss[0].title}` already " \
+                        "associated to the Software Requirement, " \
+                        "consider to reuse the existing one or to edit at least one field", CONFLICT_STATUS
 
             try:
                 test_specification = (
@@ -4386,7 +4365,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 return "Unable to find the selected Test Specification", 400
 
             if not isinstance(test_specification, TestSpecificationModel):
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             new_test_specification_mapping_sw_requirement = SwRequirementTestSpecificationModel(
                 api_sr, sr_sr, test_specification, coverage, user
@@ -4416,7 +4395,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         mandatory_fields = self.fields + ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -4498,7 +4477,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         mandatory_fields = ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -4575,10 +4554,10 @@ class SwRequirementTestCasesMapping(Resource):
 
         post_mandatory_fields = self.fields + ["relation-id", "relation-to"]
         if not check_fields_in_request(post_mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         if "id" not in request_data["sw-requirement"].keys():
-            return "bad request!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -4599,7 +4578,7 @@ class SwRequirementTestCasesMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", 404
+                return "Parent mapping not found", NOT_FOUND_STATUS
 
             api_id = relation_to_item.api.id
 
@@ -4610,13 +4589,13 @@ class SwRequirementTestCasesMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", 404
+                return "Parent mapping not found", NOT_FOUND_STATUS
 
             api_id = get_parent_api_id(relation_to_item, dbi.session)
             if not api_id:
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
-            return "Bad request!!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
@@ -4630,8 +4609,10 @@ class SwRequirementTestCasesMapping(Resource):
 
         if relation_to == "api":
             api_sr = relation_to_item
+            mapping_id_field = "sw_requirement_mapping_api_id"
         elif relation_to == "sw-requirement":
             sr_sr = relation_to_item
+            mapping_id_field = "sw_requirement_mapping_sw_requirement_id"
 
         sw_requirement_id = request_data["sw-requirement"]["id"]
         coverage = request_data["coverage"]
@@ -4641,7 +4622,7 @@ class SwRequirementTestCasesMapping(Resource):
                 dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == sw_requirement_id).one()
             )
         except NoResultFound:
-            return "Sw Requirement not found", 400
+            return "Sw Requirement not found", NOT_FOUND_STATUS
 
         del sw_requirement  # Just need to check it exists
 
@@ -4650,31 +4631,22 @@ class SwRequirementTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    return "Bad request. Not consistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             title = request_data["test-case"]["title"]
             description = request_data["test-case"]["description"]
             repository = request_data["test-case"]["repository"]
             relative_path = request_data["test-case"]["relative-path"]
 
-            existing_test_cases = (
-                dbi.session.query(TestCaseModel)
-                .filter(TestCaseModel.title == title)
-                .filter(TestCaseModel.description == description)
-                .filter(TestCaseModel.repository == repository)
-                .filter(TestCaseModel.relative_path == relative_path)
-                .all()
-            )
-
-            for tc in existing_test_cases:
-                tc_mapping = (
-                    dbi.session.query(SwRequirementTestCaseModel)
-                    .filter(SwRequirementTestCaseModel.id == relation_id)
-                    .filter(SwRequirementTestCaseModel.test_case_id == tc.id)
-                    .all()
-                )
-                if len(tc_mapping) > 0:
-                    return "Test Case already associated to the selected api Specification section.", 409
+            #  Check for existing Test Cases
+            existing_tcs = dbi.session.query(TestCaseModel).filter(
+                TestCaseModel.title == title).filter(
+                    TestCaseModel.description == description).filter(
+                        TestCaseModel.repository == repository).filter(
+                            TestCaseModel.relative_path == relative_path).all()
+            if len(existing_tcs):
+                return f"Test Case `{existing_tcs[0].id}` has same content, " \
+                       "consider to use the existing one or to edit at least one field", CONFLICT_STATUS
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -4689,24 +4661,21 @@ class SwRequirementTestCasesMapping(Resource):
             # Map an existing Test Case
             test_case_id = request_data["test-case"]["id"]
 
-            if (
-                len(
-                    dbi.session.query(SwRequirementTestCaseModel)
-                    .filter(SwRequirementTestCaseModel.id == relation_id)
-                    .filter(SwRequirementTestCaseModel.test_case_id == test_case_id)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Case already associated to the selected Api and Sw Requirement.", 409
+            # Check for existing mapping
+            existing_tcs_mapping = dbi.session.query(SwRequirementTestCaseModel).filter(
+                getattr(SwRequirementTestCaseModel, mapping_id_field) == relation_id).filter(
+                    SwRequirementTestCaseModel.test_case_id == test_case_id).all()
+            if len(existing_tcs_mapping):
+                return f"Test Case `{existing_tcs_mapping[0].id}` already associated " \
+                       "to the selected Sw Requirement", CONFLICT_STATUS
 
             try:
                 test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == test_case_id).one()
             except NoResultFound:
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             if not isinstance(test_case, TestCaseModel):
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             new_test_case_mapping_sw_requirement = SwRequirementTestCaseModel(api_sr, sr_sr, test_case, coverage, user)
             dbi.session.add(new_test_case_mapping_sw_requirement)
@@ -4732,7 +4701,7 @@ class SwRequirementTestCasesMapping(Resource):
 
         mandatory_fields = self.fields + ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -4810,7 +4779,7 @@ class SwRequirementTestCasesMapping(Resource):
 
         mandatory_fields = ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -4882,10 +4851,10 @@ class TestSpecificationTestCasesMapping(Resource):
 
         post_mandatory_fields = self.fields + ["relation-id", "relation-to"]
         if not check_fields_in_request(post_mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         if "id" not in request_data["test-specification"].keys():
-            return "bad request!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
         dbi = db_orm.DbInterface(get_db())
@@ -4905,20 +4874,23 @@ class TestSpecificationTestCasesMapping(Resource):
                 SwRequirementTestSpecificationModel.id == relation_id
             )
         else:
-            return "Bad request!!!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:
             relation_to_item = relation_to_query.one()
         except NoResultFound:
-            return "Parent mapping not found", 404
+            return "Parent mapping not found", NOT_FOUND_STATUS
 
         if request_data["relation-to"] == "api":
             api_ts = relation_to_item
             api = api_ts.api
             api_id = api.id
+            mapping_id_field = "test_specification_mapping_api_id"
         elif request_data["relation-to"] == "sw-requirement":
             sr_ts = relation_to_item
             api_id = get_parent_api_id(sr_ts, dbi.session)
+            mapping_id_field = "test_specification_mapping_sw_requirement_id"
+
             if not api_id:
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
@@ -4951,31 +4923,22 @@ class TestSpecificationTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    return "Bad request. Not consistent data.", 400
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             title = request_data["test-case"]["title"]
             description = request_data["test-case"]["description"]
             repository = request_data["test-case"]["repository"]
             relative_path = request_data["test-case"]["relative-path"]
 
-            existing_test_cases = (
-                dbi.session.query(TestCaseModel)
-                .filter(TestCaseModel.title == title)
-                .filter(TestCaseModel.description == description)
-                .filter(TestCaseModel.repository == repository)
-                .filter(TestCaseModel.relative_path == relative_path)
-                .all()
-            )
-
-            for tc in existing_test_cases:
-                tc_mapping = (
-                    dbi.session.query(TestSpecificationTestCaseModel)
-                    .filter(TestSpecificationTestCaseModel.id == relation_id)
-                    .filter(TestSpecificationTestCaseModel.test_case_id == tc.id)
-                    .all()
-                )
-                if len(tc_mapping) > 0:
-                    return "Test Case already associated to the selected api Specification section.", 409
+            # Check for existing Test Cases
+            existing_tcs = dbi.session.query(TestCaseModel).filter(
+                TestCaseModel.title == title).filter(
+                    TestCaseModel.description == description).filter(
+                        TestCaseModel.repository == repository).filter(
+                            TestCaseModel.relative_path == relative_path).all()
+            if len(existing_tcs):
+                return f"Test Case `{existing_tcs[0].id}` has same content, " \
+                       "consider to use the existing one or to edit at least one field", CONFLICT_STATUS
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -4990,24 +4953,21 @@ class TestSpecificationTestCasesMapping(Resource):
             # Map an existing Test Case
             test_case_id = request_data["test-case"]["id"]
 
-            if (
-                len(
-                    dbi.session.query(TestSpecificationTestCaseModel)
-                    .filter(TestSpecificationTestCaseModel.id == relation_id)
-                    .filter(TestSpecificationTestCaseModel.test_case_id == test_case_id)
-                    .all()
-                )
-                > 0
-            ):
-                return "Test Case already associated to the selected Api and Test Specification.", 409
+            # Check for existing mapping
+            existing_tcs_mapping = dbi.session.query(TestSpecificationTestCaseModel).filter(
+                getattr(TestSpecificationTestCaseModel, mapping_id_field) == relation_id).filter(
+                    TestSpecificationTestCaseModel.test_case_id == test_case_id).all()
+            if len(existing_tcs_mapping):
+                return f"Test Case `{existing_tcs_mapping[0].id}` already associated " \
+                       "to the selected Test Specification", CONFLICT_STATUS
 
             try:
                 test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == test_case_id).one()
             except NoResultFound:
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             if not isinstance(test_case, TestCaseModel):
-                return "Bad request.", 400
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             new_test_case_mapping_test_specification = TestSpecificationTestCaseModel(
                 api_ts, sr_ts, test_case, coverage, user
@@ -5035,7 +4995,7 @@ class TestSpecificationTestCasesMapping(Resource):
 
         mandatory_fields = self.fields + ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5137,7 +5097,7 @@ class TestSpecificationTestCasesMapping(Resource):
 
         mandatory_fields = ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5226,7 +5186,7 @@ class ForkApiSwRequirement(Resource):
 
         mandatory_fields = ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5265,7 +5225,7 @@ class ForkSwRequirementSwRequirement(Resource):
 
         mandatory_fields = ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5324,7 +5284,7 @@ class UserLogin(Resource):
         mandatory_fields = ["email", "password"]
         request_data = request.get_json(force=True)
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         cache_key = f"{request_data['email']}|{request.remote_addr}"
 
@@ -5336,8 +5296,8 @@ class UserLogin(Resource):
                 delta_sec = (datetime.datetime.now() - last_attempt_dt).total_seconds()
                 if delta_sec <= MAX_LOGIN_ATTEMPTS_TIMEOUT:
                     return (
-                        f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user {request_data['email']}."
-                        f" Retry in {MAX_LOGIN_ATTEMPTS_TIMEOUT/60} minutes.",
+                        f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user {request_data['email']}, "
+                        f"retry in {MAX_LOGIN_ATTEMPTS_TIMEOUT/60} minutes",
                         400,
                     )
                 else:
@@ -5348,7 +5308,7 @@ class UserLogin(Resource):
             dbi = db_orm.DbInterface(get_db())
             user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
             if not user.enabled:
-                return "This user has been disabled, please contact your BASIL admin.", 400
+                return "This user has been disabled, please contact your BASIL admin", UNAUTHORIZED_STATUS
             if user.pwd != str_encoded_password:
                 if cache_key in login_attempt_cache.keys():
                     login_attempt_cache[cache_key]["attempts"] = login_attempt_cache[cache_key]["attempts"] + 1
@@ -5360,7 +5320,7 @@ class UserLogin(Resource):
                 return f"Wrong credentials for user {request_data['email']}", 400
 
         except NoResultFound:
-            return "Email not assigned to any user, consider to sign in.", 400
+            return "Email not assigned to any user, consider to sign in", UNAUTHORIZED_STATUS
 
         # Login success, clear login attempt cache for that ip
         if cache_key in login_attempt_cache.keys():
@@ -5379,13 +5339,13 @@ class UserSignin(Resource):
         mandatory_fields = ["email", "password"]
         request_data = request.get_json(force=True)
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
         same_email = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).all()
         if len(same_email) > 0:
-            return "Email already in use.", 400
+            return "Email already in use.", BAD_REQUEST_STATUS
 
         user = UserModel(request_data["email"].strip(), request_data["password"], "GUEST")
         dbi.session.add(user)
@@ -5431,7 +5391,7 @@ class UserApis(Resource):
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found.", 402
+            return "Software component not found", NOT_FOUND_STATUS
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
@@ -5498,7 +5458,7 @@ class UserPermissionsApiCopy(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5510,12 +5470,12 @@ class UserPermissionsApiCopy(Resource):
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found.", 402
+            return "Software component not found.", NOT_FOUND_STATUS
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return f"Operation not allowed for user {user.email}", 405
+            return f"Operation not allowed for user {user.email}", UNAUTHORIZED_STATUS
 
         for copy_to_api_id in request_data["copy-to"]:
             try:
@@ -5560,7 +5520,7 @@ class UserPermissionsApi(Resource):
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found.", 402
+            return "Software component not found.", NOT_FOUND_STATUS
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
@@ -5674,7 +5634,7 @@ class UserEnable(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5688,7 +5648,7 @@ class UserEnable(Resource):
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
         except NoResultFound:
-            return f"User {request_data['email']} not found.", 403
+            return f"User {request_data['email']} not found", NOT_FOUND_STATUS
 
         target_user.enabled = int(request_data["enabled"])
 
@@ -5706,7 +5666,7 @@ class User(Resource):
         request_data = request.args
 
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5746,7 +5706,7 @@ class UserResetPassword(Resource):
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
         except NoResultFound:
-            return f"User {request_data['email']} not found.", 403
+            return f"User {request_data['email']} not found", NOT_FOUND_STATUS
 
         target_user.pwd = request_data["password"]
         dbi.session.commit()
@@ -5780,7 +5740,7 @@ class UserRole(Resource):
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
         except NoResultFound:
-            return f"User {request_data['email']} not found.", 403
+            return f"User {request_data['email']} not found", NOT_FOUND_STATUS
 
         target_user.role = request_data["role"]
         dbi.session.commit()
@@ -5939,7 +5899,7 @@ class UserSshKey(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5979,7 +5939,7 @@ class UserSshKey(Resource):
         if not os.path.exists(f"{SSH_KEYS_PATH}/{new_ssh_key.id}"):
             dbi.session.delete(new_ssh_key)
             dbi.session.commit()
-            return "Error", 400
+            return "Error", PRECONDITION_FAILED_STATUS
 
         return new_ssh_key.as_dict()
 
@@ -5987,7 +5947,7 @@ class UserSshKey(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["id"], request_data):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -6596,7 +6556,7 @@ class TestRun(Resource):
         notification = (
             f"{user.email} deleted a Test Run for Test Case "
             f"{mapping.test_case.title} as part of the sw component "
-            f"{api.api}, library {api.library}."
+            f"{api.api}, library {api.library}"
         )
         notifications = NotificationModel(
             api, "info", f"Test Run for {api.api} has been removed", notification, str(user.id), f"/mapping/{api.id}"
@@ -7085,7 +7045,7 @@ class AdminTestRunPluginsPresets(Resource):
         args = get_query_string_args(request.args)
 
         if not check_fields_in_request(mandatory_fields, args):
-            return "bad request!", 400
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 

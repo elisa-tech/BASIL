@@ -31,6 +31,10 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   }
 
   React.useEffect(() => {
+    if (modalShowState == true) {
+      loadJustifications('')
+      setActiveTabKey(0)
+    }
     setIsModalOpen(modalShowState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState])
@@ -73,11 +77,6 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Cancel
-          </Button>
-        ]}
       >
         <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Justification' role='region'>
           <Tab
@@ -119,9 +118,6 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
                 formDefaultButtons={1}
                 formMessage={''}
                 modalFormSubmitState={'waiting'}
-                //modalIndirect={modalIndirect}
-                //parentType={parentType}
-                //parentRelatedToType={parentRelatedToType}
               />
             </TabContentBody>
           </TabContent>
@@ -129,9 +125,6 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
             <TabContentBody hasPadding>
               <SectionForm
                 api={api}
-                //formVerb={modalVerb}
-                //handleModalToggle={handleModalToggle}
-                //modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
                 setModalOffset={setModalOffset}
@@ -144,14 +137,10 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
               <JustificationSearch
                 api={api}
                 formVerb={modalVerb}
-                //parentData={parentData}
-                //parentType={parentType}
-                //parentRelatedToType={parentRelatedToType}
                 justifications={justifications}
                 handleModalToggle={handleModalToggle}
                 loadMappingData={loadMappingData}
                 loadJustifications={loadJustifications}
-                //modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
                 modalShowState={modalShowState}

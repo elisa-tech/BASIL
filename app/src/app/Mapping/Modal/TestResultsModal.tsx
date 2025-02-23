@@ -679,7 +679,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                         requestTestResult(testResult)
                                       }}
                                     >
-                                      <ProcessAutomationIcon /> Re-run
+                                      <Flex>
+                                        <FlexItem spacer={{ default: 'spacerXs' }}>
+                                          <ProcessAutomationIcon />
+                                        </FlexItem>
+                                        <FlexItem spacer={{ default: 'spacerMd' }}>
+                                          <Text>Re-run</Text>
+                                        </FlexItem>
+                                      </Flex>
                                     </Button>
                                   )
                                 }
@@ -702,7 +709,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                     deleteTestResult(testResult)
                                   }}
                                 >
-                                  <TimesIcon /> <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
+                                  <Flex>
+                                    <FlexItem spacer={{ default: 'spacerXs' }}>
+                                      <TimesIcon />
+                                    </FlexItem>
+                                    <FlexItem spacer={{ default: 'spacerMd' }}>
+                                      <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
+                                    </FlexItem>
+                                  </Flex>
                                 </Button>
                                 <Button
                                   variant='plain'
@@ -711,7 +725,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                     handleTestResultDetailsClick(testResult)
                                   }}
                                 >
-                                  <EyeIcon /> Details
+                                  <Flex>
+                                    <FlexItem spacer={{ default: 'spacerXs' }}>
+                                      <EyeIcon />
+                                    </FlexItem>
+                                    <FlexItem spacer={{ default: 'spacerMd' }}>
+                                      <Text>Details</Text>
+                                    </FlexItem>
+                                  </Flex>
                                 </Button>
                               </>
                             )

@@ -3,11 +3,14 @@ import * as Constants from '../../Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   FormHelperText,
   FormSelect,
   FormSelectOption,
+  Grid,
   HelperText,
   HelperTextItem,
   Hint,
@@ -79,6 +82,10 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
   const [statusValue, setStatusValue] = React.useState('waiting')
 
+  // Form constants
+  const INPUT_BASE_NAME = 'input-test-case'
+  const SELECT_BASE_NAME = 'select-test-case'
+
   const resetForm = () => {
     setTitleValue('')
     setDescriptionValue('')
@@ -137,17 +144,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
   }, [relativePathValue])
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('error')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   React.useEffect(() => {
@@ -196,11 +193,13 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       setMessageValue('Test Case Title is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (validatedDescriptionValue != 'success') {
+    }
+    if (validatedDescriptionValue != 'success') {
       setMessageValue('Test Case Description is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (implementationSource == 'url') {
+    }
+    if (implementationSource == 'url') {
       if (validatedRepositoryValue != 'success') {
         setMessageValue('Test Case Repository is mandatory.')
         setStatusValue('waiting')
@@ -210,18 +209,21 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         setStatusValue('waiting')
         return
       }
-    } else if (implementationSource == 'user-files') {
+    }
+    if (implementationSource == 'user-files') {
       if (validatedImplementationFilePath != 'success') {
         setMessageValue('Test Case user file is mandatory.')
         setStatusValue('waiting')
         return
       }
-    } else if (validatedCoverageValue != 'success') {
+    }
+    if (validatedCoverageValue != 'success') {
       setMessageValue('Test Case Coverage of Parent Item is mandatory and must be an integer in the range 0-100.')
       setStatusValue('waiting')
       return
-    } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
+    }
+    if (modalSection.trim().length == 0) {
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -266,10 +268,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-cases', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -288,14 +287,77 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       })
   }
 
+  // Form elements focus
+  const focusInputTitle = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-title-' + formData.id)?.focus()
+  }
+
+  const focusInputDescription = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-description-' + formData.id)?.focus()
+  }
+
+  const focusInputRepository = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-repository-' + formData.id)?.focus()
+  }
+
+  const focusInputRelativePath = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-relative-path-' + formData.id)?.focus()
+  }
+
+  const focusInputCoverage = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-coverage-' + formData.id)?.focus()
+  }
+
+  // Keyboard events
+  const handleStatusKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputTitle()
+    }
+  }
+
+  const handleTitleKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputDescription()
+    }
+  }
+
+  const handleDescriptionKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      focusInputRepository()
+    }
+  }
+
+  const handleRepositoryKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputRelativePath()
+    }
+  }
+
+  const handleRelativePathKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputCoverage()
+    }
+  }
+
+  const handleCoverageKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmit()
+    }
+  }
+
   return (
-    <Form>
+    <Form
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
+    >
       {formAction == 'edit' ? (
-        <FormGroup label='Status' isRequired fieldId={`input-test-case-${formAction}-status-${formData.id}`}>
+        <FormGroup label='Status' isRequired fieldId={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}>
           <FormSelect
             value={testCaseStatusValue}
-            id={`input-test-case-${formAction}-status-${formData.id}`}
+            id={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}
             onChange={handleTestCaseStatusChange}
+            onKeyUp={handleStatusKeyUp}
             aria-label='Test Case Status Input'
           >
             {Constants.status_options.map((option, index) => (
@@ -307,13 +369,13 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         ''
       )}
 
-      <FormGroup label='Test Case Title' isRequired fieldId={`input-test-case-${formAction}-title-${formData.id}`}>
+      <FormGroup label='Test Case Title' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}>
         <TextInput
           isRequired
-          id={`input-test-case-${formAction}-title-${formData.id}`}
-          name={`input-test-case-${formAction}-title-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}
           value={titleValue || ''}
           onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
+          onKeyUp={handleTitleKeyUp}
         />
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
@@ -323,15 +385,15 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Description' isRequired fieldId={`input-test-case-${formAction}-description-${formData.id}`}>
+      <FormGroup label='Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Test Case description field'
-          id={`input-test-case-${formAction}-description-${formData.id}`}
-          name={`input-test-case-${formAction}-description-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}
           value={descriptionValue || ''}
           onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
+          onKeyUp={handleDescriptionKeyUp}
         />
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
@@ -344,7 +406,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       <FormGroup
         label={implementationSource == 'url' ? 'Repository' : 'User file'}
         isRequired
-        fieldId={`input-test-case-${formAction}-repository-${formData.id}`}
+        fieldId={`${INPUT_BASE_NAME}-${formAction}-repository-${formData.id}`}
         labelIcon={
           implementationSource == 'url' ? (
             <Button variant='link' onClick={() => setImplementationSource('user-files')}>
@@ -361,10 +423,10 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           <>
             <TextInput
               isRequired
-              id={`input-test-case-${formAction}-repository-${formData.id}`}
-              name={`input-test-case-${formAction}-repository-${formData.id}`}
+              id={`${INPUT_BASE_NAME}-${formAction}-repository-${formData.id}`}
               value={repositoryValue || ''}
               onChange={(_ev, value) => handleRepositoryValueChange(_ev, value)}
+              onKeyUp={handleRepositoryKeyUp}
             />
             {validatedRepositoryValue !== 'success' && (
               <FormHelperText>
@@ -378,8 +440,9 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           <>
             <FormSelect
               value={implementationFilePath}
-              id={`select-test-case-${formAction}-file-${formData.id}`}
+              id={`${SELECT_BASE_NAME}-${formAction}-file-${formData.id}`}
               onChange={handleImplementationFilePathChange}
+              onKeyUp={handleRepositoryKeyUp}
               aria-label='Test Case from user file'
             >
               <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
@@ -400,13 +463,13 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         )}
       </FormGroup>
       {implementationSource == 'url' ? (
-        <FormGroup label='Relative Path' isRequired fieldId={`input-test-case-${formAction}-relative-path-${formData.id}`}>
+        <FormGroup label='Relative Path' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-relative-path-${formData.id}`}>
           <TextInput
             isRequired
-            id={`input-test-case-${formAction}-relative-path-${formData.id}`}
-            name={`input-test-case-${formAction}-relative-path-${formData.id}`}
+            id={`${INPUT_BASE_NAME}-${formAction}-relative-path-${formData.id}`}
             value={relativePathValue || ''}
             onChange={(_ev, value) => handleRelativePathValueChange(_ev, value)}
+            onKeyUp={handleRelativePathKeyUp}
           />
           {validatedRelativePathValue !== 'success' && (
             <FormHelperText>
@@ -419,24 +482,26 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       ) : (
         ''
       )}
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-case-${formAction}-coverage-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-test-case-${formAction}-coverage-${formData.id}`}
-          name={`input-test-case-${formAction}-coverage-${formData.id}`}
-          value={coverageValue || ''}
-          onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-        />
-        {validatedCoverageValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
+      <Grid hasGutter md={3}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}>
+          <TextInput
+            isRequired
+            id={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}
+            value={coverageValue || ''}
+            onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
+            onKeyUp={handleCoverageKeyUp}
+          />
+          {validatedCoverageValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>
+                  {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </Grid>
 
       {messageValue ? (
         <>
@@ -451,12 +516,18 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-mapping-test-case-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-mapping-test-case-reset' variant='secondary' onClick={resetForm}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-mapping-test-case-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-mapping-test-case-reset' variant='secondary' onClick={resetForm}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         <span></span>

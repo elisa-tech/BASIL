@@ -154,17 +154,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   }, [documentSource])
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('error')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   React.useEffect(() => {
@@ -253,25 +243,30 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       setMessageValue('Document Title is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (validatedDescriptionValue != 'success') {
+    }
+    if (validatedDescriptionValue != 'success') {
       setMessageValue('Document Description is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (validatedSPDXRelationValue != 'success') {
+    }
+    if (validatedSPDXRelationValue != 'success') {
       setMessageValue('Relationship is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (validatedDocumentSourceValue != 'success') {
+    }
+    if (validatedDocumentSourceValue != 'success') {
       setMessageValue('Document url or filename is mandatory.')
       setStatusValue('waiting')
       return
-    } else if (documentTypeValue == 'text') {
+    }
+    if (documentTypeValue == 'text') {
       if (validatedSectionValue != 'success') {
         setMessageValue('Section of the document is mandatory.')
         setStatusValue('waiting')
         return
       }
-    } else if (validatedCoverageValue != 'success') {
+    }
+    if (validatedCoverageValue != 'success') {
       setMessageValue('Document Coverage is mandatory and must be a integer value in the range 0-100.')
       setStatusValue('waiting')
       return
@@ -308,10 +303,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
 
     fetch(Constants.API_BASE_URL + '/mapping/api/documents', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -377,7 +369,11 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   }
 
   return (
-    <Form>
+    <Form
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
+    >
       {formAction == 'edit' ? (
         <FormGroup label='Status' isRequired fieldId={`input-document-${formAction}-status-${formData.id}`}>
           <FormSelect

@@ -1,5 +1,5 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   ActionGroup,
   Button,
@@ -7,6 +7,7 @@ import {
   FlexItem,
   FormGroup,
   FormHelperText,
+  Grid,
   HelperText,
   HelperTextItem,
   Hint,
@@ -14,7 +15,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface DocumentSearchProps {
   api
@@ -46,7 +47,7 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
   loadMappingData
 }: DocumentSearchProps) => {
   const auth = useAuth()
-  const [searchValue, setSearchValue] = React.useState(formData?.title || '')
+  const [searchValue, setSearchValue] = React.useState<string>('')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState<string>('')
@@ -73,17 +74,7 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
   }
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('default')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   const handleCoverageValueChange = (_event, value: string) => {
@@ -133,12 +124,14 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
       setMessageValue('Please, select an item before submitting the form.')
       setStatusValue('waiting')
       return
-    } else if (validatedCoverageValue != 'success') {
+    }
+    if (validatedCoverageValue != 'success') {
       setMessageValue('Coverage of Parent Item is mandatory and must be a integer value in the range 0-100.')
       setStatusValue('waiting')
       return
-    } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
+    }
+    if (modalSection.trim().length == 0) {
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -167,30 +160,52 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
       return
     }
 
+    let status: number = 0
+    let status_text: string = ''
+
     fetch(Constants.API_BASE_URL + '/mapping/api/documents', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
+        status = response.status
+        status_text = response.statusText
         if (response.status !== 200) {
-          setMessageValue(response.statusText)
           setStatusValue('waiting')
+          return response.text()
         } else {
           setStatusValue('waiting')
           setMessageValue('Database updated!')
           handleModalToggle()
           setMessageValue('')
           loadMappingData(Constants.force_reload)
+          return {}
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {
         setStatusValue('waiting')
         setMessageValue(err.toString())
       })
+  }
+
+  // Keyboard events
+  const handleSearchKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      setSelectedDataListItemId('')
+      loadDocuments(searchValue)
+    }
+  }
+
+  const handleCoverageKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmit()
+    }
   }
 
   return (
@@ -201,6 +216,7 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
             placeholder='Search Identifier'
             value={searchValue}
             onChange={(_event, value) => onChangeSearchValue(value)}
+            onKeyUp={handleSearchKeyPress}
             onClear={() => onChangeSearchValue('')}
             style={{ width: '400px' }}
           />
@@ -229,24 +245,26 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
         {getDocumentsTable(documents)}
       </DataList>
       <br />
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-document-coverage-${formData?.id}`}>
-        <TextInput
-          isRequired
-          id={`input-document-coverage-${formData?.id}`}
-          name={`input-document-coverage-${formData?.id}`}
-          value={coverageValue || ''}
-          onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-        />
-        {validatedCoverageValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
+      <Grid hasGutter md={3}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-document-coverage-${formData?.id}`}>
+          <TextInput
+            isRequired
+            id={`input-document-coverage-${formData?.id}`}
+            value={coverageValue}
+            onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
+            onKeyUp={handleCoverageKeyPress}
+          />
+          {validatedCoverageValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>
+                  {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </Grid>
       <br />
 
       {messageValue ? (
@@ -262,12 +280,18 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-mapping-existing-document-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-mapping-existing-document-cancel' variant='secondary' onClick={resetForm}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-mapping-existing-document-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-mapping-existing-document-cancel' variant='secondary' onClick={resetForm}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         ''

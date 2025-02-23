@@ -18,12 +18,12 @@ from spdx_tools.spdx3.model import (
 )
 from spdx_tools.spdx3.model.software import File, Sbom, SBOMType, Snippet
 from spdx_tools.spdx3.writer.json_ld import json_ld_writer
-from typing import List
+from typing import List, Optional, Union
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
 
-from db import db_orm  # noqa E402
+from db.db_orm import DbInterface  # noqa E402
 from db.models.api import ApiModel  # noqa E402
 from db.models.api_document import ApiDocumentModel  # noqa E402
 from db.models.api_justification import ApiJustificationModel  # noqa E402
@@ -306,20 +306,28 @@ class SPDXManager:
             summary=_doc._description,
         )
 
-    def get_x_sr_children(self, xsr, spdx_sr, dbi):
+    def get_x_sr_children(self,
+                          api: ApiModel,
+                          xsr: Optional[Union[ApiSwRequirementModel, SwRequirementSwRequirementModel]],
+                          spdx_sr: SwRequirementSPDX,
+                          dbi: DbInterface):
         """In BASIL user can create a complex hierarchy of Software Requirements.
         Moreover we can assign other work items to each Software Requirement in the chain.
         This method navigate the hierarchy and return all the work items
+
+        :param api: software component where the mapping is defined
+        :param xsr: Sw Requirement mapping model instance
+        :param spdx_sr: SwRequirementSPDX instance
+        :param dbi: Database interface instance
+        :return:
         """
         files = []
         relationships = []
 
         if isinstance(xsr, ApiSwRequirementModel):
             mapping_field_id = "sw_requirement_mapping_api_id"
-            api_id = xsr.api_id
         elif isinstance(xsr, SwRequirementSwRequirementModel):
             mapping_field_id = "sw_requirement_mapping_sw_requirement_id"
-            api_id = xsr.sw_requirement_mapping_api.api.id
         else:
             return files, relationships
 
@@ -342,7 +350,7 @@ class SPDXManager:
             files += [spdx_sr_sr]
             relationships += [spdx_sr_sr_rel]
 
-            child_files, child_relationships = self.get_x_sr_children(sr_sr, spdx_sr_sr, dbi)
+            child_files, child_relationships = self.get_x_sr_children(api, sr_sr, spdx_sr_sr, dbi)
             files += child_files
             relationships += child_relationships
 
@@ -383,7 +391,7 @@ class SPDXManager:
                 relationships += [spdx_ts_tc_rel]
 
                 # Test Runs
-                spdx_trs, spdx_trs_rel = self.get_test_runs(api_id, ts_tc, spdx_tc, dbi)
+                spdx_trs, spdx_trs_rel = self.get_test_runs(api.id, ts_tc, spdx_tc, dbi)
                 files += spdx_trs
                 relationships += spdx_trs_rel
 
@@ -406,7 +414,7 @@ class SPDXManager:
             relationships += [spdx_sr_tc_rel]
 
             # Test Runs
-            spdx_trs, spdx_trs_rel = self.get_test_runs(api_id, sr_tc, spdx_tc, dbi)
+            spdx_trs, spdx_trs_rel = self.get_test_runs(api.id, sr_tc, spdx_tc, dbi)
             files += spdx_trs
             relationships += spdx_trs_rel
 
@@ -448,7 +456,7 @@ class SPDXManager:
     def add_api_to_export(self, api: ApiModel):
         """Collect all the work items of a BASIL Software Component and their relationships
         and add them to the class payload"""
-        dbi = db_orm.DbInterface()
+        dbi = DbInterface()
         api = dbi.session.query(ApiModel).filter(ApiModel.id == api.id).one()
 
         # Api
@@ -490,7 +498,7 @@ class SPDXManager:
             self.add_files_to_payload([spdx_sr])
             self.add_files_to_payload([spdx_asr_snippet_rel, spdx_asr_sr_rel])
 
-            child_files, child_relationships = self.get_x_sr_children(asr, spdx_sr, dbi)
+            child_files, child_relationships = self.get_x_sr_children(api, asr, spdx_sr, dbi)
             self.add_files_to_payload(child_files)
             self.add_files_to_payload(child_relationships)
 

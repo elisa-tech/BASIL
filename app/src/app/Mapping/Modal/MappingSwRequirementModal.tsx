@@ -56,6 +56,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
   React.useEffect(() => {
     if (modalShowState == true) {
       loadSwRequirements('')
+      setActiveTabKey(0)
     }
     setIsModalOpen(modalShowState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -96,11 +97,6 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Cancel
-          </Button>
-        ]}
       >
         <Tabs
           id='tabs-sw-requirements-modal'

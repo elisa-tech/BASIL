@@ -334,15 +334,72 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       })
   }
 
+  // Keyboard events
+  const handleSwComponentNameKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-library-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentLibraryKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-library-version-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentLibraryVersionKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-raw-specification-url-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentUrlKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-category-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentCategoryKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-implementation-file-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentImplementationFileKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-implementation-file-from-row-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentImplementationFileFromRowKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-implementation-file-to-row-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentImplementationFileToRowKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      document.getElementById('input-api-' + formAction + '-tags-' + formData.id)?.focus()
+    }
+  }
+
+  const handleSwComponentTagsKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      if (formAction == 'add') {
+        handleSubmit()
+      }
+    }
+  }
+
   return (
     <Form>
       <FormGroup label='Software Component Name' isRequired fieldId={`input-api-${formAction}-api-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-api-${formAction}-api-${formData.id}`}
-          name={`input-api-${formAction}-api-${formData.id}`}
           value={apiValue || ''}
           onChange={(_ev, value) => handleApiValueChange(_ev, value)}
+          onKeyUp={handleSwComponentNameKeyUp}
         />
         {validatedApiValue !== 'success' && (
           <FormHelperText>
@@ -356,9 +413,9 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         <TextInput
           isRequired
           id={`input-api-${formAction}-library-${formData.id}`}
-          name={`input-api-${formAction}-library-${formData.id}`}
           value={libraryValue || ''}
           onChange={(_ev, value) => handleLibraryValueChange(_ev, value)}
+          onKeyUp={handleSwComponentLibraryKeyUp}
         />
         {validatedLibraryValue !== 'success' && (
           <FormHelperText>
@@ -372,9 +429,9 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         <TextInput
           isRequired
           id={`input-api-${formAction}-library-version-${formData.id}`}
-          name={`input-api-${formAction}-library-version-${formData.id}`}
           value={libraryVersionValue || ''}
           onChange={(_ev, value) => handleLibraryVersionValueChange(_ev, value)}
+          onKeyUp={handleSwComponentLibraryVersionKeyUp}
         />
         {validatedLibraryVersionValue !== 'success' && (
           <FormHelperText>
@@ -404,15 +461,16 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <TextInput
             isRequired
             id={`input-api-${formAction}-raw-specification-url-${formData.id}`}
-            name={`input-api-${formAction}-raw-specification-url-${formData.id}`}
             value={referenceUrl || ''}
             onChange={(_ev, value) => handleReferenceUrlChange(_ev, value)}
+            onKeyUp={handleSwComponentUrlKeyUp}
           />
         ) : (
           <FormSelect
             value={referenceFileName}
             id={`select-api-${formAction}-raw-specification-path-${formData.id}`}
             onChange={handleReferenceFileNameChange}
+            onKeyUp={handleSwComponentUrlKeyUp}
             aria-label='Software specification from user file'
           >
             <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
@@ -433,9 +491,9 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         <TextInput
           isRequired
           id={`input-api-${formAction}-category-${formData.id}`}
-          name={`input-api-${formAction}-category-${formData.id}`}
           value={categoryValue || ''}
           onChange={(_ev, value) => handleCategoryValueChange(_ev, value)}
+          onKeyUp={handleSwComponentCategoryKeyUp}
         />
       </FormGroup>
       <FormGroup
@@ -457,15 +515,16 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           <TextInput
             isRequired
             id={`input-api-${formAction}-implementation-file-${formData.id}`}
-            name={`input-api-${formAction}-implementation-file-${formData.id}`}
             value={implementationUrl || ''}
             onChange={(_ev, value) => handleImplementationUrlChange(_ev, value)}
+            onKeyUp={handleSwComponentImplementationFileKeyUp}
           />
         ) : (
           <FormSelect
             value={implementationFileName}
             id={`select-api-${formAction}-implementation-file-path-${formData.id}`}
             onChange={handleImplementationFileNameChange}
+            onKeyUp={handleSwComponentImplementationFileKeyUp}
             aria-label='Implementation from user file'
           >
             <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
@@ -481,9 +540,9 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       >
         <TextInput
           id={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
-          name={`input-api-${formAction}-implementation-file-from-row-${formData.id}`}
           value={implementationFileFromRowValue || ''}
           onChange={(_ev, value) => handleImplementationFileFromRowValueChange(_ev, value)}
+          onKeyUp={handleSwComponentImplementationFileFromRowKeyUp}
         />
         {validatedImplementationFileFromRowValue !== 'success' && (
           <FormHelperText>
@@ -498,9 +557,9 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       <FormGroup label='Implementation file to row number:' fieldId={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}>
         <TextInput
           id={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}
-          name={`input-api-${formAction}-implementation-file-to-row-${formData.id}`}
           value={implementationFileToRowValue || ''}
           onChange={(_ev, value) => handleImplementationFileToRowValueChange(_ev, value)}
+          onKeyUp={handleSwComponentImplementationFileToRowKeyUp}
         />
         {validatedImplementationFileToRowValue !== 'success' && (
           <FormHelperText>
@@ -513,9 +572,9 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       <FormGroup label='Tags:' fieldId={`input-api-${formAction}-tags-${formData.id}`}>
         <TextInput
           id={`input-api-${formAction}-tags-${formData.id}`}
-          name={`input-api-${formAction}-tags-${formData.id}`}
           value={tagsValue || ''}
           onChange={(_ev, value) => handleTagsValueChange(_ev, value)}
+          onKeyUp={handleSwComponentTagsKeyUp}
         />
       </FormGroup>
 
@@ -571,12 +630,18 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-api-form-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-api-form-reset' variant='secondary' onClick={() => resetForm()}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-api-form-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-api-form-reset' variant='secondary' onClick={() => resetForm()}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         <span></span>

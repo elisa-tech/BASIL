@@ -1,10 +1,9 @@
 import * as React from 'react'
 import * as XLSX from 'xlsx'
-import * as Constants from '../../Constants/constants'
-import { FileUpload } from '@patternfly/react-core'
-import { ActionGroup, Button, Hint, HintBody } from '@patternfly/react-core'
+import * as Constants from '@app/Constants/constants'
+import { ActionGroup, Button, FileUpload, Flex, FlexItem, Hint, HintBody } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 interface SwRequirement {
   id: string
@@ -250,7 +249,7 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
         browseButtonText='Upload'
       />
       <br />
-      <div style={{ height: '600px', overflowY: 'scroll' }}>
+      <div style={{ minHeight: '400px', overflowY: 'scroll' }}>
         {fileContent && (
           <Table aria-label='Selectable table'>
             <Thead>
@@ -299,12 +298,18 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
       )}
 
       <ActionGroup>
-        <Button id='btn-mapping-existing-sw-requirement-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-          Submit
-        </Button>
-        <Button id='btn-mapping-existing-sw-requirement-cancel' variant='secondary' onClick={resetForm}>
-          Reset
-        </Button>
+        <Flex>
+          <FlexItem>
+            <Button id='btn-mapping-existing-sw-requirement-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+              Submit
+            </Button>
+          </FlexItem>
+          <FlexItem>
+            <Button id='btn-mapping-existing-sw-requirement-cancel' variant='secondary' onClick={resetForm}>
+              Reset
+            </Button>
+          </FlexItem>
+        </Flex>
       </ActionGroup>
     </React.Fragment>
   )

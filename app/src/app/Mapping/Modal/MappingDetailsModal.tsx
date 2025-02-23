@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import * as Constants from '@app/Constants/constants'
-import { Button, Modal, ModalVariant, Text, TextContent, TextList, TextListItem } from '@patternfly/react-core'
+import { Button, Modal, ModalVariant, Text, TextContent, TextVariants } from '@patternfly/react-core'
 
 export interface MappingDeleteModalProps {
   modalShowState
@@ -40,18 +40,13 @@ export const MappingDetailsModal: React.FunctionComponent<MappingDeleteModalProp
       return modalData.map((version, versionIndex) => (
         <React.Fragment key={versionIndex}>
           <TextContent>
-            <TextList>
-              {Object.keys(version).map((key, index) => (
-                <TextListItem key={index}>
-                  <em>
-                    <b>{Constants.capitalizeFirstWithoutHashes(key)}</b>:{' '}
-                  </em>
-                  <Text>
-                    <ReactMarkdown>{version[key].toString()}</ReactMarkdown>
-                  </Text>
-                </TextListItem>
-              ))}
-            </TextList>
+            {Object.keys(version).map((key, index) => (
+              <Text component={TextVariants.p}>
+                <ReactMarkdown>
+                  {'**' + Constants.capitalizeFirstWithoutHashes(key).toString() + '**: ' + version[key].toString()}
+                </ReactMarkdown>
+              </Text>
+            ))}
           </TextContent>
         </React.Fragment>
       ))
@@ -70,11 +65,6 @@ export const MappingDetailsModal: React.FunctionComponent<MappingDeleteModalProp
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Cancel
-          </Button>
-        ]}
       >
         {getDetails()}
       </Modal>

@@ -56,7 +56,12 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
   }
 
   React.useEffect(() => {
+    if (modalShowState == true) {
+      loadTestCases('')
+      setActiveTabKey(0)
+    }
     setIsModalOpen(modalShowState)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState])
 
   const loadTestCases = (searchValue) => {
@@ -96,11 +101,6 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Cancel
-          </Button>
-        ]}
       >
         <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Test Case' role='region'>
           <Tab

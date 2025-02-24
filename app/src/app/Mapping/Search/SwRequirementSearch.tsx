@@ -187,7 +187,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (response.status !== 200) {
+        if (status !== 200) {
           setStatusValue('waiting')
           return response.text()
         } else {

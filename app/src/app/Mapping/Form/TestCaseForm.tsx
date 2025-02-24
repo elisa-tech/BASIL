@@ -266,20 +266,31 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       data[Constants._TC]['status'] = testCaseStatusValue
     }
 
+    let status: number = 0
+    let status_text: string = ''
+
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-cases', {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setMessageValue(response.statusText)
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
           setStatusValue('waiting')
+          return response.text()
         } else {
+          setStatusValue('waiting')
           handleModalToggle()
           setMessageValue('')
-          setStatusValue('waiting')
           loadMappingData(Constants.force_reload)
+          return {}
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {

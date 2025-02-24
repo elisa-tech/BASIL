@@ -84,10 +84,7 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
 
     fetch(url, {
       method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

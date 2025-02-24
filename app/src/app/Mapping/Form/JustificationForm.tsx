@@ -152,23 +152,31 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
       data['justification']['status'] = justificationStatusValue
     }
 
+    let status: number = 0
+    let status_text: string = ''
+
     fetch(Constants.API_BASE_URL + '/mapping/api/justifications', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setMessageValue(response.statusText)
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
           setStatusValue('waiting')
+          return response.text()
         } else {
           handleModalToggle()
           setMessageValue('')
           setStatusValue('waiting')
           loadMappingData(Constants.force_reload)
+          return {}
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {

@@ -44,10 +44,7 @@ export const UserFilesMenuKebab: React.FunctionComponent<UserFilesMenuKebabProps
 
     fetch(Constants.API_BASE_URL + Constants.API_USER_FILES_ENDPOINT, {
       method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

@@ -47,10 +47,7 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
     const data = { 'api-id': api.id, 'relation-id': relationData.relation_id, 'user-id': auth.userId, token: auth.token }
     fetch(Constants.API_BASE_URL + '/fork/' + parentType + '/' + workItemType, {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

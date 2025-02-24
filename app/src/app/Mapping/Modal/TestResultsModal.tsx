@@ -300,10 +300,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
     fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -450,10 +447,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
     fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -502,10 +496,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
     fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
       method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

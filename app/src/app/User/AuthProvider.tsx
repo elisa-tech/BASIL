@@ -35,7 +35,7 @@ const AuthProvider = ({ children }) => {
     try {
       const requestOptions = {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Constants.JSON_HEADER,
         body: JSON.stringify(data)
       }
       fetch(Constants.API_BASE_URL + '/user/login', requestOptions)

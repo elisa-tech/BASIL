@@ -308,10 +308,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
 
     fetch(Constants.API_BASE_URL + '/apis', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

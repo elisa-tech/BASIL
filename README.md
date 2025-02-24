@@ -28,7 +28,8 @@ BASIL will help you on identifying gaps and on tracking progress.
 - Clarifies gaps (each relationship support a percentage of completeness)
 - Impact analysis of specification changes and automatic fix of warnings
 - Parallelize teams work (supporting multiple mapping views)
-- Export in SPDX Model 3
+- Export traceability matrix in SPDX Model 3
+- Import Software Requirements from multiple sources: SPDX Model3 json, yaml, json, csv, xlsx
 
 ## Supported Work Items
 

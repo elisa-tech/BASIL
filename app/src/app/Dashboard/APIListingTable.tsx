@@ -174,7 +174,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   }
 
   return (
-    <Table id='table-api-listing' aria-label='Api Listing table'>
+    <Table id='table-api-listing' aria-label='Api Listing table' variant='compact'>
       <Thead>
         <Tr>
           <Th />

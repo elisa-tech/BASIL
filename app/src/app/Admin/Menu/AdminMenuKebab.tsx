@@ -31,10 +31,7 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
 
     fetch(Constants.API_BASE_URL + '/user/role', {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -60,10 +57,7 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
 
     fetch(Constants.API_BASE_URL + '/user/enable', {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

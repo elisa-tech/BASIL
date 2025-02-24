@@ -48,10 +48,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
     }
     fetch(Constants.API_BASE_URL + '/apis', {
       method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

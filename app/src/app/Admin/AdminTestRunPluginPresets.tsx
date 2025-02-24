@@ -52,10 +52,7 @@ const AdminTestRunPluginPresets: React.FunctionComponent = () => {
     const data = { content: presetsContent, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

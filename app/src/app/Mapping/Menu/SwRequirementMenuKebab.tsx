@@ -1,6 +1,6 @@
 import React from 'react'
 import * as Constants from '../../Constants/constants'
-import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
+import { Dropdown, DropdownItem, DropdownList, Flex, FlexItem, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 
 export interface SwRequirementMenuKebabProps {

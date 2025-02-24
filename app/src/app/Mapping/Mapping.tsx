@@ -125,10 +125,7 @@ const Mapping: React.FunctionComponent = () => {
 
     fetch(Constants.API_BASE_URL + '/mapping/api/last-coverage', {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

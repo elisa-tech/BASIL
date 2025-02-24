@@ -144,6 +144,13 @@ const Dashboard: React.FunctionComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [libraries])
 
+  // Keyboard events
+  const handleSearchKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      loadApi()
+    }
+  }
+
   return (
     <React.Fragment>
       <PageGroup stickyOnBreakpoint={{ default: 'top' }} hasShadowBottom>
@@ -156,6 +163,7 @@ const Dashboard: React.FunctionComponent = () => {
                 value={searchValue}
                 onChange={(_event, value) => onChangeSearchValue(value)}
                 onClear={() => onChangeSearchValue('')}
+                onKeyUp={handleSearchKeyPress}
                 style={{ width: '400px' }}
               />
             </FlexItem>

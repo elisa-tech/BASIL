@@ -3,11 +3,14 @@ import * as Constants from '../../Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   FormHelperText,
   FormSelect,
   FormSelectOption,
+  Grid,
   HelperText,
   HelperTextItem,
   Hint,
@@ -74,6 +77,10 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
   const [statusValue, setStatusValue] = React.useState('waiting')
 
+  // Form constants
+  const INPUT_BASE_NAME = 'input-test-specification'
+  const SELECT_BASE_NAME = 'select-test-specification'
+
   const resetForm = () => {
     setTitleValue('')
     setPreconditionsValue('')
@@ -119,17 +126,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
   }, [expectedBehaviorValue])
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('error')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   React.useEffect(() => {
@@ -188,7 +185,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       setStatusValue('waiting')
       return
     } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -224,23 +221,31 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       data[Constants._TS]['status'] = testSpecificationStatusValue
     }
 
+    let status: number = 0
+    let status_text: string = ''
+
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-specifications', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setMessageValue(response.statusText)
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
           setStatusValue('waiting')
+          return response.text()
         } else {
+          setStatusValue('waiting')
           handleModalToggle()
           setMessageValue('')
-          setStatusValue('waiting')
           loadMappingData(Constants.force_reload)
+          return {}
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {
@@ -249,14 +254,77 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       })
   }
 
+  // Form elements focus
+  const focusInputTitle = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-title-' + formData.id)?.focus()
+  }
+
+  const focusInputPreconditions = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-preconditions-' + formData.id)?.focus()
+  }
+
+  const focusInputTestDescription = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-test-description-' + formData.id)?.focus()
+  }
+
+  const focusInputExpectedBehavior = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-expected-behavior-' + formData.id)?.focus()
+  }
+
+  const focusInputCoverage = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-coverage-' + formData.id)?.focus()
+  }
+
+  // Keyboard events
+  const handleStatusKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputTitle()
+    }
+  }
+
+  const handleTitleKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputPreconditions()
+    }
+  }
+
+  const handlePreconditionsKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      focusInputTestDescription()
+    }
+  }
+
+  const handleTestDescriptionKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      focusInputExpectedBehavior()
+    }
+  }
+
+  const handleExpectedBehaviorKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      focusInputCoverage()
+    }
+  }
+
+  const handleCoverageKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmit()
+    }
+  }
+
   return (
-    <Form>
+    <Form
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
+    >
       {formAction == 'edit' ? (
-        <FormGroup label='Status' isRequired fieldId={`input-test-specification-${formAction}-status-${formData.id}`}>
+        <FormGroup label='Status' isRequired fieldId={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}>
           <FormSelect
             value={testSpecificationStatusValue}
-            id={`input-test-specification-${formAction}-status-${formData.id}`}
+            id={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}
             onChange={handleTestSpecificationStatusChange}
+            onKeyUp={handleStatusKeyUp}
             aria-label='Test Specification Status Input'
           >
             {Constants.status_options.map((option, index) => (
@@ -268,13 +336,13 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         ''
       )}
 
-      <FormGroup label='Test Specification Title' isRequired fieldId={`input-test-specification-${formAction}-title-${formData.id}`}>
+      <FormGroup label='Test Specification Title' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}>
         <TextInput
           isRequired
-          id={`input-test-specification-${formAction}-title-${formData.id}`}
-          name={`input-test-specification-${formAction}-title-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}
           value={titleValue || ''}
           onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
+          onKeyUp={handleTitleKeyUp}
         />
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
@@ -284,26 +352,26 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Preconditions' fieldId={`input-test-specification-${formAction}-preconditions-${formData.id}`}>
+      <FormGroup label='Preconditions' fieldId={`${INPUT_BASE_NAME}-${formAction}-preconditions-${formData.id}`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Test Specification preconditions field'
-          id={`input-test-specification-${formAction}-preconditions-${formData.id}`}
-          name={`input-test-specification-${formAction}-preconditions-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-preconditions-${formData.id}`}
           value={preconditionsValue || ''}
           onChange={(_ev, value) => handlePreconditionsValueChange(_ev, value)}
+          onKeyUp={handlePreconditionsKeyUp}
         />
       </FormGroup>
-      <FormGroup label='Test Description' isRequired fieldId={`input-test-specification-test-description-${formData.id}`}>
+      <FormGroup label='Test Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-test-description-${formData.id}`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Test Specification test description field'
-          id={`input-test-specification-${formAction}-test-description-${formData.id}`}
-          name={`input-test-specification-${formAction}-test-description-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-test-description-${formData.id}`}
           value={testDescriptionValue || ''}
           onChange={(_ev, value) => handleTestDescriptionValueChange(_ev, value)}
+          onKeyUp={handleTestDescriptionKeyUp}
         />
         {validatedTestDescriptionValue !== 'success' && (
           <FormHelperText>
@@ -313,15 +381,15 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Expected Behavior' isRequired fieldId={`input-test-specification-${formAction}-expected-behavior-${formData.id}`}>
+      <FormGroup label='Expected Behavior' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-expected-behavior-${formData.id}`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Test Specification expected behavior field'
-          id={`input-test-specification-${formAction}-expected-behavior-${formData.id}`}
-          name={`input-test-specification-${formAction}-expected-behavior-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-expected-behavior-${formData.id}`}
           value={expectedBehaviorValue || ''}
           onChange={(_ev, value) => handleExpectedBehaviorValueChange(_ev, value)}
+          onKeyUp={handleExpectedBehaviorKeyUp}
         />
         {validatedExpectedBehaviorValue !== 'success' && (
           <FormHelperText>
@@ -332,24 +400,26 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
         )}
       </FormGroup>
 
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-specification-${formAction}-coverage-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-test-specification-${formAction}-coverage-${formData.id}`}
-          name={`input-test-specification-${formAction}-coverage-${formData.id}`}
-          value={coverageValue || ''}
-          onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-        />
-        {validatedCoverageValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
+      <Grid hasGutter md={3}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}>
+          <TextInput
+            isRequired
+            id={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}
+            value={coverageValue || ''}
+            onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
+            onKeyUp={handleCoverageKeyUp}
+          />
+          {validatedCoverageValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>
+                  {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </Grid>
 
       {messageValue ? (
         <>
@@ -364,12 +434,18 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-mapping-test-specification-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-mapping-test-specification-reset' variant='secondary' onClick={resetForm}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-mapping-test-specification-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-mapping-test-specification-reset' variant='secondary' onClick={resetForm}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         <span></span>

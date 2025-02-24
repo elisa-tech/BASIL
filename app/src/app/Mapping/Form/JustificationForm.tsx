@@ -1,13 +1,16 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   ActionGroup,
   Button,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   FormHelperText,
   FormSelect,
   FormSelectOption,
+  Grid,
   HelperText,
   HelperTextItem,
   Hint,
@@ -15,7 +18,7 @@ import {
   TextArea,
   TextInput
 } from '@patternfly/react-core'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface JustificationFormProps {
   api
@@ -50,13 +53,17 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
   const [descriptionValue, setDescriptionValue] = React.useState(formData.description)
   const [validatedDescriptionValue, setValidatedDescriptionValue] = React.useState<Constants.validate>('error')
 
-  const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
+  const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '100')
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
   const [justificationStatusValue, setJustificationStatusValue] = React.useState(formData.status)
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
   const [statusValue, setStatusValue] = React.useState('waiting')
+
+  // Form constants
+  const INPUT_BASE_NAME = 'input-justification'
+  const SELECT_BASE_NAME = 'select-justification'
 
   const resetForm = () => {
     setDescriptionValue('')
@@ -76,17 +83,7 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
   }, [descriptionValue])
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('error')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   React.useEffect(() => {
@@ -119,13 +116,17 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
     if (validatedDescriptionValue != 'success') {
       setMessageValue('Justification Description is mandatory.')
       setStatusValue('waiting')
+      focusInputDescription()
       return
-    } else if (validatedCoverageValue != 'success') {
+    }
+    if (validatedCoverageValue != 'success') {
       setMessageValue('Justification Coverage of Parent Item is mandatory and must be a integer value in the range 0-100.')
       setStatusValue('waiting')
+      focusInputCoverage()
       return
-    } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
+    }
+    if (modalSection.trim().length == 0) {
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -151,23 +152,31 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
       data['justification']['status'] = justificationStatusValue
     }
 
+    let status: number = 0
+    let status_text: string = ''
+
     fetch(Constants.API_BASE_URL + '/mapping/api/justifications', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setMessageValue(response.statusText)
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
           setStatusValue('waiting')
+          return response.text()
         } else {
           handleModalToggle()
           setMessageValue('')
           setStatusValue('waiting')
           loadMappingData(Constants.force_reload)
+          return {}
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {
@@ -176,14 +185,47 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
       })
   }
 
+  // Form elements focus
+  const focusInputDescription = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-description-' + formData.id)?.focus()
+  }
+
+  const focusInputCoverage = () => {
+    document.getElementById(INPUT_BASE_NAME + '-' + formAction + '-coverage-' + formData.id)?.focus()
+  }
+
+  // Keyboard events
+  const handleStatusKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      focusInputDescription()
+    }
+  }
+
+  const handleDescriptionKeyUp = (event) => {
+    if (event.key === 'Enter' && event.shiftKey) {
+      focusInputCoverage()
+    }
+  }
+
+  const handleCoverageKeyUp = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmit()
+    }
+  }
+
   return (
-    <Form>
+    <Form
+      onSubmit={(event) => {
+        event.preventDefault()
+      }}
+    >
       {formAction == 'edit' ? (
-        <FormGroup label='Status' isRequired fieldId={`input-justification-${formAction}-status-${formData.id}`}>
+        <FormGroup label='Status' isRequired fieldId={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}>
           <FormSelect
             value={justificationStatusValue}
-            id={`input-justification-${formAction}-status-${formData.id}`}
+            id={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}
             onChange={handleJustificationStatusChange}
+            onKeyUp={handleStatusKeyUp}
             aria-label='Justification Status Input'
           >
             {Constants.status_options.map((option, index) => (
@@ -195,15 +237,15 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         ''
       )}
 
-      <FormGroup label='Description' isRequired fieldId={`input-justification-${formAction}-description-${formData.id}`}>
+      <FormGroup label='Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}>
         <TextArea
           isRequired
           resizeOrientation='vertical'
           aria-label='Justification description field'
-          id={`input-justification-${formAction}-description-${formData.id}`}
-          name={`input-justification-${formAction}-description-${formData.id}`}
+          id={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}
           value={descriptionValue || ''}
           onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
+          onKeyUp={handleDescriptionKeyUp}
         />
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
@@ -214,24 +256,26 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
         )}
       </FormGroup>
 
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-justification-${formAction}-coverage-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-justification-${formAction}-coverage-${formData.id}`}
-          name={`input-justification-${formAction}-coverage-${formData.id}`}
-          value={coverageValue || ''}
-          onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-        />
-        {validatedCoverageValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
+      <Grid hasGutter md={3}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}>
+          <TextInput
+            isRequired
+            id={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}
+            value={coverageValue}
+            onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
+            onKeyUp={handleCoverageKeyUp}
+          />
+          {validatedCoverageValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>
+                  {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </Grid>
 
       {messageValue ? (
         <>
@@ -246,12 +290,18 @@ export const JustificationForm: React.FunctionComponent<JustificationFormProps> 
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-mapping-justification-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-mapping-justification-reset' variant='secondary' onClick={resetForm}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-mapping-justification-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-mapping-justification-reset' variant='secondary' onClick={resetForm}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         <span></span>

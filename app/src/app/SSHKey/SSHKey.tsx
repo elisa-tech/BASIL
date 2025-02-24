@@ -20,10 +20,7 @@ const SSHKey: React.FunctionComponent = () => {
     url += '&token=' + auth.token
     fetch(url, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      }
+      headers: Constants.JSON_HEADER
     })
       .then((res) => res.json())
       .then((data) => {

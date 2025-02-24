@@ -48,10 +48,7 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
 
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/' + workItemType + 's', {
       method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

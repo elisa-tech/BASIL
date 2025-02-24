@@ -2,7 +2,7 @@ import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import * as Constants from '@app/Constants/constants'
 import { Button, Modal, ModalVariant } from '@patternfly/react-core'
-import { Text, TextContent, TextList, TextListItem } from '@patternfly/react-core'
+import { List, ListItem, Text, TextContent } from '@patternfly/react-core'
 import { Panel, PanelMain, PanelMainBody } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { CommentForm } from '../Form/CommentForm'
@@ -46,34 +46,8 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
     if (isModalOpen == false) {
       return
     }
-    let parent_table = ''
-    let parent_id = ''
-    if (workItemType == Constants._J) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._J + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._D) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._D + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._SR) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._SR_ + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._TS) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._TS_ + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    } else if (workItemType == Constants._TC) {
-      if (parentType == Constants._A) {
-        parent_table = Constants._TC_ + Constants._M_ + Constants._A
-        parent_id = relationData.relation_id
-      }
-    }
+    const parent_table = Constants.getMappingTableName(workItemType, parentType)
+    let parent_id = relationData.relation_id
 
     if (parent_table != '' && parent_id != '') {
       loadComments(parent_table, parent_id)
@@ -99,7 +73,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
 
   const getComments = () => {
     return comments.map((comment, index) => (
-      <TextListItem key={index}>
+      <ListItem key={index}>
         <em>
           <b>{comment['created_by']}</b>
         </em>
@@ -108,7 +82,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
         <Text>
           <ReactMarkdown>{comment['comment'].toString()}</ReactMarkdown>
         </Text>
-      </TextListItem>
+      </ListItem>
     ))
   }
 
@@ -124,11 +98,6 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
         description={modalDescription}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
-        actions={[
-          <Button key='cancel' variant='link' onClick={handleModalToggle}>
-            Cancel
-          </Button>
-        ]}
       >
         <Table>
           <Thead>
@@ -144,7 +113,9 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
                   <PanelMain tabIndex={0}>
                     <PanelMainBody>
                       <TextContent>
-                        <TextList>{getComments()}</TextList>
+                        <List isPlain isBordered>
+                          {getComments()}
+                        </List>
                       </TextContent>
                     </PanelMainBody>
                   </PanelMain>
@@ -152,16 +123,12 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
               </Td>
               <Td>
                 <CommentForm
-                  //api={api}
+                  handleModalToggle={handleModalToggle}
+                  loadComments={loadComments}
+                  loadMappingData={loadMappingData}
+                  parentType={parentType}
                   relationData={relationData}
                   workItemType={workItemType}
-                  parentType={parentType}
-                  //parentRelatedToType={parentRelatedToType}
-                  //setModalShowState={setModalShowState}
-                  //modalShowState={modalShowState}
-                  handleModalToggle={handleModalToggle}
-                  loadMappingData={loadMappingData}
-                  //loadComments={loadComments}
                 />
               </Td>
             </Tr>

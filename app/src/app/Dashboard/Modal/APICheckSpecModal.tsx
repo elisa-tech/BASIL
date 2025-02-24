@@ -272,10 +272,7 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
       setMessageValue('')
       fetch(Constants.API_BASE_URL + '/apis/check-specification?id=' + api.id + '&url=' + rawSpecificationUrlValue, {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json'
-        }
+        headers: Constants.JSON_HEADER
       })
         .then((response) => response.json())
         .then((response) => {
@@ -316,10 +313,7 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
     setMessageValue('')
     fetch(Constants.API_BASE_URL + '/apis/fix-specification-warnings?id=' + api.id, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      }
+      headers: Constants.JSON_HEADER
     })
       .then((response) => {
         if (response.status !== 200) {

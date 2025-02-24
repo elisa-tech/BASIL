@@ -16,7 +16,8 @@ import {
   PageSection,
   Text,
   TextContent,
-  TextVariants
+  TextVariants,
+  Tooltip
 } from '@patternfly/react-core'
 import ReactMarkdown from 'react-markdown'
 import { DocumentMenuKebab } from './Menu/DocumentMenuKebab'
@@ -231,18 +232,16 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
 
     return (
       <React.Fragment>
-        <FlexItem>
-          <Label
-            color={
-              // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-              label_color as any
-            }
-            name='label-status'
-            isCompact
-          >
-            {status.toLowerCase()}
-          </Label>
-        </FlexItem>
+        <Label
+          color={
+            // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+            label_color as any
+          }
+          name='label-status'
+          isCompact
+        >
+          {status.toLowerCase()}
+        </Label>
       </React.Fragment>
     )
   }
@@ -309,68 +308,76 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
           <Card>
             {' '}
             <CardBody>
-              <Flex>
-                <FlexItem>{getWorkItemIcon(Constants._TC, indirect)}</FlexItem>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h2}>Test Case {test_case[Constants._TC_]['id']}</Text>
-                  </TextContent>
-                </FlexItem>
-                <FlexItem>
-                  <Text component={TextVariants.h6}>ver. {test_case['version']}</Text>
-                </FlexItem>
-                {getStatusLabel(test_case[Constants._TC_]['status'])}
-                <FlexItem>
-                  <Label variant='outline' isCompact>
-                    {coverageFormat(test_case['coverage'])}% Coverage
-                  </Label>
-                </FlexItem>
-                <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false && auth.isLogged() ? (
-                    <React.Fragment>
-                      <Button
-                        variant='plain'
-                        icon={<OutlinedCommentsIcon />}
-                        onClick={() => setCommentModalInfo(true, Constants._TC, Constants._A, '', test_cases, cIndex)}
-                      ></Button>
-                      <Badge key={3} screenReaderText='Comments'>
-                        {test_case[Constants._TC_]['comment_count']}
-                      </Badge>
-                    </React.Fragment>
-                  ) : (
-                    ''
-                  )}
-                  <TestCaseMenuKebab
-                    indirect={indirect}
-                    setDetailsModalInfo={setDetailsModalInfo}
-                    setHistoryModalInfo={setHistoryModalInfo}
-                    setUsageModalInfo={setUsageModalInfo}
-                    setTcModalInfo={setTcModalInfo}
-                    setDeleteModalInfo={setDeleteModalInfo}
-                    setTestRunModalInfo={setTestRunModalInfo}
-                    setTestResultsModalInfo={setTestResultsModalInfo}
-                    mappingParentType={parent_type}
-                    mappingParentRelatedToType={parent_related_to_type}
-                    mappingIndex={cIndex}
-                    mappingList={test_cases}
-                    mappingSection={section}
-                    mappingOffset={offset}
-                    api={api}
-                    //setTcModalShowState={setTcModalShowState}
-                    //mappingType={Constants._TC}
-                    //tcModalShowState={tcModalShowState}
-                  />
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h5}>{Constants.getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
+              <Flex direction={{ default: 'column' }}>
+                <Flex>
+                  <FlexItem>{getWorkItemIcon(Constants._TC, indirect)}</FlexItem>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h2}>Test Case {test_case[Constants._TC_]['id']}</Text>
+                    </TextContent>
+                  </FlexItem>
+                  <FlexItem>
+                    <TestCaseMenuKebab
+                      indirect={indirect}
+                      setDetailsModalInfo={setDetailsModalInfo}
+                      setHistoryModalInfo={setHistoryModalInfo}
+                      setUsageModalInfo={setUsageModalInfo}
+                      setTcModalInfo={setTcModalInfo}
+                      setDeleteModalInfo={setDeleteModalInfo}
+                      setTestRunModalInfo={setTestRunModalInfo}
+                      setTestResultsModalInfo={setTestResultsModalInfo}
+                      mappingParentType={parent_type}
+                      mappingParentRelatedToType={parent_related_to_type}
+                      mappingIndex={cIndex}
+                      mappingList={test_cases}
+                      mappingSection={section}
+                      mappingOffset={offset}
+                      api={api}
+                      //setTcModalShowState={setTcModalShowState}
+                      //mappingType={Constants._TC}
+                      //tcModalShowState={tcModalShowState}
+                    />
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <Text component={TextVariants.h6}>ver. {test_case['version']}</Text>
+                  </FlexItem>
+                  <FlexItem>{getStatusLabel(test_case[Constants._TC_]['status'])}</FlexItem>
+                  <FlexItem>
+                    <Label variant='outline' isCompact>
+                      {coverageFormat(test_case['coverage'])}% Coverage
+                    </Label>
+                  </FlexItem>
+                  <FlexItem>
+                    {indirect == false && auth.isLogged() ? (
+                      <React.Fragment>
+                        <Tooltip content={'Click to read and add comments'}>
+                          <Button
+                            variant='plain'
+                            icon={<OutlinedCommentsIcon />}
+                            onClick={() => setCommentModalInfo(true, Constants._TC, Constants._A, '', test_cases, cIndex)}
+                          ></Button>
+                        </Tooltip>
+                        <Badge key={3} screenReaderText='Comments'>
+                          {test_case[Constants._TC_]['comment_count']}
+                        </Badge>
+                      </React.Fragment>
+                    ) : (
+                      ''
+                    )}
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h5}>{Constants.getLimitedText(test_case[Constants._TC_]['title'], 0)}</Text>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(test_case[Constants._TC_]['description'], 0)}</ReactMarkdown>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
               </Flex>
             </CardBody>
           </Card>
@@ -401,89 +408,97 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
           <Card>
             {' '}
             <CardBody>
-              <Flex>
-                <FlexItem>{getWorkItemIcon(Constants._TS, indirect)}</FlexItem>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h2}>Test Specification {test_spec[Constants._TS_]['id']}</Text>
-                  </TextContent>
-                </FlexItem>
-                <FlexItem>
-                  <Text component={TextVariants.h6}>ver. {test_spec['version']}</Text>
-                </FlexItem>
-                {getStatusLabel(test_spec[Constants._TS_]['status'])}
-                <FlexItem>
-                  <Label variant='outline' isCompact>
-                    {coverageFormat(test_spec['coverage'])}% Coverage
-                  </Label>
-                </FlexItem>
-                {test_spec['gap'] != 0 ? (
-                  <React.Fragment>
-                    <FlexItem>
-                      <Label color='red' name='label-test-specification-coverage' variant='outline' isCompact>
-                        {coverageFormat(test_spec['gap'])}% Gap
-                      </Label>
-                    </FlexItem>
-                  </React.Fragment>
-                ) : (
-                  ''
-                )}
-                <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false && auth.isLogged() ? (
+              <Flex direction={{ default: 'column' }}>
+                <Flex>
+                  <FlexItem>{getWorkItemIcon(Constants._TS, indirect)}</FlexItem>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h2}>Test Specification {test_spec[Constants._TS_]['id']}</Text>
+                    </TextContent>
+                  </FlexItem>
+                  <FlexItem>
+                    <TestSpecificationMenuKebab
+                      indirect={indirect}
+                      setDetailsModalInfo={setDetailsModalInfo}
+                      setHistoryModalInfo={setHistoryModalInfo}
+                      setUsageModalInfo={setUsageModalInfo}
+                      setTcModalInfo={setTcModalInfo}
+                      setTsModalInfo={setTsModalInfo}
+                      setDeleteModalInfo={setDeleteModalInfo}
+                      mappingParentType={parent_type}
+                      mappingParentRelatedToType={parent_related_to_type}
+                      mappingIndex={cIndex}
+                      mappingList={test_specs}
+                      mappingSection={section}
+                      mappingOffset={offset}
+                      api={api}
+                      //setTcModalShowState={setTcModalShowState}
+                      //setTsModalShowState={setTsModalShowState}
+                      //mappingType={'test-specification'}
+                      //tsModalShowState={tsModalShowState}
+                      //tcModalShowState={tcModalShowState}
+                    />
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <Text component={TextVariants.h6}>ver. {test_spec['version']}</Text>
+                  </FlexItem>
+                  <FlexItem>{getStatusLabel(test_spec[Constants._TS_]['status'])}</FlexItem>
+                  <FlexItem>
+                    <Label variant='outline' isCompact>
+                      {coverageFormat(test_spec['coverage'])}% Coverage
+                    </Label>
+                  </FlexItem>
+                  {test_spec['gap'] != 0 ? (
                     <React.Fragment>
-                      <Button
-                        variant='plain'
-                        icon={<OutlinedCommentsIcon />}
-                        onClick={() => setCommentModalInfo(true, 'test-specification', Constants._A, '', test_specs, cIndex)}
-                      ></Button>
-                      <Badge key={3} screenReaderText='Comments'>
-                        {test_spec[Constants._TS_]['comment_count']}
-                      </Badge>
+                      <FlexItem>
+                        <Label color='red' name='label-test-specification-coverage' variant='outline' isCompact>
+                          {coverageFormat(test_spec['gap'])}% Gap
+                        </Label>
+                      </FlexItem>
                     </React.Fragment>
                   ) : (
                     ''
                   )}
-                  <TestSpecificationMenuKebab
-                    indirect={indirect}
-                    setDetailsModalInfo={setDetailsModalInfo}
-                    setHistoryModalInfo={setHistoryModalInfo}
-                    setUsageModalInfo={setUsageModalInfo}
-                    setTcModalInfo={setTcModalInfo}
-                    setTsModalInfo={setTsModalInfo}
-                    setDeleteModalInfo={setDeleteModalInfo}
-                    mappingParentType={parent_type}
-                    mappingParentRelatedToType={parent_related_to_type}
-                    mappingIndex={cIndex}
-                    mappingList={test_specs}
-                    mappingSection={section}
-                    mappingOffset={offset}
-                    api={api}
-                    //setTcModalShowState={setTcModalShowState}
-                    //setTsModalShowState={setTsModalShowState}
-                    //mappingType={'test-specification'}
-                    //tsModalShowState={tsModalShowState}
-                    //tcModalShowState={tcModalShowState}
-                  />
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h5}>{Constants.getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
-                    <Text component={TextVariants.h6}>Preconditions:</Text>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
-                    </Text>
-                    <Text component={TextVariants.h6}>Test Description:</Text>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
-                    </Text>
-                    <Text component={TextVariants.h6}>Expected Behavior:</Text>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
+                  <FlexItem>
+                    {indirect == false && auth.isLogged() ? (
+                      <React.Fragment>
+                        <Tooltip content={'Click to read and add comments'}>
+                          <Button
+                            variant='plain'
+                            icon={<OutlinedCommentsIcon />}
+                            onClick={() => setCommentModalInfo(true, 'test-specification', Constants._A, '', test_specs, cIndex)}
+                          ></Button>
+                        </Tooltip>
+                        <Badge key={3} screenReaderText='Comments'>
+                          {test_spec[Constants._TS_]['comment_count']}
+                        </Badge>
+                      </React.Fragment>
+                    ) : (
+                      ''
+                    )}
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h5}>{Constants.getLimitedText(test_spec[Constants._TS_]['title'], 0)}</Text>
+                      <Text component={TextVariants.h6}>Preconditions:</Text>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['preconditions'], 0)}</ReactMarkdown>
+                      </Text>
+                      <Text component={TextVariants.h6}>Test Description:</Text>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['test_description'], 0)}</ReactMarkdown>
+                      </Text>
+                      <Text component={TextVariants.h6}>Expected Behavior:</Text>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(test_spec[Constants._TS_]['expected_behavior'], 0)}</ReactMarkdown>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
               </Flex>
             </CardBody>
             <CardBody>
@@ -510,81 +525,89 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         <React.Fragment key={mIndex}>
           <Card>
             <CardBody>
-              <Flex>
-                <FlexItem>{getWorkItemIcon(Constants._SR, false)}</FlexItem>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h2}>Software Requirement {mappedItem[Constants._SR_]['id']}</Text>
-                  </TextContent>
-                </FlexItem>
-                <FlexItem>
-                  <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
-                </FlexItem>
-                {getStatusLabel(mappedItem[Constants._SR_]['status'])}
-                <FlexItem>
-                  <Label name='label-sw-requirement-coverage' variant='outline' isCompact>
-                    {coverageFormat(mappedItem['coverage'])}% Coverage
-                  </Label>
-                </FlexItem>
-                {mappedItem['gap'] != 0 ? (
-                  <React.Fragment>
-                    <FlexItem>
-                      <Label color='red' name='label-sw-requirement-coverage' variant='outline' isCompact>
-                        {coverageFormat(mappedItem['gap'])}% Gap
-                      </Label>
-                    </FlexItem>
-                  </React.Fragment>
-                ) : (
-                  ''
-                )}
-                <FlexItem align={{ default: 'alignRight' }}>
-                  {indirect == false && auth.isLogged() ? (
+              <Flex direction={{ default: 'column' }}>
+                <Flex>
+                  <FlexItem>{getWorkItemIcon(Constants._SR, false)}</FlexItem>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h2}>Software Requirement {mappedItem[Constants._SR_]['id']}</Text>
+                    </TextContent>
+                  </FlexItem>
+                  <FlexItem>
+                    <SwRequirementMenuKebab
+                      setDetailsModalInfo={setDetailsModalInfo}
+                      setHistoryModalInfo={setHistoryModalInfo}
+                      setUsageModalInfo={setUsageModalInfo}
+                      setSrModalInfo={setSrModalInfo}
+                      setTsModalInfo={setTsModalInfo}
+                      setTcModalInfo={setTcModalInfo}
+                      setDeleteModalInfo={setDeleteModalInfo}
+                      setForkModalInfo={setForkModalInfo}
+                      api={api}
+                      indirect={indirect}
+                      mappingParentType={parent_type}
+                      mappingParentRelatedToType={parent_related_to_type}
+                      mappingList={mapping}
+                      mappingIndex={mIndex}
+                      mappingSection={section}
+                      mappingOffset={offset}
+                      //tsModalShowState={tsModalShowState}
+                      //setTsModalShowState={setTsModalShowState}
+                      //tcModalShowState={tcModalShowState}
+                      //mappingType={Constants._SR}
+                    />
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
+                  </FlexItem>
+                  <FlexItem>{getStatusLabel(mappedItem[Constants._SR_]['status'])}</FlexItem>
+                  <FlexItem>
+                    <Label name='label-sw-requirement-coverage' variant='outline' isCompact>
+                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                    </Label>
+                  </FlexItem>
+                  {mappedItem['gap'] != 0 ? (
                     <React.Fragment>
-                      <Button
-                        variant='plain'
-                        icon={<OutlinedCommentsIcon />}
-                        onClick={() => setCommentModalInfo(true, Constants._SR, Constants._A, '', mapping, mIndex)}
-                      ></Button>
-                      <Badge key={3} screenReaderText='Comments'>
-                        {mappedItem[Constants._SR_]['comment_count']}
-                      </Badge>
+                      <FlexItem>
+                        <Label color='red' name='label-sw-requirement-coverage' variant='outline' isCompact>
+                          {coverageFormat(mappedItem['gap'])}% Gap
+                        </Label>
+                      </FlexItem>
                     </React.Fragment>
                   ) : (
                     ''
                   )}
-                  <SwRequirementMenuKebab
-                    setDetailsModalInfo={setDetailsModalInfo}
-                    setHistoryModalInfo={setHistoryModalInfo}
-                    setUsageModalInfo={setUsageModalInfo}
-                    setSrModalInfo={setSrModalInfo}
-                    setTsModalInfo={setTsModalInfo}
-                    setTcModalInfo={setTcModalInfo}
-                    setDeleteModalInfo={setDeleteModalInfo}
-                    setForkModalInfo={setForkModalInfo}
-                    api={api}
-                    indirect={indirect}
-                    mappingParentType={parent_type}
-                    mappingParentRelatedToType={parent_related_to_type}
-                    mappingList={mapping}
-                    mappingIndex={mIndex}
-                    mappingSection={section}
-                    mappingOffset={offset}
-                    //tsModalShowState={tsModalShowState}
-                    //setTsModalShowState={setTsModalShowState}
-                    //tcModalShowState={tcModalShowState}
-                    //mappingType={Constants._SR}
-                  />
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h5}>{Constants.getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
+                  <FlexItem>
+                    {indirect == false && auth.isLogged() ? (
+                      <React.Fragment>
+                        <Tooltip content={'Click to read and add comments'}>
+                          <Button
+                            variant='plain'
+                            icon={<OutlinedCommentsIcon />}
+                            onClick={() => setCommentModalInfo(true, Constants._SR, Constants._A, '', mapping, mIndex)}
+                          ></Button>
+                        </Tooltip>
+                        <Badge key={3} screenReaderText='Comments'>
+                          {mappedItem[Constants._SR_]['comment_count']}
+                        </Badge>
+                      </React.Fragment>
+                    ) : (
+                      ''
+                    )}
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h5}>{Constants.getLimitedText(mappedItem[Constants._SR_]['title'], 0)}</Text>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._SR_]['description'], 0)}</ReactMarkdown>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
               </Flex>
             </CardBody>
             <CardBody>
@@ -610,30 +633,15 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         <React.Fragment key={mIndex}>
           <Card>
             <CardBody>
-              <Flex>
-                <FlexItem>{getWorkItemIcon(Constants._J, false)}</FlexItem>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h2}>Justification</Text>
-                  </TextContent>
-                </FlexItem>
-                <FlexItem>
-                  <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
-                </FlexItem>
-                {getStatusLabel(mappedItem[Constants._J]['status'])}
-                <Label variant='outline' isCompact>
-                  {coverageFormat(mappedItem['coverage'])}% Coverage
-                </Label>
-                {auth.isLogged() ? (
-                  <FlexItem align={{ default: 'alignRight' }}>
-                    <Button
-                      variant='plain'
-                      icon={<OutlinedCommentsIcon />}
-                      onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}
-                    ></Button>
-                    <Badge key={3} screenReaderText='Comments'>
-                      {mappedItem[Constants._J]['comment_count']}
-                    </Badge>
+              <Flex direction={{ default: 'column' }}>
+                <Flex>
+                  <FlexItem>{getWorkItemIcon(Constants._J, false)}</FlexItem>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h2}>Justification {mappedItem[Constants._J]['id']}</Text>
+                    </TextContent>
+                  </FlexItem>
+                  <FlexItem>
                     <JustificationMenuKebab
                       setJModalInfo={setJModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
@@ -648,18 +656,43 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       //jModalShowState={jModalShowState}
                     />
                   </FlexItem>
-                ) : (
-                  ''
-                )}
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
+                  </FlexItem>
+                  <FlexItem>{getStatusLabel(mappedItem[Constants._J]['status'])}</FlexItem>
+                  <FlexItem>
+                    <Label variant='outline' isCompact>
+                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                    </Label>
+                  </FlexItem>
+                  {auth.isLogged() ? (
+                    <FlexItem>
+                      <Tooltip content={'Click to read and add comments'}>
+                        <Button
+                          variant='plain'
+                          icon={<OutlinedCommentsIcon />}
+                          onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}
+                        ></Button>
+                      </Tooltip>
+                      <Badge key={3} screenReaderText='Comments'>
+                        {mappedItem[Constants._J]['comment_count']}
+                      </Badge>
+                    </FlexItem>
+                  ) : (
+                    ''
+                  )}
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._J]['description'], 0)}</ReactMarkdown>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
               </Flex>
             </CardBody>
           </Card>
@@ -680,30 +713,15 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
         <React.Fragment key={mIndex}>
           <Card>
             <CardBody>
-              <Flex>
-                <FlexItem>{getWorkItemIcon(Constants._D, false)}</FlexItem>
-                <FlexItem>
-                  <TextContent>
-                    <Text component={TextVariants.h2}>Document</Text>
-                  </TextContent>
-                </FlexItem>
-                <FlexItem>
-                  <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
-                </FlexItem>
-                {getStatusLabel(mappedItem[Constants._D]['status'])}
-                <Label variant='outline' isCompact>
-                  {coverageFormat(mappedItem['coverage'])}% Coverage
-                </Label>
-                {auth.isLogged() ? (
-                  <FlexItem align={{ default: 'alignRight' }}>
-                    <Button
-                      variant='plain'
-                      icon={<OutlinedCommentsIcon />}
-                      onClick={() => setCommentModalInfo(true, Constants._D, Constants._A, '', mapping, mIndex)}
-                    ></Button>
-                    <Badge key={3} screenReaderText='Comments'>
-                      {mappedItem[Constants._D]['comment_count']}
-                    </Badge>
+              <Flex direction={{ default: 'column' }}>
+                <Flex>
+                  <FlexItem>{getWorkItemIcon(Constants._D, false)}</FlexItem>
+                  <FlexItem>
+                    <TextContent>
+                      <Text component={TextVariants.h2}>Document {mappedItem[Constants._D]['id']}</Text>
+                    </TextContent>
+                  </FlexItem>
+                  <FlexItem>
                     <DocumentMenuKebab
                       setDocModalInfo={setDocModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
@@ -717,108 +735,133 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       api={api}
                     />
                   </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
+                  </FlexItem>
+                  <FlexItem>{getStatusLabel(mappedItem[Constants._D]['status'])}</FlexItem>
+                  <FlexItem>
+                    <Label variant='outline' isCompact>
+                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                    </Label>
+                  </FlexItem>
+                  {auth.isLogged() ? (
+                    <FlexItem align={{ default: 'alignRight' }}>
+                      <Tooltip content={'Click to read and add comments'}>
+                        <Button
+                          variant='plain'
+                          icon={<OutlinedCommentsIcon />}
+                          onClick={() => setCommentModalInfo(true, Constants._D, Constants._A, '', mapping, mIndex)}
+                        ></Button>
+                      </Tooltip>
+                      <Badge key={3} screenReaderText='Comments'>
+                        {mappedItem[Constants._D]['comment_count']}
+                      </Badge>
+                    </FlexItem>
+                  ) : (
+                    ''
+                  )}
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-text'>
+                        <h3>{mappedItem[Constants._D]['title']}</h3>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-text'>
+                        <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._D]['description'], 0)}</ReactMarkdown>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-document-type'>&nbsp;</Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
+                {mappedItem[Constants._D]['document_type'] == 'text' ? (
+                  <Flex>
+                    <FlexItem>
+                      <b>Valid: </b>{' '}
+                      <Label id={`label-document-valid-${mappedItem[Constants._D]['id']}`} isCompact>
+                        {isValidRemoteDocument(mappedItem[Constants._D]['id']) ? '' : ''}
+                      </Label>
+                    </FlexItem>
+                  </Flex>
+                ) : (
+                  ''
+                )}
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-document-type'>
+                        <b>Type:</b> {mappedItem[Constants._D]['document_type']}
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-document-url'>
+                        <b>Url:</b>{' '}
+                        <a target='_blank' rel='noopener noreferrer' href={mappedItem[Constants._D]['url']}>
+                          {mappedItem[Constants._D]['url']}
+                        </a>
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
+                <Flex>
+                  <FlexItem>
+                    <TextContent>
+                      <Text className='work-item-detail-spdx-relation'>
+                        <b>SPDX Relation:</b> {mappedItem[Constants._D]['spdx_relation']}
+                      </Text>
+                    </TextContent>
+                  </FlexItem>
+                </Flex>
+                {mappedItem[Constants._D]['document_type'] == 'text' ? (
+                  <>
+                    <Flex>
+                      <FlexItem>
+                        <TextContent>
+                          <Text className='work-item-detail-document-offset'>
+                            <b>Offset:</b> {Constants.getLimitedText(mappedItem[Constants._D]['offset'], 0)}
+                          </Text>
+                        </TextContent>
+                      </FlexItem>
+                    </Flex>
+                    <Flex>
+                      <FlexItem>
+                        <TextContent>
+                          <Text className='work-item-detail-document-section'>
+                            <b>Section:</b>
+                          </Text>
+                        </TextContent>
+                      </FlexItem>
+                    </Flex>
+                    <Flex>
+                      <FlexItem>
+                        <CodeBlock>
+                          <CodeBlockCode>{Constants.getLimitedText(mappedItem[Constants._D]['section'], 0)}</CodeBlockCode>
+                        </CodeBlock>
+                      </FlexItem>
+                    </Flex>
+                  </>
                 ) : (
                   ''
                 )}
               </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-text'>
-                      <h3>{mappedItem[Constants._D]['title']}</h3>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-text'>
-                      <ReactMarkdown>{Constants.getLimitedText(mappedItem[Constants._D]['description'], 0)}</ReactMarkdown>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-document-type'>&nbsp;</Text>
-                  </TextContent>
-                </FlexItem>
-              </Flex>
-              {mappedItem[Constants._D]['document_type'] == 'text' ? (
-                <Flex>
-                  <FlexItem>
-                    <b>Valid: </b>{' '}
-                    <Label id={`label-document-valid-${mappedItem[Constants._D]['id']}`} isCompact>
-                      {isValidRemoteDocument(mappedItem[Constants._D]['id']) ? '' : ''}
-                    </Label>
-                  </FlexItem>
-                </Flex>
-              ) : (
-                ''
-              )}
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-document-type'>
-                      <b>Type:</b> {mappedItem[Constants._D]['document_type']}
-                    </Text>
-                  </TextContent>
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-document-url'>
-                      <b>Url:</b>{' '}
-                      <a target='_blank' rel='noopener noreferrer' href={mappedItem[Constants._D]['url']}>
-                        {mappedItem[Constants._D]['url']}
-                      </a>
-                    </Text>
-                  </TextContent>
-                </FlexItem>
-              </Flex>
-              <Flex>
-                <FlexItem>
-                  <TextContent>
-                    <Text className='work-item-detail-spdx-relation'>
-                      <b>SPDX Relation:</b> {mappedItem[Constants._D]['spdx_relation']}
-                    </Text>
-                  </TextContent>
-                </FlexItem>
-              </Flex>
-              {mappedItem[Constants._D]['document_type'] == 'text' ? (
-                <>
-                  <Flex>
-                    <FlexItem>
-                      <TextContent>
-                        <Text className='work-item-detail-document-offset'>
-                          <b>Offset:</b> {Constants.getLimitedText(mappedItem[Constants._D]['offset'], 0)}
-                        </Text>
-                      </TextContent>
-                    </FlexItem>
-                  </Flex>
-                  <Flex>
-                    <FlexItem>
-                      <TextContent>
-                        <Text className='work-item-detail-document-section'>
-                          <b>Section:</b>
-                        </Text>
-                      </TextContent>
-                    </FlexItem>
-                  </Flex>
-                  <Flex>
-                    <FlexItem>
-                      <CodeBlock>
-                        <CodeBlockCode>{Constants.getLimitedText(mappedItem[Constants._D]['section'], 0)}</CodeBlockCode>
-                      </CodeBlock>
-                    </FlexItem>
-                  </Flex>
-                </>
-              ) : (
-                ''
-              )}
             </CardBody>
           </Card>
           <Divider />

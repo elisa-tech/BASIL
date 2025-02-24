@@ -300,10 +300,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
     fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -450,10 +447,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
     fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -502,10 +496,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
 
     fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
       method: 'DELETE',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -679,7 +670,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                         requestTestResult(testResult)
                                       }}
                                     >
-                                      <ProcessAutomationIcon /> Re-run
+                                      <Flex>
+                                        <FlexItem spacer={{ default: 'spacerXs' }}>
+                                          <ProcessAutomationIcon />
+                                        </FlexItem>
+                                        <FlexItem spacer={{ default: 'spacerMd' }}>
+                                          <Text>Re-run</Text>
+                                        </FlexItem>
+                                      </Flex>
                                     </Button>
                                   )
                                 }
@@ -702,7 +700,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                     deleteTestResult(testResult)
                                   }}
                                 >
-                                  <TimesIcon /> <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
+                                  <Flex>
+                                    <FlexItem spacer={{ default: 'spacerXs' }}>
+                                      <TimesIcon />
+                                    </FlexItem>
+                                    <FlexItem spacer={{ default: 'spacerMd' }}>
+                                      <Text id={'test-result-delete-label-' + testResult.id}>Delete</Text>
+                                    </FlexItem>
+                                  </Flex>
                                 </Button>
                                 <Button
                                   variant='plain'
@@ -711,7 +716,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                     handleTestResultDetailsClick(testResult)
                                   }}
                                 >
-                                  <EyeIcon /> Details
+                                  <Flex>
+                                    <FlexItem spacer={{ default: 'spacerXs' }}>
+                                      <EyeIcon />
+                                    </FlexItem>
+                                    <FlexItem spacer={{ default: 'spacerMd' }}>
+                                      <Text>Details</Text>
+                                    </FlexItem>
+                                  </Flex>
                                 </Button>
                               </>
                             )

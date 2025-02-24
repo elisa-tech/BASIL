@@ -22,6 +22,8 @@ export const _TSs = 'test-specifications'
 export const _TS_ = 'test_specification'
 export const _TSs_ = 'test_specifications'
 
+export const UNVALID_REF_DOCUMENT_SECTION_MESSAGE =
+  'Section of the Reference Document is mandatory. Open the Mapping Section tab to select it.'
 export const MODAL_WIDTH = '80%'
 
 export const DEFAULT_VIEW = _SRs
@@ -38,6 +40,33 @@ export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
 export const JSON_HEADER = {
   Accept: 'application/json',
   'Content-Type': 'application/json'
+}
+
+export const getMappingTableName = (workItemType: string, parentType: string) => {
+  let parent_table = workItemType + _M_ + parentType
+  parent_table = parent_table.replaceAll('-', '_')
+  return parent_table
+}
+
+export const validateCoverage = (coverage, setValidatedCoverage) => {
+  if (coverage === '') {
+    setValidatedCoverage('error')
+  } else if (/^\d+$/.test(coverage)) {
+    if (coverage >= 0 && coverage <= 100) {
+      setValidatedCoverage('success')
+    } else {
+      setValidatedCoverage('error')
+    }
+  } else {
+    setValidatedCoverage('error')
+  }
+}
+
+export const getResponseErrorMessage = (status, status_text, message) => {
+  let ret: string = status_text
+  ret += '(' + status.toString() + '): '
+  ret += message
+  return ret
 }
 
 export const document_type = [

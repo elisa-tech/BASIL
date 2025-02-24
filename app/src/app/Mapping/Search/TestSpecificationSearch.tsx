@@ -1,5 +1,5 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import * as Constants from '@app/Constants/constants'
 import {
   ActionGroup,
   Button,
@@ -7,6 +7,7 @@ import {
   FlexItem,
   FormGroup,
   FormHelperText,
+  Grid,
   HelperText,
   HelperTextItem,
   Hint,
@@ -14,7 +15,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
-import { useAuth } from '../../User/AuthProvider'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestSpecificationSearchProps {
   api
@@ -54,32 +55,22 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
   testSpecifications
 }: TestSpecificationSearchProps) => {
   const auth = useAuth()
-  const [searchValue, setSearchValue] = React.useState(formData.title)
+  const [searchValue, setSearchValue] = React.useState<string>('')
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [selectedDataListItemId, setSelectedDataListItemId] = React.useState('')
   const [initializedValue, setInitializedValue] = React.useState(false)
-  const [coverageValue, setCoverageValue] = React.useState(formData.coverage)
+  const [coverageValue, setCoverageValue] = React.useState(formData.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState('error')
 
   const resetForm = () => {
     setSelectedDataListItemId('')
-    setCoverageValue('0')
+    setCoverageValue(0)
     setSearchValue('')
   }
 
   React.useEffect(() => {
-    if (coverageValue === '') {
-      setValidatedCoverageValue('default')
-    } else if (/^\d+$/.test(coverageValue)) {
-      if (coverageValue >= 0 && coverageValue <= 100) {
-        setValidatedCoverageValue('success')
-      } else {
-        setValidatedCoverageValue('error')
-      }
-    } else {
-      setValidatedCoverageValue('error')
-    }
+    Constants.validateCoverage(coverageValue, setValidatedCoverageValue)
   }, [coverageValue])
 
   const handleCoverageValueChange = (_event, value: string) => {
@@ -141,12 +132,14 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       setMessageValue('Please, select an item before submitting the form.')
       setStatusValue('waiting')
       return
-    } else if (validatedCoverageValue != 'success') {
+    }
+    if (validatedCoverageValue != 'success') {
       setMessageValue('Coverage of Parent Item is mandatory and must be a integer value in the range 0-100.')
       setStatusValue('waiting')
       return
-    } else if (modalSection.trim().length == 0) {
-      setMessageValue('Section of the software component specification is mandatory.')
+    }
+    if (modalSection.trim().length == 0) {
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -182,24 +175,32 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       data['sw-requirement']['id'] = parentData.sw_requirement.id
     }
 
+    let status: number = 0
+    let status_text: string = ''
+
     fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-specifications', {
       method: formVerb,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setMessageValue(response.statusText)
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
           setStatusValue('waiting')
+          return response.text()
         } else {
           setStatusValue('waiting')
           setMessageValue('Database updated!')
           handleModalToggle()
           setMessageValue('')
           loadMappingData(Constants.force_reload)
+          return {}
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {
@@ -207,6 +208,20 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         setMessageValue(err.toString())
         console.log(err.message)
       })
+  }
+
+  // Keyboard events
+  const handleSearchKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      setSelectedDataListItemId('')
+      loadTestSpecifications(searchValue)
+    }
+  }
+
+  const handleCoverageKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      handleSubmit()
+    }
   }
 
   return (
@@ -218,6 +233,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
             value={searchValue}
             onChange={(_event, value) => onChangeSearchValue(value)}
             onClear={() => onChangeSearchValue('')}
+            onKeyUp={handleSearchKeyPress}
             style={{ width: '400px' }}
           />
         </FlexItem>
@@ -245,25 +261,26 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         {getTestSpecificationsTable(testSpecifications)}
       </DataList>
       <br />
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-specification-coverage-${formData.id}`}>
-        <TextInput
-          isRequired
-          id={`input-test-specification-coverage-${formData.id}`}
-          name={`input-test-specification-coverage-${formData.id}`}
-          value={coverageValue || ''}
-          onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-        />
-        {validatedCoverageValue !== 'success' && (
-          <FormHelperText>
-            <HelperText>
-              <HelperTextItem variant='error'>
-                {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
-              </HelperTextItem>
-            </HelperText>
-          </FormHelperText>
-        )}
-      </FormGroup>
-
+      <Grid hasGutter md={3}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-specification-coverage-${formData.id}`}>
+          <TextInput
+            isRequired
+            id={`input-test-specification-coverage-${formData.id}`}
+            value={coverageValue}
+            onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
+            onKeyUp={handleCoverageKeyPress}
+          />
+          {validatedCoverageValue !== 'success' && (
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant='error'>
+                  {validatedCoverageValue === 'error' ? 'Must be an integer number in the range 0-100' : ''}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          )}
+        </FormGroup>
+      </Grid>
       <br />
 
       {messageValue ? (
@@ -279,12 +296,18 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
 
       {formDefaultButtons ? (
         <ActionGroup>
-          <Button id='btn-mapping-existing-test-specification-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
-            Submit
-          </Button>
-          <Button id='btn-mapping-existing-test-specification-cancel' variant='secondary' onClick={resetForm}>
-            Reset
-          </Button>
+          <Flex>
+            <FlexItem>
+              <Button id='btn-mapping-existing-test-specification-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+                Submit
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button id='btn-mapping-existing-test-specification-cancel' variant='secondary' onClick={resetForm}>
+                Reset
+              </Button>
+            </FlexItem>
+          </Flex>
         </ActionGroup>
       ) : (
         <span></span>

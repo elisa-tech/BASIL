@@ -68,10 +68,7 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
 
     fetch(Constants.API_BASE_URL + '/user/reset-password', {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {

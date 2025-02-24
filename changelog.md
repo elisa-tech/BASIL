@@ -3,7 +3,7 @@
 ## 1.6.x
 
 - SPDX export based on Model 3
-- Software Requirements import from SPDX Model 3 BASIL files
+- Software Requirements import from SPDX Model 3 BASIL files, StrictDoc, yaml json, csv and xlsx
 - Deployment script
 - Containerfile to deploy the API project on Debian
 - Moved sqlite3 db to db/sqlite3 to simplify volume mapping
@@ -11,6 +11,9 @@
 - Updated scripts and documentation to use podman
 - tmt support to execute tests from files stored in the API machine
 - User files managament (user can upload files to reuse as ref docs, documents or test cases)
+- Form key events management
+- Fix conflicts in work item mapping
+- UI refinement: table compact, icons alignment, modal buttons and form validations
 
 ## 1.5.x
 

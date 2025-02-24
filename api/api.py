@@ -2106,7 +2106,7 @@ class ApiTestSpecificationsMapping(Resource):
                             TestSpecificationModel.expected_behavior == expected_behavior).all()
             if len(existing_tss):
                 return f"Test Specification {existing_tss[0].id} has same content, " \
-                       f"consider to use the existing one, or to edit at least one field", CONFLICT_STATUS
+                       f"consider to use the existing one or to edit at least one field", CONFLICT_STATUS
 
             new_test_specification = TestSpecificationModel(
                 title, preconditions, test_description, expected_behavior, user
@@ -3011,7 +3011,7 @@ class ApiJustificationsMapping(Resource):
                             ApiJustificationModel.offset == offset).all()
             if len(existing_js_mapping):
                 return f"Justification {id} already associated to " \
-                       "the selected api Specification section", CONFLICT_STATUS
+                       "the selected api", CONFLICT_STATUS
 
             try:
                 existing_justification = (
@@ -3323,7 +3323,7 @@ class ApiDocumentsMapping(Resource):
                         ApiDocumentModel.section == mapping_section).filter(
                             ApiDocumentModel.offset == mapping_offset).all()
             if len(existing_docs_mapping):
-                return f"Document {existing_docs_mapping[0].document_id} " \
+                return f"Document {id} " \
                         "already associated to the selected api", CONFLICT_STATUS
 
             try:
@@ -4011,22 +4011,13 @@ class SwRequirementSwRequirementsMapping(Resource):
             title = request_data["sw-requirement"]["title"]
             description = request_data["sw-requirement"]["description"]
 
-            existing_sw_requirements = (
-                dbi.session.query(SwRequirementModel)
-                .filter(SwRequirementModel.title == title)
-                .filter(SwRequirementModel.description == description)
-                .all()
-            )
-
-            for sr in existing_sw_requirements:
-                sr_mapping = (
-                    dbi.session.query(SwRequirementSwRequirementModel)
-                    .filter(SwRequirementSwRequirementModel.id == relation_id)
-                    .filter(SwRequirementSwRequirementModel.sw_requirement_id == sr.id)
-                    .all()
-                )
-                if len(sr_mapping) > 0:
-                    return "Sw Requirement already associated to the selected Sw Requirement", CONFLICT_STATUS
+            # Check for existing Sw Requirements
+            existing_srs = dbi.session.query(SwRequirementModel).filter(
+                SwRequirementModel.title == title).filter(
+                    SwRequirementModel.description == description).all()
+            if len(existing_srs):
+                return f"Sw Requirement `{existing_srs[0].id}` with same content already exists, " \
+                       f"consider to use the existing one or to change at least one field", CONFLICT_STATUS
 
             new_sw_requirement = SwRequirementModel(title, description, user)
 
@@ -4041,16 +4032,13 @@ class SwRequirementSwRequirementsMapping(Resource):
             # Map an existing SwRequirement
             sw_requirement_id = request_data["sw-requirement"]["id"]
 
-            if (
-                len(
-                    dbi.session.query(SwRequirementSwRequirementModel)
-                    .filter(SwRequirementSwRequirementModel.id == relation_id)
-                    .filter(SwRequirementSwRequirementModel.sw_requirement_id == sw_requirement_id)
-                    .all()
-                )
-                > 0
-            ):
-                return "Sw Requirement already associated to the selected Sw Requirement", CONFLICT_STATUS
+            # Check for existing mapping
+            existing_srs_mapping = dbi.session.query(SwRequirementSwRequirementModel).filter(
+                SwRequirementSwRequirementModel.id == relation_id).filter(
+                    SwRequirementTestSpecificationModel.sw_requirement_id == sw_requirement_id).all()
+            if existing_srs_mapping:
+                return f"Sw Requirement `{sw_requirement_id}` already " \
+                        "associated to the selected Software Requirement", CONFLICT_STATUS
 
             try:
                 sw_requirement = (
@@ -4345,15 +4333,14 @@ class SwRequirementTestSpecificationsMapping(Resource):
         else:
             test_specification_id = request_data["test-specification"]["id"]
 
-            # Check existing mapping
-            existing_tss = dbi.session.query(SwRequirementTestSpecificationModel).filter(
+            # Check for existing mapping
+            existing_tss_mapping = dbi.session.query(SwRequirementTestSpecificationModel).filter(
                         getattr(SwRequirementTestSpecificationModel, mapping_id_field)
                         == request_data["relation-id"]).filter(
                         SwRequirementTestSpecificationModel.test_specification_id == test_specification_id).all()
-            if existing_tss:
-                return f"Test Specification `{existing_tss[0].title}` already " \
-                        "associated to the Software Requirement, " \
-                        "consider to reuse the existing one or to edit at least one field", CONFLICT_STATUS
+            if existing_tss_mapping:
+                return f"Test Specification `{test_specification_id}` already " \
+                        "associated to the selected Software Requirement", CONFLICT_STATUS
 
             try:
                 test_specification = (
@@ -4666,7 +4653,7 @@ class SwRequirementTestCasesMapping(Resource):
                 getattr(SwRequirementTestCaseModel, mapping_id_field) == relation_id).filter(
                     SwRequirementTestCaseModel.test_case_id == test_case_id).all()
             if len(existing_tcs_mapping):
-                return f"Test Case `{existing_tcs_mapping[0].id}` already associated " \
+                return f"Test Case `{test_case_id}` already associated " \
                        "to the selected Sw Requirement", CONFLICT_STATUS
 
             try:
@@ -4958,7 +4945,7 @@ class TestSpecificationTestCasesMapping(Resource):
                 getattr(TestSpecificationTestCaseModel, mapping_id_field) == relation_id).filter(
                     TestSpecificationTestCaseModel.test_case_id == test_case_id).all()
             if len(existing_tcs_mapping):
-                return f"Test Case `{existing_tcs_mapping[0].id}` already associated " \
+                return f"Test Case `{test_case_id}` already associated " \
                        "to the selected Test Specification", CONFLICT_STATUS
 
             try:

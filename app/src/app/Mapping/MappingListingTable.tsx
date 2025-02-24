@@ -638,7 +638,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getWorkItemIcon(Constants._J, false)}</FlexItem>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h2}>Justification</Text>
+                      <Text component={TextVariants.h2}>Justification {mappedItem[Constants._J]['id']}</Text>
                     </TextContent>
                   </FlexItem>
                   <FlexItem>
@@ -718,7 +718,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getWorkItemIcon(Constants._D, false)}</FlexItem>
                   <FlexItem>
                     <TextContent>
-                      <Text component={TextVariants.h2}>Document</Text>
+                      <Text component={TextVariants.h2}>Document {mappedItem[Constants._D]['id']}</Text>
                     </TextContent>
                   </FlexItem>
                   <FlexItem>

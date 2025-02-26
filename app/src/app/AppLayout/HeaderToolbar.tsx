@@ -17,6 +17,7 @@ import {
 import BellIcon from '@patternfly/react-icons/dist/esm/icons/bell-icon'
 import QuestionCircleIcon from '@patternfly/react-icons/dist/esm/icons/question-circle-icon'
 import imgAvatar from '../bgimages/avatarImg.svg'
+import { UserProfileModal } from '@app/User/Modal/UserProfileModal'
 import { useAuth } from '../User/AuthProvider'
 
 export interface HeaderToolbarProps {
@@ -32,6 +33,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 }: HeaderToolbarProps) => {
   const auth = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
+  const [userProfileModalShowState, setUserProfileModalShowState] = React.useState(false)
   //const [isKebabDropdownOpen, setIsKebabDropdownOpen] = React.useState(false)
   //const [isFullKebabDropdownOpen, setIsFullKebabDropdownOpen] = React.useState(false)
 
@@ -53,6 +55,10 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
     setIsDropdownOpen(false)
   }
 
+  const modalProfileSetInfo = () => {
+    setUserProfileModalShowState(true)
+  }
+  
   /*
   const onKebabDropdownToggle = () => {
     setIsKebabDropdownOpen(!isKebabDropdownOpen)
@@ -73,6 +79,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const adminDropdownItems = (
     <>
+      <DropdownItem key='user profile'>
+        <Button variant='link' onClick={() => modalProfileSetInfo()}>
+          Profile
+        </Button>
+      </DropdownItem>
       <DropdownItem key='admin test run plugins presets'>
         <Button component='a' href='/plugins-presets' variant='link'>
           Test Run Plugins Presets
@@ -113,6 +124,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const userDropdownItems = (
     <>
+      <DropdownItem key='user profile'>
+        <Button variant='link' onClick={() => modalProfileSetInfo()}>
+          Profile
+        </Button>
+      </DropdownItem>
       <DropdownItem key='user ssh keys'>
         <Button component='a' href='/ssh-keys' variant='link'>
           SSH Keys
@@ -141,6 +157,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   }
 
   return (
+    <>
     <Toolbar id='toolbar' isFullHeight isStatic>
       <ToolbarContent>
         <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
@@ -189,6 +206,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
         </ToolbarItem>
       </ToolbarContent>
     </Toolbar>
+
+    <UserProfileModal 
+      modalShowState={userProfileModalShowState}
+      setModalShowState={setUserProfileModalShowState} />
+    </>
   )
 }
 

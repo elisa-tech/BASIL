@@ -19,16 +19,18 @@ const AuthProvider = ({ children }) => {
 
   const [userId, setUserId] = useState(localStorage.getItem('uId') || '')
   const [userRole, setUserRole] = useState(localStorage.getItem('uRole') || '')
+  const [userName, setUserName] = useState(localStorage.getItem('uName') || '')
   const [userEmail, setUserEmail] = useState(localStorage.getItem('uEmail') || '')
   const [token, setToken] = useState(localStorage.getItem('uToken') || '')
   const [loginMessage, setLoginMessage] = useState('')
 
   React.useEffect(() => {
     localStorage.setItem('uId', userId == null ? '' : userId)
+    localStorage.setItem('uName', userName == null ? '' : userName)
     localStorage.setItem('uEmail', userEmail == null ? '' : userEmail)
     localStorage.setItem('uRole', userRole == null ? '' : userRole)
     localStorage.setItem('uToken', token == null ? '' : token)
-  }, [userId, userRole, userEmail, token])
+  }, [userId, userRole, userEmail, userName, token])
 
   const loginAction = (data) => {
     setLoginMessage('')
@@ -47,6 +49,7 @@ const AuthProvider = ({ children }) => {
             //if (response_data.hasOwnProperty('token')) {
             if (Object.prototype.hasOwnProperty.call(response_data, 'token')) {
               setUserEmail(response_data['email'])
+              setUserName(response_data['username'])
               setUserId(response_data['id'])
               setUserRole(response_data['role'])
               setToken(response_data['token'])
@@ -72,10 +75,12 @@ const AuthProvider = ({ children }) => {
   const logOut = () => {
     console.log('logout')
     setUserEmail('')
+    setUserName('')
     setUserId('')
     setUserRole('')
     setToken('')
     localStorage.removeItem('uEmail')
+    localStorage.removeItem('uName')
     localStorage.removeItem('uId')
     localStorage.removeItem('uToken')
     localStorage.removeItem('uRole')
@@ -125,7 +130,7 @@ const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ token, userEmail, userId, userRole, loginAction, loginMessage, logOut, isLogged, isAdmin, isGuest }}>
+    <AuthContext.Provider value={{ token, userEmail, userName, userId, userRole, loginAction, loginMessage, logOut, isLogged, isAdmin, isGuest }}>
       {children}
     </AuthContext.Provider>
   )

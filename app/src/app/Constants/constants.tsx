@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:5000'
+export const API_BASE_URL = 'http://localhost:5005' //'http://192.168.1.13:5000'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
@@ -31,11 +31,15 @@ export const DEFAULT_PER_PAGE = 10
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'
 
 export const PATH_SEP = '/'
+export const API_USER_ENDPOINT = '/user'
 export const API_USER_APIS_ENDPOINT = '/user/apis'
 export const API_USER_PERMISSIONS_API_ENDPOINT = '/user/permissions/api'
 export const API_USER_PERMISSIONS_API_COPY_ENDPOINT = '/user/permissions/copy'
 export const API_USER_FILES_ENDPOINT = '/user/files'
 export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
+export const API_USER_RESET_PASSWORD_ENDPOINT = '/user/reset-password'
+export const API_USER_SIGNIN_ENDPOINT = '/user/signin'
+export const API_ADMIN_RESET_USER_PASSWORD_ENDPOINT = '/admin/reset-user-password'
 
 export const JSON_HEADER = {
   Accept: 'application/json',
@@ -46,6 +50,19 @@ export const getMappingTableName = (workItemType: string, parentType: string) =>
   let parent_table = workItemType + _M_ + parentType
   parent_table = parent_table.replaceAll('-', '_')
   return parent_table
+}
+
+export const getSearchParamsDict = () => {
+  //Return a dictionary with key value based on search params querystring
+  let ret = {}
+  const search = window.location.search
+  const search_params = new URLSearchParams(search)
+  const params_keys = Array.from(search_params.keys())
+  const params_values = Array.from(search_params.values())
+  for (let i = 0; i < params_keys.length; i++) {
+    ret[params_keys[i]] = params_values[i]
+  }
+  return ret
 }
 
 export const validateCoverage = (coverage, setValidatedCoverage) => {

@@ -55,10 +55,10 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
     setIsDropdownOpen(false)
   }
 
-  const modalProfileSetInfo = () => {
+  const modalProfileSetInfo = () => {
     setUserProfileModalShowState(true)
   }
-  
+
   /*
   const onKebabDropdownToggle = () => {
     setIsKebabDropdownOpen(!isKebabDropdownOpen)
@@ -158,58 +158,56 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   return (
     <>
-    <Toolbar id='toolbar' isFullHeight isStatic>
-      <ToolbarContent>
-        <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
-          <ToolbarItem>
-            <Button
-              aria-label='Notifications'
-              variant={ButtonVariant.plain}
-              icon={<BellIcon />}
-              onClick={toggleNotificationDrawer}
-              countOptions={badgeCountObjectNotRead}
-            />
-          </ToolbarItem>
-          <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
+      <Toolbar id='toolbar' isFullHeight isStatic>
+        <ToolbarContent>
+          <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
             <ToolbarItem>
               <Button
-                component='a'
-                href='https://basil-the-fusa-spice.readthedocs.io/'
-                target='_blank'
-                aria-label='Help'
+                aria-label='Notifications'
                 variant={ButtonVariant.plain}
-                icon={<QuestionCircleIcon />}
+                icon={<BellIcon />}
+                onClick={toggleNotificationDrawer}
+                countOptions={badgeCountObjectNotRead}
               />
             </ToolbarItem>
+            <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
+              <ToolbarItem>
+                <Button
+                  component='a'
+                  href='https://basil-the-fusa-spice.readthedocs.io/'
+                  target='_blank'
+                  aria-label='Help'
+                  variant={ButtonVariant.plain}
+                  icon={<QuestionCircleIcon />}
+                />
+              </ToolbarItem>
+            </ToolbarGroup>
           </ToolbarGroup>
-        </ToolbarGroup>
-        <ToolbarItem visibility={{ default: 'hidden', md: 'visible' }}>
-          <Dropdown
-            isOpen={isDropdownOpen}
-            onSelect={onDropdownSelect}
-            onOpenChange={(isOpen: boolean) => setIsDropdownOpen(isOpen)}
-            popperProps={{ position: 'right' }}
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={onDropdownToggle}
-                isFullHeight
-                isExpanded={isDropdownOpen}
-                icon={<Avatar src={imgAvatar} alt='' />}
-              >
-                {auth.isLogged() ? auth.userEmail : 'Guest'}
-              </MenuToggle>
-            )}
-          >
-            <DropdownList>{getUserDropdownItems()}</DropdownList>
-          </Dropdown>
-        </ToolbarItem>
-      </ToolbarContent>
-    </Toolbar>
+          <ToolbarItem visibility={{ default: 'hidden', md: 'visible' }}>
+            <Dropdown
+              isOpen={isDropdownOpen}
+              onSelect={onDropdownSelect}
+              onOpenChange={(isOpen: boolean) => setIsDropdownOpen(isOpen)}
+              popperProps={{ position: 'right' }}
+              toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                <MenuToggle
+                  ref={toggleRef}
+                  onClick={onDropdownToggle}
+                  isFullHeight
+                  isExpanded={isDropdownOpen}
+                  icon={<Avatar src={imgAvatar} alt='' />}
+                >
+                  {auth.isLogged() ? auth.userEmail : 'Guest'}
+                </MenuToggle>
+              )}
+            >
+              <DropdownList>{getUserDropdownItems()}</DropdownList>
+            </Dropdown>
+          </ToolbarItem>
+        </ToolbarContent>
+      </Toolbar>
 
-    <UserProfileModal 
-      modalShowState={userProfileModalShowState}
-      setModalShowState={setUserProfileModalShowState} />
+      <UserProfileModal modalShowState={userProfileModalShowState} setModalShowState={setUserProfileModalShowState} />
     </>
   )
 }

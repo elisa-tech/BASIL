@@ -18,15 +18,15 @@ const Login: React.FunctionComponent = () => {
   const [isValidPassword, setIsValidPassword] = React.useState(true)
 
   React.useEffect(() => {
-      const query_params = Constants.getSearchParamsDict()
-      if (Object.keys(query_params).includes("from")){
-        if (query_params["from"] == "reset-password"){
-          setHelperText('Your password has been reset. You can now login with the new password.')
-          setShowHelperText(true)
-        }
+    const query_params = Constants.getSearchParamsDict()
+    if (Object.keys(query_params).includes('from')) {
+      if (query_params['from'] == 'reset-password') {
+        setHelperText('Your password has been reset. You can now login with the new password.')
+        setShowHelperText(true)
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleUsernameChange = (_event: React.FormEvent<HTMLInputElement>, value: string) => {
     setUsername(value)
@@ -62,7 +62,7 @@ const Login: React.FunctionComponent = () => {
     }
     const url = Constants.API_BASE_URL + Constants.API_USER_RESET_PASSWORD_ENDPOINT
     const data = {
-      "email": username
+      email: username
     }
 
     fetch(url, {
@@ -70,26 +70,26 @@ const Login: React.FunctionComponent = () => {
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
-    .then((res) => {
-      if (!res.ok){
-        return res.text()
-      } else {
-        return res.json()
-      }
-    })
-    .then((data) => {
-        if (Object.keys(data).includes("message")){
-          setHelperText(data["message"])
+      .then((res) => {
+        if (!res.ok) {
+          return res.text()
+        } else {
+          return res.json()
+        }
+      })
+      .then((data) => {
+        if (Object.keys(data).includes('message')) {
+          setHelperText(data['message'])
         } else {
           setHelperText(data)
         }
         setShowHelperText(true)
-    })
-    .catch((err) => {
-      setHelperText(err.message)
-      setShowHelperText(true)
-      console.log(err.message)
-    })
+      })
+      .catch((err) => {
+        setHelperText(err.message)
+        setShowHelperText(true)
+        console.log(err.message)
+      })
   }
 
   React.useEffect(() => {
@@ -109,8 +109,12 @@ const Login: React.FunctionComponent = () => {
 
   const forgotCredentials = (
     <LoginMainFooterBandItem>
-      Forgot username or password? <Button variant='link' onClick={() => onResetPassword()}>Reset your password</Button>
-    </LoginMainFooterBandItem>)
+      Forgot username or password?{' '}
+      <Button variant='link' onClick={() => onResetPassword()}>
+        Reset your password
+      </Button>
+    </LoginMainFooterBandItem>
+  )
 
   const listItem = (
     <React.Fragment>
@@ -130,7 +134,11 @@ const Login: React.FunctionComponent = () => {
     <LoginForm
       showHelperText={showHelperText}
       helperText={helperText} //'Invalid login credentials.'
-      helperTextIcon={<Icon size={'md'}><ExclamationCircleIcon /></Icon>}
+      helperTextIcon={
+        <Icon size={'md'}>
+          <ExclamationCircleIcon />
+        </Icon>
+      }
       usernameLabel='Email'
       usernameValue={username}
       onChangeUsername={handleUsernameChange}

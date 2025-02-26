@@ -1,21 +1,21 @@
 import React from 'react'
 import { useAuth } from '@app/User/AuthProvider'
-import { 
-  Button, 
-  FormGroup, 
-  FormHelperText, 
+import {
+  Button,
+  FormGroup,
+  FormHelperText,
   HelperText,
   HelperTextItem,
   Hint,
   HintBody,
-  Modal, 
-  ModalVariant, 
-  Tab, 
-  TabContent, 
-  TabContentBody, 
-  TabTitleText, 
+  Modal,
+  ModalVariant,
+  Tab,
+  TabContent,
+  TabContentBody,
+  TabTitleText,
   Tabs,
-  TextInput,
+  TextInput
 } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
 
@@ -34,14 +34,14 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
 
   const [profileUsernameValue, setProfileUsernameValue] = React.useState(auth.userName || '')
   const [validatedProfileUsernameValue, setValidatedProfileUsernameValue] = React.useState<Constants.validate>('error')
-  
+
   const [currentPasswordValue, setCurrentPasswordValue] = React.useState('')
   const [validatedCurrentPasswordValue, setValidatedCurrentPasswordValue] = React.useState<Constants.validate>('error')
   const [newPasswordValue, setNewPasswordValue] = React.useState('')
   const [validatedNewPasswordValue, setValidatedNewPasswordValue] = React.useState<Constants.validate>('error')
   const [confirmPasswordValue, setConfirmPasswordValue] = React.useState('')
   const [validatedConfirmPasswordValue, setValidatedConfirmPasswordValue] = React.useState<Constants.validate>('error')
-  
+
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
   const [messageValue, setMessageValue] = React.useState<string>('')
 
@@ -58,7 +58,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
 
   React.useEffect(() => {
     setIsModalOpen(modalShowState)
-    if (modalShowState){
+    if (modalShowState) {
       setMessageValue('')
     }
   }, [modalShowState])
@@ -74,9 +74,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   React.useEffect(() => {
     if (profileUsernameValue == '') {
       setValidatedProfileUsernameValue('error')
-    } else if (profileUsernameValue.includes(' ')){
+    } else if (profileUsernameValue.includes(' ')) {
       setValidatedProfileUsernameValue('error')
-    } else if (profileUsernameValue.length < 4){
+    } else if (profileUsernameValue.length < 4) {
       setValidatedProfileUsernameValue('error')
     } else {
       setValidatedProfileUsernameValue('success')
@@ -86,9 +86,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   React.useEffect(() => {
     if (currentPasswordValue == '') {
       setValidatedCurrentPasswordValue('error')
-    } else if (currentPasswordValue.includes(' ')){
+    } else if (currentPasswordValue.includes(' ')) {
       setValidatedCurrentPasswordValue('error')
-    } else if (currentPasswordValue.length < 4){
+    } else if (currentPasswordValue.length < 4) {
       setValidatedCurrentPasswordValue('error')
     } else {
       setValidatedCurrentPasswordValue('success')
@@ -100,9 +100,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   React.useEffect(() => {
     if (newPasswordValue == '') {
       setValidatedNewPasswordValue('error')
-    } else if (newPasswordValue.includes(' ')){
+    } else if (newPasswordValue.includes(' ')) {
       setValidatedNewPasswordValue('error')
-    } else if (newPasswordValue.length < 4){
+    } else if (newPasswordValue.length < 4) {
       setValidatedNewPasswordValue('error')
     } else {
       setValidatedNewPasswordValue('success')
@@ -114,9 +114,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   React.useEffect(() => {
     if (confirmPasswordValue == '') {
       setValidatedConfirmPasswordValue('error')
-    } else if (confirmPasswordValue.includes(' ')){
+    } else if (confirmPasswordValue.includes(' ')) {
       setValidatedConfirmPasswordValue('error')
-    } else if (confirmPasswordValue.length < 4){
+    } else if (confirmPasswordValue.length < 4) {
       setValidatedConfirmPasswordValue('error')
     } else {
       setValidatedConfirmPasswordValue('success')
@@ -124,7 +124,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmPasswordValue])
-  
+
   const handleProfileUsernameValueChange = (_ev, value) => {
     setProfileUsernameValue(value)
   }
@@ -132,7 +132,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   const handleCurrentPasswordValueChange = (_ev, value) => {
     setCurrentPasswordValue(value)
   }
-  
+
   const handleNewPasswordValueChange = (_ev, value) => {
     setNewPasswordValue(value)
   }
@@ -152,41 +152,41 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
 
     const url = Constants.API_BASE_URL + Constants.API_USER_ENDPOINT
     let data = {
-      "user-id": auth.userId,
-      "token": auth.token
+      'user-id': auth.userId,
+      token: auth.token
     }
 
-    if (_username != null && _username != undefined){
-      if (_username == auth.userName){
-        setMessageValue("The username you selected is your current one. No changes needed.")
+    if (_username != null && _username != undefined) {
+      if (_username == auth.userName) {
+        setMessageValue('The username you selected is your current one. No changes needed.')
         return
       }
-      if (validatedProfileUsernameValue != 'success'){
+      if (validatedProfileUsernameValue != 'success') {
         return
       }
-      data["username"] = _username
+      data['username'] = _username
     }
-    
-    if (_password != null && _password != undefined){
-      if (validatedCurrentPasswordValue != 'success'){
+
+    if (_password != null && _password != undefined) {
+      if (validatedCurrentPasswordValue != 'success') {
         return
       }
-      if (validatedNewPasswordValue != 'success'){
+      if (validatedNewPasswordValue != 'success') {
         return
       }
-      if (validatedConfirmPasswordValue != 'success'){
+      if (validatedConfirmPasswordValue != 'success') {
         return
       }
-      if (currentPasswordValue == newPasswordValue){
-        setMessageValue("The password you selected is your current one. No changes needed.")
+      if (currentPasswordValue == newPasswordValue) {
+        setMessageValue('The password you selected is your current one. No changes needed.')
         return
       }
-      data["password"] = _password
+      data['password'] = _password
     }
-      
+
     let status: number = 0
     let status_text: string = ''
-    
+
     fetch(url, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
@@ -205,7 +205,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
         if (status != 200) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         } else {
-          setMessageValue(data["message"])
+          setMessageValue(data['message'])
         }
       })
       .catch((err) => {
@@ -228,11 +228,12 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
         actions={[]}
       >
         {messageValue ? (
-        <Hint>
-          <HintBody>
-            {messageValue}
-          </HintBody> 
-        </Hint>) : ('')}
+          <Hint>
+            <HintBody>{messageValue}</HintBody>
+          </Hint>
+        ) : (
+          ''
+        )}
         <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='Add a New/Existing Test Case' role='region'>
           <Tab
             eventKey={0}
@@ -262,22 +263,20 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 {validatedProfileUsernameValue !== 'success' && (
                   <FormHelperText>
                     <HelperText>
-                      <HelperTextItem variant='error'>{validatedProfileUsernameValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                      <HelperTextItem variant='error'>
+                        {validatedProfileUsernameValue === 'error' ? 'This field is mandatory' : ''}
+                      </HelperTextItem>
                     </HelperText>
                   </FormHelperText>
                 )}
               </FormGroup>
               <br></br>
               <FormGroup label='Eamil' fieldId={`input-user-profile-email`}>
-                <TextInput
-                  id={`input-user-profile-email`}
-                  readOnlyVariant={'default'}
-                  value={auth.userEmail}
-                />
+                <TextInput id={`input-user-profile-email`} readOnlyVariant={'default'} value={auth.userEmail} />
               </FormGroup>
               <br></br>
               <br></br>
-              <Button id="btn-user-profile-save" onClick={() => (EditUserProfile(profileUsernameValue, null))}>
+              <Button id='btn-user-profile-save' onClick={() => EditUserProfile(profileUsernameValue, null)}>
                 Save
               </Button>
             </TabContentBody>
@@ -295,7 +294,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 {validatedCurrentPasswordValue !== 'success' && (
                   <FormHelperText>
                     <HelperText>
-                      <HelperTextItem variant='error'>{validatedCurrentPasswordValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                      <HelperTextItem variant='error'>
+                        {validatedCurrentPasswordValue === 'error' ? 'This field is mandatory' : ''}
+                      </HelperTextItem>
                     </HelperText>
                   </FormHelperText>
                 )}
@@ -312,7 +313,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 {validatedNewPasswordValue !== 'success' && (
                   <FormHelperText>
                     <HelperText>
-                      <HelperTextItem variant='error'>{validatedNewPasswordValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                      <HelperTextItem variant='error'>
+                        {validatedNewPasswordValue === 'error' ? 'This field is mandatory' : ''}
+                      </HelperTextItem>
                     </HelperText>
                   </FormHelperText>
                 )}
@@ -329,14 +332,16 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 {validatedConfirmPasswordValue !== 'success' && (
                   <FormHelperText>
                     <HelperText>
-                      <HelperTextItem variant='error'>{validatedConfirmPasswordValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                      <HelperTextItem variant='error'>
+                        {validatedConfirmPasswordValue === 'error' ? 'This field is mandatory' : ''}
+                      </HelperTextItem>
                     </HelperText>
                   </FormHelperText>
                 )}
               </FormGroup>
               <br></br>
               <br></br>
-              <Button id="btn-user-edit-password-save" onClick={() => (EditUserProfile(null, newPasswordValue))}>
+              <Button id='btn-user-edit-password-save' onClick={() => EditUserProfile(null, newPasswordValue)}>
                 Save
               </Button>
             </TabContentBody>

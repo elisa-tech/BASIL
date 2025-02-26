@@ -66,9 +66,9 @@ const Signin: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (username == '') {
       setValidateUsernameValue('error')
-    } else if (username.includes(' ')){
+    } else if (username.includes(' ')) {
       setValidateUsernameValue('error')
-    } else if (username.length < 4){
+    } else if (username.length < 4) {
       setValidateUsernameValue('error')
     } else {
       setValidateUsernameValue('success')
@@ -78,7 +78,7 @@ const Signin: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (email == '') {
       setValidateEmailValue('error')
-    } else if (email.includes(' ')){
+    } else if (email.includes(' ')) {
       setValidateEmailValue('error')
     } else if (!isEmail(email)) {
       setValidateEmailValue('error')
@@ -90,9 +90,9 @@ const Signin: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (password == '') {
       setValidatePassworValue('error')
-    } else if (password.includes(' ')){
+    } else if (password.includes(' ')) {
       setValidatePassworValue('error')
-    } else if (password.length < 4){
+    } else if (password.length < 4) {
       setValidatePassworValue('error')
     } else {
       setValidatePassworValue('success')
@@ -104,9 +104,9 @@ const Signin: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (passwordConfirm == '') {
       setValidatePasswordConfirmValue('error')
-    } else if (passwordConfirm.includes(' ')){
+    } else if (passwordConfirm.includes(' ')) {
       setValidatePasswordConfirmValue('error')
-    } else if (passwordConfirm.length < 4){
+    } else if (passwordConfirm.length < 4) {
       setValidatePasswordConfirmValue('error')
     } else {
       setValidatePasswordConfirmValue('success')
@@ -147,9 +147,9 @@ const Signin: React.FunctionComponent = () => {
       setAlertMessage('')
     }
 
-    const data = { 
-      email: email, 
-      password: password, 
+    const data = {
+      email: email,
+      password: password,
       username: username
     }
 
@@ -194,54 +194,42 @@ const Signin: React.FunctionComponent = () => {
                   <FlexItem align={{ default: 'alignLeft' }}>
                     <Form isHorizontal>
                       <FormGroup label='Email' isRequired fieldId='signin-form-email'>
-                        <TextInput
-                          isRequired
-                          type='email'
-                          id='signin-form-email'
-                          value={email}
-                          onChange={handleEmailChange}
-                        />
+                        <TextInput isRequired type='email' id='signin-form-email' value={email} onChange={handleEmailChange} />
                         {validateEmailValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validateEmailValue === 'error' ? 'This field is mandatory, the current value is not valid. It must be an email address and space char is not allowed.' : ''}
+                                {validateEmailValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It must be an email address and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>
                         )}
                       </FormGroup>
                       <FormGroup label='Username' isRequired fieldId='signin-form-username'>
-                        <TextInput
-                          isRequired
-                          type='text'
-                          id='signin-form-username'
-                          value={username}
-                          onChange={handleUsernameChange}
-                        />
+                        <TextInput isRequired type='text' id='signin-form-username' value={username} onChange={handleUsernameChange} />
                         {validateUsernameValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validateUsernameValue === 'error' ? 'This field is mandatory, the current value is not valid. It must be at least 4 chars and space char is not allowed.' : ''}
+                                {validateUsernameValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It must be at least 4 chars and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>
                         )}
                       </FormGroup>
                       <FormGroup label='Password' isRequired fieldId='signin-form-password'>
-                        <TextInput
-                          isRequired
-                          type='password'
-                          id='signin-form-password'
-                          value={password}
-                          onChange={handlePasswordChange}
-                        />
+                        <TextInput isRequired type='password' id='signin-form-password' value={password} onChange={handlePasswordChange} />
                         {validatePasswordValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validatePasswordValue === 'error' ? 'This field is mandatory, the current value is not valid. It should be at least 4 chars and space char is not allowed.' : ''}
+                                {validatePasswordValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It should be at least 4 chars and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>
@@ -259,7 +247,9 @@ const Signin: React.FunctionComponent = () => {
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validatePasswordConfirmValue === 'error' ? 'This field is mandatory, the current value is not valid. It should be at least 4 chars and space char is not allowed.' : ''}
+                                {validatePasswordConfirmValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It should be at least 4 chars and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>

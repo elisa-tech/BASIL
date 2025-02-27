@@ -51,14 +51,14 @@ def initialization(db_name='basil.db'):
             UserModel.role == 'ADMIN'
         ).count()
         if not admin_count:
-            admin = UserModel("admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
+            admin = UserModel("admin", "admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
             dbi.session.add(admin)
         del os.environ['BASIL_ADMIN_PASSWORD']
 
     if db_name == 'test.db':
-        guest = UserModel("dummy_guest", "dummy_guest", "GUEST")
+        guest = UserModel("dummy_guest", "dummy_guest", "dummy_guest", "GUEST")
         dbi.session.add(guest)
-        test_user = UserModel("dummy_user", "dummy_user", "USER")
+        test_user = UserModel("dummy_guest", "dummy_user", "dummy_user", "USER")
         dbi.session.add(test_user)
 
     dbi.session.commit()

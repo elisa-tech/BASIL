@@ -1,0 +1,7 @@
+app_url: http://localhost:9000
+smtp:
+  from: "BASIL - The FuSa Spice"
+  host: ""
+  password: ""
+  port: 0
+  user: ""

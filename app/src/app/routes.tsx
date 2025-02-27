@@ -3,6 +3,7 @@ import { Route, RouteComponentProps, Switch, useLocation } from 'react-router-do
 import { Dashboard } from '@app/Dashboard/Dashboard'
 import { Admin } from '@app/Admin/Admin'
 import { AdminTestRunPluginPresets } from '@app/Admin/AdminTestRunPluginPresets'
+import { AdminSettings } from '@app/Admin/AdminSettings'
 import { Login } from '@app/Login/Login'
 import { Mapping } from '@app/Mapping/Mapping'
 import { NotFound } from '@app/NotFound/NotFound'
@@ -71,6 +72,13 @@ const routes: AppRouteConfig[] = [
     label: 'Test Run Plugins Presets',
     path: '/plugins-presets',
     title: 'BASIL | The Fusa Spice | Admin | Test Run Plugins Presets'
+  },
+  {
+    component: AdminSettings,
+    exact: true,
+    label: 'Settings',
+    path: '/settings',
+    title: 'BASIL | The Fusa Spice | Admin | Settings'
   },
   {
     component: SSHKey,

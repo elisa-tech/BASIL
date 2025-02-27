@@ -66,7 +66,7 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
       password: base64_encode(newPassword)
     }
 
-    fetch(Constants.API_BASE_URL + '/user/reset-password', {
+    fetch(Constants.API_BASE_URL + Constants.API_ADMIN_RESET_USER_PASSWORD_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)

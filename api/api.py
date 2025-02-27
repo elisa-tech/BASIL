@@ -4,7 +4,9 @@ import json
 import logging
 import math
 import os
+import re
 import shutil
+import secrets
 import sys
 import time
 import urllib
@@ -12,7 +14,7 @@ from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
 import gitlab
-from flask import Flask, request, send_file, send_from_directory
+from flask import Flask, redirect, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
@@ -33,8 +35,12 @@ MAX_LOGIN_ATTEMPTS = 5
 MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 5  # 5 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, "ssh_keys")
 TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, "testrun_plugin_presets.yaml")
+SETTINGS_FILEPATH = os.path.join(currentdir, "settings.yaml")
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
+
+SETTINGS_CACHE = None
+SETTINGS_LAST_MODIFIED = None
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.makedirs(SSH_KEYS_PATH, exist_ok=True)
@@ -112,6 +118,7 @@ from db.models.test_specification_test_case import (
     TestSpecificationTestCaseModel,
 )
 from db.models.user import UserModel
+from notifier import EmailNotifier
 from spdx_manager import SPDXManager
 from import_manager import SPDXImportSwRequirements
 
@@ -136,6 +143,22 @@ _J = "justification"
 _Js = f"{_J}s"
 _D = "document"
 _Ds = f"{_D}s"
+
+
+def load_settings():
+    """Load settings from yaml file if file last modified date
+    is different from the last time we read it
+    """
+    global SETTINGS_CACHE, SETTINGS_LAST_MODIFIED
+
+    last_modified = os.path.getmtime(SETTINGS_FILEPATH)
+    if SETTINGS_CACHE is None or SETTINGS_LAST_MODIFIED != last_modified:
+        try:
+            SETTINGS_CACHE = parse_config(path=SETTINGS_FILEPATH)
+            SETTINGS_LAST_MODIFIED = last_modified
+        except Exception as e:
+            print(f"Exception on load_settings(): {e}")
+    return SETTINGS_CACHE
 
 
 def get_api_from_request(_request, _db_session):
@@ -5318,23 +5341,47 @@ class UserLogin(Resource):
         dbi.session.add(user)
         dbi.session.commit()
 
-        return {"id": user.id, "role": user.role, "email": user.email, "token": user.token}
+        return {
+            "email": user.email,
+            "id": user.id,
+            "role": user.role,
+            "token": user.token,
+            "username": user.username
+        }
 
 
 class UserSignin(Resource):
     def post(self):
-        mandatory_fields = ["email", "password"]
+        mandatory_fields = ["username", "email", "password"]
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
         request_data = request.get_json(force=True)
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
-        same_email = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).all()
+        username = request_data["username"]
+        email = request_data["email"]
+        password = request_data["password"]
+
+        # Input validation needed in case of direct interaction with the API
+        if " " in username or len(username) < 4:
+            return "Username not valid, it hould be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+        if not re.match(email_regex, email):
+            return "Email not valid, it must be a valid email", BAD_REQUEST_STATUS
+        if " " in password or len(password) < 4:
+            return "Password not valid it should be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+
+        same_username = dbi.session.query(UserModel).filter(UserModel.username == username).all()
+        if len(same_username) > 0:
+            return "Username already in use.", BAD_REQUEST_STATUS
+
+        same_email = dbi.session.query(UserModel).filter(UserModel.email == email).all()
         if len(same_email) > 0:
             return "Email already in use.", BAD_REQUEST_STATUS
 
-        user = UserModel(request_data["email"].strip(), request_data["password"], "GUEST")
+        user = UserModel(username, email, password, "GUEST")
         dbi.session.add(user)
         dbi.session.commit()  # To have the user id
 
@@ -5342,7 +5389,6 @@ class UserSignin(Resource):
         set_api_permission_stmt = (update(ApiModel).where(ApiModel.read_denials != '')).values(
             read_denials=ApiModel.read_denials + f"[{user.id}]")
         dbi.session.execute(set_api_permission_stmt)
-        print(set_api_permission_stmt)
 
         # Add Notifications
         notification = f"{user.email} joined us on BASIL!"
@@ -5669,8 +5715,155 @@ class User(Resource):
 
         return [x.as_dict(full_data=True) for x in users]
 
+    def put(self):
+        """Edit username or password
+        Note: Need to perform the validation to avoid direct usage of the api
+        """
+        mandatory_fields = ["user-id", "token"]
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Edit username
+        if "username" in request_data.keys():
+            username = request_data["username"]
+            if " " in username or len(username) < 4:
+                return "Username not valid, it hould be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+
+            same_username = dbi.session.query(UserModel).filter(UserModel.username == username).all()
+            if len(same_username) > 0:
+                return "Username already in use.", BAD_REQUEST_STATUS
+
+            user.username = username
+            dbi.session.add(user)
+            dbi.session.commit()
+            dbi.engine.dispose()
+            return {"result": "success", "message": "Your username has been saved. Please login again."}
+
+        # Edit password
+        if "password" in request_data.keys():
+            password = request_data["password"]
+            if " " in password or len(password) < 4:
+                return "Password not valid it should be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+            encoded_password = base64.b64encode(password.encode("utf-8")).decode("utf-8")
+            user.pwd = encoded_password
+            dbi.session.add(user)
+            dbi.session.commit()
+            dbi.engine.dispose()
+            return {"result": "success", "message": "Your password has been saved. Please login again."}
+
 
 class UserResetPassword(Resource):
+
+    def get(self):
+        """If the request reset_token match the one in the db for the selected user
+        we will copy the reset password to the official one and we will clear the
+        reset_token and reset_pwd fields
+        """
+        mandatory_fields = ["email", "reset_token"]
+        request_data = request.args
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        email = request_data["email"].strip()
+        reset_token = request_data["reset_token"].strip()
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.email == email).filter(
+                    UserModel.reset_token == reset_token).one()
+        except NoResultFound:
+            return "User not found or your link is no longer valid", NOT_FOUND_STATUS
+
+        target_user.pwd = target_user.reset_pwd
+        target_user.reset_pwd = ""
+        target_user.reset_token = ""
+        dbi.session.add(target_user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+        email_title = "BASIL - Confirm password reset"
+        email_body = f"""<html>
+            <body>
+                <h3>{email_title}</h3>
+                <p>Your password has been reset</p>
+            </body>
+        </html>
+        """
+        email_notifier = EmailNotifier(settings=load_settings())
+        ret = email_notifier.send_email(email, email_title, email_body, True)
+        if ret:
+            if "redirect" in request_data.keys():
+                return redirect(request_data["redirect"], code=302)
+            return {"result": "success", "message": "Your password has been reset"}
+        else:
+            return "Unable to send the email. Please contant the admin.", PRECONDITION_FAILED_STATUS
+
+    def post(self):
+        """Generate a reset_token and a reset_pwd
+        send an email with a link to activate the reset_pwd
+        """
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["email"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        email = request_data["email"].strip()
+
+        try:
+            target_user = dbi.session.query(UserModel).filter(UserModel.email == email).one()
+        except NoResultFound:
+            return f"User {email} not found", NOT_FOUND_STATUS
+
+        settings = load_settings()
+
+        # generate reset_token and reset_pwd
+        email_title = "BASIL - Password reset"
+        reset_pwd = secrets.token_urlsafe(10)
+        encoded_reset_pwd = base64.b64encode(reset_pwd.encode("utf-8")).decode("utf-8")
+
+        reset_token = secrets.token_urlsafe(90)
+        reset_url = f"{request.base_url}?email={email}&reset_token={reset_token}"
+        if "app_url" in settings.keys():
+            reset_url += f"&redirect={settings['app_url']}/login?from=reset-password"
+
+        target_user.reset_pwd = encoded_reset_pwd
+        target_user.reset_token = reset_token
+        dbi.session.add(target_user)
+        dbi.session.commit()
+        dbi.engine.dispose()
+        email_body = f"""<html>
+            <body>
+                <h3>{email_title}</h3>
+                <p>Someone requested a password reset for your account.</p>
+                <p>If you have not requested a password reset, please ignore and delete this email.
+                You will continue to log in with your current credentials.</p>
+                <p>We created a the following temporary password:</p>
+                <p><b>{reset_pwd}</b></p>
+                <p>If you want to reset your password to the one shared above,
+                click <a target='_blank' href='{reset_url}'>RESET PASSWORD</a></p>
+            </body>
+        </html>
+        """
+        email_notifier = EmailNotifier(settings=settings)
+        ret = email_notifier.send_email(email, email_title, email_body, True)
+        if ret:
+            return {"result": "success", "message": "An email has been sent to reset your password"}
+        else:
+            return "Unable to send the email. Please contant the admin.", PRECONDITION_FAILED_STATUS
+
+
+class AdminResetUserPassword(Resource):
 
     def put(self):
         # Requester identified by id and token
@@ -7082,6 +7275,68 @@ class AdminTestRunPluginsPresets(Resource):
         return ret
 
 
+class AdminSettings(Resource):
+    def get(self):
+        ret = {"content": ""}
+
+        mandatory_fields = ["token", "user-id"]
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(args, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if os.path.exists(SETTINGS_FILEPATH):
+            try:
+                f = open(SETTINGS_FILEPATH, "r")
+                fc = f.read()
+                f.close()
+                ret["content"] = fc
+            except Exception:
+                print("Unable to read settings file")
+        return ret
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        ret = {"content": ""}
+        mandatory_fields = ["content", "user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Validate the content
+        try:
+            new_content = parse_config(data=request_data["content"])  # noqa: F841
+        except Exception as exc:
+            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+
+        f = open(SETTINGS_FILEPATH, "w")
+        f.write(request_data["content"])
+        f.close()
+
+        # Refresh cached settings
+        load_settings()
+
+        ret["content"] = request_data["content"]
+        return ret
+
+
 class Version(Resource):
 
     def get(self):
@@ -7124,6 +7379,8 @@ api.add_resource(TestRunLog, "/mapping/api/test-run/log")
 api.add_resource(TestRunArtifacts, "/mapping/api/test-run/artifacts")
 api.add_resource(TestRunPluginPresets, "/mapping/api/test-run-plugins-presets")
 api.add_resource(AdminTestRunPluginsPresets, "/admin/test-run-plugins-presets")
+api.add_resource(AdminSettings, "/admin/settings")
+api.add_resource(AdminResetUserPassword, "/admin/reset-user-password")
 
 # - Import
 api.add_resource(SwRequirementImport, "/import/sw-requirements")

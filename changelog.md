@@ -14,6 +14,9 @@
 - Form key events management
 - Fix conflicts in work item mapping
 - UI refinement: table compact, icons alignment, modal buttons and form validations
+- User permission management via UI and possibility to copy user permission across different software components
+- Reset password via email
+- Email server configurable from UI by admin users
 
 ## 1.5.x
 

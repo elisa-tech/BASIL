@@ -262,10 +262,10 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       </DataList>
       <br />
       <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-specification-coverage-${formData.id}`}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-specification-coverage-existing`}>
           <TextInput
             isRequired
-            id={`input-test-specification-coverage-${formData.id}`}
+            id={`input-test-specification-coverage-existing`}
             value={coverageValue}
             onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             onKeyUp={handleCoverageKeyPress}

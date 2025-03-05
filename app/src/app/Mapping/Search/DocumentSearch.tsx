@@ -246,10 +246,10 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
       </DataList>
       <br />
       <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-document-coverage-${formData?.id}`}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-document-coverage-existing`}>
           <TextInput
             isRequired
-            id={`input-document-coverage-${formData?.id}`}
+            id={`input-document-coverage-existing`}
             value={coverageValue}
             onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             onKeyUp={handleCoverageKeyPress}

@@ -91,6 +91,7 @@ export const TestRunConfigSearch: React.FunctionComponent<TestRunConfigSearchPro
       <Flex>
         <FlexItem>
           <SearchInput
+            id={`input-test-run-config-coverage-existing`}
             placeholder='Search Identifier'
             value={searchValue}
             onChange={(_event, value) => onChangeSearchValue(value)}

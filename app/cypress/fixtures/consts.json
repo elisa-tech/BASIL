@@ -1,0 +1,45 @@
+{
+  "app_base_url": "http://localhost:9000",
+  "api_base_url": "http://192.168.1.13:5000",
+  "login": {
+    "input_username": "#pf-login-username-id",
+    "input_password": "#pf-login-password-id"
+  },
+  "api": {
+    "modal_button_confirm_id": "#btn-modal-api-confirm",
+    "table_listing_id": "#table-api-listing",
+    "input_search_id": "#input-api-list-search"
+  },
+  "mapping": {
+    "select_view_id": "#select-mapping-view",
+    "table_matching_id": "#table-matching-sections",
+    "table_unmatching_id": "#table-unmatching-sections"
+  },
+  "users": {
+    "admin": {
+      "username": "admin",
+      "password": "1234",
+      "role": "ADMIN"
+    }
+  },
+  "work_item_types": {
+    "test-case": {
+      "mapping-label": "Test Case"
+    },
+    "test-specification": {
+      "mapping-label": "Test Specification"
+    },
+    "sw-requirement": {
+      "mapping-label": "Software Requirement"
+    },
+    "justification": {
+      "mapping-label": "Justification"
+    },
+    "document": {
+      "mapping-label": "Document"
+    }
+  },
+  "long_wait": 3000,
+  "mid_wait": 1500,
+  "fast_wait": 750
+}

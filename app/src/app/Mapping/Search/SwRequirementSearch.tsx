@@ -262,11 +262,10 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
       </DataList>
       <br />
       <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-sw-requirement-coverage-${formData?.id}`}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-sw-requirement-coverage-existing`}>
           <TextInput
             isRequired
-            id={`input-sw-requirement-coverage-${formData?.id}`}
-            name={`input-sw-requirement-coverage-${formData?.id}`}
+            id={`input-sw-requirement-coverage-existing`}
             value={coverageValue}
             onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             onKeyUp={handleCoverageKeyPress}

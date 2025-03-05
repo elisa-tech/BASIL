@@ -214,6 +214,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         <FlexItem>
           <SearchInput
             placeholder='Search Identifier'
+            id='input-justification-search-existing'
             value={searchValue}
             onChange={(_event, value) => onChangeSearchValue(value)}
             onKeyUp={handleSearchKeyPress}
@@ -246,10 +247,10 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
       </DataList>
       <br />
       <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-justification-coverage-${formData?.id}`}>
+        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-justification-coverage-existing`}>
           <TextInput
             isRequired
-            id={`input-justification-coverage-${formData?.id}`}
+            id={`input-justification-coverage-existing`}
             value={coverageValue}
             onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
             onKeyUp={handleCoverageKeyPress}

@@ -17,6 +17,7 @@ import {
 import BellIcon from '@patternfly/react-icons/dist/esm/icons/bell-icon'
 import QuestionCircleIcon from '@patternfly/react-icons/dist/esm/icons/question-circle-icon'
 import imgAvatar from '../bgimages/avatarImg.svg'
+import { UserProfileModal } from '@app/User/Modal/UserProfileModal'
 import { useAuth } from '../User/AuthProvider'
 
 export interface HeaderToolbarProps {
@@ -32,6 +33,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 }: HeaderToolbarProps) => {
   const auth = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false)
+  const [userProfileModalShowState, setUserProfileModalShowState] = React.useState(false)
   //const [isKebabDropdownOpen, setIsKebabDropdownOpen] = React.useState(false)
   //const [isFullKebabDropdownOpen, setIsFullKebabDropdownOpen] = React.useState(false)
 
@@ -51,6 +53,10 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const onDropdownSelect = () => {
     setIsDropdownOpen(false)
+  }
+
+  const modalProfileSetInfo = () => {
+    setUserProfileModalShowState(true)
   }
 
   /*
@@ -73,6 +79,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const adminDropdownItems = (
     <>
+      <DropdownItem key='user profile'>
+        <Button variant='link' onClick={() => modalProfileSetInfo()}>
+          Profile
+        </Button>
+      </DropdownItem>
       <DropdownItem key='admin test run plugins presets'>
         <Button component='a' href='/plugins-presets' variant='link'>
           Test Run Plugins Presets
@@ -113,6 +124,11 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
 
   const userDropdownItems = (
     <>
+      <DropdownItem key='user profile'>
+        <Button variant='link' onClick={() => modalProfileSetInfo()}>
+          Profile
+        </Button>
+      </DropdownItem>
       <DropdownItem key='user ssh keys'>
         <Button component='a' href='/ssh-keys' variant='link'>
           SSH Keys
@@ -141,54 +157,58 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   }
 
   return (
-    <Toolbar id='toolbar' isFullHeight isStatic>
-      <ToolbarContent>
-        <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
-          <ToolbarItem>
-            <Button
-              aria-label='Notifications'
-              variant={ButtonVariant.plain}
-              icon={<BellIcon />}
-              onClick={toggleNotificationDrawer}
-              countOptions={badgeCountObjectNotRead}
-            />
-          </ToolbarItem>
-          <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
+    <>
+      <Toolbar id='toolbar' isFullHeight isStatic>
+        <ToolbarContent>
+          <ToolbarGroup variant='icon-button-group' align={{ default: 'alignRight' }} spacer={{ default: 'spacerNone', md: 'spacerMd' }}>
             <ToolbarItem>
               <Button
-                component='a'
-                href='https://basil-the-fusa-spice.readthedocs.io/'
-                target='_blank'
-                aria-label='Help'
+                aria-label='Notifications'
                 variant={ButtonVariant.plain}
-                icon={<QuestionCircleIcon />}
+                icon={<BellIcon />}
+                onClick={toggleNotificationDrawer}
+                countOptions={badgeCountObjectNotRead}
               />
             </ToolbarItem>
+            <ToolbarGroup variant='icon-button-group' visibility={{ default: 'hidden', lg: 'visible' }}>
+              <ToolbarItem>
+                <Button
+                  component='a'
+                  href='https://basil-the-fusa-spice.readthedocs.io/'
+                  target='_blank'
+                  aria-label='Help'
+                  variant={ButtonVariant.plain}
+                  icon={<QuestionCircleIcon />}
+                />
+              </ToolbarItem>
+            </ToolbarGroup>
           </ToolbarGroup>
-        </ToolbarGroup>
-        <ToolbarItem visibility={{ default: 'hidden', md: 'visible' }}>
-          <Dropdown
-            isOpen={isDropdownOpen}
-            onSelect={onDropdownSelect}
-            onOpenChange={(isOpen: boolean) => setIsDropdownOpen(isOpen)}
-            popperProps={{ position: 'right' }}
-            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-              <MenuToggle
-                ref={toggleRef}
-                onClick={onDropdownToggle}
-                isFullHeight
-                isExpanded={isDropdownOpen}
-                icon={<Avatar src={imgAvatar} alt='' />}
-              >
-                {auth.isLogged() ? auth.userEmail : 'Guest'}
-              </MenuToggle>
-            )}
-          >
-            <DropdownList>{getUserDropdownItems()}</DropdownList>
-          </Dropdown>
-        </ToolbarItem>
-      </ToolbarContent>
-    </Toolbar>
+          <ToolbarItem visibility={{ default: 'hidden', md: 'visible' }}>
+            <Dropdown
+              isOpen={isDropdownOpen}
+              onSelect={onDropdownSelect}
+              onOpenChange={(isOpen: boolean) => setIsDropdownOpen(isOpen)}
+              popperProps={{ position: 'right' }}
+              toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                <MenuToggle
+                  ref={toggleRef}
+                  onClick={onDropdownToggle}
+                  isFullHeight
+                  isExpanded={isDropdownOpen}
+                  icon={<Avatar src={imgAvatar} alt='' />}
+                >
+                  {auth.isLogged() ? auth.userEmail : 'Guest'}
+                </MenuToggle>
+              )}
+            >
+              <DropdownList>{getUserDropdownItems()}</DropdownList>
+            </Dropdown>
+          </ToolbarItem>
+        </ToolbarContent>
+      </Toolbar>
+
+      <UserProfileModal modalShowState={userProfileModalShowState} setModalShowState={setUserProfileModalShowState} />
+    </>
   )
 }
 

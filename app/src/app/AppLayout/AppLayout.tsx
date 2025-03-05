@@ -218,6 +218,16 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
             >
               Test Run Plugin Presets
             </NavItem>
+            <NavItem
+              preventDefault
+              id='nav-item-settings'
+              to='#nav-item-settings'
+              onClick={() => redirect('/settings')}
+              itemId='ungrouped-item-6'
+              isActive={location.pathname == '/settings'}
+            >
+              Settings
+            </NavItem>
           </>
         ) : (
           ''
@@ -230,7 +240,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
               id='nav-item-user-ssh-keys'
               to='#nav-item-user-ssh-keys'
               onClick={() => redirect('/ssh-keys')}
-              itemId='ungrouped-item-5'
+              itemId='ungrouped-item-7'
               isActive={location.pathname == '/ssh-keys'}
             >
               SSH Keys
@@ -240,7 +250,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
               id='nav-item-user-files'
               to='#nav-item-user-files'
               onClick={() => redirect('/user-files')}
-              itemId='ungrouped-item-6'
+              itemId='ungrouped-item-8'
               isActive={location.pathname == '/user-files'}
             >
               User Files

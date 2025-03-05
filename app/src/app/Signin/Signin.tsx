@@ -27,9 +27,11 @@ import { useAuth } from '../User/AuthProvider'
 const Signin: React.FunctionComponent = () => {
   const auth = useAuth()
   const [alertMessage, setAlertMessage] = React.useState('')
+  const [username, setUsername] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [passwordConfirm, setPasswordConfirm] = React.useState('')
+  const [validateUsernameValue, setValidateUsernameValue] = React.useState<Constants.validate>('default')
   const [validateEmailValue, setValidateEmailValue] = React.useState<Constants.validate>('default')
   const [validatePasswordValue, setValidatePassworValue] = React.useState<Constants.validate>('default')
   const [validatePasswordConfirmValue, setValidatePasswordConfirmValue] = React.useState<Constants.validate>('default')
@@ -39,8 +41,12 @@ const Signin: React.FunctionComponent = () => {
     setPassword(password)
   }
 
-  const handlePasswordConfirmChange = (_event, password: string) => {
-    setPasswordConfirm(password)
+  const handlePasswordConfirmChange = (_event, confirm_password: string) => {
+    setPasswordConfirm(confirm_password)
+  }
+
+  const handleUsernameChange = (_event, username: string) => {
+    setUsername(username)
   }
 
   const handleEmailChange = (_event, email: string) => {
@@ -58,17 +64,35 @@ const Signin: React.FunctionComponent = () => {
   }
 
   React.useEffect(() => {
-    if (email.trim() === '') {
+    if (username == '') {
+      setValidateUsernameValue('error')
+    } else if (username.includes(' ')) {
+      setValidateUsernameValue('error')
+    } else if (username.length < 4) {
+      setValidateUsernameValue('error')
+    } else {
+      setValidateUsernameValue('success')
+    }
+  }, [username])
+
+  React.useEffect(() => {
+    if (email == '') {
+      setValidateEmailValue('error')
+    } else if (email.includes(' ')) {
       setValidateEmailValue('error')
     } else if (!isEmail(email)) {
-      setValidateEmailValue('error2')
+      setValidateEmailValue('error')
     } else {
       setValidateEmailValue('success')
     }
   }, [email])
 
   React.useEffect(() => {
-    if (password.trim() === '') {
+    if (password == '') {
+      setValidatePassworValue('error')
+    } else if (password.includes(' ')) {
+      setValidatePassworValue('error')
+    } else if (password.length < 4) {
       setValidatePassworValue('error')
     } else {
       setValidatePassworValue('success')
@@ -78,7 +102,11 @@ const Signin: React.FunctionComponent = () => {
   }, [password])
 
   React.useEffect(() => {
-    if (passwordConfirm.trim() === '') {
+    if (passwordConfirm == '') {
+      setValidatePasswordConfirmValue('error')
+    } else if (passwordConfirm.includes(' ')) {
+      setValidatePasswordConfirmValue('error')
+    } else if (passwordConfirm.length < 4) {
       setValidatePasswordConfirmValue('error')
     } else {
       setValidatePasswordConfirmValue('success')
@@ -88,6 +116,7 @@ const Signin: React.FunctionComponent = () => {
   }, [passwordConfirm])
 
   const resetForm = () => {
+    setUsername('')
     setEmail('')
     setPassword('')
     setPasswordConfirm('')
@@ -100,24 +129,31 @@ const Signin: React.FunctionComponent = () => {
     }
 
     if (validateEmailValue != 'success') {
-      setAlertMessage('Email is mandatory.')
+      setAlertMessage('Email is not valid')
+      return
+    } else if (validateUsernameValue != 'success') {
+      setAlertMessage('Username is not valid, It must be at least 4 chars, space char is not allowed')
       return
     } else if (validatePasswordValue != 'success') {
-      setAlertMessage('Passord is mandatory.')
+      setAlertMessage('Passord is not valid')
       return
     } else if (validatePasswordConfirmValue != 'success') {
-      setAlertMessage('Password Confirm is mandatory.')
+      setAlertMessage('Confirm password is not valid')
       return
     } else if (validatePasswordValues != 'success') {
-      setAlertMessage('Password fields are not the same.')
+      setAlertMessage('Password fields are not the same')
       return
     } else {
       setAlertMessage('')
     }
 
-    const data = { email: email, password: password }
+    const data = {
+      email: email,
+      password: password,
+      username: username
+    }
 
-    fetch(Constants.API_BASE_URL + '/user/signin', {
+    fetch(Constants.API_BASE_URL + Constants.API_USER_SIGNIN_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -126,7 +162,7 @@ const Signin: React.FunctionComponent = () => {
         if (response.status !== 200) {
           setAlertMessage(response.statusText)
         } else {
-          setAlertMessage('User configured!')
+          setAlertMessage('User created!')
           window.location.href = '/login'
         }
       })
@@ -157,50 +193,53 @@ const Signin: React.FunctionComponent = () => {
                 <Flex>
                   <FlexItem align={{ default: 'alignLeft' }}>
                     <Form isHorizontal>
-                      <FormGroup label='Email' isRequired fieldId='signin-form-email-01'>
-                        <TextInput
-                          isRequired
-                          type='email'
-                          id='signin-form-email-01'
-                          name='signin-form-email-01'
-                          value={email}
-                          onChange={handleEmailChange}
-                        />
+                      <FormGroup label='Email' isRequired fieldId='signin-form-email'>
+                        <TextInput isRequired type='email' id='signin-form-email' value={email} onChange={handleEmailChange} />
                         {validateEmailValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validateEmailValue === 'error' ? 'This field is mandatory' : ''}
+                                {validateEmailValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It must be an email address and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>
                         )}
                       </FormGroup>
-                      <FormGroup label='Password' isRequired fieldId='signin-form-password-02'>
-                        <TextInput
-                          isRequired
-                          type='password'
-                          id='signin-form-password-02'
-                          name='signin-form-password-02'
-                          value={password}
-                          onChange={handlePasswordChange}
-                        />
+                      <FormGroup label='Username' isRequired fieldId='signin-form-username'>
+                        <TextInput isRequired type='text' id='signin-form-username' value={username} onChange={handleUsernameChange} />
+                        {validateUsernameValue !== 'success' && (
+                          <FormHelperText>
+                            <HelperText>
+                              <HelperTextItem variant='warning'>
+                                {validateUsernameValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It must be at least 4 chars and space char is not allowed.'
+                                  : ''}
+                              </HelperTextItem>
+                            </HelperText>
+                          </FormHelperText>
+                        )}
+                      </FormGroup>
+                      <FormGroup label='Password' isRequired fieldId='signin-form-password'>
+                        <TextInput isRequired type='password' id='signin-form-password' value={password} onChange={handlePasswordChange} />
                         {validatePasswordValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validatePasswordValue === 'error' ? 'This field is mandatory' : ''}
+                                {validatePasswordValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It should be at least 4 chars and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>
                         )}
                       </FormGroup>
-                      <FormGroup label='Password Confirm' isRequired fieldId='signin-form-password-confirm-03'>
+                      <FormGroup label='Password Confirm' isRequired fieldId='signin-form-password-confirm'>
                         <TextInput
                           isRequired
                           type='password'
                           id='signin-form-password-confirm-03'
-                          name='signin-form-password-confirm-03'
                           value={passwordConfirm}
                           onChange={handlePasswordConfirmChange}
                         />
@@ -208,7 +247,9 @@ const Signin: React.FunctionComponent = () => {
                           <FormHelperText>
                             <HelperText>
                               <HelperTextItem variant='warning'>
-                                {validatePasswordConfirmValue === 'error' ? 'This field is mandatory' : ''}
+                                {validatePasswordConfirmValue === 'error'
+                                  ? 'This field is mandatory, the current value is not valid. It should be at least 4 chars and space char is not allowed.'
+                                  : ''}
                               </HelperTextItem>
                             </HelperText>
                           </FormHelperText>

@@ -119,6 +119,6 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
-          spec: cypress/e2e/login.cy.js
+          spec: 'app/cypress/**/*.cy.js'
         env:
           LIBGL_ALWAYS_SOFTWARE: 1

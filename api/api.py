@@ -174,8 +174,30 @@ def get_api_from_request(_request, _db_session):
         return None
 
 
-def get_parent_api_id(_mapping, _dbisession):
-    # Return api id or None
+def get_api_from_indirect_sw_requirement_mapping(_mapping, _dbisession):
+    """Return the ApiModel instance from an inderect mapping to
+    SwRequirement
+    Possible nested mappings are:
+    - SwRequirementSwRequirementModel
+    - SwRequirementTestCaseModel
+    - SwRequirementTestSpecificationModel
+    """
+    sr_mapping_api_id = get_direct_sw_requirement_mapping_id(_mapping, _dbisession)
+    if not sr_mapping_api_id:
+        return None
+    try:
+        api_mapping = _dbisession.query(ApiSwRequirementModel).filter(
+                ApiSwRequirementModel.id == sr_mapping_api_id).one()
+        return api_mapping.api
+    except NoResultFound:
+        return None
+
+    return None
+
+
+def get_direct_sw_requirement_mapping_id(_mapping, _dbisession):
+    """Return the ApiSwRequirementModel.id
+    from an inderect mapping to SwRequirement"""
 
     # Work Items mapped to a Sw Requirement
     if (
@@ -183,7 +205,6 @@ def get_parent_api_id(_mapping, _dbisession):
         or isinstance(_mapping, SwRequirementTestCaseModel)
         or isinstance(_mapping, SwRequirementTestSpecificationModel)
     ):
-        api_mapping_model = ApiSwRequirementModel
         parent_model = SwRequirementSwRequirementModel
         parent_mapping_field_id = "sw_requirement_mapping_sw_requirement_id"
         parent_mapping_api_field_id = "sw_requirement_mapping_api_id"
@@ -194,21 +215,18 @@ def get_parent_api_id(_mapping, _dbisession):
     api_mapping_id = getattr(_mapping, parent_mapping_api_field_id)
     parent_mapping_id = getattr(_mapping, parent_mapping_field_id)
 
+    # Indirect mapping
     if not api_mapping_id:
         try:
             parent_mapping = _dbisession.query(parent_model).filter(parent_model.id == parent_mapping_id).one()
-            api_mapping_id = get_parent_api_id(parent_mapping, _dbisession)
+            api_mapping_id = get_direct_sw_requirement_mapping_id(parent_mapping, _dbisession)
         except NoResultFound:
             return None
 
+    # Direct mapping
     if api_mapping_id:
-        try:
-            parent_api_mapping = (
-                _dbisession.query(api_mapping_model).filter(api_mapping_model.id == api_mapping_id).one()
-            )
-            return parent_api_mapping.api.id
-        except NoResultFound:
-            return None
+        return api_mapping_id
+
     return None
 
 
@@ -259,7 +277,7 @@ def get_users_email_from_ids(_ids, _dbi_session):
     return ret
 
 
-def get_api_user_permissions(_api, _user_id, _user_role, _dbi_session):
+def get_api_user_permissions(_api, _user, _dbi_session):
     """Extract user permissions from api
 
     - guest (without user entry) has id = 0
@@ -268,23 +286,29 @@ def get_api_user_permissions(_api, _user_id, _user_role, _dbi_session):
     - for other roles, Write permission implies Read permission
     """
     permissions = ""
-    if _api.created_by_id == _user_id:
-        return "rwem"
 
-    if _user_id == 0 or _user_role == 'GUEST':
+    if isinstance(_user, UserModel):
+        if _api.created_by_id == _user.id:
+            return "rwem"
+
+        if _user.role == 'GUEST':
+            if _api.read_denials == '':
+                permissions = "r"
+            return permissions
+        else:
+            if f"[{_user.id}]" not in _api.read_denials:
+                permissions += "r"
+                if f"[{_user.id}]" in _api.write_permissions:
+                    permissions += "w"
+
+        if f"[{_user.id}]" in _api.manage_permissions:
+            permissions += "m"
+        if f"[{_user.id}]" in _api.edit_permissions:
+            permissions += "e"
+    else:
+        # Guest _user is None
         if _api.read_denials == '':
             permissions = "r"
-        return permissions
-    else:
-        if f"[{_user_id}]" not in _api.read_denials:
-            permissions += "r"
-            if f"[{_user_id}]" in _api.write_permissions:
-                permissions += "w"
-
-    if f"[{_user_id}]" in _api.manage_permissions:
-        permissions += "m"
-    if f"[{_user_id}]" in _api.edit_permissions:
-        permissions += "e"
     return permissions
 
 
@@ -1353,7 +1377,7 @@ class RemoteDocument(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -1484,21 +1508,16 @@ class Api(Resource):
         apis_dict = []
         args = get_query_string_args(request.args)
         dbi = db_orm.DbInterface(get_db())
-        user_id = 0
 
         # User permission
         user = get_active_user_from_request(args, dbi.session)
         if isinstance(user, UserModel):
-            user_id = user.id
-            user_role = user.role
             if not user.api_notifications:
                 user_api_notifications = []
             else:
                 user_api_notifications = user.api_notifications.replace(" ", "").split(",")
                 user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
         else:
-            user_id = 0
-            user_role = ''
             user_api_notifications = []
 
         query = dbi.session.query(ApiModel)
@@ -1526,7 +1545,7 @@ class Api(Resource):
             apis_dict[iApi]["covered"] = apis_dict[iApi]["last_coverage"]
 
             # Permissions
-            permissions = get_api_user_permissions(apis[iApi], user_id, user_role, dbi.session)
+            permissions = get_api_user_permissions(apis[iApi], user, dbi.session)
             apis_dict[iApi]["permissions"] = permissions
 
         # Filter api based on read permission
@@ -1721,7 +1740,7 @@ class Api(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
             return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
 
@@ -1766,27 +1785,24 @@ class Api(Resource):
     def delete(self):
         request_data = request.get_json(force=True)
 
-        delete_fields = self.fields_hashes.copy()
-        delete_fields.append("api-id")
-        if not check_fields_in_request(delete_fields, request_data):
+        mandatory_fields = ["api-id", "api", "library", "library-version", "user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
         # Find api
-        apis = (
-            dbi.session.query(ApiModel)
-            .filter(ApiModel.id == request_data["api-id"])
-            .filter(ApiModel.api == request_data["api"])
-            .filter(ApiModel.library == request_data["library"])
-            .filter(ApiModel.library_version == request_data["library-version"])
-            .one()
-        )
-
-        if len(apis) != 1:
-            return "Api not found", 400
-
-        api = apis[0]
+        try:
+            api = (
+                dbi.session.query(ApiModel)
+                .filter(ApiModel.id == request_data["api-id"])
+                .filter(ApiModel.api == request_data["api"])
+                .filter(ApiModel.library == request_data["library"])
+                .filter(ApiModel.library_version == request_data["library-version"])
+                .one()
+            )
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # User permission
         user = get_active_user_from_request(request_data, dbi.session)
@@ -1794,7 +1810,7 @@ class Api(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
             return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
 
@@ -1812,20 +1828,22 @@ class Api(Resource):
 
         test_cases_mapping_api = dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == api.id).all()
 
-        for j in justifications_mapping_api:
-            dbi.session.delete(j)
+        docs_mapping_api = dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).all()
 
-        for s in sw_requirements_mapping_api:
-            dbi.session.delete(s)
+        for j_mapping in justifications_mapping_api:
+            dbi.session.delete(j_mapping)
 
-        for ts in test_specifications_mapping_api:
-            dbi.session.delete(ts)
+        for sr_mapping in sw_requirements_mapping_api:
+            dbi.session.delete(sr_mapping)
 
-        for tc in test_cases_mapping_api:
-            dbi.session.delete(tc)
+        for ts_mapping in test_specifications_mapping_api:
+            dbi.session.delete(ts_mapping)
 
-        dbi.session.delete(api)
-        dbi.session.commit()
+        for tc_mapping in test_cases_mapping_api:
+            dbi.session.delete(tc_mapping)
+
+        for doc_mapping in docs_mapping_api:
+            dbi.session.delete(doc_mapping)
 
         # Add Notifications
         notification = f"{user.email} deleted sw component " f"{api.api} as part of the library {api.library}"
@@ -1838,6 +1856,7 @@ class Api(Resource):
             f"/?currentLibrary={api.library}",
         )
         dbi.session.add(notifications)
+        dbi.session.delete(api)
         dbi.session.commit()
         return True
 
@@ -1868,7 +1887,7 @@ class ApiLastCoverage(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
 
@@ -1976,19 +1995,17 @@ class ApiSpecification(Resource):
 
         # User
         user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
-        spec = get_api_specification(api.raw_specification_url)
-
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        spec = get_api_specification(api.raw_specification_url)
 
         ret = api.as_dict()
         ret["raw_specification"] = spec
@@ -2008,18 +2025,14 @@ class ApiTestSpecificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user = get_active_user_from_request(args, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2101,7 +2114,7 @@ class ApiTestSpecificationsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2205,7 +2218,7 @@ class ApiTestSpecificationsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2285,7 +2298,7 @@ class ApiTestSpecificationsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2343,18 +2356,14 @@ class ApiTestCasesMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user = get_active_user_from_request(args, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2423,7 +2432,7 @@ class ApiTestCasesMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2517,7 +2526,7 @@ class ApiTestCasesMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role,  dbi.session)
+        permissions = get_api_user_permissions(api, user,  dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2593,7 +2602,7 @@ class ApiTestCasesMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2896,18 +2905,14 @@ class ApiSpecificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user = get_active_user_from_request(args, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2937,18 +2942,14 @@ class ApiJustificationsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user = get_active_user_from_request(args, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -2999,7 +3000,7 @@ class ApiJustificationsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3089,7 +3090,7 @@ class ApiJustificationsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3171,7 +3172,7 @@ class ApiJustificationsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3236,18 +3237,14 @@ class ApiDocumentsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user = get_active_user_from_request(args, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3298,7 +3295,7 @@ class ApiDocumentsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3403,7 +3400,7 @@ class ApiDocumentsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3486,7 +3483,7 @@ class ApiDocumentsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3549,18 +3546,14 @@ class ApiSwRequirementsMapping(Resource):
 
         dbi = db_orm.DbInterface(get_db())
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
         # Find api
         api = get_api_from_request(args, dbi.session)
         if not api:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user = get_active_user_from_request(args, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3586,7 +3579,7 @@ class ApiSwRequirementsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3684,7 +3677,7 @@ class ApiSwRequirementsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3762,7 +3755,7 @@ class ApiSwRequirementsMapping(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -3963,6 +3956,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
+        relation_to = request_data["relation-to"]
         dbi = db_orm.DbInterface(get_db())
 
         # User
@@ -3971,7 +3965,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # Find SwRequirementSwRequirement
-        if request_data["relation-to"] == "api":
+        if relation_to == "api":
             relation_to_query = dbi.session.query(ApiSwRequirementModel).filter(
                 ApiSwRequirementModel.id == relation_id
             )
@@ -3980,8 +3974,8 @@ class SwRequirementSwRequirementsMapping(Resource):
             except NoResultFound:
                 return "Parent mapping not found", NOT_FOUND_STATUS
 
-            api_id = relation_to_item.api.id
-        elif request_data["relation-to"] == "sw-requirement":
+            api = relation_to_item.api
+        elif relation_to == "sw-requirement":
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
                 SwRequirementSwRequirementModel.id == relation_id
             )
@@ -3990,27 +3984,24 @@ class SwRequirementSwRequirementsMapping(Resource):
             except NoResultFound:
                 return "Parent mapping not found", NOT_FOUND_STATUS
 
-            api_id = get_parent_api_id(relation_to_item, dbi.session)
-            if not api_id:
+            api = get_api_from_indirect_sw_requirement_mapping(relation_to_item, dbi.session)
+            if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         else:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        if request_data["relation-to"] == "api":
+        if relation_to == "api":
             api_sr = relation_to_item
-        elif request_data["relation-to"] == "sw-requirement":
+        elif relation_to == "sw-requirement":
             sr_sr = relation_to_item
+        else:
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
         parent_sw_requirement_id = request_data["parent-sw-requirement"]["id"]
         coverage = request_data["coverage"]
@@ -4058,7 +4049,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             # Check for existing mapping
             existing_srs_mapping = dbi.session.query(SwRequirementSwRequirementModel).filter(
                 SwRequirementSwRequirementModel.id == relation_id).filter(
-                    SwRequirementTestSpecificationModel.sw_requirement_id == sw_requirement_id).all()
+                    SwRequirementSwRequirementModel.sw_requirement_id == sw_requirement_id).all()
             if existing_srs_mapping:
                 return f"Sw Requirement `{sw_requirement_id}` already " \
                         "associated to the selected Software Requirement", CONFLICT_STATUS
@@ -4119,17 +4110,12 @@ class SwRequirementSwRequirementsMapping(Resource):
         except NoResultFound:
             return "Sw Requirement mapping not found", 400
 
-        api_id = get_parent_api_id(sr_mapping_sr, dbi.session)
-        if not api_id:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
+        api = get_api_from_indirect_sw_requirement_mapping(sr_mapping_sr, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4195,17 +4181,12 @@ class SwRequirementSwRequirementsMapping(Resource):
         except NoResultFound:
             return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
 
-        api_id = get_parent_api_id(sr_mapping_sr, dbi.session)
-        if not api_id:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
+        api = get_api_from_indirect_sw_requirement_mapping(sr_mapping_sr, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4287,7 +4268,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
             except NoResultFound:
                 return "Parent mapping not found", NOT_FOUND_STATUS
 
-            api_id = relation_to_item.api.id
+            api = relation_to_item.api
         elif relation_to == "sw-requirement":
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
                 SwRequirementSwRequirementModel.id == relation_id
@@ -4297,19 +4278,14 @@ class SwRequirementTestSpecificationsMapping(Resource):
             except NoResultFound:
                 return "Parent mapping not found", NOT_FOUND_STATUS
 
-            api_id = get_parent_api_id(relation_to_item, dbi.session)
-            if not api_id:
+            api = get_api_from_indirect_sw_requirement_mapping(relation_to_item, dbi.session)
+            if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4427,17 +4403,12 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 400,
             )
 
-        api_id = get_parent_api_id(sw_mapping_ts, dbi.session)
-        if not api_id:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
+        api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_ts, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4509,17 +4480,12 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 400,
             )
 
-        api_id = get_parent_api_id(sw_mapping_ts, dbi.session)
-        if not api_id:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
+        api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_ts, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4590,7 +4556,7 @@ class SwRequirementTestCasesMapping(Resource):
             except NoResultFound:
                 return "Parent mapping not found", NOT_FOUND_STATUS
 
-            api_id = relation_to_item.api.id
+            api = relation_to_item.api
 
         elif relation_to == "sw-requirement":
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
@@ -4601,19 +4567,14 @@ class SwRequirementTestCasesMapping(Resource):
             except NoResultFound:
                 return "Parent mapping not found", NOT_FOUND_STATUS
 
-            api_id = get_parent_api_id(relation_to_item, dbi.session)
-            if not api_id:
+            api = get_api_from_indirect_sw_requirement_mapping(relation_to_item, dbi.session)
+            if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4729,17 +4690,12 @@ class SwRequirementTestCasesMapping(Resource):
         except NoResultFound:
             return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
 
-        api_id = get_parent_api_id(sw_mapping_tc, dbi.session)
-        if not api_id:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
+        api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_tc, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4807,17 +4763,12 @@ class SwRequirementTestCasesMapping(Resource):
         except NoResultFound:
             return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
 
-        api_id = get_parent_api_id(sw_mapping_tc, dbi.session)
-        if not api_id:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
+        api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_tc, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -4894,23 +4845,17 @@ class TestSpecificationTestCasesMapping(Resource):
         if request_data["relation-to"] == "api":
             api_ts = relation_to_item
             api = api_ts.api
-            api_id = api.id
             mapping_id_field = "test_specification_mapping_api_id"
         elif request_data["relation-to"] == "sw-requirement":
             sr_ts = relation_to_item
-            api_id = get_parent_api_id(sr_ts, dbi.session)
+            api = get_api_from_indirect_sw_requirement_mapping(sr_ts, dbi.session)
             mapping_id_field = "test_specification_mapping_sw_requirement_id"
 
-            if not api_id:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-            try:
-                api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-            except NoResultFound:
+            if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -5046,19 +4991,14 @@ class TestSpecificationTestCasesMapping(Resource):
                 )
             except NoResultFound:
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-            api_id = get_parent_api_id(sr_ts, dbi.session)
-            if not api_id:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-            try:
-                api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-            except NoResultFound:
+            api = get_api_from_indirect_sw_requirement_mapping(sr_ts, dbi.session)
+            if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -5148,19 +5088,16 @@ class TestSpecificationTestCasesMapping(Resource):
                 )
             except NoResultFound:
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-            api_id = get_parent_api_id(sr_ts, dbi.session)
-            if not api_id:
+
+            api = get_api_from_indirect_sw_requirement_mapping(sr_ts, dbi.session)
+            if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
-            try:
-                api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-            except NoResultFound:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -5215,7 +5152,7 @@ class ForkApiSwRequirement(Resource):
             return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
 
         # Permissions
-        permissions = get_api_user_permissions(asr_mapping.api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(asr_mapping.api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -5254,16 +5191,11 @@ class ForkSwRequirementSwRequirement(Resource):
             return f"Unable to find the Sw Requirement mapping to Sw Requirement id {request_data['relation-id']}", 400
 
         # Permissions
-        api_id = get_parent_api_id(sr_sr_mapping, dbi.session)
-        if not api_id:
+        api = get_api_from_indirect_sw_requirement_mapping(sr_sr_mapping, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        except NoResultFound:
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -5427,7 +5359,7 @@ class UserApis(Resource):
             return "Software component not found", NOT_FOUND_STATUS
 
         # check requester user api permission
-        user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
             return f"Operation not allowed for user {user.email}", 405
 
@@ -5506,7 +5438,7 @@ class UserPermissionsApiCopy(Resource):
             return "Software component not found.", NOT_FOUND_STATUS
 
         # check requester user api permission
-        user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
             return f"Operation not allowed for user {user.email}", UNAUTHORIZED_STATUS
 
@@ -5517,7 +5449,7 @@ class UserPermissionsApiCopy(Resource):
                 return "Software component not found.", 402
 
             # check requester user api permission
-            user_permissions = get_api_user_permissions(copy_to_api, user.id, user.role, dbi.session)
+            user_permissions = get_api_user_permissions(copy_to_api, user, dbi.session)
             if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
                 return f"Operation not allowed for user {user.email}", 405
 
@@ -5556,7 +5488,7 @@ class UserPermissionsApi(Resource):
             return "Software component not found.", NOT_FOUND_STATUS
 
         # check requester user api permission
-        user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
             return f"Operation not allowed for user {user.email}", 405
 
@@ -5571,13 +5503,12 @@ class UserPermissionsApi(Resource):
             query = query.filter(UserModel.email.like(f"%{request_data['search']}%"))
 
         users = query.all()
-        users_dict = [user.as_dict() for user in users]
-        for i in range(len(users_dict)):
-            users_dict[i]["permissions"] = get_api_user_permissions(api,
-                                                                    users_dict[i]['id'],
-                                                                    users_dict[i]['role'],
-                                                                    dbi.session)
-            del users_dict[i]["api_notifications"]
+        users_dict = []
+        for i in range(len(users)):
+            tmp = users[i].as_dict()
+            tmp["permissions"] = get_api_user_permissions(api, users[i], dbi.session)
+            del tmp["api_notifications"]
+            users_dict.append(tmp)
         return users_dict
 
     def put(self):
@@ -5602,7 +5533,7 @@ class UserPermissionsApi(Resource):
             return "Software component not found.", 402
 
         # check requester user api permission
-        user_permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
             return f"Operation not allowed for user {user.email}", 405
 
@@ -6051,7 +5982,7 @@ class Testing(Resource):
             .one()
         )
 
-        return get_parent_api_id(mapping, dbi.session)
+        return get_api_from_indirect_sw_requirement_mapping(mapping, dbi.session)
 
 
 class UserSshKey(Resource):
@@ -6432,12 +6363,6 @@ class TestRun(Resource):
 
         # User
         user = get_active_user_from_request(args, dbi.session)
-        if isinstance(user, UserModel):
-            user_id = user.id
-            user_role = user.role
-        else:
-            user_id = 0
-            user_role = ''
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -6445,7 +6370,7 @@ class TestRun(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user_id, user_role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -6597,7 +6522,7 @@ class TestRun(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -6687,7 +6612,7 @@ class TestRun(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -6758,12 +6683,6 @@ class TestRunLog(Resource):
 
         # User
         user = get_active_user_from_request(args, dbi.session)
-        if isinstance(user, UserModel):
-            user_id = user.id
-            user_role = user.role
-        else:
-            user_id = 0
-            user_role = ''
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -6771,7 +6690,7 @@ class TestRunLog(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user_id, user_role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -6832,7 +6751,7 @@ class TestRunArtifacts(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -6879,7 +6798,7 @@ class TestRunPluginPresets(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
@@ -6930,7 +6849,7 @@ class ExternalTestRuns(Resource):
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         # Permissions
-        permissions = get_api_user_permissions(api, user.id, user.role, dbi.session)
+        permissions = get_api_user_permissions(api, user, dbi.session)
         if "r" not in permissions:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 

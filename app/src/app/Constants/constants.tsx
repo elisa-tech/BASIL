@@ -193,6 +193,8 @@ export const status_options = [
   { value: 'APPROVED', label: 'Approved', disabled: false }
 ]
 
+export const SESSION_EXPIRED_MESSAGE = 'Session expired, please login in again.'
+
 export const getFilenameFromFilepath = (filepath: string) => {
   return filepath.split(PATH_SEP).pop()
 }

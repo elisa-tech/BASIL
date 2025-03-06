@@ -1,6 +1,7 @@
 import React from 'react'
 import { Button, Hint, HintBody, Modal, ModalVariant } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface APIDeleteModalProps {
   api
@@ -17,6 +18,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   modalTitle = '',
   modalDescription = ''
 }: APIDeleteModalProps) => {
+  const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [messageValue, setMessageValue] = React.useState('')
 
@@ -34,6 +36,11 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
   }, [modalShowState])
 
   const deleteApi = () => {
+    if (!auth.isLogged()) {
+      setMessageValue(Constants.SESSION_EXPIRED_MESSAGE)
+      return
+    }
+
     const data = {
       'api-id': api.id,
       api: api.api,
@@ -44,18 +51,31 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
       'implementation-file': api.implementation_file,
       'implementation-file-from-row': api.implementation_file_from_row,
       'implementation-file-to-row': api.implementation_file_to_row,
-      tags: api.tags
+      tags: api.tags,
+      'user-id': auth.userId,
+      token: auth.token
     }
+
+    let status
+    let status_text
     fetch(Constants.API_BASE_URL + '/apis', {
       method: 'DELETE',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setMessageValue(response.statusText)
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
+          return response.text()
         } else {
-          location.reload()
+          window.location.replace('/?currentLibrary=' + api.library)
+          return response.json()
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {

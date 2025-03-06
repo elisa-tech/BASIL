@@ -38,7 +38,10 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     const data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
-      headers: Constants.JSON_HEADER,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(data)
     })
       .then((response) => {

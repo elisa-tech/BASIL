@@ -57,7 +57,7 @@ describe('Test Case import test', () => {
         cy.get('#btn-test-case-import-scan-remote-repository-submit').click()
 
         // Need time to clone the repo and generate the json
-        cy.wait(30000)
+        cy.wait(120000)
 
         cy.get('#btn-test-case-import-select-from-user-files').click()
         cy.get('#select-test-case-import-from-user-files').find('option').should('have.length.greaterThan', 0)

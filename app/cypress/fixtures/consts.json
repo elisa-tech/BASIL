@@ -10,6 +10,48 @@
     "table_listing_id": "#table-api-listing",
     "input_search_id": "#input-api-list-search"
   },
+  "import": {
+    "test_cases": {
+      "repository": "https://github.com/elisa-tech/BASIL.git",
+      "branch": "main",
+      "test_case": {
+        "name": "/examples/tmt/local/tmt-dummy-test",
+        "title": "Dummy passing test"
+      }
+    },
+    "sw_requirements": {
+      "csv": {
+        "file": "../examples/import/reqs/reqs.csv",
+        "sw_requirement": {
+          "title": "Requirement One"
+        }
+      },
+      "json": {
+        "file": "../examples/import/reqs/reqs.json",
+        "sw_requirement": {
+          "title": "Requirement Two"
+        }
+      },
+      "strictdoc": {
+        "file": "../examples/import/reqs/strictdoc-output.spdx.jsonld",
+        "sw_requirement": {
+          "title": "Requirements management"
+        }
+      },
+      "yaml": {
+        "file": "../examples/import/reqs/reqs.yaml",
+        "sw_requirement": {
+          "title": "Requirement Four"
+        }
+      },
+      "xlsx": {
+        "file": "../examples/import/reqs/reqs.xlsx",
+        "sw_requirement": {
+          "title": "req5"
+        }
+      }
+    }
+  },
   "mapping": {
     "select_view_id": "#select-mapping-view",
     "table_matching_id": "#table-matching-sections",

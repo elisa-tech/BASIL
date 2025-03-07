@@ -21,7 +21,6 @@
 - Fix api/api.py parent api calculation for mapping nested under sw requirements
 - Fix user permission check in api/api.py to better support GUEST role access
 
-
 ## 1.5.x
 
 - Test Run Plugins

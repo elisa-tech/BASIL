@@ -240,6 +240,7 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
       <Flex>
         <FlexItem>
           <SearchInput
+            id={`input-search-test-cases-existing`}
             placeholder='Search Identifier'
             value={searchValue}
             onChange={(_event, value) => onChangeSearchValue(value)}

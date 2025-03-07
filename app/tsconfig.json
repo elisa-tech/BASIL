@@ -25,10 +25,5 @@
     "skipLibCheck": true
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.jsx", "**/*.js"],
-  "exclude": [
-    "./cypress.config.ts",
-    "node_modules",
-    "cypress",
-    "**/*.cy.tsx"
-  ]
+  "exclude": ["./cypress.config.ts", "node_modules", "cypress", "**/*.cy.tsx"]
 }

@@ -40,6 +40,9 @@ export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
 export const API_USER_RESET_PASSWORD_ENDPOINT = '/user/reset-password'
 export const API_USER_SIGNIN_ENDPOINT = '/user/signin'
 export const API_ADMIN_RESET_USER_PASSWORD_ENDPOINT = '/admin/reset-user-password'
+export const API_SW_REQUIREMENT_IMPORT_ENDPOINT = '/import/sw-requirements'
+export const API_TEST_CASE_IMPORT_GENERATE_JSON_ENDPOINT = '/import/test-cases-generate-json'
+export const API_TEST_CASE_IMPORT_ENDPOINT = '/import/test-cases'
 
 export const JSON_HEADER = {
   Accept: 'application/json',

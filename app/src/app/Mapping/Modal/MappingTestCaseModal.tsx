@@ -4,6 +4,7 @@ import { Button, Modal, ModalVariant, Tab, TabContent, TabContentBody, TabTitleT
 import { SectionForm } from '../Form/SectionForm'
 import { TestCaseForm } from '../Form/TestCaseForm'
 import { TestCaseSearch } from '../Search/TestCaseSearch'
+import { TestCaseImport } from '../Import/TestCaseImport'
 
 export interface MappingTestCaseModalProps {
   api
@@ -88,6 +89,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
   const newItemRef = React.createRef<HTMLElement>()
   const sectionItemsRef = React.createRef<HTMLElement>()
   const existingItemsRef = React.createRef<HTMLElement>()
+  const importItemsRef = React.createRef<HTMLElement>()
 
   return (
     <React.Fragment>
@@ -125,6 +127,14 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
             title={<TabTitleText>Existing</TabTitleText>}
             tabContentId='tabExistingTestCase'
             tabContentRef={existingItemsRef}
+          />
+          <Tab
+            id='tab-btn-test-case-import'
+            eventKey={3}
+            isDisabled={false}
+            title={<TabTitleText>Import</TabTitleText>}
+            tabContentId='tabContentTestCaseImport'
+            tabContentRef={importItemsRef}
           />
         </Tabs>
         <div>
@@ -183,6 +193,11 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
                 formDefaultButtons={1}
                 formData={testCaseSearchFormDataDefault}
               />
+            </TabContentBody>
+          </TabContent>
+          <TabContent eventKey={3} id='tabContentTestCaseImport' ref={importItemsRef} hidden={3 !== activeTabKey}>
+            <TabContentBody hasPadding>
+              <TestCaseImport loadTestCases={loadTestCases} />
             </TabContentBody>
           </TabContent>
         </div>

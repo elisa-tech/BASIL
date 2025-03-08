@@ -20,7 +20,7 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
   loadSwRequirements
 }: SwRequirementImportProps) => {
   const auth = useAuth()
-  const importUrl = Constants.API_BASE_URL + '/import/sw-requirements'
+  const importUrl = Constants.API_BASE_URL + Constants.API_SW_REQUIREMENT_IMPORT_ENDPOINT
   const [messageValue, setMessageValue] = React.useState('')
   const [statusValue, setStatusValue] = React.useState('waiting')
 
@@ -143,10 +143,16 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
   }, [fileContent])
 
   const getWorkItemsList = () => {
+    if (!auth.isLogged()) {
+      setMessageValue(Constants.SESSION_EXPIRED_MESSAGE)
+      return
+    }
+
     const data = {
       file_name: fileName,
       file_content: fileContent
     }
+
     fetch(importUrl, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
@@ -197,6 +203,11 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
       return
     }
 
+    if (!auth.isLogged()) {
+      setMessageValue(Constants.SESSION_EXPIRED_MESSAGE)
+      return
+    }
+
     const items: SwRequirement[] = []
     for (let i = 0; i < workItems.length; i++) {
       if (selectedIndexes.includes(workItems[i].index)) {
@@ -238,7 +249,7 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
   return (
     <React.Fragment>
       <FileUpload
-        id='sw-requirement-spdx-file-upload'
+        id='sw-requirement-file-upload'
         hideDefaultPreview={true}
         value={fileContent}
         filename={fileName}
@@ -251,7 +262,7 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
       <br />
       <div style={{ minHeight: '400px', overflowY: 'scroll' }}>
         {fileContent && (
-          <Table aria-label='Selectable table'>
+          <Table id={`table-sw-requirement-import`} variant='compact' aria-label='Sw Requirements import table'>
             <Thead>
               <Tr>
                 <Th
@@ -285,7 +296,9 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
           </Table>
         )}
       </div>
+
       <br />
+
       {messageValue ? (
         <>
           <Hint>
@@ -300,12 +313,12 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
       <ActionGroup>
         <Flex>
           <FlexItem>
-            <Button id='btn-mapping-existing-sw-requirement-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
+            <Button id='btn-sw-requirement-import-submit' variant='primary' onClick={() => setStatusValue('submitted')}>
               Submit
             </Button>
           </FlexItem>
           <FlexItem>
-            <Button id='btn-mapping-existing-sw-requirement-cancel' variant='secondary' onClick={resetForm}>
+            <Button id='btn-sw-requirement-import-reset' variant='secondary' onClick={() => resetForm()}>
               Reset
             </Button>
           </FlexItem>

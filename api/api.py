@@ -8,6 +8,7 @@ import re
 import shutil
 import secrets
 import sys
+import subprocess
 import time
 import urllib
 from urllib.error import HTTPError, URLError
@@ -3823,6 +3824,7 @@ class SwRequirementImport(Resource):
         return {_SRs: sw_requirements}
 
     def put(self):
+        """Create work items in BASIL"""
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["file_content", "items"], request_data):
@@ -3851,6 +3853,169 @@ class SwRequirementImport(Resource):
             return {_SRs: [sr.as_dict() for sr in sw_requirements]}
 
         return {_SRs: []}
+
+
+class TestCaseGenerateJson(Resource):
+    def post(self):
+        """Scan a remote git repository to export test cases with tmt in
+        a json file to be stored in user folder"""
+
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = ["repository", "branch", "user-id", "token"]
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(request_data, dbi.session)
+        if user_id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        dbi.session.close()
+        dbi.engine.dispose()
+
+        user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
+        if not os.path.exists(user_files_path):
+            os.makedirs(user_files_path, exist_ok=True)
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        cmd = [
+            "bash",
+            "tmt_export_json.sh",
+            f"{request_data['repository']}",
+            f"{request_data['branch']}",
+            f"{user_files_path}",
+            "&"
+        ]
+
+        subprocess.Popen(" ".join(cmd),
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         shell=True)
+
+        return {"message": "tmt test import requested. It can take some time, depending on the test repository."
+                " check in the user file secontion.", "result": "success"}
+
+
+class TestCaseImport(Resource):
+    def post(self):
+        """Read a file from user files and
+        return a list of Test Cases from an input file to let the user able
+        to select the ones he want to import
+
+        :return: dictionary with list of test cases under a proper key
+        """
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = ["file_name", "user-id", "token"]
+
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user_id = get_user_id_from_request(request_data, dbi.session)
+        if user_id == 0:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        dbi.session.close()
+        dbi.engine.dispose()
+
+        user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
+        if not os.path.exists(user_files_path):
+            os.makedirs(user_files_path, exist_ok=True)
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        user_filepath = os.path.join(user_files_path, request_data["file_name"])
+        if not os.path.exists(user_filepath):
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        f = open(user_filepath, 'r')
+        fc = f.read()
+        f.close()
+
+        try:
+            data = json.loads(fc)
+        except Exception:
+            return "Unable to read the file, not a valid JSON file.", BAD_REQUEST_STATUS
+
+        json_mandatory_fields = ["repository", "test_cases"]
+        json_test_cases_mandatory_fields = ["description", "name", "summary"]
+
+        for mandatory_field in json_mandatory_fields:
+            if mandatory_field not in data.keys():
+                return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+
+        test_cases = []
+        for test_case in data["test_cases"]:
+            validated_test_case_content = True
+            for mandatory_field in json_test_cases_mandatory_fields:
+                if mandatory_field not in test_case.keys():
+                    validated_test_case_content = False
+                    break
+            if validated_test_case_content:
+                id = len(test_cases)
+                if "id" in test_case.keys():
+                    if test_case["id"]:
+                        id = test_case["id"]
+                test_cases.append({
+                    "id": id,
+                    "repository": data["repository"],
+                    "relative_path": test_case["name"],
+                    "title": test_case["summary"],
+                    "description": test_case["description"],
+                })
+
+        return {_TCs: test_cases}
+
+    def put(self):
+        """Create work items in BASIL"""
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(["items"], request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = db_orm.DbInterface(get_db())
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Pay attention: we actually doesn't check if the work item already exists
+        # (if already exists a test case with same content)
+        test_cases = []
+        tc_mandatory_keys = ["repository", "relative_path", "title", "description"]
+        for item in request_data["items"]:
+            item_keys = item.keys()
+            item_validated = True
+            for mandatory_key in tc_mandatory_keys:
+                if mandatory_key not in item_keys:
+                    item_validated = False
+                    break
+            if item_validated:
+                tmp = TestCaseModel(repository=item["repository"],
+                                    relative_path=item["relative_path"],
+                                    title=item["title"],
+                                    description=item["description"],
+                                    created_by=user)
+                test_cases.append(tmp)
+
+        if test_cases:
+            dbi.session.add_all(test_cases)
+            dbi.session.commit()
+            return {_TCs: [tc.as_dict() for tc in test_cases]}
+
+        return {_TCs: []}
 
 
 class Justification(Resource):
@@ -7303,6 +7468,8 @@ api.add_resource(AdminResetUserPassword, "/admin/reset-user-password")
 
 # - Import
 api.add_resource(SwRequirementImport, "/import/sw-requirements")
+api.add_resource(TestCaseGenerateJson, "/import/test-cases-generate-json")
+api.add_resource(TestCaseImport, "/import/test-cases")
 
 # - Indirect
 api.add_resource(SwRequirementSwRequirementsMapping, "/mapping/sw-requirement/sw-requirements")

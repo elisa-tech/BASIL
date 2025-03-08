@@ -240,6 +240,44 @@ export function registerCommands() {
     cy.check_work_item(_parent_index, _type, _obj)
   })
 
+  Cypress.Commands.add('import_sw_requirement', (api_data, import_file, sw_requirement) => {
+    let id
+
+    // Select the api from the list
+    cy.filter_api_from_dashboard(api_data)
+
+    cy.get(const_data.api.table_listing_id)
+      .find('tbody')
+      .find('tr')
+      .eq(0)
+      .find('td')
+      .eq(1)
+      .invoke('text')
+      .then((elem) => {
+        id = elem
+        cy.visit(const_data.app_base_url + '/mapping/' + id)
+        cy.wait(const_data.long_wait)
+        cy.get('#btn-mapping-new-sw-requirement').click()
+        cy.get('#pf-tab-3-tab-btn-sw-requirement-import').click()
+
+        cy.get('#sw-requirement-file-upload-filename').selectFile(import_file, { action: 'drag-drop' })
+
+        // Check the first requirment in the table
+        let row = cy.get('#table-sw-requirement-import').find('tbody').find('tr').find('td').contains(sw_requirement.title)
+        row.parent('tr').eq(0).find('td').eq(0).find('input').check().should('be.checked')
+
+        // Submit the import
+        cy.get('#btn-sw-requirement-import-submit').click()
+
+        // Move to the Existing Test Cases tab
+        cy.get('#pf-tab-2-tab-btn-sw-requirement-existing').click()
+
+        cy.get('#input-search-sw-requirement-existing').type('{selectAll}{del}').type(sw_requirement.title).type('{enter}')
+
+        cy.get('#list-existing-sw-requirements').find('li').should('have.length.greaterThan', 0)
+      })
+  })
+
   Cypress.Commands.add('assign_existing_work_item', (_parent_index, _index, _parent_type, _type, _obj_index) => {
     // Index 0 based
     let i = 0

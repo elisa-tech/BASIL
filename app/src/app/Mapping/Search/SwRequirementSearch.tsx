@@ -229,6 +229,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
       <Flex>
         <FlexItem>
           <SearchInput
+            id={`input-search-sw-requirement-existing`}
             placeholder='Search Identifier'
             value={searchValue}
             onChange={(_event, value) => onChangeSearchValue(value)}

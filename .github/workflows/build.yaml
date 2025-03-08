@@ -123,3 +123,10 @@ jobs:
           spec: 'cypress/**/*.cy.js'
         env:
           LIBGL_ALWAYS_SOFTWARE: 1
+      - name: Upload Cypress screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: app/cypress/screenshots
+          retention-days: 7

@@ -76,6 +76,7 @@ describe('Test Case import test', () => {
           })
 
         cy.get('#btn-test-case-import-select-from-user-files-submit').click()
+        cy.wait(const_data.mid_wait)
 
         // Check that the test has been loaded
         let row = cy

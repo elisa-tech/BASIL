@@ -59,10 +59,14 @@ describe('Test Case import test', () => {
         // Need time to clone the repo and generate the json
         cy.wait(120000)
 
+        // Refresh User files list
         cy.get('#btn-test-case-import-select-from-user-files').click()
-        cy.get('#select-test-case-import-from-user-files').find('option').should('have.length.greaterThan', 0)
+        cy.wait(const_data.fast_wait)
+        cy.get('#btn-test-case-import-refresh-user-files').click()
+        cy.wait(const_data.long_wait)
 
-        //Select first option that ends with .json
+        // Import from json - select first option that ends with .json
+        cy.get('#select-test-case-import-from-user-files').find('option').should('have.length.greaterThan', 0)
         cy.get('#select-test-case-import-from-user-files')
           .find('option')
           .filter((index, option) => option.value.endsWith('.json'))

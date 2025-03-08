@@ -408,7 +408,11 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
             <GridItem span={4}>
               <Flex>
                 <FlexItem>
-                  <Button variant='secondary' onClick={() => Constants.loadUserFiles(auth, setUserFiles)}>
+                  <Button
+                    id={`btn-test-case-import-refresh-user-files`}
+                    variant='secondary'
+                    onClick={() => Constants.loadUserFiles(auth, setUserFiles)}
+                  >
                     Refresh Files List
                   </Button>
                 </FlexItem>

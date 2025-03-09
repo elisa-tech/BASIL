@@ -89,6 +89,7 @@ BASIL The FuSa Spice documentation is available [here](https://basil-the-fusa-sp
 - [ELISA Workshop - NASA Goddard 2024](https://directory.elisa.tech/workshops/index.html#december-2024-maryland)
 - [FOSDEM - Brussels 2025](https://fosdem.org/2025/schedule/event/fosdem-2025-4798-basil-an-open-source-tool-that-supports-requirements-traceability-with-design-sbom/)
 - [Youtube - BASIL The Fusa Spice](https://www.youtube.com/@basil-the-fusa-spice/videos)
+- [Matrix chat room](https://matrix.to/#/!RoPWKbVtTKUKNouZCV:matrix.org?via=matrix.org)
 - [ELISA Blog](https://elisa.tech/blog/)
 - [tmt - github](https://github.com/teemtee/tmt)
 - [tmt - documentation](https://tmt.readthedocs.io/en/stable/)

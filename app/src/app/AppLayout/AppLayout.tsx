@@ -266,14 +266,14 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         <NavExpandable title='Useful Links' groupId='nav-useful-links' isActive={false}>
           <NavItem
             preventDefault
-            id='nav-useful-links-elisa'
-            to='#nav-useful-links-elisa'
-            onClick={() => navigate('https://elisa.tech/')}
+            id='nav-useful-links-contribute'
+            to='#nav-useful-links-contribute'
+            onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues')}
             groupId='nav-useful-links'
             itemId='nav-useful-links-item-1'
             isActive={false}
           >
-            ELISA
+            Contribute
           </NavItem>
           <NavItem
             preventDefault
@@ -288,25 +288,36 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
           </NavItem>
           <NavItem
             preventDefault
-            id='nav-useful-links-basil-github'
-            to='#nav-useful-links-basil-github'
-            onClick={() => navigate('https://github.com/elisa-tech/BASIL')}
+            id='nav-useful-links-elisa'
+            to='#nav-useful-links-elisa'
+            onClick={() => navigate('https://elisa.tech/')}
             groupId='nav-useful-links'
             itemId='nav-useful-links-item-3'
             isActive={false}
           >
-            BASIL github
+            ELISA
           </NavItem>
           <NavItem
             preventDefault
-            id='nav-useful-links-contribute'
-            to='#nav-useful-links-contribute'
-            onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues')}
+            id='nav-useful-links-basil-github'
+            to='#nav-useful-links-basil-github'
+            onClick={() => navigate('https://github.com/elisa-tech/BASIL')}
             groupId='nav-useful-links'
             itemId='nav-useful-links-item-4'
             isActive={false}
           >
-            Contribute
+            GitHub
+          </NavItem>
+          <NavItem
+            preventDefault
+            id='nav-useful-links-matrix'
+            to='#nav-useful-links-matrix'
+            onClick={() => navigate('https://matrix.to/#/!RoPWKbVtTKUKNouZCV:matrix.org?via=matrix.org')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-5'
+            isActive={false}
+          >
+            Matrix chat room
           </NavItem>
           <NavItem
             preventDefault
@@ -314,10 +325,21 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
             to='#nav-useful-links-report-a-bug'
             onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues/new')}
             groupId='nav-useful-links'
-            itemId='nav-useful-links-item-5'
+            itemId='nav-useful-links-item-6'
             isActive={false}
           >
             Report a bug
+          </NavItem>
+          <NavItem
+            preventDefault
+            id='nav-useful-links-youtube'
+            to='#nav-useful-links-youtube'
+            onClick={() => navigate('https://www.youtube.com/@basil-the-fusa-spice')}
+            groupId='nav-useful-links'
+            itemId='nav-useful-links-item-7'
+            isActive={false}
+          >
+            Youtube
           </NavItem>
         </NavExpandable>
       </NavList>

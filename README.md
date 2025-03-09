@@ -30,6 +30,7 @@ BASIL will help you on identifying gaps and on tracking progress.
 - Parallelize teams work (supporting multiple mapping views)
 - Export traceability matrix in SPDX Model 3
 - Import Software Requirements from multiple sources: SPDX Model3 json, yaml, json, csv, xlsx
+- Import Test Cases from remote test repositories (via tmt)
 
 ## Supported Work Items
 

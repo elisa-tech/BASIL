@@ -20,6 +20,7 @@
 - Re-enabled e2e Testing (moved under app/ folder)
 - Fix api/api.py parent api calculation for mapping nested under sw requirements
 - Fix user permission check in api/api.py to better support GUEST role access
+- Test Case import from remote repository (tmt)
 
 ## 1.5.x
 

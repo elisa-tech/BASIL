@@ -23,7 +23,7 @@ Architecture
 Podman Containers
 -----------------
 
-`run_demo.sh` is an example script that can be used to deploy a BASIL instance.
+`run_demo.sh` is a script that can be used to deploy a BASIL instance.
 It comes with a default configuration but relevant parameters can be changed using different arguments.
 To see all the possible parameters that can be changed, run the following command:
 
@@ -45,11 +45,16 @@ Here and example command to deploy BASIL for evaluation on localhost with defaul
 
 In this case API will run on port 5000, APP on port 9000 and admin default password is **1234**.
 
-BASIL can be also deployed building Containerfile-api-fedora (or Containerfile-api-debian) and Containerfile-app provided as part of the source code.
+It is also possible to injet environemnt variables selecting an .env file with the **-e** option.
+In the following example we are injecting all the environment variables defined in the **prod.env** file into the container running the api:
 
-For evaluation purposes it is also possible to use images built in the repository [CI](https://github.com/elisa-tech/BASIL/actions).
-Pay attention that those images are built with default value of build argument, as an example the ADMIN user password.
-So it is recommended to modify them, changing critical informations before deploiying a BASIL instance.
+.. code-block:: bash
+
+   sudo ./run_demo -b 5005 -f 9005 -d debian -p 'dummy_password' -u http://192.168.1.13 -e prod.env
+
+Those environment variables can be used by an admin user to populate test plugin preset configuration variables and general tool setting as the email server password.
+
+BASIL can be also deployed manually building Containerfile-api-fedora (or Containerfile-api-debian) and Containerfile-app provided as part of the source code.
 
 # Build the Containers
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -121,10 +126,12 @@ In order to keep persistent data across deployments you can specify following vo
    podman volume create basil-db-vol
    podman volume create basil-ssh-keys-vol
    podman volume create basil-tmt-logs-vol
+   podman volume create basil-user-files-vol
 
    podman volume mount basil-db-vol
    podman volume mount basil-ssh-keys-vol
    podman volume mount basil-tmt-logs-vol
+   podman volume mount basil-user-files-vol
 
 
 # Start the Containers
@@ -151,6 +158,7 @@ Here an example of usage of volumes:
     --network=host \
     -v "basil-db-vol:/BASIL-API/db/sqlite3" \
     -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
+    -v "basil-user-files-vol:/BASIL-API/api/user-files" \
     -v "basil-tmt-logs-vol:/var/tmp/tmt" \
     basil-api-image
 

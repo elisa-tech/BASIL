@@ -9,7 +9,7 @@ api_port=5000
 app_port=9000
 admin_pw=1234
 
-OPTSTRING=":b:d:f:p:u:h"
+OPTSTRING=":b:d:e:f:p:u:h"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -27,6 +27,7 @@ usage()
         -d API_DISTRO       Distro used to deploy the api 'fedora' or 'debian', default is 'fedora'
                             That will be also the default distro used in BASIL test infrastructure when
                             user select Container as target test environment
+        -e ENV_FILE         Filepath of an environment file you want to inject into the API Container
         -f APP_PORT         App (frontend) port                        
         -p ADMIN_PASSWRORD  Admin user default password (username: admin)
                             use single quote around your password
@@ -56,6 +57,9 @@ while getopts ${OPTSTRING} opt; do
             api_containerfile=Containerfile-api-debian
         fi
         ;;
+        e)
+	environment_file=${OPTARG}
+	;;
         f)
         app_port=${OPTARG}
         ;;
@@ -85,6 +89,7 @@ echo -e " - api distro = ${api_distro}"
 echo -e " - api port = ${api_port}"
 echo -e " - app port = ${app_port}"
 echo -e " - admin pw = ${admin_pw}"
+echo -e " - environment file = ${environment_file:=''}"
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
@@ -116,7 +121,7 @@ echo -e "###                 Create and mount volumes"
 echo -e "###################################################################"
 
 echo -e "\n${BODY_COLOR_STR}"
-list='basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol'
+list='basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol basil-user-files-vol'
 for element in $list;
 do
     podman volume exists "${element}"  # check if volume already exists
@@ -149,14 +154,21 @@ echo -e "###                 Start API container"
 echo -e "###################################################################"
 
 echo -e "\n${BODY_COLOR_STR}"
-podman run \
-    -d \
-    --privileged \
-    --network=host \
-    -v "basil-db-vol:/BASIL-API/db/sqlite3" \
-    -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
-    -v "basil-tmt-logs-vol:/var/tmp/tmt" \
-    basil-api-image
+
+podman_cmd="podman run"
+if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
+  echo -e "\nAdding environment file $environment_file"
+  podman_cmd="$podman_cmd --env-file $environment_file"
+fi
+
+podman_cmd="$podman_cmd --detach --privileged --network=host"
+podman_cmd="$podman_cmd -v basil-db-vol:/BASIL-API/db/sqlite3"
+podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
+podman_cmd="$podman_cmd -v basil-user-files-vol:/BASIL-API/api/user-files"
+podman_cmd="$podman_cmd -v basil-tmt-logs-vol:/var/tmp/tmt"
+podman_cmd="$podman_cmd basil-api-image"
+
+$podman_cmd
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"

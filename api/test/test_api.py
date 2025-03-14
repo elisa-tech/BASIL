@@ -13,6 +13,7 @@ from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
+from db.models.test_run import TestRunModel, TestRunConfigModel
 import db.models.init_db as init_db
 
 # Exclude internal class from pytest
@@ -22,6 +23,8 @@ TestSpecificationModel.__test__ = False
 TestSpecificationHistoryModel.__test__ = False
 TestSpecificationTestCaseModel.__test__ = False
 TestSpecificationTestCaseHistoryModel.__test__ = False
+TestRunModel.__test__ = False
+TestRunConfigModel.__test__ = False
 
 api.app.config['TESTING'] = True
 api.app.config['DEBUG'] = True

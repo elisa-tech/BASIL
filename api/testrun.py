@@ -29,12 +29,6 @@ class TestRunner:
     The default plugin is `tmt` implemented at testrun_tmt.py
     this file provides a class named TestRunnerTmtPlugin that inherit from
     TestRunnerBasePlugin and is aimed to implement the run() method.
-    The goal of the run() is to execute the test and provide information for the following
-    variables:
-    + log
-    + test_report
-    + test_result
-    + test_status
 
     TestRunner - Error numbers
      - 1: Unable to find the Test Run in the db
@@ -68,10 +62,6 @@ class TestRunner:
     config = {}
 
     id = None
-    execution_result = ''
-    execution_return_code = -1
-    test_result = ''
-    test_report = ''
     ssh_keys_dir = os.path.join(currentdir, 'ssh_keys')  # Same as SSH_KEYS_PATH defined in api.py
     presets_filepath = os.path.join(currentdir, 'testrun_plugin_presets.yaml')
 
@@ -196,18 +186,22 @@ class TestRunner:
 
     def notify(self):
         # Notification
-        if self.test_result == self.RESULT_PASS:
+        if not self.db_test_run:
+            return
+
+        if self.db_test_run.result == self.RESULT_PASS:
             variant = 'success'
         else:
             variant = 'danger'
 
         notification = f'Test Run for Test Case ' \
-                       f'{self.mapping.test_case.title} as part of the sw component ' \
-                       f'{self.db_test_run.api.api}, library {self.db_test_run.api.library} ' \
-                       f'completed with: {self.test_result.upper()}'
+                       f'`{self.mapping.test_case.title}` as part of the sw component ' \
+                       f'`{self.db_test_run.api.api}`, library `{self.db_test_run.api.library}` ' \
+                       f'completed with: {self.db_test_run.result.upper()}'
         notifications = NotificationModel(self.db_test_run.api,
                                           variant,
-                                          f'Test Run for {self.db_test_run.api.api} {self.test_result.upper()}',
+                                          f'Test Run for `{self.db_test_run.api.api}` '
+                                          f'{self.db_test_run.result.upper()}',
                                           notification,
                                           '',
                                           f'/mapping/{self.db_test_run.api.id}')

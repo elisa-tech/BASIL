@@ -45,3 +45,13 @@ verify_ssl = true
 [tool.pdm.dev-dependencies]
 lint = ["flake8"]
 test = ["pytest"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q"
+pythonpath = [
+  "api"
+]
+testpaths = [
+    "api/test"
+]

@@ -1,6 +1,8 @@
 import React from 'react'
-import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
+import * as Constants from '../../Constants/constants'
+import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement, preventedEvents } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
+import { constant } from 'cypress/types/lodash'
 
 export interface MappingSectionMenuKebabProps {
   setDocModalInfo
@@ -26,6 +28,21 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   sectionIndex
 }: MappingSectionMenuKebabProps) => {
   const [isOpen, setIsOpen] = React.useState(false)
+  const [snippetOffset, setSnippetOffset] = React.useState(-1)
+  const [snippetSection, setSnippetSection] = React.useState('')
+
+  React.useEffect(() => {
+    // on load calculate the offset and section based on user selection
+    // inside the current snippet
+    if (isOpen) {
+      if (snippetOffset == -1) {
+        setSnippetOffset(getOffset())
+        setSnippetSection(getSection())
+      }
+    } else {
+      setSnippetOffset(-1)
+    }
+  }, [isOpen])
 
   const onToggleClick = () => {
     setIsOpen(!isOpen)
@@ -54,8 +71,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
     if (currentSelection != '') {
       // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == 'snippet-' + sectionIndex) {
-        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-        return offset + Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset)
+        return offset + Constants.getSelectionOffset()
       } else {
         return offset
       }
@@ -82,7 +98,10 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           id={'btn-mapping-section-document-' + sectionIndex}
           name='btn-mapping-section-document'
           key='assign document'
-          onClick={() => setDocModalInfo(true, 'add', api, getSection(), getOffset(), [], -1)}
+          onClick={(event) => {
+            event.preventDefault
+            setDocModalInfo(true, 'add', api, snippetSection, snippetOffset, [], -1)
+          }}
         >
           Assign Document
         </DropdownItem>
@@ -91,7 +110,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           id={'btn-mapping-section-justification-' + sectionIndex}
           name='btn-mapping-section-justification'
           key='assign justification'
-          onClick={() => setJModalInfo(true, 'add', api, getSection(), getOffset(), [], -1)}
+          onClick={() => setJModalInfo(true, 'add', api, snippetSection, snippetOffset, [], -1)}
         >
           Assign Justification
         </DropdownItem>
@@ -100,7 +119,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           id={'btn-mapping-section-sw-requirement-' + sectionIndex}
           name='btn-mapping-section-sw-requirement'
           key='assign sw requirement'
-          onClick={() => setSrModalInfo(true, false, 'add', api, getSection(), getOffset(), 'api', [], -1, '')}
+          onClick={() => setSrModalInfo(true, false, 'add', api, snippetSection, snippetOffset, 'api', [], -1, '')}
         >
           Assign Sw Requirement
         </DropdownItem>
@@ -109,7 +128,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           id={'btn-mapping-section-test-case-' + sectionIndex}
           name='btn-mapping-section-test-case'
           key='assign test case'
-          onClick={() => setTcModalInfo(true, false, 'add', api, getSection(), getOffset(), 'api', [], -1, '')}
+          onClick={() => setTcModalInfo(true, false, 'add', api, snippetSection, snippetOffset, 'api', [], -1, '')}
         >
           Assign Test Case
         </DropdownItem>
@@ -118,7 +137,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           id={'btn-mapping-section-test-specification-' + sectionIndex}
           name='btn-mapping-section-test-specification'
           key='assign test specification'
-          onClick={() => setTsModalInfo(true, false, 'add', api, getSection(), getOffset(), 'api', [], -1, '')}
+          onClick={() => setTsModalInfo(true, false, 'add', api, snippetSection, snippetOffset, 'api', [], -1, '')}
         >
           Assign Test Specification
         </DropdownItem>

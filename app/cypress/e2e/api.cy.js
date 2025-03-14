@@ -20,7 +20,7 @@ describe('SW Components Dashboard testing', () => {
     cy.get('#btn-add-sw-component').click()
     cy.fill_form_api('0', 'add', api_data.first, true, false)
     cy.get('#btn-modal-api-confirm').click()
-    cy.wait(2000)
+    cy.wait(const_data.long_wait)
     cy.filter_api_from_dashboard(api_data.first)
   })
 
@@ -52,7 +52,7 @@ describe('SW Components Dashboard testing', () => {
         cy.get('#btn-api-form-submit').click()
       })
 
-    cy.wait(2000)
+    cy.wait(const_data.long_wait)
 
     // Select the modified api from the list
     cy.filter_api_from_dashboard(api_data.first_mod)
@@ -65,7 +65,7 @@ describe('SW Components Dashboard testing', () => {
     cy.filter_api_from_dashboard(api_data.first_mod)
 
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').last().find('button').click({ force: true })
-    cy.wait(1000)
+    cy.wait(const_data.long_wait)
     cy.get(const_data.api.table_listing_id)
       .find('tbody')
       .find('tr')
@@ -87,7 +87,7 @@ describe('SW Components Dashboard testing', () => {
   it('Search field should filter the SW Components', () => {
     // All api - empty search string
     cy.get('#input-api-list-search').type('{selectAll}{del}{enter}')
-    cy.wait(2000)
+    cy.wait(const_data.long_wait)
     cy.get(const_data.api.table_listing_id).find('tbody').find('tr').should('have.length.greaterThan', 1)
 
     // Single match
@@ -95,7 +95,7 @@ describe('SW Components Dashboard testing', () => {
 
     // No match
     cy.get('#input-api-list-search').type('{selectAll}{del}<NO MATCH STRING>{enter}')
-    cy.wait(2000)
+    cy.wait(const_data.long_wait)
     cy.get(const_data.api.table_listing_id).find('tbody').should('not.exist')
   })
 
@@ -111,7 +111,7 @@ describe('SW Components Dashboard testing', () => {
       // Kebab Menu Click
       cy.get(const_data.api.table_listing_id).find('tbody').find('tr').eq(0).find('td').last().find('button').click({ force: true })
 
-      cy.wait(2000)
+      cy.wait(const_data.long_wait)
 
       cy.get(const_data.api.table_listing_id)
         .find('tbody')
@@ -128,15 +128,16 @@ describe('SW Components Dashboard testing', () => {
 
       //We delete the first api in the list so we should filter to the one we want to delete
       //Type the api name again
-      cy.wait(1500)
+      cy.wait(const_data.long_wait)
       cy.get('#input-api-list-search').type('{selectAll}{del}' + api_data.first_mod.api + '{enter}')
-      cy.wait(1500)
+      cy.wait(const_data.long_wait)
     }
 
     // No matches on modified api name (both version deleted)
     cy.visit(const_data.app_base_url + '?currentLibrary=' + api_data.first_mod.library)
+    cy.wait(const_data.long_wait)
     cy.get('#input-api-list-search').type('{selectAll}{del}' + api_data.first_mod.api + '{enter}')
-    cy.wait(2000)
+    cy.wait(const_data.long_wait)
     cy.get(const_data.api.table_listing_id).find('tbody').should('not.exist')
   })
 })

@@ -367,8 +367,8 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           <FormSelect
             value={testCaseStatusValue}
             id={`${SELECT_BASE_NAME}-${formAction}-status-${formData.id}`}
-            onChange={handleTestCaseStatusChange}
-            onKeyUp={handleStatusKeyUp}
+            onChange={(event, value) => handleTestCaseStatusChange(event, value)}
+            onKeyUp={(event) => handleStatusKeyUp(event)}
             aria-label='Test Case Status Input'
           >
             {Constants.status_options.map((option, index) => (
@@ -386,7 +386,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           id={`${INPUT_BASE_NAME}-${formAction}-title-${formData.id}`}
           value={titleValue || ''}
           onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
-          onKeyUp={handleTitleKeyUp}
+          onKeyUp={(event) => handleTitleKeyUp(event)}
         />
         {validatedTitleValue !== 'success' && (
           <FormHelperText>
@@ -404,7 +404,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           id={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}
           value={descriptionValue || ''}
           onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
-          onKeyUp={handleDescriptionKeyUp}
+          onKeyUp={(event) => handleDescriptionKeyUp(event)}
         />
         {validatedDescriptionValue !== 'success' && (
           <FormHelperText>
@@ -437,7 +437,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
               id={`${INPUT_BASE_NAME}-${formAction}-repository-${formData.id}`}
               value={repositoryValue || ''}
               onChange={(_ev, value) => handleRepositoryValueChange(_ev, value)}
-              onKeyUp={handleRepositoryKeyUp}
+              onKeyUp={(event) => handleRepositoryKeyUp(event)}
             />
             {validatedRepositoryValue !== 'success' && (
               <FormHelperText>
@@ -452,8 +452,8 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
             <FormSelect
               value={implementationFilePath}
               id={`${SELECT_BASE_NAME}-${formAction}-file-${formData.id}`}
-              onChange={handleImplementationFilePathChange}
-              onKeyUp={handleRepositoryKeyUp}
+              onChange={(event, value) => handleImplementationFilePathChange(event, value)}
+              onKeyUp={(event) => handleRepositoryKeyUp(event)}
               aria-label='Test Case from user file'
             >
               <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
@@ -480,7 +480,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
             id={`${INPUT_BASE_NAME}-${formAction}-relative-path-${formData.id}`}
             value={relativePathValue || ''}
             onChange={(_ev, value) => handleRelativePathValueChange(_ev, value)}
-            onKeyUp={handleRelativePathKeyUp}
+            onKeyUp={(event) => handleRelativePathKeyUp(event)}
           />
           {validatedRelativePathValue !== 'success' && (
             <FormHelperText>
@@ -500,7 +500,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
             id={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}
             value={coverageValue || ''}
             onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
-            onKeyUp={handleCoverageKeyUp}
+            onKeyUp={(event) => handleCoverageKeyUp(event)}
           />
           {validatedCoverageValue !== 'success' && (
             <FormHelperText>

@@ -172,10 +172,14 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   }, [modalFormSubmitState])
 
   React.useEffect(() => {
-    if (sectionValue.trim() === '') {
+    if (sectionValue == undefined || sectionValue == null) {
       setValidatedSectionValue('error')
     } else {
-      setValidatedSectionValue('success')
+      if (sectionValue.trim() === '') {
+        setValidatedSectionValue('error')
+      } else {
+        setValidatedSectionValue('success')
+      }
     }
   }, [sectionValue])
 
@@ -215,9 +219,11 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
     if (currentSelection != '') {
       // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == 'div-document-${formAction}-content-${formData.id}') {
-        setSectionValue(currentSelection)
-        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-        setOffsetValue(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset))
+        const currentOffset = Constants.getSelectionOffset()
+        if (currentOffset > -1) {
+          setSectionValue(currentSelection)
+          setOffsetValue(currentOffset)
+        }
       }
     }
   }
@@ -268,6 +274,11 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
     }
     if (validatedCoverageValue != 'success') {
       setMessageValue('Document Coverage is mandatory and must be a integer value in the range 0-100.')
+      setStatusValue('waiting')
+      return
+    }
+    if (modalSection.trim().length == 0) {
+      setMessageValue(Constants.UNVALID_REF_DOCUMENT_SECTION_MESSAGE)
       setStatusValue('waiting')
       return
     }
@@ -391,7 +402,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           <FormSelect
             value={documentStatusValue}
             id={`input-document-${formAction}-status-${formData.id}`}
-            onChange={handleDocumentStatusChange}
+            onChange={(event, value) => handleDocumentStatusChange(event, value)}
             aria-label='Document Status Input'
           >
             {Constants.status_options.map((option, index) => (
@@ -406,8 +417,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
         <TextInput
           isRequired
           id={`input-document-${formAction}-title-${formData.id}`}
-          name={`input-document-${formAction}-title-${formData.id}`}
-          value={titleValue || ''}
+          value={titleValue}
           onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
         />
         {validatedTitleValue !== 'success' && (
@@ -424,8 +434,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           resizeOrientation='vertical'
           aria-label='Document description field'
           id={`input-document-${formAction}-description-${formData.id}`}
-          name={`input-document-${formAction}-description-${formData.id}`}
-          value={descriptionValue || ''}
+          value={descriptionValue}
           onChange={(_ev, value) => handleDescriptionValueChange(_ev, value)}
         />
         {validatedDescriptionValue !== 'success' && (
@@ -436,11 +445,11 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Type' isRequired fieldId={`input-document-${formAction}-type-${formData.id}`}>
+      <FormGroup label='Type' isRequired fieldId={`select-document-${formAction}-type-${formData.id}`}>
         <FormSelect
           value={documentTypeValue}
-          id={`input-document-${formAction}-type-${formData.id}`}
-          onChange={handleDocumentTypeChange}
+          id={`select-document-${formAction}-type-${formData.id}`}
+          onChange={(event, value) => handleDocumentTypeChange(event, value)}
           aria-label='Document Type Input'
         >
           {Constants.document_type.map((option, index) => (
@@ -451,8 +460,8 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       <FormGroup label='SPDX Relation' isRequired fieldId={`input-document-${formAction}-spdx-relation-${formData.id}`}>
         <FormSelect
           value={SPDXRelationValue}
-          id={`input-document-${formAction}-spdx-relation-${formData.id}`}
-          onChange={handleSPDXRelationValueChange}
+          id={`select-document-${formAction}-spdx-relation-${formData.id}`}
+          onChange={(event, value) => handleSPDXRelationValueChange(event, value)}
           aria-label='SPDX Relation Input'
         >
           {Constants.spdx_relations.map((option, index) => (
@@ -480,16 +489,15 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           <TextInput
             isRequired
             id={`input-document-${formAction}-url-${formData.id}`}
-            name={`input-document-${formAction}-url-${formData.id}`}
-            value={documentUrlValue || ''}
+            value={documentUrlValue}
             onChange={(_ev, value) => handleUrlValueChange(_ev, value)}
-            onBlur={readFileContent}
+            onBlur={() => readFileContent()}
           />
         ) : (
           <FormSelect
             value={documentFileNameValue}
             id={`select-document-${formAction}-file-${formData.id}`}
-            onChange={handleDocumentFileNameChange}
+            onChange={(event, value) => handleDocumentFileNameChange(event, value)}
             aria-label='Document from user file'
           >
             <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
@@ -514,12 +522,12 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           >
             <TextArea
               isDisabled
+              rows={10}
               resizeOrientation='vertical'
               aria-label='Section preview field'
-              id={`input-document-section`}
-              name={`input-document-section`}
-              value={sectionValue || ''}
-              onChange={handleSectionValueChange}
+              id={`input-document-${formAction}-section-${formData.id}`}
+              value={sectionValue}
+              onChange={(event, value) => handleSectionValueChange()}
             />
             {validatedSectionValue !== 'success' && (
               <FormHelperText>
@@ -536,7 +544,6 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
             <TextInput
               isDisabled
               id={`input-document-${formAction}-offset-${formData.id}`}
-              name={`input-document-${formAction}-offset-${formData.id}`}
               value={offsetValue}
               //onChange={(_ev, value) => handleOffsetValueChange(_ev, value)}
             />
@@ -550,17 +557,33 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           </FormGroup>
           <FormGroup>
             Select a section of the document or
-            <Button id={`btn-document-${formAction}-section-set-unmatching-${formData.id}`} variant='link' onClick={setSectionAsUnmatching}>
+            <Button
+              id={`btn-document-${formAction}-section-set-unmatching-${formData.id}`}
+              variant='link'
+              onClick={() => setSectionAsUnmatching()}
+            >
               Set as unmatching
             </Button>
             or
-            <Button id={`btn-document-${formAction}-section-set-full-${formData.id}`} variant='link' onClick={setSectionAsFullDocument}>
+            <Button
+              id={`btn-document-${formAction}-section-set-full-${formData.id}`}
+              variant='link'
+              onClick={() => setSectionAsFullDocument()}
+            >
               Set as Full Document
+            </Button>
+            -
+            <Button id={`btn-document-${formAction}-load-file-content-${formData.id}`} variant='link' onClick={() => readFileContent()}>
+              Load file content
             </Button>
           </FormGroup>
           <CodeBlock className='code-block-bg-green'>
             <CodeBlockCode>
-              <div onMouseUp={handleSectionValueChange} id={'div-document-${formAction}-content-${formData.id}'} data-offset={offsetValue}>
+              <div
+                onMouseUp={() => handleSectionValueChange()}
+                id={'div-document-${formAction}-content-${formData.id}'}
+                data-offset={offsetValue}
+              >
                 {documentContentValue}
               </div>
             </CodeBlockCode>
@@ -573,8 +596,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
         <TextInput
           isRequired
           id={`input-document-${formAction}-coverage-${formData.id}`}
-          name={`input-document-${formAction}-coverage-${formData.id}`}
-          value={coverageValue || ''}
+          value={coverageValue}
           onChange={(_ev, value) => handleCoverageValueChange(_ev, value)}
         />
         {validatedCoverageValue !== 'success' && (

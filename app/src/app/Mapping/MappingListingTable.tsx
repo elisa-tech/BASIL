@@ -766,9 +766,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem>
                     <TextContent>
-                      <Text className='work-item-detail-text'>
-                        <h3>{mappedItem[Constants._D]['title']}</h3>
-                      </Text>
+                      <Text component={TextVariants.h5}>{mappedItem[Constants._D]['title']}</Text>
                     </TextContent>
                   </FlexItem>
                 </Flex>

@@ -71,9 +71,6 @@ class AuthActions(object):
             json={'email': email, 'password': password}
         )
 
-    def logout(self):
-        return self._client.get('/user/logout')
-
 
 @pytest.fixture
 def auth(client):

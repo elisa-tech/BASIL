@@ -6,6 +6,8 @@ basilrootdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(
 sys.path.insert(1, basilrootdir)
 
 from api import api
+from db import db_orm
+from db.models.db_base import Base
 from db.models.api import ApiModel
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
@@ -23,8 +25,6 @@ TestSpecificationTestCaseHistoryModel.__test__ = False
 
 api.app.config['TESTING'] = True
 api.app.config['DEBUG'] = True
-
-init_db.initialization(db_name="test.db")
 
 
 def log_test(_test, _log):
@@ -53,13 +53,6 @@ def convert_keys_without_hash_for_response(_object):
     return tmp
 
 
-def delete_db():
-    currentdir = os.path.dirname(os.path.realpath(__file__))
-    db_path = os.path.join(currentdir, 'db', 'test.db')
-    if os.path.exists(db_path):
-        os.unlink(db_path)
-
-
 @pytest.fixture
 def client():
     with api.app.test_client() as client:
@@ -68,8 +61,40 @@ def client():
         yield client
 
 
-def test_api_post(client):
-    new_api = {'action': 'add',
+class AuthActions(object):
+    def __init__(self, client):
+        self._client = client
+
+    def login(self, email='dummy_user', password='dummy_user'):
+        return self._client.post(
+            '/user/login',
+            json={'email': email, 'password': password}
+        )
+
+    def logout(self):
+        return self._client.get('/user/logout')
+
+
+@pytest.fixture
+def auth(client):
+    return AuthActions(client)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def test_client_db():
+    init_db.initialization(db_name="test.db")
+
+    yield
+
+    dbi = db_orm.DbInterface("test.db")
+    Base.metadata.drop_all(bind=dbi.engine)
+
+
+def test_api_post(client, auth):
+    login_response = auth.login()
+    new_api = {'user-id': login_response.json['id'],
+               'token': login_response.json['token'],
+               'action': 'add',
                'api': 'test_api',
                'category': 'test_category',
                'library': 'test_library',
@@ -85,18 +110,23 @@ def test_api_post(client):
     assert response.status_code == 200
 
 
-def test_api_put(client):
+def test_api_put(client, auth):
     # Test GET
     response = client.get('/apis')
     assert response.status_code == 200
-    assert isinstance(response.json, list)
-    assert len(response.json) != 0
+    assert isinstance(response.json['apis'], list)
+    assert len(response.json['apis']) != 0
 
     # Test PUT
-    api = response.json[0]
-    tmp = {'api-id': api['id'],
+    login_response = auth.login()
+    api = response.json['apis'][0]
+    tmp = {'user-id': login_response.json['id'],
+           'token': login_response.json['token'],
+           'api-id': api['id'],
            'api': 'modified_api',
            'category': 'modified_category',
+           'default-view': 'view',
+           'checksum': '',
            'library': 'modified_library',
            'library-version': '2',
            'raw-specification-url': 'modified_url',
@@ -104,6 +134,7 @@ def test_api_put(client):
            'implementation-file': 'modified-file',
            'implementation-file-from-row': '99',
            'implementation-file-to-row': '999',
+           'last_coverage': 0
            }
 
     log_test('test_api_put', f'{api}')
@@ -113,26 +144,30 @@ def test_api_put(client):
     # Test PUT effects and GET with filed and filter
     response = client.get(f'/apis?field1=id&filter1={tmp["api-id"]}')
     assert response.status_code == 200
-    assert isinstance(response.json, list)
-    assert len(response.json) == 1
+    assert isinstance(response.json['apis'], list)
+    assert len(response.json['apis']) == 1
 
     model_fields = get_model_editable_fields(ApiModel.__table__.columns.keys())
     model_fields = [x.replace('-', '_') for x in model_fields]
     tmp = convert_keys_without_hash_for_response(tmp)
     for mf in model_fields:
-        assert str(response.json[0][mf]) == str(tmp[mf])
+        if mf in tmp:
+            assert str(response.json['apis'][0][mf]) == str(tmp[mf])
 
 
-def test_api_delete(client):
+def test_api_delete(client, auth):
     # Test GET
     response = client.get('/apis')
     assert response.status_code == 200
-    assert isinstance(response.json, list)
-    assert len(response.json) != 0
+    assert isinstance(response.json['apis'], list)
+    assert len(response.json['apis']) != 0
 
     # Test DELETE
-    api = response.json[0]
+    login_response = auth.login()
+    api = response.json['apis'][0]
     api['api-id'] = api['id']
+    api['user-id'] = login_response.json['id']
+    api['token'] = login_response.json['token']
     log_test('test_api_delete', f'{api}')
     response = client.delete('/apis', json=convert_keys_with_hash_for_request(api))
     assert response.status_code == 200
@@ -140,6 +175,5 @@ def test_api_delete(client):
     # Test DELETE effects and GET with filed and filter
     response = client.get(f'/apis?field1=id&filter1={api["api-id"]}')
     assert response.status_code == 200
-    assert isinstance(response.json, list)
-    assert len(response.json) == 0
-    delete_db()
+    assert isinstance(response.json['apis'], list)
+    assert len(response.json['apis']) == 0

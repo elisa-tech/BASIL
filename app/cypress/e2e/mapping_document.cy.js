@@ -54,14 +54,12 @@ describe('Document Mapping', () => {
         cy.get('#pf-tab-0-tab-btn-document-data').click()
         cy.get('#btn-mapping-document-submit').click()
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 1)
-        // TODO: Check work item data
         //Edit
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').click()
         cy.get('[id*=btn-menu-unmapped-edit-]').eq(0).click()
         cy.fill_form('document', 'edit', doc_data.first_mod, true, true)
         cy.get('#btn-mapping-document-submit').click()
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 1)
-        // TODO: Check work item data
         //Delete
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').click()
         cy.get('[id*=btn-menu-unmapped-delete-]').eq(0).click()

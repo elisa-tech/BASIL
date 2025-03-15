@@ -155,6 +155,7 @@ podman run \
     --network=host \
     -v "basil-db-vol:/BASIL-API/db/sqlite3" \
     -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
+    -v "basil-user-files:/BASIL-API/api/user-files" \
     -v "basil-tmt-logs-vol:/var/tmp/tmt" \
     basil-api-image
 
@@ -179,6 +180,6 @@ podman ps
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
-echo -e "### Start now BASIL via chrome browser: ${ALERT_COLOR_STR}${api_server_url}:${app_port}"
+echo -e "### BASIL in now available in your browser at: ${ALERT_COLOR_STR}${api_server_url}:${app_port}"
 echo -e "${TITLE_COLOR_STR}###################################################################"
 echo -e "${RESET_COLORS_STR}"

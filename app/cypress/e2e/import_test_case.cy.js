@@ -11,7 +11,7 @@ for (let i = 0; i < Object.keys(api_data).length; i++) {
   api_data[current_key].api = api_data[current_key].api + ' ' + Date.now().toString()
 }
 
-describe('Test Case import test', () => {
+describe('Test Case Import', () => {
   beforeEach(() => {
     cy.login_admin()
   })

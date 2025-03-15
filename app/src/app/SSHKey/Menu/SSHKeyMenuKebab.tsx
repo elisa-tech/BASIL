@@ -46,6 +46,7 @@ export const SSHKeyMenuKebab: React.FunctionComponent<SSHKeyMenuKebabProps> = ({
 
   return (
     <Dropdown
+      popperProps={{ position: 'right' }}
       isOpen={isOpen}
       onSelect={onSelect}
       onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}

@@ -60,12 +60,13 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
     if (currentSelection != '') {
       // eslint-disable-next-line  @typescript-eslint/no-explicit-any
       if (((getSelection()?.anchorNode?.parentNode as any)?.id as string | '') == 'input-raw-specification') {
-        setModalSection(currentSelection)
-        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-        setModalOffset(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset))
-        setSectionValue(currentSelection)
-        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-        setOffsetValue(Math.min((getSelection() as any)?.baseOffset, (getSelection() as any)?.extentOffset))
+        const currentOffset = Constants.getSelectionOffset()
+        if (currentOffset > -1) {
+          setModalSection(currentSelection)
+          setSectionValue(currentSelection)
+          setModalOffset(currentOffset)
+          setOffsetValue(currentOffset)
+        }
       }
     }
   }
@@ -88,14 +89,14 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
 
   return (
     <React.Fragment>
-      <FormGroup label='Section' fieldId={`input-justification-section`}>
+      <FormGroup label='Section' fieldId={`input-mapping-section`}>
         <TextArea
           isDisabled
           resizeOrientation='vertical'
           aria-label='Section preview field'
-          id={`input-justification-section`}
-          name={`input-justification-section`}
-          value={sectionValue || ''}
+          id={`input-mapping-section`}
+          rows={8}
+          value={sectionValue}
           onChange={() => handleSectionValueChange()}
         />
         {validatedSectionValue !== 'success' && (
@@ -106,14 +107,8 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <FormGroup label='Offset' fieldId={`input-justification-offset`}>
-        <TextInput
-          isDisabled
-          id={`input-justification-offset`}
-          name={`input-justification-offset`}
-          value={offsetValue}
-          //onChange={(_ev, value) => handleOffsetValueChange(_ev, value)}
-        />
+      <FormGroup label='Offset' fieldId={`input-mapping-offset`}>
+        <TextInput isDisabled id={`input-mapping-offset`} value={offsetValue} />
         {validatedOffsetValue !== 'success' && (
           <FormHelperText>
             <HelperText>
@@ -122,16 +117,16 @@ export const SectionForm: React.FunctionComponent<SectionFormProps> = ({
           </FormHelperText>
         )}
       </FormGroup>
-      <Button id='btn-section-set-unmatching' variant='link' onClick={setSectionAsUnmatching}>
+      <Button id='btn-section-set-unmatching' variant='link' onClick={() => setSectionAsUnmatching()}>
         Set as unmatching
       </Button>
       |
-      <Button id='btn-section-set-full-document' variant='link' onClick={setSectionAsFullDocument}>
+      <Button id='btn-section-set-full-document' variant='link' onClick={() => setSectionAsFullDocument()}>
         Set as Full Document
       </Button>
-      <CodeBlock className='code-block-bg-green'>
+      <CodeBlock className='code-block-bg-green code-fixed-height'>
         <CodeBlockCode>
-          <div onMouseUp={handleSectionValueChange} id={'input-raw-specification'} data-offset={offsetValue}>
+          <div onMouseUp={() => handleSectionValueChange()} id={'input-raw-specification'} data-offset={offsetValue}>
             {api['raw_specification']}
           </div>
         </CodeBlockCode>

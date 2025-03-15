@@ -75,6 +75,7 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
 
   return (
     <Dropdown
+      popperProps={{ position: 'right' }}
       isOpen={isOpen}
       onSelect={onSelect}
       onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}

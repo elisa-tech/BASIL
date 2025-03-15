@@ -23,7 +23,7 @@ for (let i = 0; i < Object.keys(tc_data).length; i++) {
   tc_data[current_key].title = tc_data[current_key].title + ' ' + Date.now().toString()
 }
 
-describe('SW Components Dashboard testing', () => {
+describe('Test Specification Mapping', () => {
   beforeEach(() => {
     cy.login_admin()
   })

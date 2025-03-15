@@ -291,6 +291,19 @@ export const get_config_plugin_var = (_config, _varname) => {
   return ''
 }
 
+export const getSelectionOffset = () => {
+  // Get current selection and return the offset indide the parent element
+  const selection = window.getSelection()
+  let startOffset = -1
+  if (selection) {
+    if (!selection.isCollapsed) {
+      const range = selection.getRangeAt(0)
+      startOffset = range.startOffset
+    }
+  }
+  return startOffset
+}
+
 export const tcFormEmpty = {
   coverage: 0,
   description: '',

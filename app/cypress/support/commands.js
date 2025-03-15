@@ -91,19 +91,56 @@ export function registerCommands() {
     for (i = 0; i < Object.keys(_obj).length; i++) {
       curr_key = Object.keys(_obj)[i]
       curr_key_hashes = curr_key.replaceAll('_', '-')
+      let field_type = 'input'
+      if (_obj_type == 'document') {
+        if (['spdx_relation', 'file', 'type'].includes(curr_key)) {
+          field_type = 'select'
+        }
+      }
       if (type_before_check == true) {
         if (clear_before_type == true) {
-          cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
-            .type('{selectAll}{del}')
-            .type(_obj[curr_key])
-            .should('have.value', _obj[curr_key])
+          if (field_type == 'input') {
+            if (_obj_type == 'document' && ['url'].includes(curr_key)) {
+              // Some fields are calling the API on each change in cypress and that is
+              // overloading the api
+              cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
+                .clear()
+                .invoke('val', _obj[curr_key])
+                .type('{end} {backspace}')
+                .should('have.value', _obj[curr_key])
+            } else {
+              cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
+                .type('{selectAll}{del}')
+                .type(_obj[curr_key])
+                .should('have.value', _obj[curr_key])
+            }
+          }
         } else {
-          cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
-            .type(_obj[curr_key])
-            .should('have.value', _obj[curr_key])
+          if (field_type == 'input') {
+            if (_obj_type == 'document' && ['url'].includes(curr_key)) {
+              // Some fields are calling the API on each change in cypress and that is
+              // overloading the api
+              cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
+                .invoke('val', _obj[curr_key])
+                .type('{end} {backspace}')
+                .should('have.value', _obj[curr_key])
+            } else {
+              cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
+                .type(_obj[curr_key])
+                .should('have.value', _obj[curr_key])
+            }
+          }
         }
       } else {
-        cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]').should('have.value', _obj[curr_key])
+        if (field_type == 'input') {
+          cy.get('[id*="input-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]').should('have.value', _obj[curr_key])
+        }
+      }
+
+      if (field_type == 'select') {
+        cy.get('[id*="select-' + _obj_type + '-' + _action + '-' + curr_key_hashes + '-"]')
+          .select(_obj[curr_key])
+          .should('have.value', _obj[curr_key])
       }
     }
   })
@@ -233,8 +270,19 @@ export function registerCommands() {
 
     //Fill Form Data and Submit
     cy.fill_form(_type, 'add', _obj, true, true)
+
+    // In case of text document I have to select a section and an offset
+    if (_type == 'document') {
+      if (_obj.type == 'text') {
+        cy.get('button[id*="btn-document-"][id*="-load-file-content-"]').click({ force: true })
+        cy.wait(const_data.long_wait * 2)
+        cy.get('button[id*="btn-document-"][id*="-section-set-full-"]').click()
+        cy.wait(const_data.fast_wait)
+      }
+    }
+    cy.wait(const_data.long_wait * 3)
     cy.get('#btn-mapping-' + _type + '-submit').click()
-    cy.wait(const_data.long_wait)
+    cy.wait(const_data.long_wait * 3)
 
     //Check Added Values
     cy.check_work_item(_parent_index, _type, _obj)
@@ -319,7 +367,7 @@ export function registerCommands() {
     cy.wait(500)
     cy.get('#list-existing-' + _type + '-item-' + _obj_index).click()
     cy.get('#input-' + _type + '-coverage-existing')
-      .type('{selectAll}{del}')
+      .clear()
       .type('50')
       .should('have.value', '50')
     cy.get('#btn-mapping-existing-' + _type + '-submit').click()

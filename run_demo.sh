@@ -191,6 +191,6 @@ podman ps
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
-echo -e "### Start now BASIL via chrome browser: ${ALERT_COLOR_STR}${api_server_url}:${app_port}"
+echo -e "### BASIL in now available in your browser at: ${ALERT_COLOR_STR}${api_server_url}:${app_port}"
 echo -e "${TITLE_COLOR_STR}###################################################################"
 echo -e "${RESET_COLORS_STR}"

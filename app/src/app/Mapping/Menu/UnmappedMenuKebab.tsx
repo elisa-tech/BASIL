@@ -95,6 +95,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
 
   return (
     <Dropdown
+      popperProps={{ position: 'right' }}
       isOpen={isOpen}
       onSelect={onSelect}
       onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}

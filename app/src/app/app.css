@@ -22,6 +22,11 @@ body,
   background-color: var(--pf-v5-global--palette--red-50);
 }
 
+.code-fixed-height {
+  height: 500px;
+  overflow: auto;
+}
+
 .code-block-bg-gold {
   background-color: var(--pf-v5-global--palette--gold-50);
 }

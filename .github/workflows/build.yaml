@@ -103,7 +103,7 @@ jobs:
       - name: API unit testing 
         run: |
           source venv/bin/activate
-          pytest ./api/test
+          pytest -v ./api/test
       - name: Download basil-api artifacts
         uses: actions/download-artifact@v4
         with:

@@ -90,6 +90,7 @@ jobs:
         run: |
           echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
           echo "CONTAINER_ID=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "TEST_RUNS_BASE_DIR=$(mktemp -d)" >> "$GITHUB_OUTPUT"
       - name: Install puthon3
         uses: actions/setup-python@v2
         with:

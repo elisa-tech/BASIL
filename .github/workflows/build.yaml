@@ -92,7 +92,7 @@ jobs:
           echo "CONTAINER_ID=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
           TEMPDIR=$(mktemp -d)
           echo "TEST_RUNS_BASE_DIR=$TEMPDIR" >> $GITHUB_ENV
-      - name: Install puthon3
+      - name: Install python3
         uses: actions/setup-python@v2
         with:
           python-version: '3.9'

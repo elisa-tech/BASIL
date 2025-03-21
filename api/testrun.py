@@ -52,6 +52,8 @@ class TestRunner:
     TMT = 'tmt'
     TESTING_FARM = 'testing_farm'
 
+    CONFIGS_FOLDER = 'configs'
+
     test_run_plugin_models = {'github_actions': TestRunnerGithubActionsPlugin,
                               'gitlab_ci': TestRunnerGitlabCIPlugin,
                               'KernelCI': None,
@@ -63,7 +65,7 @@ class TestRunner:
 
     id = None
     ssh_keys_dir = os.path.join(currentdir, 'ssh_keys')  # Same as SSH_KEYS_PATH defined in api.py
-    presets_filepath = os.path.join(currentdir, 'testrun_plugin_presets.yaml')
+    presets_filepath = os.path.join(currentdir, CONFIGS_FOLDER, 'testrun_plugin_presets.yaml')
 
     dbi = None
     db_test_run = None

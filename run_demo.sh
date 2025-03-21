@@ -121,7 +121,7 @@ echo -e "###                 Create and mount volumes"
 echo -e "###################################################################"
 
 echo -e "\n${BODY_COLOR_STR}"
-list='basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol basil-user-files-vol'
+list='basil-configs-vol basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol basil-user-files-vol'
 for element in $list;
 do
     podman volume exists "${element}"  # check if volume already exists
@@ -162,6 +162,7 @@ if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
 fi
 
 podman_cmd="$podman_cmd --detach --privileged --network=host"
+podman_cmd="$podman_cmd -v basil-configs-vol:/BASIL-API/api/configs"
 podman_cmd="$podman_cmd -v basil-db-vol:/BASIL-API/db/sqlite3"
 podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
 podman_cmd="$podman_cmd -v basil-user-files-vol:/BASIL-API/api/user-files"

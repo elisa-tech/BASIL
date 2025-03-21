@@ -29,14 +29,15 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
 
+CONFIGS_FOLDER = "configs"
 JOIN_APIS_TABLE = "apis"
 JOIN_SW_REQUIREMENTS_TABLE = "sw-requirements"
 JOIN_TEST_SPECIFICATIONS_TABLE = "test-specifications"
 MAX_LOGIN_ATTEMPTS = 5
 MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 5  # 5 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, "ssh_keys")
-TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, "testrun_plugin_presets.yaml")
-SETTINGS_FILEPATH = os.path.join(currentdir, "settings.yaml")
+TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "testrun_plugin_presets.yaml")
+SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 

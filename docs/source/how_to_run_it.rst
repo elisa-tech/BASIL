@@ -123,11 +123,13 @@ In order to keep persistent data across deployments you can specify following vo
 
 .. code-block:: bash
 
+   podman volume create basil-configs-vol
    podman volume create basil-db-vol
    podman volume create basil-ssh-keys-vol
    podman volume create basil-tmt-logs-vol
    podman volume create basil-user-files-vol
 
+   podman volume mount basil-configs-vol
    podman volume mount basil-db-vol
    podman volume mount basil-ssh-keys-vol
    podman volume mount basil-tmt-logs-vol
@@ -156,6 +158,7 @@ Here an example of usage of volumes:
     -d \
     --privileged \
     --network=host \
+    -v "basil-configs-vol:/BASIL-API/api/configs" \
     -v "basil-db-vol:/BASIL-API/db/sqlite3" \
     -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
     -v "basil-user-files-vol:/BASIL-API/api/user-files" \

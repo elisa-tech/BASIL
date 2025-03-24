@@ -530,7 +530,8 @@ def get_api_specification(_url_or_path):
                 fc = f.read()
                 f.close()
                 return fc
-            except OSError:
+            except OSError as excp:
+                print(f"OSError for {_url_or_path}: {excp}")
                 return None
 
 

@@ -1,91 +1,112 @@
 import pytest
 import tempfile
+import string
+import random
 from api import api
 from db import db_orm
-from db.models.db_base import Base
-import db.models.init_db as init_db
 from db.models.user import UserModel
 from db.models.api import ApiModel
+from db.models.document import DocumentModel
+from db.models.api_document import ApiDocumentModel
+from conftest import UT_USER_EMAIL
+from conftest import DB_NAME
 
 
 _MAPPING_API_DOCUMENTS_URL = '/mapping/api/documents'
-_DB_NAME = 'test.db'
 
-_UT_USER_NAME = 'ut_user_name'
-_UT_USER_EMAIL = 'ut_user_email'
-_UT_USER_PASSWORD = 'ut_user_password'
-_UT_USER_ROLE = 'USER'
-
-_UT_API_NAME = 'ut_api_name'
+_UT_API_NAME = 'ut_api'
 _UT_API_LIBRARY = 'ut_api_library'
 _UT_API_LIBRARY_VERSION = 'v1.0.0'
 _UT_API_CATEGORY = 'ut_api_category'
-_UT_API_CHECKSUM = '123'
-_UT_API_IMPLEMENTATION_FILE = 'ut_api_implementation'
-_UT_API_IMPLEMENTATION_FILE_FROM_ROW = 42
-_UT_API_IMPLEMENTATION_FILE_TO_ROW = 44
+_UT_API_IMPLEMENTATION_FILE_FROM_ROW = 0
+_UT_API_IMPLEMENTATION_FILE_TO_ROW = 42
 _UT_API_TAGS = 'ut_api_tags'
 
-_UT_API_SPEC_MAPPED_SECTION = 'A section for a mapped document.'
-_UT_API_RAW_SPEC = f'BASIL UT: {_UT_API_SPEC_MAPPED_SECTION} Used for {_MAPPING_API_DOCUMENTS_URL}.'
+_UT_API_SPEC_SECTION_NO_MAPPING = 'This section has no mapping.'
+_UT_API_SPEC_SECTION_WITH_MAPPING = 'This section has mapping.'
+_UT_API_SPEC_SECTION_TO_BE_MAPPED = 'This section is to be mapped.'
+_UT_API_RAW_UNMAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_NO_MAPPING} Used for {_MAPPING_API_DOCUMENTS_URL}.'
+_UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_API_SPEC_SECTION_TO_BE_MAPPED} ' \
+                          f'Used for {_MAPPING_API_DOCUMENTS_URL}.'
+
+_UT_DOC_TITLE = 'ut_doc_title_1234'
 
 api.app.config['TESTING'] = True
 api.app.config['DEBUG'] = True
 
 
-@pytest.fixture
-def client():
-    with api.app.test_client() as client:
-        yield client
+def _random_hex_string8():
+    return ''.join(random.choices(string.hexdigits, k=8))
 
 
-class AuthActions(object):
-    def __init__(self, client):
-        self._client = client
-
-    def login(self, email=_UT_USER_EMAIL, password=_UT_USER_PASSWORD):
-        return self._client.post(
-            '/user/login',
-            json={'email': email, 'password': password}
-        )
+def _get_sections_mapped_by_docs(mapped_sections):
+    return [section for section in mapped_sections if section['documents']]
 
 
-@pytest.fixture
-def auth(client):
-    return AuthActions(client)
+@pytest.fixture()
+def unmapped_api_db(client_db, ut_user_db):
+    """ Create Api with no mapped sections """
 
+    dbi = db_orm.DbInterface(DB_NAME)
 
-@pytest.fixture(scope="module", autouse=True)
-def client_db():
-    init_db.initialization(db_name=_DB_NAME)
-    dbi = db_orm.DbInterface(_DB_NAME)
+    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
-    # add user for unit testing
-    ut_test_user = UserModel(_UT_USER_NAME, _UT_USER_EMAIL, _UT_USER_PASSWORD, _UT_USER_ROLE)
-    dbi.session.add(ut_test_user)
-
-    # create raw API specification in a temporary file
+    # create raw API specification
     raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=False)
-    raw_spec.write(_UT_API_RAW_SPEC)
+    raw_spec.write(_UT_API_RAW_UNMAPPED_SPEC)
     raw_spec.flush()
 
     # create API
-    ut_api = ApiModel(_UT_API_NAME, _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                    _UT_API_CATEGORY, _UT_API_CHECKSUM, _UT_API_IMPLEMENTATION_FILE,
-                    _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
-                    _UT_API_TAGS, ut_test_user)
+    ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
+                      _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
+                      _UT_API_CATEGORY, _random_hex_string8(), raw_spec.name + 'impl',
+                      _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
+                      _UT_API_TAGS, user)
     dbi.session.add(ut_api)
+    dbi.session.commit()
+
+    yield ut_api.id
+
+    # here the raw_spec tempfile is removed
+
+
+@pytest.fixture()
+def mapped_api_db(client_db, ut_user_db):
+    """ Create Api with one mapped section """
+
+    dbi = db_orm.DbInterface(DB_NAME)
+
+    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+
+    # create raw API specification
+    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=False)
+    raw_spec.write(_UT_API_RAW_MAPPED_SPEC)
+    raw_spec.flush()
+
+    # create API
+    ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
+                      _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
+                      _UT_API_CATEGORY, _random_hex_string8(), raw_spec.name + 'impl',
+                      _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
+                      _UT_API_TAGS, user)
+    ut_document = DocumentModel('doc_title', 'doc_description', 'doc_type', 'doc_spdx_relation',
+                                'doc_url', 'doc_section', 0, 1, user)
+    ut_api_doc_mapping = ApiDocumentModel(ut_api, ut_document, _UT_API_SPEC_SECTION_WITH_MAPPING,
+                                          _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
+                                          0, user)
+
+    dbi.session.add(ut_api)
+    dbi.session.add(ut_document)
+    dbi.session.add(ut_api_doc_mapping)
 
     dbi.session.commit()
-    global _UT_API_ID
-    _UT_API_ID = ut_api.id
 
-    yield
+    yield ut_api.id
 
-    Base.metadata.drop_all(bind=dbi.engine)
+    # here the raw_spec tempfile is removed
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def document_file():
     with tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=False) as fp:
         fp.write('BASIL UT: A document to map API section.')
@@ -93,39 +114,121 @@ def document_file():
         yield fp
 
 
-def test_api_document_post_ok(client, auth, document_file):
+def test_login(user_authentication):
+    """ Just ensure we are logged in """
+    assert user_authentication.status_code == 200
+
+
+def test_api_document_post_ok(client, user_authentication, unmapped_api_db, document_file):
     """ Nominal test for mapping a section """
-    login_response = auth.login()
-    assert login_response.status_code == 200
 
-    # ensure there is no mapped sections for this API
-    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': _UT_API_ID})
+    api_id = unmapped_api_db
+    # ensure there is no mapped documents for this API
+    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': api_id})
     assert response.status_code == 200
-    assert response.json['mapped'] == []
-    assert response.json['unmapped'] != []
+    mapped_sections = _get_sections_mapped_by_docs(response.json['mapped'])
+    assert len(mapped_sections) == 0
 
-    # add new document
-    api_data = {'user-id': login_response.json['id'],
-               'token': login_response.json['token'],
-               'api-id': _UT_API_ID,
-               'section': _UT_API_SPEC_MAPPED_SECTION,
-               'offset': _UT_API_RAW_SPEC.find(_UT_API_SPEC_MAPPED_SECTION),
-               'coverage': 0,
-               'document': {
-                        'title': 'ut_doc_title',
-                        'description': 'ut_doc_description',
-                        'document_type': 'ut_doc_document_type',
-                        'spdx_relation': 'ut_doc_spdx_relation',
-                        'url': document_file.name,
-                        'section': 'ut_doc_section',
-                        'offset': 0
-                    }
-               }
-
-    response = client.post(_MAPPING_API_DOCUMENTS_URL, json=api_data)
+    # map a document to unmapped section
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'api-id': api_id,
+        'section': _UT_API_SPEC_SECTION_NO_MAPPING,
+        'offset': _UT_API_RAW_UNMAPPED_SPEC.find(_UT_API_SPEC_SECTION_NO_MAPPING),
+        'coverage': 0,
+        'document': {
+            'title': _UT_DOC_TITLE,
+            'description': 'ut_doc_description',
+            'document_type': 'ut_doc_document_type',
+            'spdx_relation': 'ut_doc_spdx_relation',
+            'url': document_file.name,
+            'section': 'ut_doc_section',
+            'offset': 0
+        }
+    }
+    response = client.post(_MAPPING_API_DOCUMENTS_URL, json=mapping_data)
     assert response.status_code == 200
 
     # ensure document is added
-    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': _UT_API_ID})
+    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': api_id})
     assert response.status_code == 200
-    assert response.json['mapped'] != []
+    mapped_sections = _get_sections_mapped_by_docs(response.json['mapped'])
+    assert len(mapped_sections) == 1  # there should be only one mapped section
+    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_NO_MAPPING
+    assert mapped_sections[0]['offset'] == _UT_API_RAW_UNMAPPED_SPEC.find(_UT_API_SPEC_SECTION_NO_MAPPING)
+    mapped_documents = mapped_sections[0]['documents']
+    assert len(mapped_documents) == 1  # there should be only one document
+    assert mapped_documents[0]['document']['title'] == _UT_DOC_TITLE
+    assert mapped_documents[0]['created_by'] == UT_USER_EMAIL
+
+
+def test_api_document_put_ok(client, user_authentication, mapped_api_db):
+    """ Nominal test for mapping update """
+
+    api_id = mapped_api_db
+    # ensure there is a mapped document for this API
+    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': api_id})
+    assert response.status_code == 200
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_docs(response.json['mapped'])
+    assert len(mapped_sections) == 1
+    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
+    # get the relation ID and document
+    relation_id = mapped_sections[0]['documents'][0]['relation_id']
+    document = mapped_sections[0]['documents'][0]['document']
+
+    # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': api_id,
+        'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
+        'coverage': 0,
+        'document': document
+    }
+    response = client.put(_MAPPING_API_DOCUMENTS_URL, json=mapping_data)
+    assert response.status_code == 200
+
+    # ensure mapping is updated
+    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': api_id})
+    assert response.status_code == 200
+    mapped_sections = _get_sections_mapped_by_docs(response.json['mapped'])
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    assert len(mapped_sections) == 1
+    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    assert mapped_sections[0]['offset'] == _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED)
+    assert len(mapped_sections[0]['documents']) == 1  # there should be only one document
+
+
+def test_api_document_delete_ok(client, user_authentication, mapped_api_db):
+    """ Nominal test for mapping removal """
+
+    api_id = mapped_api_db
+    # ensure there is a mapped document for this API
+    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': api_id})
+    assert response.status_code == 200
+    mapped_sections = _get_sections_mapped_by_docs(response.json['mapped'])
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    assert len(mapped_sections) == 1
+    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
+    # get the relation ID
+    relation_id = mapped_sections[0]['documents'][0]['relation_id']
+
+    # delete mapping
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': api_id
+    }
+    response = client.delete(_MAPPING_API_DOCUMENTS_URL, json=mapping_data)
+    assert response.status_code == 200
+
+    # ensure the relation is deleted
+    response = client.get(_MAPPING_API_DOCUMENTS_URL, query_string={'api-id': api_id})
+    assert response.status_code == 200
+    mapped_sections = _get_sections_mapped_by_docs(response.json['mapped'])
+    assert len(mapped_sections) == 0

@@ -1,15 +1,5 @@
 import os
-import pytest
-import sys
-
-basilrootdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.insert(1, basilrootdir)
-
-from api import api
 from db.models.api import ApiModel
-
-api.app.config['TESTING'] = True
-api.app.config['DEBUG'] = True
 
 
 def log_test(_test, _log):

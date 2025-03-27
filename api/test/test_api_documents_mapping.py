@@ -2,7 +2,6 @@ import pytest
 import tempfile
 import string
 import random
-from api import api
 from db import db_orm
 from db.models.user import UserModel
 from db.models.api import ApiModel
@@ -30,9 +29,6 @@ _UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_A
                           f'Used for {_MAPPING_API_DOCUMENTS_URL}.'
 
 _UT_DOC_TITLE = 'ut_doc_title_1234'
-
-api.app.config['TESTING'] = True
-api.app.config['DEBUG'] = True
 
 
 def _random_hex_string8():

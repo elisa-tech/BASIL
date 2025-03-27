@@ -1,17 +1,8 @@
 import pytest
-from api import api
-from db import db_orm
-from db.models.db_base import Base
-import db.models.init_db as init_db
-from db.models.user import UserModel
-from conftest import UT_USER_NAME, UT_USER_EMAIL, UT_USER_PASSWORD, UT_USER_ROLE
-from conftest import DB_NAME
+from conftest import UT_USER_EMAIL, UT_USER_PASSWORD
 
 
 _USER_LOGIN_URL = '/user/login'
-
-api.app.config['TESTING'] = True
-api.app.config['DEBUG'] = True
 
 
 def test_user_login_post_ok(client, ut_user_db):

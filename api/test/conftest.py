@@ -20,6 +20,9 @@ TestSpecificationTestCaseHistoryModel.__test__ = False
 TestRunModel.__test__ = False
 TestRunConfigModel.__test__ = False
 
+api.app.config['TESTING'] = True
+api.app.config['DEBUG'] = True
+
 DB_NAME = 'test.db'
 
 UT_USER_NAME = 'ut_user_name'

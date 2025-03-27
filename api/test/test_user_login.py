@@ -4,42 +4,19 @@ from db import db_orm
 from db.models.db_base import Base
 import db.models.init_db as init_db
 from db.models.user import UserModel
+from conftest import UT_USER_NAME, UT_USER_EMAIL, UT_USER_PASSWORD, UT_USER_ROLE
+from conftest import DB_NAME
 
 
 _USER_LOGIN_URL = '/user/login'
-_DB_NAME = 'test.db'
-_UT_USER_NAME = 'ut_user_name'
-_UT_USER_EMAIL = 'ut_user_email'
-_UT_USER_PASSWORD = 'ut_user_password'
-_UT_USER_ROLE = 'USER'
 
 api.app.config['TESTING'] = True
 api.app.config['DEBUG'] = True
 
 
-@pytest.fixture
-def client():
-    with api.app.test_client() as client:
-        yield client
-
-
-@pytest.fixture(scope="module", autouse=True)
-def test_client_db():
-    init_db.initialization(db_name=_DB_NAME)
-    dbi = db_orm.DbInterface(_DB_NAME)
-
-    ut_test_user = UserModel(_UT_USER_NAME, _UT_USER_EMAIL, _UT_USER_PASSWORD, _UT_USER_ROLE)
-    dbi.session.add(ut_test_user)
-    dbi.session.commit()
-
-    yield
-
-    Base.metadata.drop_all(bind=dbi.engine)
-
-
-def test_user_login_post_ok(client):
+def test_user_login_post_ok(client, ut_user_db):
     """ Nominal test for the registered user """
-    user_data = {'email': _UT_USER_EMAIL, 'password': _UT_USER_PASSWORD}
+    user_data = {'email': UT_USER_EMAIL, 'password': UT_USER_PASSWORD}
     response = client.post(_USER_LOGIN_URL, json=user_data)
     assert response.status_code == 200
 
@@ -57,7 +34,7 @@ def test_user_login_post_unauthorized(client, email, password):
 
 def test_user_login_post_wrong_credentials(client):
     """ Nominal test with incorrect password """
-    user_data = {'email': _UT_USER_EMAIL, 'password': _UT_USER_PASSWORD + '_wrong_pwd'}
+    user_data = {'email': UT_USER_EMAIL, 'password': UT_USER_PASSWORD + '_wrong_pwd'}
     response = client.post(_USER_LOGIN_URL, json=user_data)
     assert response.status_code == 400
 

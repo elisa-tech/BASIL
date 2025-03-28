@@ -1,33 +1,5 @@
 import os
-import pytest
-import sys
-
-basilrootdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.insert(1, basilrootdir)
-
-from api import api
-from db import db_orm
-from db.models.db_base import Base
 from db.models.api import ApiModel
-from db.models.test_case import TestCaseModel, TestCaseHistoryModel
-from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
-from db.models.test_run import TestRunModel, TestRunConfigModel
-import db.models.init_db as init_db
-
-# Exclude internal class from pytest
-TestCaseModel.__test__ = False
-TestCaseHistoryModel.__test__ = False
-TestSpecificationModel.__test__ = False
-TestSpecificationHistoryModel.__test__ = False
-TestSpecificationTestCaseModel.__test__ = False
-TestSpecificationTestCaseHistoryModel.__test__ = False
-TestRunModel.__test__ = False
-TestRunConfigModel.__test__ = False
-
-api.app.config['TESTING'] = True
-api.app.config['DEBUG'] = True
 
 
 def log_test(_test, _log):
@@ -56,44 +28,9 @@ def convert_keys_without_hash_for_response(_object):
     return tmp
 
 
-@pytest.fixture
-def client():
-    with api.app.test_client() as client:
-        with api.app.app_context():
-            pass
-        yield client
-
-
-class AuthActions(object):
-    def __init__(self, client):
-        self._client = client
-
-    def login(self, email='dummy_user', password='dummy_user'):
-        return self._client.post(
-            '/user/login',
-            json={'email': email, 'password': password}
-        )
-
-
-@pytest.fixture
-def auth(client):
-    return AuthActions(client)
-
-
-@pytest.fixture(scope="module", autouse=True)
-def test_client_db():
-    init_db.initialization(db_name="test.db")
-
-    yield
-
-    dbi = db_orm.DbInterface("test.db")
-    Base.metadata.drop_all(bind=dbi.engine)
-
-
-def test_api_post(client, auth):
-    login_response = auth.login()
-    new_api = {'user-id': login_response.json['id'],
-               'token': login_response.json['token'],
+def test_api_post(client, user_authentication):
+    new_api = {'user-id': user_authentication.json['id'],
+               'token': user_authentication.json['token'],
                'action': 'add',
                'api': 'test_api',
                'category': 'test_category',
@@ -110,18 +47,16 @@ def test_api_post(client, auth):
     assert response.status_code == 200
 
 
-def test_api_put(client, auth):
+def test_api_put(client, user_authentication):
     # Test GET
     response = client.get('/apis')
     assert response.status_code == 200
     assert isinstance(response.json['apis'], list)
     assert len(response.json['apis']) != 0
 
-    # Test PUT
-    login_response = auth.login()
     api = response.json['apis'][0]
-    tmp = {'user-id': login_response.json['id'],
-           'token': login_response.json['token'],
+    tmp = {'user-id': user_authentication.json['id'],
+           'token': user_authentication.json['token'],
            'api-id': api['id'],
            'api': 'modified_api',
            'category': 'modified_category',
@@ -155,7 +90,7 @@ def test_api_put(client, auth):
             assert str(response.json['apis'][0][mf]) == str(tmp[mf])
 
 
-def test_api_delete(client, auth):
+def test_api_delete(client, user_authentication):
     # Test GET
     response = client.get('/apis')
     assert response.status_code == 200
@@ -163,11 +98,10 @@ def test_api_delete(client, auth):
     assert len(response.json['apis']) != 0
 
     # Test DELETE
-    login_response = auth.login()
     api = response.json['apis'][0]
     api['api-id'] = api['id']
-    api['user-id'] = login_response.json['id']
-    api['token'] = login_response.json['token']
+    api['user-id'] = user_authentication.json['id']
+    api['token'] = user_authentication.json['token']
     log_test('test_api_delete', f'{api}')
     response = client.delete('/apis', json=convert_keys_with_hash_for_request(api))
     assert response.status_code == 200

@@ -1,3 +1,4 @@
+import os
 import pytest
 import tempfile
 import string
@@ -48,9 +49,9 @@ def unmapped_api_db(client_db, ut_user_db):
     user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
-    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=False)
+    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
     raw_spec.write(_UT_API_RAW_UNMAPPED_SPEC)
-    raw_spec.flush()
+    raw_spec.close()
 
     # create API
     ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
@@ -63,7 +64,9 @@ def unmapped_api_db(client_db, ut_user_db):
 
     yield ut_api.id
 
-    # here the raw_spec tempfile is removed
+    # remove the raw_spec tempfile
+    if os.path.isfile(raw_spec.name):
+        os.remove(raw_spec.name)
 
 
 @pytest.fixture()
@@ -75,9 +78,9 @@ def mapped_api_db(client_db, ut_user_db):
     user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
-    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=False)
+    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
     raw_spec.write(_UT_API_RAW_MAPPED_SPEC)
-    raw_spec.flush()
+    raw_spec.close()
 
     # create API
     ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
@@ -99,12 +102,14 @@ def mapped_api_db(client_db, ut_user_db):
 
     yield ut_api.id
 
-    # here the raw_spec tempfile is removed
+    # remove the raw_spec tempfile
+    if os.path.isfile(raw_spec.name):
+        os.remove(raw_spec.name)
 
 
 @pytest.fixture
 def document_file():
-    with tempfile.NamedTemporaryFile(mode="w", delete=True, delete_on_close=False) as fp:
+    with tempfile.NamedTemporaryFile(mode="w", delete=True) as fp:
         fp.write('BASIL UT: A document to map API section.')
         fp.flush()
         yield fp

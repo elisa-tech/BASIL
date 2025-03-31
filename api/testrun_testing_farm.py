@@ -76,10 +76,10 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
         self.payload["environments"][0]["variables"]["uid"] = self.runner.db_test_run.uid
         self.payload["environments"][0]["variables"]["basil_test_case_id"] = self.runner.mapping.test_case.id
         self.payload["environments"][0]["variables"]["basil_test_case_title"] = self.runner.mapping.test_case.title
-        self.payload["environments"][0]["variables"]["basil_api_api"] = self.runner.mapping.api.api
-        self.payload["environments"][0]["variables"]["basil_api_library"] = self.runner.mapping.api.library
+        self.payload["environments"][0]["variables"]["basil_api_api"] = self.runner.db_test_run.api.api
+        self.payload["environments"][0]["variables"]["basil_api_library"] = self.runner.db_test_run.api.library
         self.payload["environments"][0]["variables"]["basil_api_library_version"] = \
-            self.runner.mapping.api.library_version
+            self.runner.db_test_run.api.library_version
         self.payload["environments"][0]["variables"]["basil_test_case_mapping_table"] = \
             self.runner.db_test_run.mapping_to
         self.payload["environments"][0]["variables"]["basil_test_case_mapping_id"] = self.runner.db_test_run.mapping_id

@@ -30,9 +30,9 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
         self.config["env"]["uid"] = self.runner.db_test_run.uid
         self.config["env"]["basil_test_case_id"] = self.runner.mapping.test_case.id
         self.config["env"]["basil_test_case_title"] = self.runner.mapping.test_case.title
-        self.config["env"]["basil_api_api"] = self.runner.mapping.api.api
-        self.config["env"]["basil_api_library"] = self.runner.mapping.api.library
-        self.config["env"]["basil_api_library_version"] = self.runner.mapping.api.library_version
+        self.config["env"]["basil_api_api"] = self.runner.db_test_run.api.api
+        self.config["env"]["basil_api_library"] = self.runner.db_test_run.api.library
+        self.config["env"]["basil_api_library_version"] = self.runner.db_test_run.api.library_version
         self.config["env"]["basil_test_case_mapping_table"] = self.runner.db_test_run.mapping_to
         self.config["env"]["basil_test_case_mapping_id"] = self.runner.db_test_run.mapping_id
         self.config["env"]["basil_test_relative_path"] = self.runner.mapping.test_case.relative_path

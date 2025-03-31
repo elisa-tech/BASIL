@@ -4,21 +4,7 @@ from db import db_orm
 from db.models.db_base import Base
 import db.models.init_db as init_db
 from db.models.user import UserModel
-from db.models.test_case import TestCaseModel, TestCaseHistoryModel
-from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseModel
-from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
-from db.models.test_run import TestRunModel, TestRunConfigModel
 
-# Exclude internal class from pytest
-TestCaseModel.__test__ = False
-TestCaseHistoryModel.__test__ = False
-TestSpecificationModel.__test__ = False
-TestSpecificationHistoryModel.__test__ = False
-TestSpecificationTestCaseModel.__test__ = False
-TestSpecificationTestCaseHistoryModel.__test__ = False
-TestRunModel.__test__ = False
-TestRunConfigModel.__test__ = False
 
 api.app.config['TESTING'] = True
 api.app.config['DEBUG'] = True

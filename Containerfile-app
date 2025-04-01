@@ -1,21 +1,36 @@
-FROM node:16
+# Builder Container
+# -----------------
+FROM node:18 AS builder
 USER root
-RUN mkdir BASIL-APP
-COPY ./app /BASIL-APP
-WORKDIR /BASIL-APP
+
+RUN mkdir BASIL-APP-BUILD
+COPY . /BASIL-APP-BUILD
+WORKDIR /BASIL-APP-BUILD/app
+RUN npm install
 
 # Set the public ip
-ARG API_ENDPOINT=http://localhost:5000 \
-    APP_PORT=9000
+ARG API_ENDPOINT=http://localhost:5000
 
 RUN sed -i "s#http://localhost:5000#${API_ENDPOINT}#g" src/app/Constants/constants.tsx && \
-    sed -i "s#--port 9000#--port ${APP_PORT}#g" package.json && \
-    npm install -d --verbose && \
     npm run build
 
-# In case of reverse proxy
-# RUN sed -i "s/src=\"\//src=\"/g" dist/index.html
-# RUN sed -i "s/href=\"\//href=\"/g" dist/index.html
+# Deployment Container
+# --------------------
+FROM docker.io/nginx:latest
+
+ARG APP_PORT=9000
+
+RUN mkdir BASIL-APP
+WORKDIR /BASIL-APP
+
+COPY --from=builder /BASIL-APP-BUILD/app/dist /BASIL-APP/dist
+
+# Set group permissions to the app dirs
+RUN chmod -R 0755 /BASIL-APP
+
+COPY nginx.conf /etc/nginx/nginx.conf
+RUN sed -i "s#0.0.0.0:80#0.0.0.0:${APP_PORT}#g" /etc/nginx/nginx.conf
 
 EXPOSE ${APP_PORT}
-CMD ["npm", "run", "start"]
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
+

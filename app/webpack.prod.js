@@ -12,10 +12,32 @@ module.exports = merge(common('production'), {
   devtool: 'source-map',
   optimization: {
     splitChunks: {
-      chunks: 'all'
+      chunks: 'all',
+      minSize: 30000,
+      maxSize: 244000,
+      automaticNameDelimiter: '-',
     },
     minimizer: [
-      new TerserJSPlugin({}),
+      new TerserJSPlugin({
+        terserOptions: {
+          compress: {
+            drop_console: true,
+            drop_debugger: true,
+            pure_getters: true,
+            passes: 3,
+            reduce_vars: true,
+            collapse_vars: true,
+            negate_iife: false,
+          },
+          mangle: {
+            reserved: ['$', 'exports', 'require'],
+          },
+          output: {
+            comments: false,
+          },
+        },
+        parallel: true,
+      }),
       new CssMinimizerPlugin({
         minimizerOptions: {
           preset: ['default', { mergeLonghand: false }]
@@ -39,3 +61,4 @@ module.exports = merge(common('production'), {
     ]
   }
 })
+

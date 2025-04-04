@@ -3538,7 +3538,7 @@ class ApiDocumentsMapping(Resource):
 
 
 class ApiSwRequirementsMapping(Resource):
-    fields = ["api-id", "sw-requirement", "section", "coverage"]
+    fields = ["api-id", "sw-requirement", "section", "offset", "coverage"]
 
     def get(self):
         args = get_query_string_args(request.args)

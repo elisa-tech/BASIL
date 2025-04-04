@@ -1,8 +1,6 @@
 import os
 import pytest
 import tempfile
-import string
-import random
 from db import db_orm
 from db.models.user import UserModel
 from db.models.api import ApiModel
@@ -32,16 +30,12 @@ _UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_A
 _UT_DOC_TITLE = 'ut_doc_title_1234'
 
 
-def _random_hex_string8():
-    return ''.join(random.choices(string.hexdigits, k=8))
-
-
 def _get_sections_mapped_by_docs(mapped_sections):
     return [section for section in mapped_sections if section['documents']]
 
 
 @pytest.fixture()
-def unmapped_api_db(client_db, ut_user_db):
+def unmapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with no mapped sections """
 
     dbi = db_orm.DbInterface(DB_NAME)
@@ -54,9 +48,9 @@ def unmapped_api_db(client_db, ut_user_db):
     raw_spec.close()
 
     # create API
-    ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
+    ut_api = ApiModel(_UT_API_NAME + '#' + utilities.generate_random_hex_string8(),
                       _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                      _UT_API_CATEGORY, _random_hex_string8(), raw_spec.name + 'impl',
+                      _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
     dbi.session.add(ut_api)
@@ -70,7 +64,7 @@ def unmapped_api_db(client_db, ut_user_db):
 
 
 @pytest.fixture()
-def mapped_api_db(client_db, ut_user_db):
+def mapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with one mapped section """
 
     dbi = db_orm.DbInterface(DB_NAME)
@@ -83,9 +77,9 @@ def mapped_api_db(client_db, ut_user_db):
     raw_spec.close()
 
     # create API
-    ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
+    ut_api = ApiModel(_UT_API_NAME + '#' + utilities.generate_random_hex_string8(),
                       _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                      _UT_API_CATEGORY, _random_hex_string8(), raw_spec.name + 'impl',
+                      _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
     ut_document = DocumentModel('doc_title', 'doc_description', 'doc_type', 'doc_spdx_relation',

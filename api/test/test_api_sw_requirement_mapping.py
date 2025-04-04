@@ -1,8 +1,6 @@
 import os
 import pytest
 import tempfile
-import string
-import random
 from db import db_orm
 from db.models.user import UserModel
 from db.models.api import ApiModel
@@ -30,16 +28,12 @@ _UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_A
                           f'Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
 
 
-def _random_hex_string8():
-    return ''.join(random.choices(string.hexdigits, k=8))
-
-
 def _get_sections_mapped_by_sw_requirements(mapped_sections):
     return [section for section in mapped_sections if section['sw_requirements']]
 
 
 @pytest.fixture()
-def unmapped_api_db(client_db, ut_user_db):
+def unmapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with no mapped sections """
 
     dbi = db_orm.DbInterface(DB_NAME)
@@ -52,9 +46,9 @@ def unmapped_api_db(client_db, ut_user_db):
     raw_spec.close()
 
     # create API
-    ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
+    ut_api = ApiModel(_UT_API_NAME + '#' + utilities.generate_random_hex_string8(),
                       _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                      _UT_API_CATEGORY, _random_hex_string8(), raw_spec.name + 'impl',
+                      _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
     dbi.session.add(ut_api)
@@ -68,7 +62,7 @@ def unmapped_api_db(client_db, ut_user_db):
 
 
 @pytest.fixture()
-def mapped_api_db(client_db, ut_user_db):
+def mapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with one mapped section """
 
     dbi = db_orm.DbInterface(DB_NAME)
@@ -81,12 +75,13 @@ def mapped_api_db(client_db, ut_user_db):
     raw_spec.close()
 
     # create API
-    ut_api = ApiModel(_UT_API_NAME + '#' + _random_hex_string8(),
+    ut_api = ApiModel(_UT_API_NAME + '#' + utilities.generate_random_hex_string8(),
                       _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                      _UT_API_CATEGORY, _random_hex_string8(), raw_spec.name + 'impl',
+                      _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
-    ut_sw_requirement = SwRequirementModel(f'SW req #{_random_hex_string8()}', 'SW shall work as well as possible.', user)
+    ut_sw_requirement = SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',
+                                           'SW shall work as well as possible.', user)
     ut_api_requirement_mapping = ApiSwRequirementModel(ut_api, ut_sw_requirement, _UT_API_SPEC_SECTION_WITH_MAPPING,
                                                        _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
                                                        0, user)
@@ -108,11 +103,11 @@ def test_login(user_authentication):
     assert user_authentication.status_code == 200
 
 
-def test_api_sw_requirement_post_ok(client, user_authentication, unmapped_api_db):
+def test_api_sw_requirement_post_ok(client, user_authentication, unmapped_api_db, utilities):
     """ Nominal test for mapping a section """
 
     api_id = unmapped_api_db
-    sw_requirement_title = f'SW req #{_random_hex_string8()}'
+    sw_requirement_title = f'SW req #{utilities.generate_random_hex_string8()}'
 
     # ensure there is no mapped SW requirements for this API
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': api_id})

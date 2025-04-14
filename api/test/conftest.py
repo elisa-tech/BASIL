@@ -1,4 +1,6 @@
 import pytest
+import string
+import random
 from api import api
 from db import db_orm
 from db.models.db_base import Base
@@ -15,6 +17,17 @@ UT_USER_NAME = 'ut_user_name'
 UT_USER_EMAIL = 'ut_user_email'
 UT_USER_PASSWORD = 'ut_user_password'
 UT_USER_ROLE = 'USER'
+
+
+class Utilities:
+    @staticmethod
+    def generate_random_hex_string8():
+        return ''.join(random.choices(string.hexdigits, k=8))
+
+
+@pytest.fixture
+def utilities(scope="session", autouse=True):
+    return Utilities
 
 
 @pytest.fixture(scope="module")

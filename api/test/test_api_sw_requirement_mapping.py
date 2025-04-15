@@ -1,6 +1,7 @@
 import os
 import pytest
 import tempfile
+from http import HTTPStatus
 from db.models.user import UserModel
 from db.models.api import ApiModel
 from db.models.sw_requirement import SwRequirementModel
@@ -34,7 +35,7 @@ def _filter_sections_mapped_by_sw_requirements(mapped_sections):
 
 def _get_sections_mapped_by_sw_requirements(client, api_id):
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': api_id})
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
     return _filter_sections_mapped_by_sw_requirements(response.json['mapped'])
 
 
@@ -145,7 +146,7 @@ def sw_requirement_db(client_db, ut_user_db, utilities):
 
 def test_login(user_authentication):
     """ Just ensure that the test user is logged in """
-    assert user_authentication.status_code == 200
+    assert user_authentication.status_code == HTTPStatus.OK
 
 
 # Test GET
@@ -153,7 +154,7 @@ def test_login(user_authentication):
 def test_get_unauthorized_ok(client, unmapped_api_db):
     """ Read API without read restrictions: GET is allowed for all users """
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': unmapped_api_db.id})
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
     assert 'mapped' in response.json
     assert 'unmapped' in response.json
 
@@ -162,7 +163,7 @@ def test_get_unauthorized_fail(client, restricted_api_db):
     """ Read API with read restrictions: GET is not allowed for unauthorized users """
 
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': restricted_api_db.id})
-    assert response.status_code == 401
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert 'mapped' not in response.json
     assert 'unmapped' not in response.json
 
@@ -176,7 +177,7 @@ def test_get_authorized_restricted_fail(client, reader_authentication, restricte
         'api-id': restricted_api_db.id
     }
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string=get_query)
-    assert response.status_code == 401
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert 'mapped' not in response.json
     assert 'unmapped' not in response.json
 
@@ -190,7 +191,7 @@ def test_get_authorized_restricted_ok(client, user_authentication, restricted_ap
         'api-id': restricted_api_db.id
     }
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string=get_query)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
     assert 'mapped' in response.json
     assert 'unmapped' in response.json
 
@@ -203,7 +204,7 @@ def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
         'token': user_authentication.json['token']
     }
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string=get_query)
-    assert response.status_code == 400
+    assert response.status_code == HTTPStatus.BAD_REQUEST
     assert 'mapped' not in response.json
     assert 'unmapped' not in response.json
 
@@ -223,7 +224,7 @@ def test_get_missing_api(client_db, client, user_authentication, unmapped_api_db
         'api-id': non_existent_id
     }
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string=get_query)
-    assert response.status_code == 404
+    assert response.status_code == HTTPStatus.NOT_FOUND
     assert 'mapped' not in response.json
     assert 'unmapped' not in response.json
 
@@ -232,7 +233,7 @@ def test_get_mapped(client, mapped_api_db):
     """ Nominal test for GET """
 
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': mapped_api_db.id})
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _filter_sections_mapped_by_sw_requirements(response.json['mapped'])
     assert len(mapped_sections) == 1
@@ -260,7 +261,7 @@ def test_post_unauthorized(client, unmapped_api_db, utilities):
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 401
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
     # there should be no new mappings
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -288,7 +289,7 @@ def test_post_restricted_write(client, reader_authentication, unmapped_api_db, u
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 401
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
     # there should be no new mappings
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -318,7 +319,7 @@ def test_post_incomplete_request(client, user_authentication, unmapped_api_db, u
     }
     mapping_data.pop(mandatory_field)
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 400
+    assert response.status_code == HTTPStatus.BAD_REQUEST
 
     # there should be no new mappings
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -347,7 +348,7 @@ def test_post_missing_api(client_db, client, user_authentication, unmapped_api_d
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 404
+    assert response.status_code == HTTPStatus.NOT_FOUND
 
 
 def test_post_missing_sw_requirement(client_db, client, user_authentication, unmapped_api_db):
@@ -375,7 +376,7 @@ def test_post_missing_sw_requirement(client_db, client, user_authentication, unm
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 404
+    assert response.status_code == HTTPStatus.NOT_FOUND
 
     # there should be no new mappings
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -402,7 +403,7 @@ def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_a
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
 
     # ensure SW requirement is added
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -439,7 +440,7 @@ def test_post_existing_sw_requirement_conflict(client, user_authentication, mapp
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 409
+    assert response.status_code == HTTPStatus.CONFLICT
 
     # ensure mapping is not updated, there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
@@ -473,7 +474,7 @@ def test_post_new_sw_requirement_ok(client, user_authentication, unmapped_api_db
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
 
     # ensure SW requirement is added
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
@@ -511,7 +512,7 @@ def test_post_new_sw_requirement_conflict(client, user_authentication, mapped_ap
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 409
+    assert response.status_code == HTTPStatus.CONFLICT
 
     # ensure no SW requirement is added
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
@@ -550,7 +551,7 @@ def test_post_new_sw_requirement_incomplete(client, user_authentication, unmappe
     else:
         mapping_data['sw-requirement'].pop(mandatory_field)
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 400
+    assert response.status_code == HTTPStatus.BAD_REQUEST
 
     # there should be no new mappings
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -583,7 +584,7 @@ def test_post_add_sw_requirement(client, user_authentication, mapped_api_db, uti
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
 
     # ensure a SW requirement is added for a mapped section
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
@@ -620,7 +621,7 @@ def test_put_ok(client, user_authentication, mapped_api_db):
         'sw-requirement': sw_requirement
     }
     response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
 
     # ensure mapping is updated to _UT_API_SPEC_SECTION_TO_BE_MAPPED
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
@@ -649,7 +650,7 @@ def test_delete_ok(client, user_authentication, mapped_api_db):
         'api-id': api_id
     }
     response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
 
     # ensure the relation is deleted
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)

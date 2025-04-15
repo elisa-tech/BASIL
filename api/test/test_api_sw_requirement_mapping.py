@@ -137,7 +137,7 @@ def test_login(user_authentication):
 
 # Test GET
 
-def test_api_sw_requirement_get_unauthorized_ok(client, unmapped_api_db):
+def test_get_unauthorized_ok(client, unmapped_api_db):
     """ Read API without read restrictions: GET is allowed for all users """
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': unmapped_api_db.id})
     assert response.status_code == 200
@@ -145,7 +145,7 @@ def test_api_sw_requirement_get_unauthorized_ok(client, unmapped_api_db):
     assert 'unmapped' in response.json
 
 
-def test_api_sw_requirement_get_unauthorized_fail(client, restricted_api_db):
+def test_get_unauthorized_fail(client, restricted_api_db):
     """ Read API with read restrictions: GET is not allowed for unauthorized users """
 
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': restricted_api_db.id})
@@ -154,7 +154,7 @@ def test_api_sw_requirement_get_unauthorized_fail(client, restricted_api_db):
     assert 'unmapped' not in response.json
 
 
-def test_api_sw_requirement_get_authorized_restricted_fail(client, reader_authentication, restricted_api_db):
+def test_get_authorized_restricted_fail(client, reader_authentication, restricted_api_db):
     """ Read API with read restrictions for "reader" user: GET is not allowed for this user """
 
     get_query = {
@@ -168,7 +168,7 @@ def test_api_sw_requirement_get_authorized_restricted_fail(client, reader_authen
     assert 'unmapped' not in response.json
 
 
-def test_api_sw_requirement_get_authorized_restricted_ok(client, user_authentication, restricted_api_db):
+def test_get_authorized_restricted_ok(client, user_authentication, restricted_api_db):
     """ Read API with read restrictions: GET is allowed for the author of the API """
 
     get_query = {
@@ -182,7 +182,7 @@ def test_api_sw_requirement_get_authorized_restricted_ok(client, user_authentica
     assert 'unmapped' in response.json
 
 
-def test_api_sw_requirement_get_incorrect_request(client, user_authentication, unmapped_api_db):
+def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
     """ Read API without specification of the api-id """
 
     get_query = {
@@ -195,7 +195,7 @@ def test_api_sw_requirement_get_incorrect_request(client, user_authentication, u
     assert 'unmapped' not in response.json
 
 
-def test_api_sw_requirement_get_missing_api_fail(client, user_authentication, unmapped_api_db):
+def test_get_missing_api_fail(client, user_authentication, unmapped_api_db):
     """ Read non-existent API """
 
     non_existent_id = 42000
@@ -216,7 +216,7 @@ def test_api_sw_requirement_get_missing_api_fail(client, user_authentication, un
     assert 'unmapped' not in response.json
 
 
-def test_api_sw_requirement_get_mapped(client, mapped_api_db):
+def test_get_mapped(client, mapped_api_db):
     """ Nominal test for GET """
 
     response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': mapped_api_db.id})
@@ -229,7 +229,7 @@ def test_api_sw_requirement_get_mapped(client, mapped_api_db):
 
 # Test POST
 
-def test_api_sw_requirement_post_ok(client, user_authentication, unmapped_api_db, utilities):
+def test_post_ok(client, user_authentication, unmapped_api_db, utilities):
     """ Nominal test for mapping a section """
 
     api_id = unmapped_api_db.id
@@ -270,7 +270,7 @@ def test_api_sw_requirement_post_ok(client, user_authentication, unmapped_api_db
     assert mapped_sw_requirements[0]['created_by'] == UT_USER_EMAIL
 
 
-def test_api_sw_requirement_put_ok(client, user_authentication, mapped_api_db):
+def test_put_ok(client, user_authentication, mapped_api_db):
     """ Nominal test for mapping update """
 
     api_id = mapped_api_db.id
@@ -310,7 +310,7 @@ def test_api_sw_requirement_put_ok(client, user_authentication, mapped_api_db):
     assert len(mapped_sections[0]['sw_requirements']) == 1  # there should be only one SW requirement
 
 
-def test_api_sw_requirement_delete_ok(client, user_authentication, mapped_api_db):
+def test_delete_ok(client, user_authentication, mapped_api_db):
     """ Nominal test for mapping removal """
 
     api_id = mapped_api_db.id

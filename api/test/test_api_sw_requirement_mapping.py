@@ -326,7 +326,7 @@ def test_post_incomplete_request(client, user_authentication, unmapped_api_db, u
 
 
 def test_post_missing_api(client_db, client, user_authentication, unmapped_api_db, utilities):
-    """ Read non-existent API """
+    """ Create mapping for non-existent API """
 
     non_existent_id = 42000
     # ensure this api id does not exist
@@ -362,7 +362,7 @@ def test_post_missing_sw_requirement(client_db, client, user_authentication, unm
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
     assert len(mapped_sections) == 0
 
-    # map a SW requirement to unmapped section
+    # map a non-existent SW requirement to unmapped section
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],

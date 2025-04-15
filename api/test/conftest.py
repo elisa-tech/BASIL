@@ -60,7 +60,7 @@ def ut_user_db(client_db):
     dbi.session.add(ut_test_user)
     dbi.session.commit()
 
-    return ut_test_user.id
+    yield ut_test_user
 
 
 @pytest.fixture(scope="module")
@@ -72,7 +72,7 @@ def ut_reader_user_db(client_db):
     dbi.session.add(ut_test_user)
     dbi.session.commit()
 
-    return ut_test_user.id
+    yield ut_test_user
 
 
 class AuthActions(object):

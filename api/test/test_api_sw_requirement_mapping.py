@@ -1,13 +1,11 @@
 import os
 import pytest
 import tempfile
-from db import db_orm
 from db.models.user import UserModel
 from db.models.api import ApiModel
 from db.models.sw_requirement import SwRequirementModel
 from db.models.api_sw_requirement import ApiSwRequirementModel
 from conftest import UT_USER_EMAIL
-from conftest import DB_NAME
 
 
 _MAPPING_API_SW_REQUIREMENTS_URL = '/mapping/api/sw-requirements'
@@ -44,9 +42,7 @@ def _get_sections_mapped_by_sw_requirements(client, api_id):
 def restricted_api_db(client_db, ut_user_db, ut_reader_user_db, utilities):
     """ Create Api with read restriction for "reader" """
 
-    dbi = db_orm.DbInterface(DB_NAME)
-
-    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
     raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -60,8 +56,8 @@ def restricted_api_db(client_db, ut_user_db, ut_reader_user_db, utilities):
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
     ut_api.read_denials = f"[{ut_reader_user_db.id}]"
-    dbi.session.add(ut_api)
-    dbi.session.commit()
+    client_db.session.add(ut_api)
+    client_db.session.commit()
 
     yield ut_api
 
@@ -74,9 +70,7 @@ def restricted_api_db(client_db, ut_user_db, ut_reader_user_db, utilities):
 def unmapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with no mapped sections """
 
-    dbi = db_orm.DbInterface(DB_NAME)
-
-    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
     raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -89,8 +83,8 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
                       _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
-    dbi.session.add(ut_api)
-    dbi.session.commit()
+    client_db.session.add(ut_api)
+    client_db.session.commit()
 
     yield ut_api
 
@@ -103,9 +97,7 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
 def mapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with one mapped section """
 
-    dbi = db_orm.DbInterface(DB_NAME)
-
-    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
     raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -124,10 +116,10 @@ def mapped_api_db(client_db, ut_user_db, utilities):
                                                        _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
                                                        0, user)
 
-    dbi.session.add(ut_api)
-    dbi.session.add(ut_sw_requirement)
-    dbi.session.add(ut_api_requirement_mapping)
-    dbi.session.commit()
+    client_db.session.add(ut_api)
+    client_db.session.add(ut_sw_requirement)
+    client_db.session.add(ut_api_requirement_mapping)
+    client_db.session.commit()
 
     yield ut_api
 
@@ -140,15 +132,13 @@ def mapped_api_db(client_db, ut_user_db, utilities):
 def sw_requirement_db(client_db, ut_user_db, utilities):
     """ Create SW requirement """
 
-    dbi = db_orm.DbInterface(DB_NAME)
-
-    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     ut_sw_requirement = SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',
                                            'This is an unmapped requirement.', user)
 
-    dbi.session.add(ut_sw_requirement)
-    dbi.session.commit()
+    client_db.session.add(ut_sw_requirement)
+    client_db.session.commit()
 
     yield ut_sw_requirement
 
@@ -218,13 +208,12 @@ def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
     assert 'unmapped' not in response.json
 
 
-def test_get_missing_api(client, user_authentication, unmapped_api_db):
+def test_get_missing_api(client_db, client, user_authentication, unmapped_api_db):
     """ Read non-existent API """
 
     non_existent_id = 42000
     # ensure this api id does not exist
-    dbi = db_orm.DbInterface(DB_NAME)
-    supposed_api = dbi.session.query(ApiModel).get(non_existent_id)
+    supposed_api = client_db.session.query(ApiModel).get(non_existent_id)
     assert supposed_api is None
 
     # read non-existent API
@@ -336,13 +325,12 @@ def test_post_incomplete_request(client, user_authentication, unmapped_api_db, u
     assert len(mapped_sections) == 0
 
 
-def test_post_missing_api(client, user_authentication, unmapped_api_db, utilities):
+def test_post_missing_api(client_db, client, user_authentication, unmapped_api_db, utilities):
     """ Read non-existent API """
 
     non_existent_id = 42000
     # ensure this api id does not exist
-    dbi = db_orm.DbInterface(DB_NAME)
-    supposed_api = dbi.session.query(ApiModel).get(non_existent_id)
+    supposed_api = client_db.session.query(ApiModel).get(non_existent_id)
     assert supposed_api is None
 
     # map a SW requirement to unmapped section
@@ -362,13 +350,12 @@ def test_post_missing_api(client, user_authentication, unmapped_api_db, utilitie
     assert response.status_code == 404
 
 
-def test_post_missing_sw_requirement(client, user_authentication, unmapped_api_db):
+def test_post_missing_sw_requirement(client_db, client, user_authentication, unmapped_api_db):
     """ Create mapping for a section with non-existing SW requirement """
 
     non_existent_id = 42000
     # ensure this SW requirements id does not exist
-    dbi = db_orm.DbInterface(DB_NAME)
-    supposed_sw_requirement = dbi.session.query(SwRequirementModel).get(non_existent_id)
+    supposed_sw_requirement = client_db.session.query(SwRequirementModel).get(non_existent_id)
     assert supposed_sw_requirement is None
 
     # ensure there is no mapped SW requirements for this API

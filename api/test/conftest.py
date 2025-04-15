@@ -44,10 +44,10 @@ def client():
 @pytest.fixture(scope="module", autouse=True)
 def client_db():
     init_db.initialization(db_name=DB_NAME)
-
-    yield
-
     dbi = db_orm.DbInterface(DB_NAME)
+
+    yield dbi
+
     Base.metadata.drop_all(bind=dbi.engine)
 
 

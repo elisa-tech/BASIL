@@ -16,6 +16,11 @@ DB_NAME = 'test.db'
 UT_USER_NAME = 'ut_user_name'
 UT_USER_EMAIL = 'ut_user_email'
 UT_USER_PASSWORD = 'ut_user_password'
+
+UT_READER_USER_NAME = 'ut_reader_name'
+UT_READER_USER_EMAIL = 'ut_reader_email'
+UT_READER_USER_PASSWORD = 'ut_reader_password'
+
 UT_USER_ROLE = 'USER'
 
 
@@ -39,10 +44,10 @@ def client():
 @pytest.fixture(scope="module", autouse=True)
 def client_db():
     init_db.initialization(db_name=DB_NAME)
-
-    yield
-
     dbi = db_orm.DbInterface(DB_NAME)
+
+    yield dbi
+
     Base.metadata.drop_all(bind=dbi.engine)
 
 
@@ -54,6 +59,20 @@ def ut_user_db(client_db):
     ut_test_user = UserModel(UT_USER_NAME, UT_USER_EMAIL, UT_USER_PASSWORD, UT_USER_ROLE)
     dbi.session.add(ut_test_user)
     dbi.session.commit()
+
+    yield ut_test_user
+
+
+@pytest.fixture(scope="module")
+def ut_reader_user_db(client_db):
+    dbi = db_orm.DbInterface(DB_NAME)
+
+    # add user who read items
+    ut_test_user = UserModel(UT_READER_USER_NAME, UT_READER_USER_EMAIL, UT_READER_USER_PASSWORD, UT_USER_ROLE)
+    dbi.session.add(ut_test_user)
+    dbi.session.commit()
+
+    yield ut_test_user
 
 
 class AuthActions(object):
@@ -71,5 +90,13 @@ class AuthActions(object):
 def user_authentication(client, ut_user_db):
     authentication = AuthActions(client)
     login_response = authentication.login()
+
+    return login_response
+
+
+@pytest.fixture(scope="module")
+def reader_authentication(client, ut_reader_user_db):
+    authentication = AuthActions(client)
+    login_response = authentication.login(email=UT_READER_USER_EMAIL, password=UT_READER_USER_PASSWORD)
 
     return login_response

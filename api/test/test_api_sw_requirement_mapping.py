@@ -207,7 +207,8 @@ def test_get_authorized_restricted_ok(client, user_authentication, restricted_ap
     assert 'unmapped' in response.json
 
 
-def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
+@pytest.mark.usefixtures("unmapped_api_db")
+def test_get_incorrect_request(client, user_authentication):
     """ Read API without specification of the api-id """
 
     get_query = {
@@ -220,7 +221,8 @@ def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
     assert 'unmapped' not in response.json
 
 
-def test_get_missing_api(client_db, client, user_authentication, unmapped_api_db):
+@pytest.mark.usefixtures("unmapped_api_db")
+def test_get_missing_api(client_db, client, user_authentication):
     """ Read non-existent API """
 
     non_existent_id = 42000
@@ -337,7 +339,8 @@ def test_post_incomplete_request(client, user_authentication, unmapped_api_db, u
     assert len(mapped_sections) == 0
 
 
-def test_post_missing_api(client_db, client, user_authentication, unmapped_api_db, utilities):
+@pytest.mark.usefixtures("unmapped_api_db")
+def test_post_missing_api(client_db, client, user_authentication, utilities):
     """ Create mapping for non-existent API """
 
     non_existent_id = 42000
@@ -394,7 +397,7 @@ def test_post_missing_sw_requirement(client_db, client, user_authentication, unm
     assert len(mapped_sections) == 0
 
 
-def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_api_db, sw_requirement_db, utilities):
+def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_api_db, sw_requirement_db):
     """ Nominal test for mapping a section with an existing SW requirement """
 
     # ensure there is no mapped SW requirements for this API
@@ -433,12 +436,10 @@ def test_post_existing_sw_requirement_conflict(client, user_authentication, mapp
     api_id = mapped_api_db.id
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
-    # get the SW requirement
-    sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
     # try to create the same mapping
+    _, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
@@ -504,12 +505,10 @@ def test_post_new_sw_requirement_conflict(client, user_authentication, mapped_ap
     api_id = mapped_api_db.id
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
-    # get the SW requirement
-    sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
     # map a SW requirement to unmapped section, but with a SW requirement duplicate
+    _, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
@@ -576,8 +575,7 @@ def test_post_add_sw_requirement(client, user_authentication, mapped_api_db, uti
 
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
     mapped_sw_requirements = mapped_sections[0]['sw_requirements']
     assert len(mapped_sw_requirements) == 1  # there should be only one SW requirement
 

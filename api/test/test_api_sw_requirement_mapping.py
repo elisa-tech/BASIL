@@ -728,7 +728,7 @@ def test_put_missing_relation(client_db, client, user_authentication, mapped_api
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
-        'relation-id': supposed_mapping,
+        'relation-id': non_existent_id,
         'api-id': mapped_api_db.id,
         'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
         'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
@@ -941,7 +941,7 @@ def test_delete_missing_relation(client_db, client, user_authentication, mapped_
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
-        'relation-id': supposed_mapping,
+        'relation-id': non_existent_id,
         'api-id': mapped_api_db.id
     }
     response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)

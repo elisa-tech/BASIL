@@ -3691,7 +3691,7 @@ class ApiSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
+            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", NOT_FOUND_STATUS
 
         sw_requirement = sw_requirement_mapping_api.sw_requirement
 
@@ -3770,7 +3770,7 @@ class ApiSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
+            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", NOT_FOUND_STATUS
 
         if sw_requirement_mapping_api.api.id != api.id:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS

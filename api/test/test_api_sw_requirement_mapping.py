@@ -734,7 +734,7 @@ def test_put_missing_relation(client_db, client, user_authentication, mapped_api
         'sw-requirement': sw_requirement
     }
     response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.status_code == HTTPStatus.NOT_FOUND
 
     # there should be no new mappings
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
@@ -943,7 +943,7 @@ def test_delete_missing_relation(client_db, client, user_authentication, mapped_
         'api-id': mapped_api_db.id
     }
     response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.status_code == HTTPStatus.NOT_FOUND
 
     # the mapping should exist
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)

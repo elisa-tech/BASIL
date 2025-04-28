@@ -39,6 +39,17 @@ def _get_sections_mapped_by_sw_requirements(client, api_id):
     return _filter_sections_mapped_by_sw_requirements(response.json['mapped'])
 
 
+def _assert_mapped_sections(mapped_sections, expected_sections):
+    current_sections = [s['section'] for s in mapped_sections].sort()
+    assert current_sections == expected_sections.sort()
+
+
+def _get_mapped_sw_requirement(mapped_section):
+    relation_id = mapped_section['sw_requirements'][0]['relation_id']
+    sw_requirement = mapped_section['sw_requirements'][0]['sw_requirement']
+    return relation_id, sw_requirement
+
+
 @pytest.fixture()
 def restricted_api_db(client_db, ut_user_db, ut_reader_user_db, utilities):
     """ Create Api with read restriction for "reader" """
@@ -196,7 +207,8 @@ def test_get_authorized_restricted_ok(client, user_authentication, restricted_ap
     assert 'unmapped' in response.json
 
 
-def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
+@pytest.mark.usefixtures("unmapped_api_db")
+def test_get_incorrect_request(client, user_authentication):
     """ Read API without specification of the api-id """
 
     get_query = {
@@ -209,7 +221,8 @@ def test_get_incorrect_request(client, user_authentication, unmapped_api_db):
     assert 'unmapped' not in response.json
 
 
-def test_get_missing_api(client_db, client, user_authentication, unmapped_api_db):
+@pytest.mark.usefixtures("unmapped_api_db")
+def test_get_missing_api(client_db, client, user_authentication):
     """ Read non-existent API """
 
     non_existent_id = 42000
@@ -326,7 +339,8 @@ def test_post_incomplete_request(client, user_authentication, unmapped_api_db, u
     assert len(mapped_sections) == 0
 
 
-def test_post_missing_api(client_db, client, user_authentication, unmapped_api_db, utilities):
+@pytest.mark.usefixtures("unmapped_api_db")
+def test_post_missing_api(client_db, client, user_authentication, utilities):
     """ Create mapping for non-existent API """
 
     non_existent_id = 42000
@@ -383,7 +397,7 @@ def test_post_missing_sw_requirement(client_db, client, user_authentication, unm
     assert len(mapped_sections) == 0
 
 
-def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_api_db, sw_requirement_db, utilities):
+def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_api_db, sw_requirement_db):
     """ Nominal test for mapping a section with an existing SW requirement """
 
     # ensure there is no mapped SW requirements for this API
@@ -422,12 +436,10 @@ def test_post_existing_sw_requirement_conflict(client, user_authentication, mapp
     api_id = mapped_api_db.id
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
-    # get the SW requirement
-    sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
     # try to create the same mapping
+    _, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
@@ -493,12 +505,10 @@ def test_post_new_sw_requirement_conflict(client, user_authentication, mapped_ap
     api_id = mapped_api_db.id
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
-    # get the SW requirement
-    sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
     # map a SW requirement to unmapped section, but with a SW requirement duplicate
+    _, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
@@ -565,8 +575,7 @@ def test_post_add_sw_requirement(client, user_authentication, mapped_api_db, uti
 
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
     mapped_sw_requirements = mapped_sections[0]['sw_requirements']
     assert len(mapped_sw_requirements) == 1  # there should be only one SW requirement
 
@@ -597,19 +606,151 @@ def test_post_add_sw_requirement(client, user_authentication, mapped_api_db, uti
     assert mapped_sw_requirements[0]['sw_requirement']['title'] != mapped_sw_requirements[1]['sw_requirement']['title']
 
 
-def test_put_ok(client, user_authentication, mapped_api_db):
-    """ Nominal test for mapping update """
+def test_put_unauthorized(client, mapped_api_db):
+    """ Update mapping without authentication: it is not allowed """
+
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'relation-id': relation_id,
+        'api-id': mapped_api_db.id,
+        'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+    # there should be no new mappings
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+def test_put_restricted_write(client, reader_authentication, mapped_api_db):
+    """ Update mapping by "reader": the "reader" is not allowed to update mapping """
+
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': reader_authentication.json['id'],
+        'token': reader_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': mapped_api_db.id,
+        'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+    # there should be no new mappings
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+@pytest.mark.parametrize('mandatory_field', ['api-id', 'section', 'offset', 'coverage', 'sw-requirement'])
+def test_put_incomplete_request(client, user_authentication, mapped_api_db, mandatory_field):
+    """ Update mapping without specification of a mandatory parameter: it is not allowed """
+
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': mapped_api_db.id,
+        'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    mapping_data.pop(mandatory_field)
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+    # there should be no new mappings
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+def test_put_missing_api(client_db, client, user_authentication, mapped_api_db):
+    """ Update mapping for non-existent API """
+
+    non_existent_id = 42000
+    # ensure this api id does not exist
+    supposed_api = client_db.session.query(ApiModel).get(non_existent_id)
+    assert supposed_api is None
+
+    # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': non_existent_id,
+        'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_put_missing_relation(client_db, client, user_authentication, mapped_api_db):
+    """ Update mapping for non-existent relation """
+
+    non_existent_id = 42000
+    # ensure this relation id does not exist
+    supposed_mapping = client_db.session.query(ApiSwRequirementModel).get(non_existent_id)
+    assert supposed_mapping is None
+
+    # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': non_existent_id,
+        'api-id': mapped_api_db.id,
+        'section': _UT_API_SPEC_SECTION_TO_BE_MAPPED,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+    # there should be no new mappings
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+def test_put_update_mapping_ok(client, user_authentication, mapped_api_db):
+    """ Nominal test for mapping update: section and offset """
 
     api_id = mapped_api_db.id
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
-    # get the relation ID and SW requirement
-    relation_id = mapped_sections[0]['sw_requirements'][0]['relation_id']
-    sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
     # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],
@@ -629,6 +770,184 @@ def test_put_ok(client, user_authentication, mapped_api_db):
     assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_TO_BE_MAPPED
     assert mapped_sections[0]['offset'] == _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED)
     assert len(mapped_sections[0]['sw_requirements']) == 1  # there should be only one SW requirement
+    # TODO: ensure version is increased
+
+
+def test_put_update_mapping_unchanged(client, user_authentication, mapped_api_db):
+    """ Update mapping with the same data """
+
+    api_id = mapped_api_db.id
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # update with the same data
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': api_id,
+        'section': _UT_API_SPEC_SECTION_WITH_MAPPING,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.OK
+
+    # ensure mapping is still to _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+    # TODO: ensure version is not changed
+
+
+def test_put_update_sw_requirement(client, user_authentication, mapped_api_db, utilities):
+    """ Nominal test for mapping update: SW requirement data """
+
+    api_id = mapped_api_db.id
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # update sw requirement
+    relation_id, sw_requirement = _get_mapped_sw_requirement(mapped_sections[0])
+    new_sw_requirement_title = f'SW req #{utilities.generate_random_hex_string8()}'
+    sw_requirement['title'] = new_sw_requirement_title
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': api_id,
+        'section': _UT_API_SPEC_SECTION_WITH_MAPPING,
+        'offset': _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
+        'coverage': 0,
+        'sw-requirement': sw_requirement
+    }
+    response = client.put(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.OK
+
+    # ensure mapping is still to _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+    # there should be only one SW requirement with the new title
+    assert len(mapped_sections[0]['sw_requirements']) == 1
+    sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
+    assert sw_requirement['title'] == new_sw_requirement_title
+    # TODO: ensure version is increased
+
+
+def test_delete_unauthorized(client, mapped_api_db):
+    """ Delete mapping without authentication: it is not allowed """
+
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # delete mapping
+    relation_id, _ = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'relation-id': relation_id,
+        'api-id': mapped_api_db.id
+    }
+    response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+    # the mapping should exist
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+def test_delete_restricted_write(client, reader_authentication, mapped_api_db):
+    """ Delete mapping by "reader": the "reader" is not allowed to delete mapping """
+
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # delete mapping
+    relation_id, _ = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': reader_authentication.json['id'],
+        'token': reader_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': mapped_api_db.id
+    }
+    response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+    # the mapping should exist
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+@pytest.mark.parametrize('mandatory_field', ['api-id', 'relation-id'])
+def test_delete_incomplete_request(client, user_authentication, mapped_api_db, mandatory_field):
+    """ Delete mapping without specification of a mandatory parameter: it is not allowed """
+
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # delete mapping
+    relation_id, _ = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': mapped_api_db.id
+    }
+    mapping_data.pop(mandatory_field)
+    response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+    # the mapping should exist
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+
+def test_delete_missing_api(client_db, client, user_authentication, mapped_api_db):
+    """ Delete mapping for non-existent API """
+
+    non_existent_id = 42000
+    # ensure this api id does not exist
+    supposed_api = client_db.session.query(ApiModel).get(non_existent_id)
+    assert supposed_api is None
+
+    # delete mapping
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    relation_id, _ = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': relation_id,
+        'api-id': non_existent_id
+    }
+    response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_delete_missing_relation(client_db, client, user_authentication, mapped_api_db):
+    """ Delete mapping for non-existent relation """
+
+    non_existent_id = 42000
+    # ensure this relation id does not exist
+    supposed_mapping = client_db.session.query(ApiSwRequirementModel).get(non_existent_id)
+    assert supposed_mapping is None
+
+    # delete mapping
+    mapping_data = {
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token'],
+        'relation-id': non_existent_id,
+        'api-id': mapped_api_db.id
+    }
+    response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+    # the mapping should exist
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
 
 def test_delete_ok(client, user_authentication, mapped_api_db):
@@ -637,12 +956,10 @@ def test_delete_ok(client, user_authentication, mapped_api_db):
     api_id = mapped_api_db.id
     # ensure there is a mapped SW requirement for this API for section _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
-    assert len(mapped_sections) == 1
-    assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_WITH_MAPPING
-    # get the relation ID
-    relation_id = mapped_sections[0]['sw_requirements'][0]['relation_id']
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
     # delete mapping
+    relation_id, _ = _get_mapped_sw_requirement(mapped_sections[0])
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],

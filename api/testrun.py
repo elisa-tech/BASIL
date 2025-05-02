@@ -11,6 +11,7 @@ from pyaml_env import parse_config
 from sqlalchemy.orm.exc import NoResultFound
 from testrun_github_actions import TestRunnerGithubActionsPlugin
 from testrun_gitlab_ci import TestRunnerGitlabCIPlugin
+from testrun_lava import TestRunnerLAVAPlugin
 from testrun_testing_farm import TestRunnerTestingFarmPlugin
 from testrun_tmt import TestRunnerTmtPlugin
 
@@ -49,16 +50,18 @@ class TestRunner:
     KERNEL_CI = 'KernelCI'
     GITLAB_CI = 'gitlab_ci'
     GITHUB_ACTIONS = 'github_actions'
+    LAVA = 'LAVA'
     TMT = 'tmt'
     TESTING_FARM = 'testing_farm'
 
     CONFIGS_FOLDER = 'configs'
 
-    test_run_plugin_models = {'github_actions': TestRunnerGithubActionsPlugin,
+    test_run_plugin_models = {'KernelCI': None,
+                              'LAVA': TestRunnerLAVAPlugin,
+                              'github_actions': TestRunnerGithubActionsPlugin,
                               'gitlab_ci': TestRunnerGitlabCIPlugin,
-                              'KernelCI': None,
-                              'tmt': TestRunnerTmtPlugin,
-                              'testing_farm': TestRunnerTestingFarmPlugin}
+                              'testing_farm': TestRunnerTestingFarmPlugin,
+                              'tmt': TestRunnerTmtPlugin}
 
     runner_plugin = None
     config = {}

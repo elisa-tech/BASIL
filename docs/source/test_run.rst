@@ -33,7 +33,8 @@ What is actually supported?
 +----------------+---------------------------+------------------+---------------------+
 |    KernelCI    |            No             |       Yes        |      External       |
 +----------------+---------------------------+------------------+---------------------+
-
+|      LAVA      |           Yes             |       Yes        |      External       |
++----------------+---------------------------+------------------+---------------------+
 
 Trigger, Monitor and Trace: Trigger test execution on the external test infrastructure, follow the test execution and trace the test result to a BASIL Test Case.
 
@@ -410,6 +411,44 @@ basil_test_relative_path = test_case.relative_path
 
 basil_test_repo_ref = From Preset or From Test Run Connfiguration as per user needs
 `
+
+-----------------------------------------------
+LAVA (Linaro Automated Validation Architecture)
+-----------------------------------------------
+
+You can use BASIL to run a test on a LAVA instance.
+On doing so you can specify a LAVA plugin preset as done in the following example:
+
+
+.. code-block:: yaml
+
+  LAVA:
+  - name: local_lava_instance
+    url: http://localhost:8080/api/v0.2
+    job: custom-lava-job.yaml
+    private_token: !ENV ${LAVA_LOCAL_INSTANCE_PRIVATE_TOKEN}
+    env:
+      var1: value1
+      var2: value2
+    
+Note: name, url, private_token are mandatory fields.
+      If you do not specify the `job` statement, the plugin will use the default api/lava-job.yaml job file.
+
+You can also specify your test run configuration manually and reuse it on each future test run.
+On doing so you can also select a job file from User Files sections. 
+Pay attention that BASIL will filter over YAML files as it is the expected extension.
+
+BASIL will extends the Job file adding a definition for your test case using the url of the repository and the relative path you specify as part of the work item (Test Case) information.
+
+You can use the same plugin preset configuration to navigate jobs executed on your LAVA instance and trace a test run to your BASIL test case.
+On doing that you can apply additional filters.
+
+Click the Test Case menu and then Test Results. Oce the Test Results modal appears, select the tab `External Test Runs`.
+Then select the `LAVA` plugin and then the desired preset. Apply additional filter if needed and click `Add Filter`.
+Once you have all the filter in place, click `Search`.
+
+You can open the LAVA Job details page by clicking on the link provided on each line.
+Once you identified the right test run, you can click on `import` to trace it to your test case.
 
 -------------------
 Postponed execution

@@ -110,6 +110,7 @@ export const testing_farm_archs = [
 export const gitlab_ci_plugin = 'gitlab_ci'
 export const github_actions_plugin = 'github_actions'
 export const kernel_ci_plugin = 'KernelCI'
+export const LAVA_plugin = 'LAVA'
 export const testing_farm_plugin = 'testing_farm'
 export const tmt_plugin = 'tmt'
 
@@ -118,7 +119,8 @@ export const test_run_plugins = [
   { value: testing_farm_plugin, label: 'Testing Farm', disabled: false, trigger: true, fetch: false },
   { value: github_actions_plugin, label: 'github actions', disabled: false, trigger: true, fetch: true },
   { value: gitlab_ci_plugin, label: 'gitlab ci', disabled: false, trigger: true, fetch: true },
-  { value: kernel_ci_plugin, label: 'KernelCI', disabled: false, trigger: false, fetch: true }
+  { value: kernel_ci_plugin, label: 'KernelCI', disabled: false, trigger: false, fetch: true },
+  { value: LAVA_plugin, label: 'LAVA', disabled: false, trigger: true, fetch: true }
 ]
 
 export const spdx_relations = [
@@ -202,7 +204,7 @@ export const getFilenameFromFilepath = (filepath: string) => {
   return filepath.split(PATH_SEP).pop()
 }
 
-export const loadUserFiles = (_auth, _setFiles) => {
+export const loadUserFiles = (_auth, _setFiles, _filter = '') => {
   // _set is a useState Set variable used to populate the useState
   if (!_auth.isLogged()) {
     return
@@ -211,6 +213,7 @@ export const loadUserFiles = (_auth, _setFiles) => {
   url = API_BASE_URL + API_USER_FILES_ENDPOINT
   url += '?user-id=' + _auth.userId
   url += '&token=' + _auth.token
+  url += '&filter=' + (_filter ? _filter : '')
   fetch(url, {
     method: 'GET',
     headers: JSON_HEADER

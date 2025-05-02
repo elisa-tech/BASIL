@@ -43,3 +43,11 @@
 #    env:
 #      var1: value1
 #      var2: value2
+#LAVA:
+#  - name: local_lava_instance
+#    url: http://localhost:8080/api/v0.2
+#    job: lava-job.yaml
+#    private_token: !ENV ${LAVA_xxx_PRIVATE_TOKEN}
+#    env:
+#      var1: value1
+#      var2: value2

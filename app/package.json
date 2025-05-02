@@ -82,5 +82,9 @@
     "react-markdown": "^9.0.1",
     "sirv-cli": "^2.0.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
+  },
+  "overrides": {
+    "braces": "^3.0.3",
+    "micromatch": "^4.0.8"
   }
 }

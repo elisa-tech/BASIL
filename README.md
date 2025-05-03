@@ -58,6 +58,7 @@ BASIL is also able to trace test cases executed on external test infrastructure 
 - Testing Farm
 - github actions
 - gitlab CI
+- LAVA (Linaro Automated Validation Architecture)
 
 to test cases.
 

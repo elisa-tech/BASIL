@@ -1,5 +1,12 @@
 # CHANGE LOG
 
+## 1.7.x
+
+- API Testing extended to support user management
+- LAVA (Linaro Automated Validation Architecture) Test Run Pluing
+- Fix npm vulnerabilities
+- Extended to other browsers other than Chrome
+
 ## 1.6.x
 
 - SPDX export based on Model 3

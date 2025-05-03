@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import React from 'react'
 import * as Constants from '../../Constants/constants'
 import {
@@ -38,6 +39,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
 }: TestRunConfigFormProps) => {
   const auth = useAuth()
 
+  const [userFiles, setUserFiles] = React.useState([])
   const [messageValue, setMessageValue] = React.useState('')
 
   const [pluginPresetsValue, setPluginPresetsValue] = React.useState([])
@@ -98,6 +100,19 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   // - Optional fields
   const [githubActionsWorkflowIdValue, setGithubActionsWorkflowIdValue] = React.useState('')
   const [githubActionsJobValue, setGithubActionsJobValue] = React.useState('')
+
+  // LAVA
+  // - Mandatory fields
+  const [lavaUrlValue, setLavaUrlValue] = React.useState('')
+  const [validatedLavaUrlValue, setValidatedLavaUrlValue] = React.useState<Constants.validate>('error')
+
+  const [lavaPrivateTokenValue, setLavaPrivateTokenValue] = React.useState('')
+  const [validatedLavaPrivateTokenValue, setValidatedLavaPrivateTokenValue] = React.useState<Constants.validate>('error')
+
+  // - Optional fields
+  // Job can be loaded from user files only
+  const [lavaJobValue, setLavaJobValue] = React.useState('')
+  const [validatedLavaJobValue, setValidatedLavaJobValue] = React.useState<Constants.validate>('error')
 
   // Testing Farm
   // - Mandatory fields
@@ -245,6 +260,9 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
         setGithubActionsPrivateTokenValue(testRunConfig.private_token)
       }
     } else if (testRunConfig?.plugin == Constants.testing_farm_plugin) {
+      if (testingFarmComposes.length == 0) {
+        loadTestingFarmCompose()
+      }
       if (testRunConfig?.compose != null) {
         setTestingFarmComposes(testRunConfig.compose)
       }
@@ -256,6 +274,19 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
       }
       if (testRunConfig?.url != null) {
         setTestingFarmUrlValue(testRunConfig.url)
+      }
+    } else if (testRunConfig?.plugin == Constants.LAVA_plugin) {
+      if (userFiles.length == 0) {
+        Constants.loadUserFiles(auth, setUserFiles, '.yaml')
+      }
+      if (testRunConfig?.private_token != null) {
+        setLavaPrivateTokenValue(testRunConfig.private_token)
+      }
+      if (testRunConfig?.url != null) {
+        setLavaUrlValue(testRunConfig.url)
+      }
+      if (testRunConfig?.job != null) {
+        setLavaJobValue(testRunConfig.job)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -403,6 +434,29 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testingFarmArchValue, testingFarmComposeValue, testingFarmUrlValue, testingFarmPrivateTokenValue])
 
+  React.useEffect(() => {
+    if (lavaJobValue.trim() === '') {
+      setValidatedLavaJobValue('error')
+    } else {
+      setValidatedLavaJobValue('success')
+    }
+
+    if (lavaPrivateTokenValue.trim() === '') {
+      setValidatedLavaPrivateTokenValue('error')
+    } else {
+      setValidatedLavaPrivateTokenValue('success')
+    }
+
+    if (lavaUrlValue.trim() === '') {
+      setValidatedLavaUrlValue('error')
+    } else {
+      setValidatedLavaUrlValue('success')
+    }
+
+    updateTestRunConfig()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lavaJobValue, lavaPrivateTokenValue, lavaUrlValue])
+
   const set_test_run_config_forked = () => {
     const tmpConfig = testRunConfig
     tmpConfig['id'] = 0
@@ -421,6 +475,11 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     if (value == Constants.testing_farm_plugin) {
       if (testingFarmComposes.length == 0) {
         loadTestingFarmCompose()
+      }
+    }
+    if (value == Constants.LAVA_plugin) {
+      if (userFiles.length == 0) {
+        Constants.loadUserFiles(auth, setUserFiles, '.yaml')
       }
     }
     set_test_run_config_forked()
@@ -539,8 +598,24 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     set_test_run_config_forked()
   }
 
+  //LAVA
+  const handleLavaJobChange = (_event, value: string) => {
+    setLavaJobValue(value)
+    set_test_run_config_forked()
+  }
+
+  const handleLavaUrlChange = (_event, value: string) => {
+    setLavaUrlValue(value)
+    set_test_run_config_forked()
+  }
+
+  const handleLavaPrivateTokenChange = (_event, value: string) => {
+    setLavaPrivateTokenValue(value)
+    set_test_run_config_forked()
+  }
+
   const updateTestRunConfig = () => {
-    const tmpConfig = testRunConfig
+    const tmpConfig = _.cloneDeep(testRunConfig)
 
     tmpConfig['title'] = titleValue
     tmpConfig['git_repo_ref'] = refValue
@@ -572,7 +647,12 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
       tmpConfig['arch'] = testingFarmArchValue
       tmpConfig['private_token'] = pluginPresetValue == '' ? testingFarmPrivateTokenValue : ''
       tmpConfig['url'] = pluginPresetValue == '' ? testingFarmUrlValue : ''
+    } else if (pluginValue == Constants.LAVA_plugin) {
+      tmpConfig['job'] = pluginPresetValue == '' ? lavaJobValue : ''
+      tmpConfig['private_token'] = pluginPresetValue == '' ? lavaPrivateTokenValue : ''
+      tmpConfig['url'] = pluginPresetValue == '' ? lavaUrlValue : ''
     }
+    setTestRunConfig(tmpConfig)
   }
 
   return (
@@ -816,6 +896,62 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
                 </HelperText>
               </FormHelperText>
             )}
+          </FormGroup>
+        </>
+      ) : (
+        ''
+      )}
+
+      {pluginValue == Constants.LAVA_plugin && pluginPresetValue == '' ? (
+        <>
+          <FormGroup label='Url (LAVA Instance)' isRequired fieldId={`input-test-run-config-lava-url-${testRunConfig.id || `0`}`}>
+            <TextInput
+              isRequired
+              id={`input-test-run-config-lava-url-${testRunConfig.id || `0`}`}
+              value={lavaUrlValue}
+              placeholder={`example: http://localhost:8080/api/v0.2`}
+              onChange={(_ev, value) => handleLavaUrlChange(_ev, value)}
+            />
+            {validatedLavaUrlValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>{validatedLavaUrlValue === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+
+          <FormGroup label='Api Token (LAVA)' isRequired fieldId={`input-test-run-config-lava-token-${testRunConfig.id || `0`}`}>
+            <TextInput
+              isRequired
+              id={`input-test-run-config-lava-token-${testRunConfig.id || `0`}`}
+              value={lavaPrivateTokenValue}
+              placeholder={`your token`}
+              onChange={(_ev, value) => handleLavaPrivateTokenChange(_ev, value)}
+            />
+            {validatedLavaPrivateTokenValue !== 'success' && (
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem variant='error'>
+                    {validatedLavaPrivateTokenValue === 'error' ? 'This field is mandatory' : ''}
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
+            )}
+          </FormGroup>
+
+          <FormGroup label='Job (LAVA)' fieldId={`input-test-run-config-lava-job-${testRunConfig.id || `0`}`}>
+            <FormSelect
+              value={lavaJobValue}
+              id={`input-test-run-config-lava-job-${testRunConfig.id || `0`}`}
+              onChange={handleLavaJobChange}
+              aria-label='Test Run Config LAVA Job'
+            >
+              <FormSelectOption key={0} value='' label='default' />
+              {userFiles.map((userFile, index) => (
+                <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+              ))}
+            </FormSelect>
           </FormGroup>
         </>
       ) : (

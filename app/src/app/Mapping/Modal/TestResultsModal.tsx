@@ -144,9 +144,19 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     limit: null
   }
 
+  const LAVAFilterTemplate = {
+    id: null,
+    page: null,
+    project: null,
+    ref: null,
+    details: null,
+    status: null
+  }
+
   const [gitlabCiFilter, setGitlabCIFilter] = React.useState(gitlabCIFilterTemplate)
   const [githubActionsFilter, setGithubActionsFilter] = React.useState(githubActionsFilterTemplate)
   const [kernelCIFilter, setKernelCIFilter] = React.useState(kernelCIFilterTemplate)
+  const [LAVAFilter, setLAVAFilter] = React.useState(LAVAFilterTemplate)
 
   const load_plugin_presets = (_plugin) => {
     let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
@@ -206,6 +216,10 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       const tmp = _.cloneDeep(githubActionsFilter)
       tmp[filterKey] = filterValue + '' // cast to string
       setGithubActionsFilter(tmp)
+    } else if (pluginValue == Constants.LAVA_plugin) {
+      const tmp = _.cloneDeep(LAVAFilter)
+      tmp[filterKey] = filterValue + '' // cast to string
+      setLAVAFilter(tmp)
     } else {
       return
     }
@@ -226,6 +240,10 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       const tmp = _.cloneDeep(githubActionsFilter)
       tmp[filterKey] = null
       setGithubActionsFilter(tmp)
+    } else if (pluginValue == Constants.LAVA_plugin) {
+      const tmp = _.cloneDeep(LAVAFilter)
+      tmp[filterKey] = null
+      setLAVAFilter(tmp)
     } else {
       return
     }
@@ -377,6 +395,8 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       currentFilter = _.cloneDeep(gitlabCiFilter)
     } else if (pluginValue == Constants.github_actions_plugin) {
       currentFilter = _.cloneDeep(githubActionsFilter)
+    } else if (pluginValue == Constants.LAVA_plugin) {
+      currentFilter = _.cloneDeep(LAVAFilter)
     }
     if (currentFilter != null) {
       for (let i = 0; i < Object.keys(currentFilter).length; i++) {
@@ -789,6 +809,8 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                       currentFilter = _.cloneDeep(gitlabCiFilter)
                     } else if (pluginValue == Constants.github_actions_plugin) {
                       currentFilter = _.cloneDeep(githubActionsFilter)
+                    } else if (pluginValue == Constants.LAVA_plugin) {
+                      currentFilter = _.cloneDeep(LAVAFilter)
                     } else {
                       return ''
                     }
@@ -841,6 +863,8 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                 currentFilter = _.cloneDeep(gitlabCiFilter)
               } else if (pluginValue == Constants.github_actions_plugin) {
                 currentFilter = _.cloneDeep(githubActionsFilter)
+              } else if (pluginValue == Constants.LAVA_plugin) {
+                currentFilter = _.cloneDeep(LAVAFilter)
               } else {
                 return ''
               }

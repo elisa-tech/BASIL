@@ -15,7 +15,7 @@ module.exports = merge(common('production'), {
       chunks: 'all',
       minSize: 30000,
       maxSize: 244000,
-      automaticNameDelimiter: '-',
+      automaticNameDelimiter: '-'
     },
     minimizer: [
       new TerserJSPlugin({
@@ -27,16 +27,16 @@ module.exports = merge(common('production'), {
             passes: 3,
             reduce_vars: true,
             collapse_vars: true,
-            negate_iife: false,
+            negate_iife: false
           },
           mangle: {
-            reserved: ['$', 'exports', 'require'],
+            reserved: ['$', 'exports', 'require']
           },
           output: {
-            comments: false,
-          },
+            comments: false
+          }
         },
-        parallel: true,
+        parallel: true
       }),
       new CssMinimizerPlugin({
         minimizerOptions: {
@@ -61,4 +61,3 @@ module.exports = merge(common('production'), {
     ]
   }
 })
-

@@ -1,0 +1,34 @@
+---
+device_type: qemu
+job_name: QEMU pipeline, first job
+timeouts:
+  job:
+    minutes: 15
+  action:
+    minutes: 5
+  connection:
+    minutes: 2
+priority: medium
+visibility: public
+context:
+  arch: amd64
+actions:
+  - deploy:
+      timeout:
+        minutes: 5
+      to: tmpfs
+      images:
+        rootfs:
+          image_arg: -drive format=raw,file={rootfs}
+          url: https://images.validation.linaro.org/kvm/standard/stretch-2.img.gz
+          compression: gz
+  - boot:
+      timeout:
+        minutes: 2
+      method: qemu
+      media: tmpfs
+      prompts:
+        - "root@debian:"
+      auto_login:
+        login_prompt: "login:"
+        username: root

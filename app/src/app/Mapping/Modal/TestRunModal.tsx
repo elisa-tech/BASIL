@@ -79,7 +79,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
 
   const handleSelectExistingTestConfig = (config) => {
     let config_copy = _.cloneDeep(config)
-    if (['gitlab_ci', 'github_actions'].indexOf(config_copy['plugin']) > -1) {
+    if ([Constants.gitlab_ci_plugin, Constants.github_actions_plugin, Constants.LAVA_plugin].indexOf(config_copy['plugin']) > -1) {
       config_copy = Constants.extend_config_with_plugin_vars(config_copy)
     }
     setTestRunConfig(config_copy)

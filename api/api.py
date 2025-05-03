@@ -11,7 +11,6 @@ import sys
 import subprocess
 import time
 import urllib
-from urllib.error import HTTPError, URLError
 from uuid import uuid4
 
 import gitlab
@@ -21,6 +20,7 @@ from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
 from sqlalchemy import and_, or_, update
 from sqlalchemy.orm.exc import NoResultFound
+from api_utils import get_api_specification, read_file
 from testrun import TestRunner
 
 logging.basicConfig()
@@ -40,7 +40,7 @@ TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "testrun_plug
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
-
+PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
 SETTINGS_CACHE = None
 SETTINGS_LAST_MODIFIED = None
 
@@ -52,6 +52,16 @@ if not os.path.exists(TEST_RUNS_BASE_DIR):
 
 if not os.path.exists(USER_FILES_BASE_DIR):
     os.makedirs(USER_FILES_BASE_DIR, exist_ok=True)
+
+# Read API Version once
+# API Version is not supposed to change runtime
+API_VERSION = ""
+if os.path.exists(PYPROJECT_FILEPATH):
+    pyproject_content = read_file(PYPROJECT_FILEPATH)
+    if pyproject_content:
+        version_row = [x for x in pyproject_content.split("\n") if x.startswith("version = ")]
+        if version_row:
+            API_VERSION = version_row[0].split("=")[-1].replace('"', "").strip()
 
 USER_ROLES_DELETE_PERMISSIONS = ["ADMIN", "USER"]
 USER_ROLES_EDIT_PERMISSIONS = ["ADMIN", "USER"]
@@ -497,45 +507,6 @@ def get_db():
     return "basil.db"
 
 
-def get_api_specification(_url_or_path):
-    if _url_or_path is None:
-        return None
-    else:
-        _url_or_path = _url_or_path.strip()
-        if len(_url_or_path) == 0:
-            return None
-
-        if _url_or_path.startswith("http"):
-            try:
-                resource = urllib.request.urlopen(_url_or_path)
-                if resource.headers.get_content_charset():
-                    content = resource.read().decode(resource.headers.get_content_charset())
-                else:
-                    content = resource.read().decode("utf-8")
-                return content
-            except HTTPError as excp:
-                print(f"HTTPError: {excp.reason} reading {_url_or_path}")
-                return None
-            except URLError as excp:
-                print(f"URLError: {excp.reason} reading {_url_or_path}")
-                return None
-            except ValueError as excp:
-                print(f"ValueError reading {_url_or_path}: {excp}")
-                return None
-        else:
-            if not os.path.exists(_url_or_path):
-                return None
-
-            try:
-                f = open(_url_or_path, "r")
-                fc = f.read()
-                f.close()
-                return fc
-            except OSError as excp:
-                print(f"OSError for {_url_or_path}: {excp}")
-                return None
-
-
 def get_api_coverage(_sections):
     total_len = sum([len(x["section"]) for x in _sections])
     wa = 0
@@ -749,27 +720,28 @@ def get_query_string_args(args):
     permitted_keys = [
         "api-id",
         "artifact",
+        "filter",
         "id",
+        "job",
         "library",
-        "mapped_to_type",
         "mapped_to_id",
+        "mapped_to_type",
         "mode",
+        "page",
+        "params",
         "parent_id",
         "parent_table",
+        "per_page",
         "plugin",
+        "preset",
+        "ref",
         "relation_id",
         "search",
+        "stage",
         "token",
         "url",
         "user-id",
-        "work_item_type",
-        "page",
-        "per_page",
-        "preset",
-        "job",
-        "stage",
-        "ref",
-        "params",
+        "work_item_type"
     ]
 
     ret = {"db": db, "limit": limit, "order_by": order_by, "order_how": order_how}
@@ -1035,6 +1007,7 @@ def add_test_run_config(dbi, request_data, user):
     github_actions_mandatory_fields = ["job", "private_token", "url", "workflow_id"]
     kernel_ci_mandatory_fields = []
     testing_farm_mandatory_fields = ["arch", "compose", "private_token", "url"]
+    lava_mandatory_fields = ["job", "private_token", "url"]
 
     if not check_fields_in_request(mandatory_fields, request_data):
         return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
@@ -1124,6 +1097,12 @@ def add_test_run_config(dbi, request_data, user):
         context_vars = str(request_data["context_vars"]).strip()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in testing_farm_mandatory_fields]
+        )
+    elif plugin == TestRunner.LAVA:
+        if not check_fields_in_request(lava_mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE} LAVA miss mandatory fields", BAD_REQUEST_STATUS
+        plugin_vars += ";".join(
+            [f"{field}={str(request_data[field]).strip()}" for field in lava_mandatory_fields]
         )
 
     test_config = TestRunConfigModel(
@@ -6278,6 +6257,11 @@ class UserFiles(Resource):
                 "filepath": os.path.join(user_files_path, user_file),
                 "updated_at": time.ctime(os.path.getmtime(os.path.join(user_files_path, user_file))),
             }
+
+            if "filter" in args.keys():
+                if str(args["filter"]).lower() not in user_file.lower():
+                    continue
+
             ret.append(tmp)
             i += 1
 
@@ -6462,7 +6446,7 @@ class UserFileContent(Resource):
 
 
 class TestRunConfig(Resource):
-    # Do not support delete, put and post
+    # Do not support delete and put
     # Once a Test Run has been executed the Test Run Config is defined
     # and should be accessible in future to identify the Test Run
     # A new Test Config is created by the Test Run post endpoint
@@ -6823,6 +6807,11 @@ class TestRun(Resource):
         if os.path.exists(run_path):
             if os.path.isdir(run_path):
                 shutil.rmtree(run_path)
+
+        # Remove log file
+        log_file = os.path.join(TEST_RUNS_BASE_DIR, f"{run_dict['uid']}.log")
+        if os.path.exists(log_file):
+            os.remove(log_file)
 
         # Notification
         notification = (
@@ -7300,6 +7289,113 @@ class ExternalTestRuns(Resource):
                         }
                     )
 
+            if plugin == TestRunner.LAVA:
+                JOBS_ENDPOINT = "jobs"
+                lava_mandatory_fields = ["private_token", "url"]
+                lava_filter_keys = ["id", "project", "ref", "details"]
+
+                headers = {
+                    "Authorization": "Token ",
+                    "Content-Type": "application/json"
+                }
+
+                if not check_fields_in_request(lava_mandatory_fields, preset_config, allow_empty_string=False):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+                if preset_config["url"].endswith("/"):
+                    preset_config["url"] = preset_config["url"][:-1]
+
+                lava_url = f"{preset_config['url']}/{JOBS_ENDPOINT}/?state=Finished&health=Complete"
+
+                if "page" in params.keys():
+                    lava_url += f"&page={params['page']}"
+
+                headers = {
+                    "Authorization": f"Token {preset_config['private_token']}",
+                }
+
+                try:
+                    lava_request = urllib.request.Request(url=lava_url, headers=headers)
+                    response_data = urllib.request.urlopen(lava_request).read()
+                    content = json.loads(response_data.decode("utf-8"))
+                except Exception as e:
+                    return f"{BAD_REQUEST_MESSAGE} Unable to read LAVA jobs {e}", BAD_REQUEST_STATUS
+                else:
+                    ret_pipelines = content["results"]
+
+                for p in ret_pipelines:
+
+                    # Project and branch
+                    try:
+                        lava_definition = parse_config(data=p["definition"])
+                    except Exception as exc:
+                        print(f"Error reading LAVA job definition: {exc}")
+                        lava_definition = None
+
+                    branch = "default"
+                    project = ""
+
+                    if lava_definition:
+                        if "actions" in lava_definition.keys():
+                            for iAct in lava_definition["actions"]:
+                                if "test" in iAct.keys():
+                                    if "definitions" in iAct["test"].keys():
+                                        if iAct["test"]["definitions"]:
+                                            lava_test_definition = iAct["test"]["definitions"]
+                                            if isinstance(lava_test_definition, list):
+                                                branch = lava_test_definition[0].get("branch", "default")
+                                                project = lava_test_definition[0].get("name", "")
+
+                    tmp_test_run = {
+                        "created_at": p["submit_time"],
+                        "id": p["id"],
+                        "project": project,
+                        "ref": branch,
+                        "details": p["description"],
+                        "status": None,
+                        "web_url": f"{preset_config['url'].split('/api/')[0]}/scheduler/job/{p['id']}",
+                    }
+
+                    # Filter keys for the ones already have the data
+                    # status(reuslt) can be evaluated only after reading
+                    # the details endpoint
+                    skip_test_run = False
+                    for filter_key in params.keys():
+                        if filter_key in lava_filter_keys:
+                            if str(params[filter_key]).lower() not in str(tmp_test_run[filter_key]).lower():
+                                skip_test_run = True
+                                continue
+                    if skip_test_run:
+                        continue
+
+                    # Extract test results
+                    try:
+                        lava_test_run_request = urllib.request.Request(
+                            url=f"{preset_config['url']}/{JOBS_ENDPOINT}/{p['id']}/tests/", headers=headers
+                        )
+                        response_data = urllib.request.urlopen(lava_test_run_request).read()
+                        content = json.loads(response_data.decode("utf-8"))
+                        if "results" in content.keys():
+                            lava_test_results = "pass" if all(
+                                d.get("result") == "pass" for d in content["results"]
+                            ) else "fail"
+                        else:
+                            lava_test_results = "unknown"
+                    except Exception as e:
+                        print(f"Unable to read LAVA job {p['id']} results: {e}")
+                        lava_test_results = "unknown"
+
+                    # Update test run status
+                    tmp_test_run["status"] = lava_test_results
+
+                    # Filter on status(result) if required
+                    if "status" in params.keys():
+                        if params["status"]:
+                            if str(params["status"]).lower() not in str(tmp_test_run["status"]).lower():
+                                continue
+
+                    ret.append(tmp_test_run)
+
         return ret
 
 
@@ -7426,15 +7522,8 @@ class AdminSettings(Resource):
 class Version(Resource):
 
     def get(self):
-        version = ""
-        filepath = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
-        f = open(filepath, "r")
-        fc = f.read()
-        f.close()
-        version_row = [x for x in fc.split("\n") if "version = " in x]
-        if len(version_row) == 1:
-            version = version_row[0].split("=")[-1].replace('"', "").strip()
-        return {"version": version}
+        """Take first row with version definition from pyproject.toml"""
+        return {"version": API_VERSION}
 
 
 api.add_resource(Api, "/apis")

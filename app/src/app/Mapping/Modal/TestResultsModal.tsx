@@ -35,6 +35,8 @@ import EyeIcon from '@patternfly/react-icons/dist/esm/icons/eye-icon'
 import ImportIcon from '@patternfly/react-icons/dist/esm/icons/import-icon'
 import TimesIcon from '@patternfly/react-icons/dist/esm/icons/times-icon'
 import { useAuth } from '../../User/AuthProvider'
+import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
+import { TestResultDetailsModal } from '@app/Mapping/Modal/TestResultDetailsModal'
 
 export interface TestResultsModalProps {
   api
@@ -42,7 +44,10 @@ export interface TestResultsModalProps {
   modalRelationData
   parentType
   setModalShowState
+  testResultDetailsModalShowState
   setTestResultDetailsModalShowState
+  setTestResultsModalShowState
+  currentTestResult
   setCurrentTestResult
 }
 
@@ -52,7 +57,10 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   modalRelationData,
   parentType,
   setModalShowState,
+  testResultDetailsModalShowState,
   setTestResultDetailsModalShowState,
+  setTestResultsModalShowState,
+  currentTestResult,
   setCurrentTestResult
 }: TestResultsModalProps) => {
   const auth = useAuth()
@@ -544,7 +552,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
         tabIndex={0}
         variant={ModalVariant.large}
         title='Test Results'
-        description={``}
+        description={<AutoRefresh loadRows={loadTestResults} showCountdown={true} />}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
       >
@@ -979,6 +987,16 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
           </TabContentBody>
         </TabContent>
       </Modal>
+      <TestResultDetailsModal
+        api={api}
+        setModalShowState={setTestResultDetailsModalShowState}
+        modalShowState={testResultDetailsModalShowState}
+        setTestResultsModalShowState={setTestResultsModalShowState}
+        currentTestResult={currentTestResult}
+        modalRelationData={modalRelationData}
+        loadTestResults={loadTestResults}
+        parentType={parentType}
+      />
     </React.Fragment>
   )
 }

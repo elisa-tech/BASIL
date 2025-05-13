@@ -23,6 +23,7 @@ import { NotificationDrawerBasic } from '../Notification/Notification'
 import logo from '@app/bgimages/basil.svg'
 import * as Constants from '../Constants/constants'
 import { useAuth } from '../User/AuthProvider'
+import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
 
 interface IAppLayout {
   children: React.ReactNode
@@ -77,8 +78,8 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       })
   }
 
-  const loadNotifications = () => {
-    if (fetchNotificationCount > 1) {
+  const loadNotifications = (force: boolean = false) => {
+    if (force == false && fetchNotificationCount > 1) {
       return
     }
     setFetchNotificationCount(fetchNotificationCount + 1)
@@ -119,6 +120,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         </MastheadBrand>
       </MastheadMain>
       <MastheadContent>
+        <AutoRefresh loadRows={loadNotifications} showCountdown={false} />
         <HeaderToolbar
           notificationCount={notifications.length}
           notificationDrawerExpanded={notificationDrawerExpanded}

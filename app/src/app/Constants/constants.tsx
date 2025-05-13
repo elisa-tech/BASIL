@@ -264,6 +264,13 @@ export const loadFileContent = (_auth, _filename, _setMessage, _setContent) => {
     })
 }
 
+export const percentageStringFormat = (x: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(x)
+}
+
 export const capitalizeFirstWithoutHashes = (_string: string) => {
   let tmp = _string.split('-').join(' ')
   tmp = tmp.split('_').join(' ')

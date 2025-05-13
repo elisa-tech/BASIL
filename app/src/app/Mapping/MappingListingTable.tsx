@@ -113,8 +113,6 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     work_items: 'WORK ITEMS'
   }
 
-  const coverageFormat = (x) => Number.parseFloat(x).toFixed(1)
-
   const getMappedSectionCodeBlockBackgroundColor = (snippet) => {
     const j_l = snippet[Constants._Js].length
     const sr_l = snippet[Constants._SRs_].length
@@ -346,7 +344,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getStatusLabel(test_case[Constants._TC_]['status'])}</FlexItem>
                   <FlexItem>
                     <Label variant='outline' isCompact>
-                      {coverageFormat(test_case['coverage'])}% Coverage
+                      {Constants.percentageStringFormat(test_case['coverage'])}% Coverage
                     </Label>
                   </FlexItem>
                   <FlexItem>
@@ -447,14 +445,14 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getStatusLabel(test_spec[Constants._TS_]['status'])}</FlexItem>
                   <FlexItem>
                     <Label variant='outline' isCompact>
-                      {coverageFormat(test_spec['coverage'])}% Coverage
+                      {Constants.percentageStringFormat(test_spec['coverage'])}% Coverage
                     </Label>
                   </FlexItem>
                   {test_spec['gap'] != 0 ? (
                     <React.Fragment>
                       <FlexItem>
                         <Label color='red' name='label-test-specification-coverage' variant='outline' isCompact>
-                          {coverageFormat(test_spec['gap'])}% Gap
+                          {Constants.percentageStringFormat(test_spec['gap'])}% Gap
                         </Label>
                       </FlexItem>
                     </React.Fragment>
@@ -565,14 +563,14 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getStatusLabel(mappedItem[Constants._SR_]['status'])}</FlexItem>
                   <FlexItem>
                     <Label name='label-sw-requirement-coverage' variant='outline' isCompact>
-                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                      {Constants.percentageStringFormat(mappedItem['coverage'])}% Coverage
                     </Label>
                   </FlexItem>
                   {mappedItem['gap'] != 0 ? (
                     <React.Fragment>
                       <FlexItem>
                         <Label color='red' name='label-sw-requirement-coverage' variant='outline' isCompact>
-                          {coverageFormat(mappedItem['gap'])}% Gap
+                          {Constants.percentageStringFormat(mappedItem['gap'])}% Gap
                         </Label>
                       </FlexItem>
                     </React.Fragment>
@@ -664,7 +662,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getStatusLabel(mappedItem[Constants._J]['status'])}</FlexItem>
                   <FlexItem>
                     <Label variant='outline' isCompact>
-                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                      {Constants.percentageStringFormat(mappedItem['coverage'])}% Coverage
                     </Label>
                   </FlexItem>
                   {auth.isLogged() ? (
@@ -743,7 +741,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>{getStatusLabel(mappedItem[Constants._D]['status'])}</FlexItem>
                   <FlexItem>
                     <Label variant='outline' isCompact>
-                      {coverageFormat(mappedItem['coverage'])}% Coverage
+                      {Constants.percentageStringFormat(mappedItem['coverage'])}% Coverage
                     </Label>
                   </FlexItem>
                   {auth.isLogged() ? (
@@ -912,7 +910,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Text component={TextVariants.h6}>ver. {snippet['version']}</Text>
               </FlexItem>
               <Label variant='outline' isCompact>
-                {coverageFormat(snippet['coverage'])}% Coverage
+                {Constants.percentageStringFormat(snippet['coverage'])}% Coverage
               </Label>
               <FlexItem align={{ default: 'alignRight' }}>
                 <UnmappedMenuKebab
@@ -967,7 +965,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem align={{ default: 'alignLeft' }}>Coverage Total:</FlexItem>
                   <FlexItem align={{ default: 'alignLeft' }}>
-                    <LeavesProgressBar progressValue={snippet['covered']} progressId={'mapping-section-coverage-' + snippetIndex} />
+                    <LeavesProgressBar
+                      progressValue={Constants.percentageStringFormat(snippet['covered'])}
+                      progressId={'mapping-section-coverage-' + snippetIndex}
+                    />
                   </FlexItem>
                   <FlexItem align={{ default: 'alignRight' }}>
                     {api?.permissions?.indexOf('w') >= 0 ? (
@@ -1044,7 +1045,10 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 <Flex>
                   <FlexItem align={{ default: 'alignLeft' }}>
                     Coverage Total:
-                    <LeavesProgressBar progressValue={snippet['coverage']} progressId={'unmapping-section-coverage-' + snippetIndex} />
+                    <LeavesProgressBar
+                      progressValue={Constants.percentageStringFormat(snippet['coverage'])}
+                      progressId={'unmapping-section-coverage-' + snippetIndex}
+                    />
                   </FlexItem>
                 </Flex>
               </CardBody>

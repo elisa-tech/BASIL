@@ -1,4 +1,5 @@
 import * as React from 'react'
+import * as Constants from '../Constants/constants'
 import empty_leaf from '@app/bgimages/empty_leaf.svg'
 import half_leaf from '@app/bgimages/half_leaf.svg'
 import full_leaf from '@app/bgimages/full_leaf.svg'
@@ -57,7 +58,7 @@ const LeavesProgressBar: React.FunctionComponent<LeavesProgressBarProps> = ({
       </div>
       <Tooltip
         id={progressId + '-ref2'}
-        content={<div>Coverage {limited_progress}%</div>}
+        content={<div>Coverage {Constants.percentageStringFormat(limited_progress)}%</div>}
         triggerRef={() => document.getElementById(progressId) as HTMLElement}
       />
     </React.Fragment>

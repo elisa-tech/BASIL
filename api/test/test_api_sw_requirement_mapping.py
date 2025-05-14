@@ -770,7 +770,7 @@ def test_put_update_mapping_ok(client, user_authentication, mapped_api_db):
     assert mapped_sections[0]['section'] == _UT_API_SPEC_SECTION_TO_BE_MAPPED
     assert mapped_sections[0]['offset'] == _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_TO_BE_MAPPED)
     assert len(mapped_sections[0]['sw_requirements']) == 1  # there should be only one SW requirement
-    # TODO: ensure version is increased
+    assert mapped_sections[0]['sw_requirements'][0]['version'] == '1.2'
 
 
 def test_put_update_mapping_unchanged(client, user_authentication, mapped_api_db):
@@ -799,7 +799,7 @@ def test_put_update_mapping_unchanged(client, user_authentication, mapped_api_db
     # ensure mapping is still to _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
     _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
-    # TODO: ensure version is not changed
+    assert mapped_sections[0]['sw_requirements'][0]['version'] == '1.1'
 
 
 def test_put_update_sw_requirement(client, user_authentication, mapped_api_db, utilities):
@@ -834,7 +834,7 @@ def test_put_update_sw_requirement(client, user_authentication, mapped_api_db, u
     assert len(mapped_sections[0]['sw_requirements']) == 1
     sw_requirement = mapped_sections[0]['sw_requirements'][0]['sw_requirement']
     assert sw_requirement['title'] == new_sw_requirement_title
-    # TODO: ensure version is increased
+    assert mapped_sections[0]['sw_requirements'][0]['version'] == '2.1'
 
 
 def test_delete_unauthorized(client, mapped_api_db):

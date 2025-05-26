@@ -43,7 +43,7 @@ class UserModel(Base):
                f"username={self.username!r}, " \
                f"email={self.email!r}, " \
                f"enabled={self.enabled!r}, " \
-               f"role={self.role!r}"
+               f"role={self.role!r})"
 
     def as_dict(self, full_data=False, db_session=None):
         _dict = {"id": self.id,

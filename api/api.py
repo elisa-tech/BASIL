@@ -3670,7 +3670,10 @@ class ApiSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", NOT_FOUND_STATUS
+            return (
+                f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}",
+                NOT_FOUND_STATUS
+            )
 
         sw_requirement = sw_requirement_mapping_api.sw_requirement
 
@@ -3749,7 +3752,10 @@ class ApiSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", NOT_FOUND_STATUS
+            return (
+                f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}",
+                NOT_FOUND_STATUS
+            )
 
         if sw_requirement_mapping_api.api.id != api.id:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
@@ -6030,10 +6036,12 @@ class UserNotifications(Resource):
                 return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
 
-            user_api_notifications = user.api_notifications.replace(" ", "").split(",")
-            user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
+            user_api_notifications = []
+            if user.api_notifications:
+                user_api_notifications = user.api_notifications.replace(" ", "").split(",")
+                user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
 
-            NoneVar = None  # To avoid flake8 warning comparing with None with `==` instead of `is`
+            NoneVar = None  # To avoid flake8 warning comparing None with `==` instead of `is`
             notifications = (
                 dbi.session.query(NotificationModel)
                 .filter(or_(NotificationModel.api_id.in_(user_api_notifications), NotificationModel.api_id == NoneVar))
@@ -6065,7 +6073,7 @@ class UserNotifications(Resource):
             user_api_notifications = user.api_notifications.replace(" ", "").split(",")
             user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
 
-        NoneVar = None  # To avoid flake8 warning comparing with None with `==` instead of `is`
+        NoneVar = None  # To avoid flake8 warning comparing None with `==` instead of `is`
         notifications = (
             dbi.session.query(NotificationModel)
             .filter(or_(NotificationModel.api_id.in_(user_api_notifications), NotificationModel.api_id == NoneVar))

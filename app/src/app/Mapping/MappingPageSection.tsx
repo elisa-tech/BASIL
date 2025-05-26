@@ -686,17 +686,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         api={api}
         setModalShowState={setTestResultsModalShowState}
         modalShowState={testResultsModalShowState}
+        testResultDetailsModalShowState={testResultDetailsModalShowState}
         setTestResultDetailsModalShowState={setTestResultDetailsModalShowState}
-        setCurrentTestResult={setCurrentTestResult}
-        modalRelationData={modalRelationData}
-        parentType={modalParentType}
-      />
-      <TestResultDetailsModal
-        api={api}
-        setModalShowState={setTestResultDetailsModalShowState}
-        modalShowState={testResultDetailsModalShowState}
         setTestResultsModalShowState={setTestResultsModalShowState}
         currentTestResult={currentTestResult}
+        setCurrentTestResult={setCurrentTestResult}
         modalRelationData={modalRelationData}
         parentType={modalParentType}
       />

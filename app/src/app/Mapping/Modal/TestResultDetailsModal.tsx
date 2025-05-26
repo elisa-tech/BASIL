@@ -24,6 +24,7 @@ import InfoCircleIcon from '@patternfly/react-icons/dist/esm/icons/info-circle-i
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { TestRunBugForm } from '../Form/TestRunBugForm'
 import { useAuth } from '../../User/AuthProvider'
+import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
 
 export interface TestResultDetailsModalProps {
   api
@@ -32,6 +33,7 @@ export interface TestResultDetailsModalProps {
   parentType
   setModalShowState
   setTestResultsModalShowState
+  loadTestResults
   currentTestResult
 }
 
@@ -42,6 +44,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   parentType,
   setModalShowState,
   setTestResultsModalShowState,
+  loadTestResults,
   currentTestResult
 }: TestResultDetailsModalProps) => {
   const auth = useAuth()
@@ -148,7 +151,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
         tabIndex={0}
         variant={ModalVariant.large}
         title='Test Result Details'
-        description={``}
+        description={<AutoRefresh loadRows={loadTestResults} showCountdown={true} />}
         isOpen={isModalOpen}
         onClose={handleModalToggle}
       >
@@ -398,6 +401,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
         </TabContent>
         <TabContent eventKey={1} id='tabContentTestResultLogSection' ref={testRunDetailsLogRef} hidden={1 !== activeTabKey}>
           <TabContentBody hasPadding>
+            <AutoRefresh loadRows={loadCurrentTestRunLog} showCountdown={false} />
             <TextContent>
               <Text component={TextVariants.h3}>Test Run {currentTestResult.id}</Text>
             </TextContent>

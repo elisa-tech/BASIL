@@ -26,6 +26,7 @@ export const UNVALID_REF_DOCUMENT_SECTION_MESSAGE =
   'Section of the Reference Document is mandatory. Open the Mapping Section tab to select it.'
 export const MODAL_WIDTH = '80%'
 
+export const REFRESH_INTERVAL = 60 // seconds
 export const DEFAULT_VIEW = _SRs
 export const DEFAULT_PER_PAGE = 10
 export type validate = 'success' | 'warning' | 'error' | 'error2' | 'default' | 'indeterminate' | 'undefined'

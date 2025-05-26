@@ -156,7 +156,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
               </FlexItem>
               <FlexItem>
                 <Label color='green' isCompact>
-                  Covered {totalCoverage}%
+                  Covered {Constants.percentageStringFormat(totalCoverage)}%
                 </Label>
                 {''}
               </FlexItem>

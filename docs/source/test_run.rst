@@ -276,7 +276,7 @@ Once you identified the right test run, you can click on `import` to trace it to
 
 
 --------------
-Githib Actions
+GitHub Actions
 --------------
 
 You can use BASIL to run a test in your github pipeline.

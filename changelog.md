@@ -6,6 +6,11 @@
 - LAVA (Linaro Automated Validation Architecture) Test Run Pluing
 - Fix npm vulnerabilities
 - Extended to other browsers other than Chrome
+- Data Auto Refresh (Notification, Test Runs)
+- Email notification: support for SMTP_SSL and introduction of HTML template
+- Fix UI issues in mapping view for specifications with long lines
+- Fix bug on deletion of all the notifications
+- Uniform percentage values format
 
 ## 1.6.x
 

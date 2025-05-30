@@ -65,6 +65,9 @@ const Login: React.FunctionComponent = () => {
       email: username
     }
 
+    setHelperText('Elaborating your request...')
+    setShowHelperText(true)
+
     fetch(url, {
       method: 'POST',
       headers: Constants.JSON_HEADER,

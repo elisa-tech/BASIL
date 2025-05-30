@@ -20,7 +20,12 @@ from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
 from sqlalchemy import and_, or_, update
 from sqlalchemy.orm.exc import NoResultFound
-from api_utils import get_api_specification, read_file
+from api_utils import (
+    async_email_notification,
+    get_api_specification,
+    get_html_email_body_from_template,
+    read_file
+)
 from testrun import TestRunner
 
 logging.basicConfig()
@@ -38,6 +43,7 @@ MAX_LOGIN_ATTEMPTS_TIMEOUT = 60 * 5  # 5 minutes
 SSH_KEYS_PATH = os.path.join(currentdir, "ssh_keys")
 TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "testrun_plugin_presets.yaml")
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
+EMAIL_TEMPLATE_PATH = os.path.join(currentdir, CONFIGS_FOLDER, "email_template.html")
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
@@ -5480,6 +5486,30 @@ class UserSignin(Resource):
         dbi.session.add(notifications)
         dbi.session.commit()
 
+        # Send email notifications to admins
+        email_subject = "BASIL - New User"
+        email_body = f"{username} joined us on BASIL!"
+        email_footer = ""
+
+        admins = dbi.session.query(UserModel).filter(
+            UserModel.role == "ADMIN").filter(
+            UserModel.enabled == 1).all()
+
+        recipient_list = []
+
+        for admin in admins:
+            if admin.email:
+                recipient_list.append(admin.email)
+
+        if recipient_list:
+            async_email_notification(SETTINGS_FILEPATH,
+                                     EMAIL_TEMPLATE_PATH,
+                                     recipient_list,
+                                     email_subject,
+                                     email_body,
+                                     email_footer,
+                                     True)
+
         return {"id": user.id, "email": user.email, "token": user.token}
 
 
@@ -5873,16 +5903,14 @@ class UserResetPassword(Resource):
         dbi.session.add(target_user)
         dbi.session.commit()
         dbi.engine.dispose()
-        email_title = "BASIL - Confirm password reset"
-        email_body = f"""<html>
-            <body>
-                <h3>{email_title}</h3>
-                <p>Your password has been reset</p>
-            </body>
-        </html>
-        """
+        email_subject = "BASIL - Confirm password reset"
+        email_footer = ""
+        email_body = get_html_email_body_from_template(EMAIL_TEMPLATE_PATH,
+                                                       email_subject,
+                                                       "Your password has been reset",
+                                                       email_footer)
         email_notifier = EmailNotifier(settings=load_settings())
-        ret = email_notifier.send_email(email, email_title, email_body, True)
+        ret = email_notifier.send_email(email, email_subject, email_body, True)
         if ret:
             if "redirect" in request_data.keys():
                 return redirect(request_data["redirect"], code=302)
@@ -5911,7 +5939,9 @@ class UserResetPassword(Resource):
         settings = load_settings()
 
         # generate reset_token and reset_pwd
-        email_title = "BASIL - Password reset"
+        email_subject = "BASIL - Password reset"
+        email_footer = ""
+
         reset_pwd = secrets.token_urlsafe(10)
         encoded_reset_pwd = base64.b64encode(reset_pwd.encode("utf-8")).decode("utf-8")
 
@@ -5925,21 +5955,20 @@ class UserResetPassword(Resource):
         dbi.session.add(target_user)
         dbi.session.commit()
         dbi.engine.dispose()
-        email_body = f"""<html>
-            <body>
-                <h3>{email_title}</h3>
+        email_body = f"""
                 <p>Someone requested a password reset for your account.</p>
                 <p>If you have not requested a password reset, please ignore and delete this email.
                 You will continue to log in with your current credentials.</p>
                 <p>We created a the following temporary password:</p>
                 <p><b>{reset_pwd}</b></p>
                 <p>If you want to reset your password to the one shared above,
-                click <a target='_blank' href='{reset_url}'>RESET PASSWORD</a></p>
-            </body>
-        </html>
-        """
+                click <br><br> <a target="_blank" class="button" href="{reset_url}">RESET PASSWORD</a></p>"""
+        email_body = get_html_email_body_from_template(EMAIL_TEMPLATE_PATH,
+                                                       email_subject,
+                                                       email_body,
+                                                       email_footer)
         email_notifier = EmailNotifier(settings=settings)
-        ret = email_notifier.send_email(email, email_title, email_body, True)
+        ret = email_notifier.send_email(email, email_subject, email_body, True)
         if ret:
             return {"result": "success", "message": "An email has been sent to reset your password"}
         else:

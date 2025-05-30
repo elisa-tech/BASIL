@@ -153,17 +153,27 @@ const Signin: React.FunctionComponent = () => {
       username: username
     }
 
+    let status
+    let status_text
     fetch(Constants.API_BASE_URL + Constants.API_USER_SIGNIN_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
-          setAlertMessage(response.statusText)
-        } else {
+        status = response.status
+        status_text = response.statusText
+        if (response.status == 200) {
           setAlertMessage('User created!')
           window.location.href = '/login'
+          return response.json()
+        } else {
+          return response.json()
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setAlertMessage(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
       .catch((err) => {

@@ -992,8 +992,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             </Card>
             <Divider />
             <CodeBlock className={getMappedSectionCodeBlockBackgroundColor(snippet) + ' full-height'}>
-              <CodeBlockCode>
-                <div id={'snippet-' + snippetIndex} data-offset={snippet['offset']}>
+              <CodeBlockCode className='pf-v5-u-text-wrap' style={{ maxWidth: '100%', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                <div id={'snippet-' + snippetIndex} data-offset={snippet['offset']} style={{ wordBreak: 'break-word' }}>
                   {snippet['section']}
                 </div>
               </CodeBlockCode>
@@ -1055,8 +1055,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
             </Card>
             <Divider />
             <CodeBlock className='code-block-bg-red'>
-              <CodeBlockCode>
-                <div id={'snippet-' + snippetIndex} data-offset={snippet['offset']}>
+              <CodeBlockCode className='pf-v5-u-text-wrap' style={{ maxWidth: '100%', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                <div id={'snippet-' + snippetIndex} data-offset={snippet['offset']} style={{ wordBreak: 'break-word' }}>
                   {snippet['section']}
                 </div>
               </CodeBlockCode>

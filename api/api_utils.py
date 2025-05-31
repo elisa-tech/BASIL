@@ -1,6 +1,54 @@
 import os
+import subprocess
 import urllib
+from string import Template
 from urllib.error import HTTPError, URLError
+
+
+def get_html_email_body_from_template(template_path, subject, body, footer):
+    """Generate the HTML email body from a template file using
+    custom values for subject, body and footer
+    """
+    if not os.path.exists(template_path):
+        return None
+
+    with open(template_path, "r") as file:
+        html_template = Template(file.read())
+        body = html_template.substitute(subject=subject,
+                                        body=body,
+                                        footer=footer)
+    return body
+
+
+def async_email_notification(setting_path, template_path, recipient_list, subject, body, footer, is_html):
+    """Send async email to a list of recipients
+    to be used in case user don't need to know the notification status
+    """
+    if recipient_list:
+        if is_html:
+            body = get_html_email_body_from_template(template_path, subject, body, footer)
+            if not body:
+                return False
+
+        with open("email_notifier.log", "a") as log_file:
+            with open("email_notifier.err", "a") as err_file:
+
+                for recipient in recipient_list:
+                    cmd = ["python3",
+                           "notifier.py",
+                           f"{setting_path}",
+                           f"{recipient}",
+                           f"{subject}",
+                           f"{body}",
+                           f"{is_html}",
+                           "&"]
+
+                    subprocess.Popen(cmd,
+                                     stdin=subprocess.PIPE,
+                                     stdout=log_file,
+                                     stderr=err_file)
+        return True
+    return False
 
 
 def get_api_specification(_url_or_path):

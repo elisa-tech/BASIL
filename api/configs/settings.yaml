@@ -5,3 +5,5 @@ smtp:
   password: ""
   port: 0
   user: ""
+  ssl: true
+  reply_to: ""

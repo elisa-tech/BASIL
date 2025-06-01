@@ -14,6 +14,7 @@ TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
 RESET_COLORS_STR="\033[0m"
+TAG=$(git describe --tags | sed 's/-/_/g')
 
 usage()
 {
@@ -90,6 +91,7 @@ echo -e " - api port = ${api_port}"
 echo -e " - app port = ${app_port}"
 echo -e " - admin pw = ${admin_pw}"
 echo -e " - environment file = ${environment_file:=''}"
+echo -e " - tag = ${TAG}"
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
@@ -101,7 +103,7 @@ podman build \
     --build-arg="ADMIN_PASSWORD=${admin_pw}" \
     --build-arg="API_PORT=${api_port}" \
     -f ${api_containerfile} \
-    -t basil-api-image .
+    -t basil-api-image:${TAG} .
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
@@ -113,7 +115,7 @@ podman build \
     --build-arg="API_ENDPOINT=${api_server_url}:${api_port}" \
     --build-arg="APP_PORT=${app_port}" \
     -f Containerfile-app \
-    -t basil-app-image .
+    -t basil-app-image:${TAG} .
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
@@ -167,7 +169,7 @@ podman_cmd="$podman_cmd -v basil-db-vol:/BASIL-API/db/sqlite3"
 podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
 podman_cmd="$podman_cmd -v basil-user-files-vol:/BASIL-API/api/user-files"
 podman_cmd="$podman_cmd -v basil-tmt-logs-vol:/var/tmp/tmt"
-podman_cmd="$podman_cmd basil-api-image"
+podman_cmd="$podman_cmd basil-api-image:${TAG}"
 
 $podman_cmd
 
@@ -180,7 +182,7 @@ echo -e "\n${BODY_COLOR_STR}"
 podman run \
     -d \
     --network=host \
-    basil-app-image
+    basil-app-image:${TAG}
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"

@@ -5,6 +5,14 @@ from string import Template
 from urllib.error import HTTPError, URLError
 
 
+def add_html_link_to_email_body(settings, body):
+    """Append a link to BASIL instance if the app_url setting is populated"""
+    if "app_url" in settings.keys():
+        if str(settings["app_url"].trim()):
+            body += f"<p><a href='{settings['app_url']}'>Link to BASIL website</a></p>"
+    return body
+
+
 def get_html_email_body_from_template(template_path, subject, body, footer):
     """Generate the HTML email body from a template file using
     custom values for subject, body and footer

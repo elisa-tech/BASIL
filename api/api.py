@@ -5957,7 +5957,7 @@ class UserResetPassword(Resource):
         reset_token = secrets.token_urlsafe(90)
         reset_url = f"{request.base_url}?email={email}&reset_token={reset_token}"
         if "app_url" in settings.keys():
-            if str(settings["app_url"].trim()):
+            if str(settings["app_url"]).strip():
                 reset_url += f"&redirect={settings['app_url']}/login?from=reset-password"
 
         target_user.reset_pwd = encoded_reset_pwd
@@ -6056,13 +6056,14 @@ class UserRole(Resource):
                       "https://basil-the-fusa-spice.readthedocs.io/en/latest/user_management.html#roles" \
                       "'>BASIL documentation</a> for a description of each role.</p>"
         email_body = add_html_link_to_email_body(settings=settings, body=email_body)
-        email_body = get_html_email_body_from_template(EMAIL_TEMPLATE_PATH,
-                                                       email_subject,
-                                                       email_body,
-                                                       email_footer)
 
-        email_notifier = EmailNotifier(settings=settings)
-        email_notifier.send_email(target_user.email, email_subject, email_body, True)
+        async_email_notification(SETTINGS_FILEPATH,
+                                 EMAIL_TEMPLATE_PATH,
+                                 [target_user.email],
+                                 email_subject,
+                                 email_body,
+                                 email_footer,
+                                 True)
 
         return {"email": request_data["email"]}
 

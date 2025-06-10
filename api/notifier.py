@@ -44,11 +44,11 @@ class EmailNotifier():
                 print(f"Field {setting} not in settings")
                 return False
             else:
-                if not self.settings[self.SMTP_SETTING_FIELD][setting]:
-                    print(f"Setting field {setting} is not valid")
+                if self.settings[self.SMTP_SETTING_FIELD][setting] is None:
+                    print(f"Settings are not valid, field {setting} is None.")
                     return False
                 if str(self.settings[self.SMTP_SETTING_FIELD][setting]).strip() == "":
-                    print(f"Setting field {setting} is not valid")
+                    print(f"Settings are not valid, field {setting} is empty.")
                     return False
         return True
 

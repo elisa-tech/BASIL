@@ -105,7 +105,15 @@ jobs:
       - name: API unit testing 
         run: |
           source venv/bin/activate
-          pytest -v ./api/test
+          pytest -v ./api/test --cov=api --cov-branch --cov-report=term --cov-report=html
+      - name: Create tarball of coverage report
+        run: |
+          tar -czf api-htmlcov.tar.gz htmlcov
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage-html-report
+          path: api-htmlcov.tar.gz
       - name: Download basil-api artifacts
         uses: actions/download-artifact@v4
         with:

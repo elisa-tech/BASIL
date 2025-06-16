@@ -154,12 +154,13 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
     }
 
     const data = {
+      'api-id': api.id,
       'sw-requirement': { id: sw_requirement_id },
       section: modalSection,
       offset: modalOffset,
       coverage: coverageValue,
       'user-id': auth.userId,
-      token: auth.token
+      token: auth.token 
     }
 
     if (formVerb == 'PUT' || formVerb == 'DELETE') {
@@ -171,9 +172,7 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
     if (modalIndirect == true) {
       data['relation-id'] = parentData.relation_id
       data['relation-to'] = parentRelatedToType
-      data['parent-sw-requirement'] = { id: parentData[Constants._SR_]['id'] }
-    } else {
-      data['api-id'] = api.id
+      data['parent-sw-requirement'] = { id: parentData[Constants._SR_]['id'] }  
     }
 
     let status: number = 0

@@ -164,6 +164,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     setMessageValue('')
 
     const data = {
+      'api-id': api.id,
       'sw-requirement': { title: titleValue, description: descriptionValue },
       section: modalSection,
       offset: modalOffset,
@@ -177,7 +178,6 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       data['relation-to'] = parentRelatedToType
       data['parent-sw-requirement'] = { id: parentData[Constants._SR_]['id'] }
     } else {
-      data['api-id'] = api.id
       if (formVerb == 'PUT' || formVerb == 'DELETE') {
         data[Constants._SR]['id'] = formData.id
         data['relation-id'] = parentData.relation_id

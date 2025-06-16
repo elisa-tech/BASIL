@@ -683,13 +683,25 @@ def test_put_ok(client, client_db, user_authentication, mapped_api_sr_sr_db, uti
     assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
 
     # No changes
+    mapping_data = {
+        'api-id': api.id,
+        'coverage': 50,
+        'relation-id': response.json.get("relation_id", ""),
+        'sw-requirement': ut_sw_requirement_dict,
+        'user-id': user_authentication.json['id'],
+        'token': user_authentication.json['token']
+    }
     response = client.put(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
     assert response.status_code == HTTPStatus.OK
+    assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
+    assert response.json.get("version", "") == "1.1"
 
     # Change coverage
     mapping_data['coverage'] = 75
     response = client.put(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
     assert response.status_code == HTTPStatus.OK
+    assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
+    assert response.json.get("version", "") == "1.2"
 
     # Change sw-requirement
     mapping_data['sw-requirement']['title'] = f"{mapping_data['sw-requirement']['title']}-mod"
@@ -698,6 +710,8 @@ def test_put_ok(client, client_db, user_authentication, mapped_api_sr_sr_db, uti
 
     response = client.put(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
     assert response.status_code == HTTPStatus.OK
+    assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
+    assert response.json.get("version", "") == "2.2"
 
 
 # Test Delete
@@ -738,10 +752,9 @@ def test_delete_bad_payload(client, client_db, user_authentication, mapped_api_s
     }
 
     response = client.post(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
-    response_data = response.json
     assert response.status_code == HTTPStatus.OK
-    assert isinstance(response_data, dict)
-    assert response_data.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
+    assert isinstance(response.json, dict)
+    assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
 
     # wrong relation-id
     delete_data = {
@@ -775,17 +788,16 @@ def test_delete_miss_parent(client, client_db, user_authentication, mapped_api_s
     }
 
     response = client.post(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
-    response_data = response.json
     assert response.status_code == HTTPStatus.OK
-    assert isinstance(response_data, dict)
-    assert response_data.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
+    assert isinstance(response.json, dict)
+    assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
 
     client_db.session.delete(api_sr_mapping)
     client_db.session.commit()
 
     delete_data = {
         'api-id': api.id,
-        'relation-id': response_data.get("relation_id", ""),
+        'relation-id': response.json.get("relation_id", ""),
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     }
@@ -815,14 +827,13 @@ def test_delete_ok(client, client_db, user_authentication, mapped_api_sr_sr_db, 
     }
 
     response = client.post(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
-    response_data = response.json
     assert response.status_code == HTTPStatus.OK
-    assert isinstance(response_data, dict)
-    assert response_data.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
+    assert isinstance(response.json, dict)
+    assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
 
     delete_data = {
         'api-id': api.id,
-        'relation-id': response_data.get("relation_id", ""),
+        'relation-id': response.json.get("relation_id", ""),
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     }

@@ -892,14 +892,15 @@ def test_delete_unauthorized(client, mapped_api_db):
     _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
 
 
-def test_delete_wrong_mapping(client_db, client, user_authentication, mapped_api_db, utilities):
+def test_delete_wrong_mapping(client_db, client, user_authentication, mapped_api_db, restricted_api_db, utilities):
     """ Delete mapping that is not matching api-id: it is not allowed
     we can have 2 cases:
+    - The api doesn't exists NOT FOUND
     - User is not authorized for the api, the api will return UNAUTHORIZED
     - User is authorized for the api, the api will return BAD REQUEST
     """
 
-    # Case 1 - User is not authorized for the api
+    # Case 1 - The api doesn't exists
     # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
     _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
@@ -909,6 +910,24 @@ def test_delete_wrong_mapping(client_db, client, user_authentication, mapped_api
     mapping_data = {
         'relation-id': relation_id,
         'api-id': 0
+    }
+    response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+    # the mapping should exist
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # Case 2 - User is not authorized for the api
+    # there should be only one mapped section: _UT_API_SPEC_SECTION_WITH_MAPPING
+    mapped_sections = _get_sections_mapped_by_sw_requirements(client, mapped_api_db.id)
+    _assert_mapped_sections(mapped_sections, [_UT_API_SPEC_SECTION_WITH_MAPPING])
+
+    # delete mapping
+    relation_id, _ = _get_mapped_sw_requirement(mapped_sections[0])
+    mapping_data = {
+        'relation-id': relation_id,
+        'api-id': restricted_api_db.id,
     }
     response = client.delete(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
     assert response.status_code == HTTPStatus.UNAUTHORIZED

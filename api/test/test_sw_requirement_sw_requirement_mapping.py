@@ -20,44 +20,18 @@ _UT_API_IMPLEMENTATION_FILE_FROM_ROW = 0
 _UT_API_IMPLEMENTATION_FILE_TO_ROW = 42
 _UT_API_TAGS = 'ut_api_tags'
 
-_UT_API_SPEC_SECTION_NO_MAPPING = 'This section has no mapping.'
 _UT_API_SPEC_SECTION_WITH_MAPPING = 'This section has mapping.'
 _UT_API_SPEC_SECTION_TO_BE_MAPPED = 'This section is to be mapped.'
 _UT_API_RAW_RESTRICTED_SPEC = 'BASIL UT: "Reader" user is not able to read this API.' \
                               f' Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
-_UT_API_RAW_UNMAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_NO_MAPPING} Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
 _UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_API_SPEC_SECTION_TO_BE_MAPPED} ' \
                           f'Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
-
-_UT_SR_TITLE = 'BASIL UT SW REQUIREMENT TITLE'
-_UT_SR_DESCRIPTION = 'BASIL UT SW REQUIREMENT DESCRIPTION'
 
 
 def get_sw_requirement_model(client_db, utilities):
     user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
     return SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',
                               'SW shall work as well as possible.', user)
-
-
-def _filter_sections_mapped_by_sw_requirements(mapped_sections):
-    return [section for section in mapped_sections if section['sw_requirements']]
-
-
-def _get_sections_mapped_by_sw_requirements(client, api_id):
-    response = client.get(_MAPPING_API_SW_REQUIREMENTS_URL, query_string={'api-id': api_id})
-    assert response.status_code == HTTPStatus.OK
-    return _filter_sections_mapped_by_sw_requirements(response.json['mapped'])
-
-
-def _assert_mapped_sections(mapped_sections, expected_sections):
-    current_sections = [s['section'] for s in mapped_sections].sort()
-    assert current_sections == expected_sections.sort()
-
-
-def _get_mapped_sw_requirement(mapped_section):
-    relation_id = mapped_section['sw_requirements'][0]['relation_id']
-    sw_requirement = mapped_section['sw_requirements'][0]['sw_requirement']
-    return relation_id, sw_requirement
 
 
 def _create_software_component(client_db, utilities):

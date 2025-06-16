@@ -341,7 +341,7 @@ def test_get_relation_to_sw_requirement(client, user_authentication, mapped_api_
 
 # Test POST
 
-@pytest.mark.parametrize('mandatory_field', ['relation-id', 'relation-to', 'parent-sw-requirement'])
+@pytest.mark.parametrize('mandatory_field', ['relation-id', 'relation-to', 'coverage', 'parent-sw-requirement'])
 def test_post_missed_fields(client, client_db, user_authentication, mapped_api_sr_sr_db, utilities, mandatory_field):
     """ File a nested Sw Requirement without sending a mandatory field  """
 
@@ -616,8 +616,8 @@ def test_post_new_to_sw_requirement(client, client_db, user_authentication, mapp
 
 # Test PUT
 
-
-def test_put_bad_payload(client, client_db, user_authentication, mapped_api_sr_sr_db, utilities):
+@pytest.mark.parametrize('mandatory_field', ['sw-requirement', 'coverage', 'relation-id'])
+def test_put_miss_fields(client, client_db, user_authentication, mapped_api_sr_sr_db, utilities, mandatory_field):
     """ Update Sw Requirement mapping sending an unexpected payload  """
 
     ut_sw_requirement_dict = get_sw_requirement_model(client_db, utilities).as_dict()
@@ -628,15 +628,21 @@ def test_put_bad_payload(client, client_db, user_authentication, mapped_api_sr_s
     mapping_data = {
         'api-id': api.id,
         'coverage': 50,
+        'relation-id': api_sr_mapping.id,
         'sw-requirement': ut_sw_requirement_dict,
-        'parent-sw-requirement': {
-            'id': api_sr_mapping.sw_requirement_id
-        },
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     }
+    mapping_data.pop(mandatory_field)
     response = client.put(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
     assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_put_bad_payload(client, client_db, user_authentication, mapped_api_sr_sr_db, utilities):
+    """ Update Sw Requirement mapping sending an unexpected payload  """
+
+    ut_sw_requirement_dict = get_sw_requirement_model(client_db, utilities).as_dict()
+    ut_sw_requirement_dict.pop('id', None)
 
     # bad relation-id
     api, api_sr_mapping, api_sr_sr_mapping = mapped_api_sr_sr_db

@@ -76,7 +76,7 @@ class DocumentModel(Base):
                  "section": self.section,
                  "status": self.status,
                  "valid": self.valid,
-                 "created_by": self.created_by.email,
+                 "created_by": self.created_by.username,
                  }
 
         if db_session:

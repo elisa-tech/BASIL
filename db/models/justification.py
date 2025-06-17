@@ -40,7 +40,7 @@ class JustificationModel(Base):
 
     def __repr__(self) -> str:
         return f"JustificationModel(id={self.id!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"status={self.status!r}), " \
                f"description={self.description!r})"
 
@@ -54,7 +54,7 @@ class JustificationModel(Base):
         _dict = {"id": self.id,
                  "description": self.description,
                  "status": self.status,
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  }
 
         if db_session:
@@ -132,7 +132,7 @@ class JustificationHistoryModel(Base):
     def __repr__(self) -> str:
         return f"JustificationHistoryModel(row_id={self.row_id!r}, " \
                f"id={self.id!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"description={self.description!r}), " \
                f"status={self.status!r}, " \
                f"version={self.version!r}"

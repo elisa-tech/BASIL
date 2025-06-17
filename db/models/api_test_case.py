@@ -56,7 +56,7 @@ class ApiTestCaseModel(Base):
                f"section={self.section!r}, " \
                f"coverage={self.coverage!r}), " \
                f"offset={self.offset!r})  - " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"{str(self.api)!r} - " \
                f"{str(self.test_case)!r}"
 
@@ -76,7 +76,7 @@ class ApiTestCaseModel(Base):
                  'offset': self.offset,
                  'coverage': self.coverage,
                  'covered': self.coverage,
-                 'created_by': self.created_by.email}
+                 'created_by': self.created_by.username}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 
@@ -178,5 +178,5 @@ class ApiTestCaseHistoryModel(Base):
                f"test_case_id={self.test_case_id!r}, " \
                f"coverage={self.coverage!r}, " \
                f"offset={self.offset!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"version={self.version!r})"

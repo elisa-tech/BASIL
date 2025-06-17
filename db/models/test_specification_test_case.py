@@ -79,7 +79,7 @@ class TestSpecificationTestCaseModel(Base):
                  'test_specification_mapping_sw_requirement_id': self.test_specification_mapping_sw_requirement_id,
                  'coverage': self.coverage,
                  'covered': self.coverage,
-                 'created_by': self.created_by.email}
+                 'created_by': self.created_by.username}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 
@@ -209,5 +209,5 @@ class TestSpecificationTestCaseHistoryModel(Base):
                f"test_specification_mapping_sw_requirement_id=" \
                f"{self.test_specification_mapping_sw_requirement_id!r}, " \
                f"test_case_id={self.test_case_id!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"coverage={self.coverage!r}, version={self.version!r})"

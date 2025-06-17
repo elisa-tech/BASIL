@@ -50,7 +50,7 @@ class TestCaseModel(Base):
                f"title={self.title!r}, " \
                f"description={self.description!r}), " \
                f"status={self.status!r}), " \
-               f"created_by={self.created_by.email!r}"
+               f"created_by={self.created_by.username!r}"
 
     def current_version(self, db_session):
         last_item = db_session.query(TestCaseHistoryModel).filter(
@@ -65,7 +65,7 @@ class TestCaseModel(Base):
                  "title": self.title,
                  "description": self.description,
                  "status": self.status,
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  }
 
         if db_session:
@@ -159,6 +159,6 @@ class TestCaseHistoryModel(Base):
                f"relative_path={self.relative_path!r}, " \
                f"title={self.title!r}, " \
                f"description={self.description!r}), " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"status={self.status!r}, " \
                f"version = {self.version!r},"

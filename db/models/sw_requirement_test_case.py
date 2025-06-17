@@ -84,7 +84,7 @@ class SwRequirementTestCaseModel(Base):
         _dict = {'relation_id': self.id,
                  'coverage': self.coverage,
                  'covered': self.coverage,
-                 'created_by': self.created_by.email}
+                 'created_by': self.created_by.username}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 

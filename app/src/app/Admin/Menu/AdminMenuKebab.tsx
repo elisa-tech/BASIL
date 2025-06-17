@@ -25,8 +25,11 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
     const data = {
       'user-id': auth.userId, // The one that request the change
       token: auth.token, // The one that request the change
-      email: user.email, // The one that will be changed
-      role: role
+      'target-user': {
+        // The one that will be changed
+        id: user.id,
+        role: role
+      }
     }
 
     fetch(Constants.API_BASE_URL + '/user/role', {
@@ -51,8 +54,11 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
     const data = {
       'user-id': auth.userId, // The one that request the change
       token: auth.token, // The one that request the change
-      email: user.email, // The one that will be changed
-      enabled: 1 - user.enabled
+      'target-user': {
+        // The one that will be changed
+        id: user.id,
+        enabled: 1 - user.enabled
+      }
     }
 
     fetch(Constants.API_BASE_URL + '/user/enable', {

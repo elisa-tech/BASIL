@@ -92,7 +92,7 @@ class SwRequirementSwRequirementModel(Base):
                  'sw_requirement_mapping_sw_requirement_id': self.sw_requirement_mapping_api_id,
                  'coverage': self.coverage,
                  'covered': self.get_waterfall_coverage(db_session),
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  '__tablename__': self.__tablename__}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']

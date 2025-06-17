@@ -51,7 +51,7 @@ class TestSpecificationModel(Base):
                f"test_description={self.test_description!r}, " \
                f"expected_behavior={self.expected_behavior!r}), " \
                f"status={self.status!r}), " \
-               f"created_by={self.created_by.email!r}"
+               f"created_by={self.created_by.username!r}"
 
     def current_version(self, db_session):
         last_item = db_session.query(TestSpecificationHistoryModel).filter(
@@ -66,7 +66,7 @@ class TestSpecificationModel(Base):
                  "test_description": self.test_description,
                  "expected_behavior": self.expected_behavior,
                  "status": self.status,
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  }
 
         if db_session:
@@ -160,6 +160,6 @@ class TestSpecificationHistoryModel(Base):
                f"preconditions={self.preconditions!r}, " \
                f"test_description={self.test_description!r}, " \
                f"expected_behavior={self.expected_behavior!r}), " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"status={self.status!r}, " \
                f"version={self.version!r}"

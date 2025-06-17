@@ -263,10 +263,10 @@ def get_user_id_from_request(_request, _db_session):
     return user_id
 
 
-def get_user_email_from_id(_id, _db_session):
+def get_username_from_id(_id, _db_session):
     try:
         user = _db_session.query(UserModel).filter(UserModel.id == _id).one()
-        return user.email
+        return user.username
     except NoResultFound:
         return ""
 
@@ -291,13 +291,13 @@ def get_active_user_from_request(_request, _db_session):
         return None
 
 
-def get_users_email_from_ids(_ids, _dbi_session):
+def get_usernames_from_ids(_ids, _dbi_session):
     # _ids list format [1][3][34]
     user_ids = _ids.split("][")
     user_ids = [x.replace("[", "").replace("]", "") for x in user_ids]
-    query = _dbi_session.query(UserModel.email).filter(UserModel.id.in_(user_ids))
+    query = _dbi_session.query(UserModel.username).filter(UserModel.id.in_(user_ids))
     users = query.all()
-    ret = [x.email for x in users]
+    ret = [x.username for x in users]
     return ret
 
 
@@ -393,18 +393,18 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields, _dbi_sessio
         if j in history_data[0]["mapping"].keys() and j not in fields_to_skip:
             ret[0]["mapping"][j] = history_data[0]["mapping"][j]
 
-    # Object - return user email of the first version instead of the id
+    # Object - return user username of the first version instead of the id
     if "edited_by_id" in ret[0]["object"].keys():
         del ret[0]["object"]["edited_by_id"]
     if "created_by_id" in ret[0]["object"].keys():
-        ret[0]["object"]["created_by"] = get_user_email_from_id(ret[0]["object"]["created_by_id"], _dbi_session)
+        ret[0]["object"]["created_by"] = get_username_from_id(ret[0]["object"]["created_by_id"], _dbi_session)
         del ret[0]["object"]["created_by_id"]
 
-    # Mapping - return user email of the first version instead of the id
+    # Mapping - return user username of the first version instead of the id
     if "edited_by_id" in ret[0]["mapping"].keys():
         del ret[0]["mapping"]["edited_by_id"]
     if "created_by_id" in ret[0]["mapping"].keys():
-        ret[0]["mapping"]["created_by"] = get_user_email_from_id(ret[0]["mapping"]["created_by_id"], _dbi_session)
+        ret[0]["mapping"]["created_by"] = get_username_from_id(ret[0]["mapping"]["created_by_id"], _dbi_session)
         del ret[0]["mapping"]["created_by_id"]
 
     if len(history_data) > 1:
@@ -425,7 +425,7 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields, _dbi_sessio
                     if k in history_data[i]["object"].keys() and k not in fields_to_skip:
                         if history_data[i]["object"][k] != history_data[i - 1]["object"][k]:
                             tmp["object"][k] = history_data[i]["object"][k]
-                    tmp["object"]["edited_by"] = get_user_email_from_id(
+                    tmp["object"]["edited_by"] = get_username_from_id(
                         history_data[i]["object"]["edited_by_id"], _dbi_session
                     )
 
@@ -436,7 +436,7 @@ def get_reduced_history_data(history_data, _obj_fields, _map_fields, _dbi_sessio
                         if j in history_data[i]["mapping"].keys() and j not in fields_to_skip:
                             if history_data[i]["mapping"][j] != history_data[i - 1]["mapping"][j]:
                                 tmp["mapping"][j] = history_data[i]["mapping"][j]
-                    tmp["mapping"]["edited_by"] = get_user_email_from_id(
+                    tmp["mapping"]["edited_by"] = get_username_from_id(
                         history_data[i]["mapping"]["edited_by_id"], _dbi_session
                     )
             ret.append(tmp)
@@ -1248,7 +1248,7 @@ class SPDXLibrary(Resource):
 
         spdxManager = SPDXManager(request_data["library"])
         for api in apis:
-            spdxManager.add_api_to_export(api)
+            spdxManager.add_api_to_export(dbi, api)
         dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
         spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
@@ -1281,7 +1281,7 @@ class SPDXApi(Resource):
                 return f"Nothing to export, no apis found with id {request_data['id']}", 400
 
         spdxManager = SPDXManager(api.library)
-        spdxManager.add_api_to_export(api)
+        spdxManager.add_api_to_export(dbi, api)
         dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
         spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
@@ -1383,14 +1383,14 @@ class Comment(Resource):
         # Add Notifications
         if add_notification:
             notification = (
-                f"{user.email} added a Comment to {notification_obj} "
+                f"{user.username} added a Comment to {notification_obj} "
                 f"mapped to "
                 f"{mapping.api.api} as part of the library {mapping.api.library}"
             )
             notifications = NotificationModel(
                 mapping.api,
                 NOTIFICATION_CATEGORY_NEW,
-                f"New Comment from {user.email}",
+                f"New Comment from {user.username}",
                 notification,
                 str(user.id),
                 f"/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments",
@@ -1709,7 +1709,7 @@ class Api(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added the sw component " f"{new_api.api} as part of the library {new_api.library}"
+            f"{user.username} added the sw component " f"{new_api.api} as part of the library {new_api.library}"
         )
         notifications = NotificationModel(
             new_api,
@@ -1853,7 +1853,7 @@ class Api(Resource):
             api.edited_by_id = user.id
 
             # Add Notifications
-            notification = f"{user.email} modified sw component " f"{api.api} as part of the library {api.library}"
+            notification = f"{user.username} modified sw component " f"{api.api} as part of the library {api.library}"
             notifications = NotificationModel(
                 api,
                 NOTIFICATION_CATEGORY_EDIT,
@@ -1931,7 +1931,7 @@ class Api(Resource):
             dbi.session.delete(doc_mapping)
 
         # Add Notifications
-        notification = f"{user.email} deleted sw component " f"{api.api} as part of the library {api.library}"
+        notification = f"{user.username} deleted sw component " f"{api.api} as part of the library {api.library}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_DELETE,
@@ -2050,11 +2050,11 @@ class ApiHistory(Resource):
             for permission_field in API_PERMISSION_FIELDS:
                 if permission_field in ret[i]["object"].keys():
                     ret[i]["object"][permission_field] = ", ".join(
-                        get_users_email_from_ids(ret[i]["object"][permission_field], dbi.session)
+                        get_usernames_from_ids(ret[i]["object"][permission_field], dbi.session)
                     )
                 if permission_field in ret[i]["mapping"].keys():
                     ret[i]["mapping"][permission_field] = ", ".join(
-                        get_users_email_from_ids(ret[i]["mapping"][permission_field], dbi.session)
+                        get_usernames_from_ids(ret[i]["mapping"][permission_field], dbi.session)
                     )
 
         ret = ret[::-1]
@@ -2267,7 +2267,7 @@ class ApiTestSpecificationsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added Test Specification "
+            f"{user.username} added Test Specification "
             f"{new_test_specification_mapping_api.test_specification.id} "
             f"mapped to "
             f"{api.api} as part of the library {api.library}"
@@ -2350,7 +2350,7 @@ class ApiTestSpecificationsMapping(Resource):
         if modified_ts or modified_tsa:
             # Add Notifications
             notification = (
-                f"{user.email} modified test specification "
+                f"{user.username} modified test specification "
                 f"{test_specification_mapping_api.test_specification.title}"
             )
             notifications = NotificationModel(
@@ -2406,7 +2406,7 @@ class ApiTestSpecificationsMapping(Resource):
         dbi.session.commit()
 
         # Add Notifications
-        notification = f"{user.email} deleted test specification " f"{notification_ts_id} {notification_ts_title}"
+        notification = f"{user.username} deleted test specification " f"{notification_ts_id} {notification_ts_title}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_DELETE,
@@ -2577,7 +2577,7 @@ class ApiTestCasesMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added Test Case {new_test_case_mapping_api.test_case.id} "
+            f"{user.username} added Test Case {new_test_case_mapping_api.test_case.id} "
             f"mapped to "
             f"{api.api} as part of the library {api.library}"
         )
@@ -2654,7 +2654,7 @@ class ApiTestCasesMapping(Resource):
 
         if modified_tc or modified_tca:
             # Add Notifications
-            notification = f"{user.email} modified a test case mapped " f"to {api.api}"
+            notification = f"{user.username} modified a test case mapped " f"to {api.api}"
             notifications = NotificationModel(
                 api,
                 NOTIFICATION_CATEGORY_EDIT,
@@ -2708,7 +2708,7 @@ class ApiTestCasesMapping(Resource):
         dbi.session.commit()
 
         # Add Notifications
-        notification = f"{user.email} deleted test case " f"{notification_tc_id} {notification_tc_title}"
+        notification = f"{user.username} deleted test case " f"{notification_tc_id} {notification_tc_title}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_DELETE,
@@ -3139,7 +3139,7 @@ class ApiJustificationsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added justification {new_justification_mapping_api.justification.id} "
+            f"{user.username} added justification {new_justification_mapping_api.justification.id} "
             f"mapped to "
             f"{api.api} as part of the library {api.library}"
         )
@@ -3221,7 +3221,7 @@ class ApiJustificationsMapping(Resource):
         if modified_ja or modified_j:
             # Add Notifications
             notification = (
-                f"{user.email} modified justification {justification_mapping_api.justification.id} "
+                f"{user.username} modified justification {justification_mapping_api.justification.id} "
                 f"mapped to "
                 f"{api.api} as part of the library {api.library}"
             )
@@ -3282,7 +3282,7 @@ class ApiJustificationsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} deleted justification {notification_j_id} "
+            f"{user.username} deleted justification {notification_j_id} "
             f"mapped to "
             f"{api.api} as part of the library {api.library}"
         )
@@ -3417,7 +3417,7 @@ class ApiDocumentsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added document {new_document_mapping_api.document.id} "
+            f"{user.username} added document {new_document_mapping_api.document.id} "
             f"mapped to "
             f"{api.api} as part of the library {api.library}"
         )
@@ -3488,7 +3488,7 @@ class ApiDocumentsMapping(Resource):
         if modified_da or modified_d:
             # Add Notifications
             notification = (
-                f"{user.email} modified document {document_mapping_api.document.id} "
+                f"{user.username} modified document {document_mapping_api.document.id} "
                 f"mapped to "
                 f"{api.api} as part of the library {api.library}"
             )
@@ -3531,7 +3531,7 @@ class ApiDocumentsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} deleted document {notification_d_id} "
+            f"{user.username} deleted document {notification_d_id} "
             f"mapped to "
             f"{api.api} as part of the library {api.library}"
         )
@@ -3628,7 +3628,8 @@ class ApiSwRequirementsMapping(Resource):
         dbi.session.commit()  # To have the id of the new added mapping
 
         # Add Notifications
-        notification = f"{user.email} created a new sw requirement " f"{notification_sr_title} - coverage: {coverage}"
+        notification = f"{user.username} created a new sw requirement " \
+                       f"{notification_sr_title} - coverage: {coverage}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_NEW,
@@ -3693,7 +3694,7 @@ class ApiSwRequirementsMapping(Resource):
 
         if modified_sr or modified_srm:
             # Add Notifications
-            notification = f"{user.email} modified sw requirement " f"{sw_requirement.title}"
+            notification = f"{user.username} modified sw requirement " f"{sw_requirement.title}"
             notifications = NotificationModel(
                 api,
                 NOTIFICATION_CATEGORY_EDIT,
@@ -3736,7 +3737,7 @@ class ApiSwRequirementsMapping(Resource):
         dbi.session.commit()
 
         # Add Notifications
-        notification = f"{user.email} deleted sw requirement " f"{notification_sr_id} {notification_sr_title}"
+        notification = f"{user.username} deleted sw requirement " f"{notification_sr_id} {notification_sr_title}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_DELETE,
@@ -4189,7 +4190,7 @@ class SwRequirementSwRequirementsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added sw requirement " f"to {api.api} mapping as part of the library {api.library}"
+            f"{user.username} added sw requirement " f"to {api.api} mapping as part of the library {api.library}"
         )
         notifications = NotificationModel(
             api,
@@ -4245,7 +4246,8 @@ class SwRequirementSwRequirementsMapping(Resource):
         if modified_sr or modified_srsr:
             # Add Notifications
             notification = (
-                f"{user.email} modified sw requirement " f"from {api.api} mapping as part of the library {api.library}"
+                f"{user.username} modified sw requirement "
+                f"from {api.api} mapping as part of the library {api.library}"
             )
             notifications = NotificationModel(
                 api,
@@ -4301,7 +4303,7 @@ class SwRequirementSwRequirementsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} deleted sw requirement "
+            f"{user.username} deleted sw requirement "
             f"{notification_sr_id} {notification_sr_title} mapping as part of the library {api.library}"
         )
         notifications = NotificationModel(
@@ -4461,7 +4463,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} added test specification " f"to {api.api} mapping as part of the library {api.library}"
+            f"{user.username} added test specification " f"to {api.api} mapping as part of the library {api.library}"
         )
         notifications = NotificationModel(
             api,
@@ -4536,7 +4538,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         if modified_ts or modified_srts:
             # Add Notifications
             notification = (
-                f"{user.email} modified test specification "
+                f"{user.username} modified test specification "
                 f"from {api.api} mapping as part of the library {api.library}"
             )
             notifications = NotificationModel(
@@ -4598,7 +4600,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} deleted test specification "
+            f"{user.username} deleted test specification "
             f"{notification_ts_id} {notification_ts_title} mapping as part of the library {api.library}"
         )
         notifications = NotificationModel(
@@ -4753,7 +4755,7 @@ class SwRequirementTestCasesMapping(Resource):
         dbi.session.commit()
 
         # Add Notifications
-        notification = f"{user.email} added test case " f"to {api.api} mapping as part of the library {api.library}"
+        notification = f"{user.username} added test case " f"to {api.api} mapping as part of the library {api.library}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_NEW,
@@ -4823,7 +4825,7 @@ class SwRequirementTestCasesMapping(Resource):
         if modified_tc or modified_srtc:
             # Add Notifications
             notification = (
-                f"{user.email} modified test case " f"from {api.api} mapping as part of the library {api.library}"
+                f"{user.username} modified test case " f"from {api.api} mapping as part of the library {api.library}"
             )
             notifications = NotificationModel(
                 api,
@@ -4881,7 +4883,7 @@ class SwRequirementTestCasesMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} deleted test case "
+            f"{user.username} deleted test case "
             f"{notification_tc_id} {notification_tc_title} mapping as part of the library {api.library}"
         )
         notifications = NotificationModel(
@@ -5031,7 +5033,7 @@ class TestSpecificationTestCasesMapping(Resource):
         dbi.session.commit()
 
         # Add Notifications
-        notification = f"{user.email} added test case " f"to {api.api} mapping as part of the library {api.library}"
+        notification = f"{user.username} added test case " f"to {api.api} mapping as part of the library {api.library}"
         notifications = NotificationModel(
             api,
             NOTIFICATION_CATEGORY_NEW,
@@ -5126,7 +5128,7 @@ class TestSpecificationTestCasesMapping(Resource):
         if modified_tc or modified_tstc:
             # Add Notifications
             notification = (
-                f"{user.email} modified test case " f"to {api.api} mapping as part of the library {api.library}"
+                f"{user.username} modified test case " f"to {api.api} mapping as part of the library {api.library}"
             )
             notifications = NotificationModel(
                 api,
@@ -5210,7 +5212,7 @@ class TestSpecificationTestCasesMapping(Resource):
 
         # Add Notifications
         notification = (
-            f"{user.email} deleted test case "
+            f"{user.username} deleted test case "
             f"{notification_tc_id} {notification_tc_title} mapping as part of the library {api.library}"
         )
         notifications = NotificationModel(
@@ -5373,7 +5375,7 @@ class UserLogin(Resource):
         dbi.session.commit()
 
         return {
-            "email": user.email,
+            "email": user.username,
             "id": user.id,
             "role": user.role,
             "token": user.token,
@@ -5422,7 +5424,7 @@ class UserSignin(Resource):
         dbi.session.execute(set_api_permission_stmt)
 
         # Add Notifications
-        notification = f"{user.email} joined us on BASIL!"
+        notification = f"{user.username} joined us on BASIL!"
         notifications = NotificationModel(None, NOTIFICATION_CATEGORY_NEW, "New user!", notification, str(user.id), "")
         dbi.session.add(notifications)
         dbi.session.commit()
@@ -5451,18 +5453,15 @@ class UserSignin(Resource):
                                      email_footer,
                                      True)
 
-        return {"id": user.id, "email": user.email, "token": user.token}
+        return {"id": user.id, "email": user.username, "token": user.token}
 
 
 class UserApis(Resource):
     def get(self):
         """List of software components for the ones the user has owner permissions
-        without the api with api-id
 
         This endpoint is used to list the apis that can be used in the permission copy
         """
-        # Requester identified by id and token
-        # Email is related to the user for who I need to know api permissions
         mandatory_fields = ["api-id", "token", "user-id"]
         request_data = request.args
 
@@ -5479,12 +5478,12 @@ class UserApis(Resource):
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found", NOT_FOUND_STATUS
+            return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return f"Operation not allowed for user {user.email}", 405
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # apis
         query = dbi.session.query(ApiModel).filter(
@@ -5558,23 +5557,23 @@ class UserPermissionsApiCopy(Resource):
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found.", NOT_FOUND_STATUS
+            return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return f"Operation not allowed for user {user.email}", UNAUTHORIZED_STATUS
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         for copy_to_api_id in request_data["copy-to"]:
             try:
                 copy_to_api = dbi.session.query(ApiModel).filter(ApiModel.id == copy_to_api_id).one()
             except NoResultFound:
-                return "Software component not found.", 402
+                return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
 
             # check requester user api permission
             user_permissions = get_api_user_permissions(copy_to_api, user, dbi.session)
             if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-                return f"Operation not allowed for user {user.email}", 405
+                return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
             copy_to_api.delete_permissions = api.delete_permissions
             copy_to_api.edit_permissions = api.edit_permissions
@@ -5613,7 +5612,7 @@ class UserPermissionsApi(Resource):
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return f"Operation not allowed for user {user.email}", 405
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         query = dbi.session.query(UserModel).filter(
             UserModel.id != user.id
@@ -5623,7 +5622,12 @@ class UserPermissionsApi(Resource):
             UserModel.enabled == 1
         )
         if "search" in request_data.keys():
-            query = query.filter(UserModel.email.like(f"%{request_data['search']}%"))
+            query = query.filter(
+                or_(
+                    UserModel.username.like(f"%{request_data['search']}%"),
+                    UserModel.email.like(f"%{request_data['search']}%")
+                )
+            )
 
         users = query.all()
         users_dict = []
@@ -5641,7 +5645,7 @@ class UserPermissionsApi(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(mandatory_fields, request_data):
-            return "bad request!", 400
+            return f"{BAD_REQUEST_MESSAGE}", BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
 
@@ -5653,20 +5657,22 @@ class UserPermissionsApi(Resource):
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found.", 402
+            return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return f"Operation not allowed for user {user.email}", 405
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         for user_permission in request_data["permissions"]:
-            try:
-                target_user = dbi.session.query(UserModel).filter(
-                    UserModel.id == user_permission["id"]).filter(
-                    UserModel.role != 'GUEST').one()
-            except NoResultFound:
-                return f"User {request_data['email']} not found.", 403
+            user_permission_id = user_permission.get("id", None)
+            if user_permission_id:
+                try:
+                    target_user = dbi.session.query(UserModel).filter(
+                        UserModel.id == user_permission["id"]).filter(
+                        UserModel.role != 'GUEST').one()
+                except NoResultFound:
+                    return f"{NOT_FOUND_MESSAGE}: User with id {user_permission_id}", NOT_FOUND_STATUS
 
             permission_string = f"[{target_user.id}]"
 
@@ -5717,10 +5723,14 @@ class UserEnable(Resource):
     def put(self):
         # Requester identified by id and token
         # Email is related to the user for who I need to change the status
-        mandatory_fields = ["email", "token", "user-id", "enabled"]
+        mandatory_fields = ["token", "user-id", "target-user"]
+        target_user_mandatory_fields = ["id", "enabled"]
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
@@ -5733,16 +5743,16 @@ class UserEnable(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
-            target_user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
+            target_user = dbi.session.query(UserModel).filter(UserModel.id == request_data["target-user"]["id"]).one()
         except NoResultFound:
-            return f"User {request_data['email']} not found", NOT_FOUND_STATUS
+            return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
 
         target_user.enabled = int(request_data["enabled"])
 
         dbi.session.add(target_user)
         dbi.session.commit()
 
-        return {"email": request_data["email"], "enabled": target_user.enabled}
+        return True
 
 
 class User(Resource):
@@ -5927,10 +5937,14 @@ class AdminResetUserPassword(Resource):
     def put(self):
         # Requester identified by id and token
         # Email is related to the user for who I need to change the status
-        mandatory_fields = ["email", "token", "user-id", "password"]
+        mandatory_fields = ["target-user", "token", "user-id"]
+        target_user_mandatory_fields = ["id", "password"]
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
@@ -5943,14 +5957,14 @@ class AdminResetUserPassword(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
-            target_user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
+            target_user = dbi.session.query(UserModel).filter(UserModel.id == request_data["target-user"]["id"]).one()
         except NoResultFound:
-            return f"User {request_data['email']} not found", NOT_FOUND_STATUS
+            return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
 
         target_user.pwd = request_data["password"]
         dbi.session.commit()
 
-        return {"email": request_data["email"]}
+        return True
 
 
 class UserRole(Resource):
@@ -5958,10 +5972,14 @@ class UserRole(Resource):
     def put(self):
         # Requester identified by id and token
         # Email is related to the user for who I need to change the role
-        mandatory_fields = ["email", "token", "user-id", "role"]
+        mandatory_fields = ["token", "user-id", "target-user"]
+        target_user_mandatory_fields = ["id", "role"]
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         if not request_data["role"] in ["ADMIN", "GUEST", "USER"]:
@@ -5977,9 +5995,9 @@ class UserRole(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
-            target_user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
+            target_user = dbi.session.query(UserModel).filter(UserModel.id == request_data["target-user"]["id"]).one()
         except NoResultFound:
-            return f"User {request_data['email']} not found", NOT_FOUND_STATUS
+            return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
 
         target_user.role = request_data["role"]
         dbi.session.commit()
@@ -5996,13 +6014,13 @@ class UserRole(Resource):
 
         async_email_notification(SETTINGS_FILEPATH,
                                  EMAIL_TEMPLATE_PATH,
-                                 [target_user.email],
+                                 [target_user.username],
                                  email_subject,
                                  email_body,
                                  email_footer,
                                  True)
 
-        return {"email": request_data["email"]}
+        return True
 
 
 class UserNotifications(Resource):
@@ -6639,7 +6657,7 @@ class TestRun(Resource):
 
             # Notification
             notification = (
-                f"{user.email} started a Test Run for Test Case "
+                f"{user.username} started a Test Run for Test Case "
                 f"{mapping.test_case.title} as part of the sw component "
                 f"{api.api}, library {api.library}"
             )
@@ -6729,7 +6747,7 @@ class TestRun(Resource):
 
             # Notification
             notification = (
-                f"{user.email} modified a Test Run for Test Case "
+                f"{user.username} modified a Test Run for Test Case "
                 f"{mapping.test_case.title} as part of the sw component "
                 f"{api.api}, library {api.library}.\nBugs: {run.bugs}"
             )
@@ -6817,7 +6835,7 @@ class TestRun(Resource):
 
         # Notification
         notification = (
-            f"{user.email} deleted a Test Run for Test Case "
+            f"{user.username} deleted a Test Run for Test Case "
             f"{mapping.test_case.title} as part of the sw component "
             f"{api.api}, library {api.library}"
         )

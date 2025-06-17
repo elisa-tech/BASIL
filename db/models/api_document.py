@@ -56,7 +56,7 @@ class ApiDocumentModel(Base):
                f"offset={self.offset!r}, " \
                f"coverage={self.coverage!r}, " \
                f"api_id={self.api_id!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"document_id={self.document_id!r}) - {str(self.api)!r} " \
                f"- {str(self.document)!r}"
 
@@ -80,7 +80,7 @@ class ApiDocumentModel(Base):
                  'offset': self.offset,
                  'coverage': self.coverage,
                  'covered': self.coverage,
-                 'created_by': self.created_by.email}
+                 'created_by': self.created_by.username}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 
@@ -193,7 +193,7 @@ class ApiDocumentHistoryModel(Base):
                f"coverage={self.coverage!r}," \
                f"api_id={self.api_id!r}, " \
                f"document_id={self.document_id!r}), " \
-               f"created_by={self.created_by.email!r}"
+               f"created_by={self.created_by.username!r}"
 
     def as_dict(self, full_data=False):
         _dict = {'id': self.id,
@@ -202,7 +202,7 @@ class ApiDocumentHistoryModel(Base):
                  'section': self.section,
                  'offset': self.offset,
                  'coverage': self.coverage,
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  'version': self.version}
         if full_data:
             _dict["created_at"] = self.created_at

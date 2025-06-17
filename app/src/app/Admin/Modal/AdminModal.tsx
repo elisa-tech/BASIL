@@ -62,8 +62,11 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
     const data = {
       'user-id': auth.userId, // The one that request the change
       token: auth.token, // The one that request the change
-      email: user.email, // The one that will be changed
-      password: base64_encode(newPassword)
+      'target-user': {
+        // The one that will be changed
+        id: user.id,
+        password: base64_encode(newPassword)
+      }
     }
 
     fetch(Constants.API_BASE_URL + Constants.API_ADMIN_RESET_USER_PASSWORD_ENDPOINT, {

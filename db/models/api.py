@@ -82,8 +82,8 @@ class ApiModel(Base):
                f"implementation_file={self.implementation_file!r}, " \
                f"implementation_file_from_row={self.implementation_file_from_row!r}, " \
                f"implementation_file_to_row={self.implementation_file_to_row!r}," \
-               f"created_by={self.created_by.email!r}," \
-               f"edited_by={self.edited_by.email!r}," \
+               f"created_by={self.created_by.username!r}," \
+               f"edited_by={self.edited_by.username!r}," \
                f"last_coverage={self.last_coverage!r}," \
                f"tags={self.tags!r})"
 
@@ -106,8 +106,8 @@ class ApiModel(Base):
                  "implementation_file": self.implementation_file,
                  "implementation_file_from_row": self.implementation_file_from_row,
                  "implementation_file_to_row": self.implementation_file_to_row,
-                 "created_by": self.created_by.email,
-                 "edited_by": self.edited_by.email,
+                 "created_by": self.created_by.username,
+                 "edited_by": self.edited_by.username,
                  "last_coverage": self.last_coverage,
                  "tags": self.tags}
 

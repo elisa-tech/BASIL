@@ -7,7 +7,7 @@ from db.models.user import UserModel
 from db.models.api import ApiModel
 from db.models.document import DocumentModel
 from db.models.api_document import ApiDocumentModel
-from conftest import UT_USER_EMAIL
+from conftest import UT_USER_EMAIL, UT_USER_NAME
 from conftest import DB_NAME
 
 
@@ -168,7 +168,7 @@ def test_api_document_post_ok(client, user_authentication, unmapped_api_db, docu
     mapped_documents = mapped_sections[0]['documents']
     assert len(mapped_documents) == 1  # there should be only one document
     assert mapped_documents[0]['document']['title'] == _UT_DOC_TITLE
-    assert mapped_documents[0]['created_by'] == UT_USER_EMAIL
+    assert mapped_documents[0]['created_by'] == UT_USER_NAME
     assert mapped_documents[0]['version'] == "1.1"
 
 

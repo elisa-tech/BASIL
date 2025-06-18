@@ -6,7 +6,7 @@ from db.models.user import UserModel
 from db.models.api import ApiModel
 from db.models.sw_requirement import SwRequirementModel
 from db.models.api_sw_requirement import ApiSwRequirementModel
-from conftest import UT_USER_EMAIL
+from conftest import UT_USER_EMAIL, UT_USER_NAME
 
 
 _MAPPING_API_SW_REQUIREMENTS_URL = '/mapping/api/sw-requirements'
@@ -442,7 +442,7 @@ def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_a
     mapped_sw_requirements = mapped_sections[0]['sw_requirements']
     assert len(mapped_sw_requirements) == 1  # there should be only one SW requirement
     assert mapped_sw_requirements[0]['sw_requirement']['title'] == sw_requirement_db.title
-    assert mapped_sw_requirements[0]['created_by'] == UT_USER_EMAIL
+    assert mapped_sw_requirements[0]['created_by'] == UT_USER_NAME
 
 
 def test_post_existing_sw_requirement_conflict(client, user_authentication, mapped_api_db):
@@ -511,7 +511,7 @@ def test_post_new_sw_requirement_ok(client, user_authentication, unmapped_api_db
     mapped_sw_requirements = mapped_sections[0]['sw_requirements']
     assert len(mapped_sw_requirements) == 1  # there should be only one SW requirement
     assert mapped_sw_requirements[0]['sw_requirement']['title'] == sw_requirement_title
-    assert mapped_sw_requirements[0]['created_by'] == UT_USER_EMAIL
+    assert mapped_sw_requirements[0]['created_by'] == UT_USER_NAME
 
 
 def test_post_new_sw_requirement_conflict(client, user_authentication, mapped_api_db):
@@ -547,7 +547,7 @@ def test_post_new_sw_requirement_conflict(client, user_authentication, mapped_ap
     mapped_sw_requirements = mapped_sections[0]['sw_requirements']
     assert len(mapped_sw_requirements) == 1  # there should be only one SW requirement
     assert mapped_sw_requirements[0]['sw_requirement']['title'] == sw_requirement['title']
-    assert mapped_sw_requirements[0]['created_by'] == UT_USER_EMAIL
+    assert mapped_sw_requirements[0]['created_by'] == UT_USER_NAME
 
 
 @pytest.mark.parametrize('mandatory_field', ['title', 'description', '*'])

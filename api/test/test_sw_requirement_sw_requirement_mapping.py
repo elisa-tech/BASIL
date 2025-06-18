@@ -7,7 +7,7 @@ from db.models.api import ApiModel
 from db.models.sw_requirement import SwRequirementModel
 from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
-from conftest import UT_USER_EMAIL
+from conftest import UT_USER_EMAIL, UT_USER_NAME
 
 _MAPPING_API_SW_REQUIREMENTS_URL = '/mapping/api/sw-requirements'
 _MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL = '/mapping/sw-requirement/sw-requirements'
@@ -675,6 +675,7 @@ def test_put_ok(client, client_db, user_authentication, mapped_api_sr_sr_db, uti
     assert response.status_code == HTTPStatus.OK
     assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
     assert response.json.get("version", "") == "1.1"
+    assert response.json.get("created_by", "") == UT_USER_NAME
 
     # Change coverage
     mapping_data['coverage'] = 75

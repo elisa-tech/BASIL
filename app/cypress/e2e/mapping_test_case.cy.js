@@ -54,6 +54,7 @@ describe('Test Case Mapping', () => {
         cy.get('#btn-section-set-unmatching').click()
         cy.get('#pf-tab-0-tab-btn-test-case-data').click()
         cy.get('#btn-mapping-test-case-submit').click()
+        cy.wait(const_data.mid_wait)
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 1)
         //Edit
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('button').click()

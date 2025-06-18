@@ -16,9 +16,11 @@ RUN virtualenv penv && \
 
 # Set the public ip in the api/api_url.py
 ARG API_PORT=5000 \
-    ADMIN_PASSWORD=admin
+    ADMIN_PASSWORD=admin \
+    TESTING=0
 ENV BASIL_ADMIN_PASSWORD=${ADMIN_PASSWORD} \
-    BASIL_API_PORT=${API_PORT}
+    BASIL_API_PORT=${API_PORT} \
+    TESTING=${TESTING}
 
 # Create directories
 RUN mkdir -p /var/tmp && \
@@ -44,7 +46,7 @@ EXPOSE ${BASIL_API_PORT}
 CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && \
     . /BASIL-API/penv/bin/activate && \
     cd api && \
-    gunicorn \
+    TESTING=${TESTING} gunicorn \
     --timeout 120 \
     --access-logfile /var/tmp/gunicorn-access.log \
     --error-logfile /var/tmp/gunicorn-error.log \

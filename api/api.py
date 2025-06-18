@@ -7636,7 +7636,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    app.config["TESTING"] = args.testing
+    env_testing_bool = False
+    env_testing = os.getenv("TESTING", "")
+    if str(env_testing).lower().strip() in ["1", "true"]:
+        env_testing_bool = True
+
+    app.config["TESTING"] = args.testing or env_testing_bool
     app.config["ENV"] = "local"
 
     if app.config["TESTING"]:

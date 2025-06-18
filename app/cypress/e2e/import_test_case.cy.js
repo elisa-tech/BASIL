@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 import '../support/e2e.ts'
-import api_data from '../fixtures/api.json'
+import api_data_fixture from '../fixtures/api.json'
 import const_data from '../fixtures/consts.json'
 import { createUniqWorkItems } from '../support/utils.js'
 

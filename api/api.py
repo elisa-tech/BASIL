@@ -5316,8 +5316,7 @@ class TestingSupportInitDb(Resource):
         if app.config["TESTING"]:
             app.config["DB"] = "test.db"
             import db.models.init_db as init_db
-
-            init_db.initialization(db_name="test.db")
+            init_db.initialization(db_name=app.config["DB"])
         return True
 
 
@@ -5733,6 +5732,9 @@ class UserEnable(Resource):
         if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
+        if not str(request_data["target-user"]["enabled"]).strip().isnumeric():
+            return f"{BAD_REQUEST_MESSAGE}: Not numeric value", BAD_REQUEST_STATUS
+
         dbi = db_orm.DbInterface(get_db())
 
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5747,7 +5749,7 @@ class UserEnable(Resource):
         except NoResultFound:
             return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
 
-        target_user.enabled = int(request_data["enabled"])
+        target_user.enabled = int(str(request_data["target-user"]["enabled"]).strip())
 
         dbi.session.add(target_user)
         dbi.session.commit()
@@ -5982,7 +5984,8 @@ class UserRole(Resource):
         if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        if not request_data["role"] in ["ADMIN", "GUEST", "USER"]:
+        target_user_role = request_data["target-user"]["role"]
+        if target_user_role not in ["ADMIN", "GUEST", "USER"]:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = db_orm.DbInterface(get_db())
@@ -5999,7 +6002,7 @@ class UserRole(Resource):
         except NoResultFound:
             return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
 
-        target_user.role = request_data["role"]
+        target_user.role = target_user_role
         dbi.session.commit()
 
         # Notification
@@ -7639,7 +7642,6 @@ if __name__ == "__main__":
     if app.config["TESTING"]:
         app.config["DB"] = "test.db"
         import db.models.init_db as init_db
-
         init_db.initialization(db_name="test.db")
     else:
         app.config["DB"] = "basil.db"

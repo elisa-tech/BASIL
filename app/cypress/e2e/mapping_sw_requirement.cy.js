@@ -1,33 +1,19 @@
 /// <reference types="cypress" />
 
 import '../support/e2e.ts'
-import api_data from '../fixtures/api.json'
+import api_data_fixture from '../fixtures/api.json'
 import const_data from '../fixtures/consts.json'
-import sr_data from '../fixtures/sw_requirement.json'
-import tc_data from '../fixtures/test_case.json'
-import ts_data from '../fixtures/test_specification.json'
+import sr_data_fixture from '../fixtures/sw_requirement.json'
+import tc_data_fixture from '../fixtures/test_case.json'
+import ts_data_fixture from '../fixtures/test_specification.json'
+import { createUniqWorkItems } from '../support/utils.js'
 
 // Create uniq work items
-for (let i = 0; i < Object.keys(api_data).length; i++) {
-  let current_key = Object.keys(api_data)[i]
-  console.log(current_key)
-  api_data[current_key].api = api_data[current_key].api + ' ' + Date.now().toString()
-}
-
-for (let i = 0; i < Object.keys(sr_data).length; i++) {
-  let current_key = Object.keys(sr_data)[i]
-  sr_data[current_key].title = sr_data[current_key].title + ' ' + Date.now().toString()
-}
-
-for (let i = 0; i < Object.keys(ts_data).length; i++) {
-  let current_key = Object.keys(ts_data)[i]
-  ts_data[current_key].title = ts_data[current_key].title + ' ' + Date.now().toString()
-}
-
-for (let i = 0; i < Object.keys(tc_data).length; i++) {
-  let current_key = Object.keys(tc_data)[i]
-  tc_data[current_key].title = tc_data[current_key].title + ' ' + Date.now().toString()
-}
+// Appending to each dictionary of the fixture data a date string to a target field
+let api_data = createUniqWorkItems(api_data_fixture, ['api'])
+let sr_data = createUniqWorkItems(sr_data_fixture, ['title'])
+let ts_data = createUniqWorkItems(ts_data_fixture, ['title'])
+let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
 describe('Software Requirement Mapping', () => {
   beforeEach(() => {

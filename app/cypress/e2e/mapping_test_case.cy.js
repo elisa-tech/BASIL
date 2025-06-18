@@ -1,21 +1,15 @@
 /// <reference types="cypress" />
 
 import '../support/e2e.ts'
-import api_data from '../fixtures/api.json'
+import api_data_fixture from '../fixtures/api.json'
 import const_data from '../fixtures/consts.json'
-import tc_data from '../fixtures/test_case.json'
+import tc_data_fixture from '../fixtures/test_case.json'
+import { createUniqWorkItems } from '../support/utils.js'
 
 // Create uniq work items
-for (let i = 0; i < Object.keys(api_data).length; i++) {
-  let current_key = Object.keys(api_data)[i]
-  console.log(current_key)
-  api_data[current_key].api = api_data[current_key].api + ' ' + Date.now().toString()
-}
-
-for (let i = 0; i < Object.keys(tc_data).length; i++) {
-  let current_key = Object.keys(tc_data)[i]
-  tc_data[current_key].title = tc_data[current_key].title + ' ' + Date.now().toString()
-}
+// Appending to each dictionary of the fixture data a date string to a target field
+let api_data = createUniqWorkItems(api_data_fixture, ['api'])
+let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
 describe('Test Case Mapping', () => {
   beforeEach(() => {

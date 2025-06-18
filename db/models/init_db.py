@@ -37,12 +37,9 @@ from db.models.user import UserModel
 
 def initialization(db_name='basil.db'):
 
-    db_path = os.path.join(currentdir, '..', db_name)
-    if db_name == 'test.db':
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-
     dbi = db_orm.DbInterface(db_name)
+    if db_name == 'test.db':
+        Base.metadata.drop_all(bind=dbi.engine)
     Base.metadata.create_all(bind=dbi.engine)
 
     if os.getenv('BASIL_ADMIN_PASSWORD', '') != '':
@@ -53,7 +50,8 @@ def initialization(db_name='basil.db'):
         if not admin_count:
             admin = UserModel("admin", "admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
             dbi.session.add(admin)
-        del os.environ['BASIL_ADMIN_PASSWORD']
+        if db_name != 'test.db':
+            del os.environ['BASIL_ADMIN_PASSWORD']
 
     if db_name == 'test.db':
         guest = UserModel("dummy_guest", "dummy_guest", "dummy_guest", "GUEST")

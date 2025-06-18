@@ -1,14 +1,13 @@
 /// <reference types="cypress" />
-import api_data from '../fixtures/api.json'
+import api_data_fixture from '../fixtures/api.json'
 import const_data from '../fixtures/consts.json'
+import { createUniqWorkItems } from '../support/utils.js'
 
 const first_api_mod_new_version = '1.0.2rev1'
 
-for (let i = 0; i < Object.keys(api_data).length; i++) {
-  let current_key = Object.keys(api_data)[i]
-  console.log(current_key)
-  api_data[current_key].api = api_data[current_key].api + ' ' + Date.now().toString()
-}
+// Create uniq work items
+// Appending to each dictionary of the fixture data a date string to a target field
+let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 
 describe('SW Components Dashboard testing', () => {
   beforeEach(() => {

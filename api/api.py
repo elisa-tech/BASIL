@@ -59,9 +59,11 @@ from api_utils import (
     async_email_notification,
     get_api_specification,
     get_html_email_body_from_template,
+    is_testing_enabled_by_env,
     read_file
 )
 from testrun import TestRunner
+import db.models.init_db as init_db
 
 logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
@@ -149,6 +151,16 @@ API_PERMISSION_FIELDS = [
 app = Flask("BASIL-API")
 api = Api(app)
 CORS(app)
+
+if app.config.get("ENV", "") != "local":
+    app.config["TESTING"] = is_testing_enabled_by_env()
+
+if app.config.get("TESTING", False):
+    print(" * TESTING ON")
+    app.config["DB"] = "test.db"
+else:
+    print(" * TESTING OFF")
+    app.config["DB"] = "basil.db"
 
 login_attempt_cache = {}
 
@@ -5313,9 +5325,7 @@ class ForkSwRequirementSwRequirement(Resource):
 class TestingSupportInitDb(Resource):
 
     def get(self):
-        if app.config["TESTING"]:
-            app.config["DB"] = "test.db"
-            import db.models.init_db as init_db
+        if app.config.get("TESTING", False):
             init_db.initialization(db_name=app.config["DB"])
         return True
 
@@ -7636,18 +7646,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    env_testing_bool = False
-    env_testing = os.getenv("TESTING", "")
-    if str(env_testing).lower().strip() in ["1", "true"]:
-        env_testing_bool = True
+    env_testing_bool = is_testing_enabled_by_env()
 
     app.config["TESTING"] = args.testing or env_testing_bool
-    app.config["ENV"] = "local"
+    app.config["ENV"] = "local"  # from __main__
 
     if app.config["TESTING"]:
-        app.config["DB"] = "test.db"
-        import db.models.init_db as init_db
+        print(" * TESTING ON")
         init_db.initialization(db_name="test.db")
     else:
-        app.config["DB"] = "basil.db"
+        print(" * TESTING OFF")
     app.run()

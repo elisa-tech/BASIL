@@ -1,3 +1,6 @@
+import os
+os.environ['BASIL_TESTING'] = "True"
+
 import pytest
 import string
 import random
@@ -6,10 +9,6 @@ from db import db_orm
 from db.models.db_base import Base
 import db.models.init_db as init_db
 from db.models.user import UserModel
-
-
-api.app.config['TESTING'] = True
-api.app.config['DEBUG'] = True
 
 DB_NAME = 'test.db'
 

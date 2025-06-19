@@ -152,8 +152,9 @@ app = Flask("BASIL-API")
 api = Api(app)
 CORS(app)
 
-if app.config.get("ENV", "") != "local":
-    app.config["TESTING"] = is_testing_enabled_by_env()
+if not app.config.get("TESTING", False):
+    if app.config.get("ENV", "") != "local":
+        app.config["TESTING"] = is_testing_enabled_by_env()
 
 if app.config.get("TESTING", False):
     print(" * TESTING ON")

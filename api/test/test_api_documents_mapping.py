@@ -2,13 +2,11 @@ import os
 import pytest
 import tempfile
 from http import HTTPStatus
-from db import db_orm
 from db.models.user import UserModel
 from db.models.api import ApiModel
 from db.models.document import DocumentModel
 from db.models.api_document import ApiDocumentModel
 from conftest import UT_USER_EMAIL, UT_USER_NAME
-from conftest import DB_NAME
 
 
 _MAPPING_API_DOCUMENTS_URL = '/mapping/api/documents'
@@ -56,9 +54,7 @@ def _get_mapped_document(mapped_section):
 def unmapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with no mapped sections """
 
-    dbi = db_orm.DbInterface(DB_NAME)
-
-    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
     raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -71,8 +67,8 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
                       _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
                       _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
                       _UT_API_TAGS, user)
-    dbi.session.add(ut_api)
-    dbi.session.commit()
+    client_db.session.add(ut_api)
+    client_db.session.commit()
 
     yield ut_api.id
 
@@ -85,9 +81,7 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
 def mapped_api_db(client_db, ut_user_db, utilities):
     """ Create Api with one mapped section """
 
-    dbi = db_orm.DbInterface(DB_NAME)
-
-    user = dbi.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
     # create raw API specification
     raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -106,11 +100,11 @@ def mapped_api_db(client_db, ut_user_db, utilities):
                                           _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
                                           0, user)
 
-    dbi.session.add(ut_api)
-    dbi.session.add(ut_document)
-    dbi.session.add(ut_api_doc_mapping)
+    client_db.session.add(ut_api)
+    client_db.session.add(ut_document)
+    client_db.session.add(ut_api_doc_mapping)
 
-    dbi.session.commit()
+    client_db.session.commit()
 
     yield ut_api
 

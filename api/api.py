@@ -5977,7 +5977,7 @@ class AdminResetUserPassword(Resource):
         except NoResultFound:
             return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
 
-        target_user.pwd = request_data["password"]
+        target_user.pwd = request_data["target-user"]["password"]
         dbi.session.commit()
 
         return True

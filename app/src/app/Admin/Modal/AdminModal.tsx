@@ -58,6 +58,20 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
     }
   }, [modalShowState])
 
+  const copyTextToClipboard = async (text: string) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text)
+        console.log('Copied with Clipboard API')
+      } catch (err) {
+        console.error('Clipboard API failed, using fallback', err)
+        Constants.fallbackCopyTextToClipboard(text)
+      }
+    } else {
+      Constants.fallbackCopyTextToClipboard(text)
+    }
+  }
+
   const resetUserPassword = () => {
     const data = {
       'user-id': auth.userId, // The one that request the change
@@ -79,7 +93,8 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
           setSubmitEnable(false)
           setMessageValue(response.statusText)
         } else {
-          location.reload()
+          setSubmitEnable(false)
+          setMessageValue('Changes saved')
         }
       })
       .catch((err) => {
@@ -90,8 +105,9 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
   return (
     <React.Fragment>
       <Modal
+        id='admin-modal-id'
         width={Constants.MODAL_WIDTH}
-        bodyAriaLabel='Scrollable modal content'
+        bodyAriaLabel='Admin modal'
         tabIndex={0}
         variant={ModalVariant.large}
         title={'Reset user password'}
@@ -114,9 +130,7 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
             variant='secondary'
             icon={<CopyIcon />}
             ouiaId='btn-user-reset-password-copy'
-            onClick={() => {
-              navigator.clipboard.writeText(newPassword)
-            }}
+            onClick={() => copyTextToClipboard(newPassword)}
           >
             Copy to Clipboard
           </Button>,
@@ -129,7 +143,7 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
           <Text component={TextVariants.p}>
             Set new password `
             <i>
-              <b>{newPassword}</b>
+              <b id='b-new-password'>{newPassword}</b>
             </i>
             ` for user <b>{user.email}</b>.
           </Text>

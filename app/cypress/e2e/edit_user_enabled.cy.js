@@ -3,7 +3,6 @@
 import '../support/e2e.ts'
 import const_data from '../fixtures/consts.json'
 import user_data from '../fixtures/users.json'
-import { createUniqWorkItems } from '../support/utils.js'
 
 describe('Edit user enabled', () => {
   it('Edit user Enabled', () => {

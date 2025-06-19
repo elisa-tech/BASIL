@@ -162,6 +162,8 @@ else:
     print(" * TESTING OFF")
     app.config["DB"] = "basil.db"
 
+init_db.initialization(app.config["DB"])
+
 login_attempt_cache = {}
 
 token_parser = reqparse.RequestParser()
@@ -526,8 +528,9 @@ def filter_query(_query, _args, _model, _is_history):
 
 
 def get_db():
-    if app.config["TESTING"]:
-        return "test.db"
+    db = app.config.get("DB", "")
+    if db:
+        return db
     return "basil.db"
 
 
@@ -7650,10 +7653,4 @@ if __name__ == "__main__":
 
     app.config["TESTING"] = args.testing or env_testing_bool
     app.config["ENV"] = "local"  # from __main__
-
-    if app.config["TESTING"]:
-        print(" * TESTING ON")
-        init_db.initialization(db_name="test.db")
-    else:
-        print(" * TESTING OFF")
     app.run()

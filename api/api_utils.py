@@ -9,7 +9,7 @@ LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
 
 def is_testing_enabled_by_env() -> bool:
     ret = False
-    env_testing = os.getenv("TESTING", "")
+    env_testing = os.getenv("BASIL_TESTING", "")
     if str(env_testing).lower().strip() in ["1", "true"]:
         ret = True
     return ret

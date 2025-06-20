@@ -9,7 +9,7 @@ environment:
   basil_test_repo_url: ""
   basil_test_repo_ref: ""
   basil_test_run_id: ""
-  basil_user_email: ""
+  basil_user_username: ""
 
 discover: []
 

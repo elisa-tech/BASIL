@@ -58,7 +58,7 @@ class ApiTestSpecificationModel(Base):
                f"coverage={self.coverage!r}," \
                f"api_id={self.api_id!r}, " \
                f"offset={self.offset!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"test_specification_id={self.test_specification_id!r}) - " \
                f"{str(self.api)!r} - " \
                f"{str(self.test_specification)!r}"
@@ -101,7 +101,7 @@ class ApiTestSpecificationModel(Base):
                  'offset': self.offset,
                  'coverage': self.coverage,
                  'covered': self.get_waterfall_coverage(db_session),
-                 'created_by': self.created_by.email}
+                 'created_by': self.created_by.username}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 
@@ -224,5 +224,5 @@ class ApiTestSpecificationHistoryModel(Base):
                f"test_specification_id={self.test_specification_id!r}, " \
                f"coverage={self.coverage!r}, " \
                f"offset={self.offset!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"version={self.version!r})"

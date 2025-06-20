@@ -16,20 +16,18 @@ RUN virtualenv penv && \
 
 # Set the public ip in the api/api_url.py
 ARG API_PORT=5000 \
-    ADMIN_PASSWORD=admin
+    ADMIN_PASSWORD=admin \
+    TESTING=0
 ENV BASIL_ADMIN_PASSWORD=${ADMIN_PASSWORD} \
-    BASIL_API_PORT=${API_PORT}
+    BASIL_API_PORT=${API_PORT} \
+    BASIL_TESTING=${TESTING}
 
 # Create directories
 RUN mkdir -p /var/tmp && \
     mkdir -p /BASIL-API/api/user-files
 
-# Init the database and
-# Write permission to db
-RUN cd /BASIL-API/db/models && \
-    . /BASIL-API/penv/bin/activate && \
-    python3 init_db.py && \
-    chmod a+rw /BASIL-API/db
+# Write permission to db folder
+RUN chmod a+rw /BASIL-API/db
 
 # Apply patches and init tmt
 RUN patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch && \
@@ -37,14 +35,11 @@ RUN patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/po
     patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/package_managers/apt.py < /BASIL-API/misc/tmt_provision_podman_debian_apt.patch && \
     . /BASIL-API/penv/bin/activate && tmt init
 
-# Remove BASIL ADMIN PASSWORD from the environment
-ENV BASIL_ADMIN_PASSWORD=
-
 EXPOSE ${BASIL_API_PORT}
 CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && \
     . /BASIL-API/penv/bin/activate && \
     cd api && \
-    gunicorn \
+    BASIL_TESTING=${BASIL_TESTING} gunicorn \
     --timeout 120 \
     --access-logfile /var/tmp/gunicorn-access.log \
     --error-logfile /var/tmp/gunicorn-error.log \

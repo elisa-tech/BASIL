@@ -27,10 +27,10 @@ import { useAuth } from '../User/AuthProvider'
 const Signin: React.FunctionComponent = () => {
   const auth = useAuth()
   const [alertMessage, setAlertMessage] = React.useState('')
-  const [username, setUsername] = React.useState('')
-  const [email, setEmail] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [passwordConfirm, setPasswordConfirm] = React.useState('')
+  const [usernameValue, setUsernameValue] = React.useState('')
+  const [emailValue, setEmailValue] = React.useState('')
+  const [passwordValue, setPasswordValue] = React.useState('')
+  const [passwordConfirmValue, setPasswordConfirmValue] = React.useState('')
   const [validateUsernameValue, setValidateUsernameValue] = React.useState<Constants.validate>('default')
   const [validateEmailValue, setValidateEmailValue] = React.useState<Constants.validate>('default')
   const [validatePasswordValue, setValidatePassworValue] = React.useState<Constants.validate>('default')
@@ -38,25 +38,25 @@ const Signin: React.FunctionComponent = () => {
   const [validatePasswordValues, setValidatePasswordValues] = React.useState<Constants.validate>('default')
 
   const handlePasswordChange = (_event, password: string) => {
-    setPassword(password)
+    setPasswordValue(password)
   }
 
   const handlePasswordConfirmChange = (_event, confirm_password: string) => {
-    setPasswordConfirm(confirm_password)
+    setPasswordConfirmValue(confirm_password)
   }
 
   const handleUsernameChange = (_event, username: string) => {
-    setUsername(username)
+    setUsernameValue(username)
   }
 
   const handleEmailChange = (_event, email: string) => {
-    setEmail(email)
+    setEmailValue(email)
   }
 
   const isEmail = (email) => /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i.test(email)
 
   const comparePasswords = () => {
-    if (password != passwordConfirm) {
+    if (passwordValue != passwordConfirmValue) {
       setValidatePasswordValues('error')
     } else {
       setValidatePasswordValues('success')
@@ -64,62 +64,62 @@ const Signin: React.FunctionComponent = () => {
   }
 
   React.useEffect(() => {
-    if (username == '') {
+    if (usernameValue == '') {
       setValidateUsernameValue('error')
-    } else if (username.includes(' ')) {
+    } else if (usernameValue.includes(' ')) {
       setValidateUsernameValue('error')
-    } else if (username.length < 4) {
+    } else if (usernameValue.length < 4) {
       setValidateUsernameValue('error')
     } else {
       setValidateUsernameValue('success')
     }
-  }, [username])
+  }, [usernameValue])
 
   React.useEffect(() => {
-    if (email == '') {
+    if (emailValue == '') {
       setValidateEmailValue('error')
-    } else if (email.includes(' ')) {
+    } else if (emailValue.includes(' ')) {
       setValidateEmailValue('error')
-    } else if (!isEmail(email)) {
+    } else if (!isEmail(emailValue)) {
       setValidateEmailValue('error')
     } else {
       setValidateEmailValue('success')
     }
-  }, [email])
+  }, [emailValue])
 
   React.useEffect(() => {
-    if (password == '') {
+    if (passwordValue == '') {
       setValidatePassworValue('error')
-    } else if (password.includes(' ')) {
+    } else if (passwordValue.includes(' ')) {
       setValidatePassworValue('error')
-    } else if (password.length < 4) {
+    } else if (passwordValue.length < 4) {
       setValidatePassworValue('error')
     } else {
       setValidatePassworValue('success')
       comparePasswords()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [password])
+  }, [passwordValue])
 
   React.useEffect(() => {
-    if (passwordConfirm == '') {
+    if (passwordConfirmValue == '') {
       setValidatePasswordConfirmValue('error')
-    } else if (passwordConfirm.includes(' ')) {
+    } else if (passwordConfirmValue.includes(' ')) {
       setValidatePasswordConfirmValue('error')
-    } else if (passwordConfirm.length < 4) {
+    } else if (passwordConfirmValue.length < 4) {
       setValidatePasswordConfirmValue('error')
     } else {
       setValidatePasswordConfirmValue('success')
       comparePasswords()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [passwordConfirm])
+  }, [passwordConfirmValue])
 
   const resetForm = () => {
-    setUsername('')
-    setEmail('')
-    setPassword('')
-    setPasswordConfirm('')
+    setUsernameValue('has been reset')
+    setEmailValue('has been reset')
+    setPasswordValue('')
+    setPasswordConfirmValue('')
   }
 
   const formSubmit = () => {
@@ -148,9 +148,9 @@ const Signin: React.FunctionComponent = () => {
     }
 
     const data = {
-      email: email,
-      password: password,
-      username: username
+      email: emailValue,
+      password: passwordValue,
+      username: usernameValue
     }
 
     let status
@@ -204,7 +204,7 @@ const Signin: React.FunctionComponent = () => {
                   <FlexItem align={{ default: 'alignLeft' }}>
                     <Form isHorizontal>
                       <FormGroup label='Email' isRequired fieldId='signin-form-email'>
-                        <TextInput isRequired type='email' id='signin-form-email' value={email} onChange={handleEmailChange} />
+                        <TextInput isRequired type='email' id='signin-form-email' value={emailValue} onChange={handleEmailChange} />
                         {validateEmailValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
@@ -218,7 +218,7 @@ const Signin: React.FunctionComponent = () => {
                         )}
                       </FormGroup>
                       <FormGroup label='Username' isRequired fieldId='signin-form-username'>
-                        <TextInput isRequired type='text' id='signin-form-username' value={username} onChange={handleUsernameChange} />
+                        <TextInput isRequired type='text' id='signin-form-username' value={usernameValue} onChange={handleUsernameChange} />
                         {validateUsernameValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
@@ -232,7 +232,13 @@ const Signin: React.FunctionComponent = () => {
                         )}
                       </FormGroup>
                       <FormGroup label='Password' isRequired fieldId='signin-form-password'>
-                        <TextInput isRequired type='password' id='signin-form-password' value={password} onChange={handlePasswordChange} />
+                        <TextInput
+                          isRequired
+                          type='password'
+                          id='signin-form-password'
+                          value={passwordValue}
+                          onChange={handlePasswordChange}
+                        />
                         {validatePasswordValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
@@ -249,8 +255,8 @@ const Signin: React.FunctionComponent = () => {
                         <TextInput
                           isRequired
                           type='password'
-                          id='signin-form-password-confirm-03'
-                          value={passwordConfirm}
+                          id='signin-form-password-confirm'
+                          value={passwordConfirmValue}
                           onChange={handlePasswordConfirmChange}
                         />
                         {validatePasswordConfirmValue !== 'success' && (
@@ -275,10 +281,10 @@ const Signin: React.FunctionComponent = () => {
                         )}
                       </FormGroup>
                       <ActionGroup>
-                        <Button variant='primary' onClick={() => formSubmit()}>
+                        <Button id='form-signin-submit' variant='primary' onClick={() => formSubmit()}>
                           Submit
                         </Button>
-                        <Button onClick={() => resetForm()} variant='secondary'>
+                        <Button id='form-signin-reset' onClick={() => resetForm()} variant='secondary'>
                           Reset
                         </Button>
                       </ActionGroup>

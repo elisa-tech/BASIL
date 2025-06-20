@@ -45,8 +45,8 @@ class SwRequirementModel(Base):
                f"title={self.title!r}, " \
                f"description={self.description!r}), " \
                f"status={self.status!r}), " \
-               f"created_by={self.created_by.email!r}, " \
-               f"edited_by={self.edited_by.email!r}"
+               f"created_by={self.created_by.username!r}, " \
+               f"edited_by={self.edited_by.username!r}"
 
     def current_version(self, db_session):
         last_item = db_session.query(SwRequirementHistoryModel).filter(
@@ -59,7 +59,7 @@ class SwRequirementModel(Base):
                  "title": self.title,
                  "description": self.description,
                  "status": self.status,
-                 "created_by": self.created_by.email,
+                 "created_by": self.created_by.username,
                  }
 
         if db_session:
@@ -143,5 +143,5 @@ class SwRequirementHistoryModel(Base):
                f"version={self.version!r}, " \
                f"title={self.title!r}, " \
                f"status={self.status!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"description={self.description!r})"

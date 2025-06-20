@@ -11,6 +11,9 @@
 - Fix UI issues in mapping view for specifications with long lines
 - Fix bug on deletion of all the notifications
 - Uniform percentage values format
+- Expose user username instead of user email
+- Added test cases to the e2e suite
+- Added test cases to the api unit test suite
 
 ## 1.6.x
 

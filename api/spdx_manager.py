@@ -453,10 +453,9 @@ class SPDXManager:
             spdx_trs_rel.append(spdx_tr_rel)
         return spdx_trs, spdx_trs_rel
 
-    def add_api_to_export(self, api: ApiModel):
+    def add_api_to_export(self, dbi: DbInterface, api: ApiModel):
         """Collect all the work items of a BASIL Software Component and their relationships
         and add them to the class payload"""
-        dbi = DbInterface()
         api = dbi.session.query(ApiModel).filter(ApiModel.id == api.id).one()
 
         # Api

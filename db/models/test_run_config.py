@@ -75,7 +75,7 @@ class TestRunConfigModel(Base):
                  'provision_type': self.provision_type,
                  'provision_guest': self.provision_guest,
                  'provision_guest_port': self.provision_guest_port,
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  }
 
         if full_data:

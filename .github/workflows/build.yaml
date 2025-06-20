@@ -32,6 +32,7 @@ jobs:
           build-args: |
             ADMIN_PASSWORD=dummy_password
             API_PORT=5005
+            TESTING=1
           context: .
           file: Containerfile-api-fedora
           push: false

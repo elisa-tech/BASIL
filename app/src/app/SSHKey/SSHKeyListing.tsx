@@ -30,7 +30,7 @@ const SSHKeyListingTable: React.FunctionComponent<SSHKeysListingTableProps> = ({
 
   return (
     <React.Fragment>
-      <Table id='table-user-ssh-keys' aria-label='User ssh keys table'>
+      <Table variant='compact' id='table-user-ssh-keys' aria-label='User ssh keys table'>
         <Thead>
           <Tr>
             <Th>Name</Th>

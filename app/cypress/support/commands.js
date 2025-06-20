@@ -32,6 +32,12 @@ export function registerCommands() {
     cy.wait(const_data.long_wait)
   })
 
+  Cypress.Commands.add('logout', () => {
+    cy.get('header').find('div.pf-v5-c-masthead__content').find('button.pf-v5-c-menu-toggle').click()
+    cy.get('div.pf-v5-c-menu__content').find('button').contains('a', 'Logout').click()
+    cy.get('header .pf-v5-c-toolbar__item .pf-v5-c-menu-toggle__text').should('contain.text', 'Guest')
+  })
+
   Cypress.Commands.add('login_admin', () => {
     cy.visit(const_data.app_base_url + '/login')
     cy.wait(const_data.mid_wait)
@@ -47,8 +53,8 @@ export function registerCommands() {
 
     // Redirected and logged in
     cy.url().should('eq', const_data.app_base_url + '/')
-    cy.contains('span[class^="pf-v5-c-menu-toggle__text"]', const_data.users.admin.username)
-    cy.get('span.pf-v5-c-masthead__toggle').find('button').click()
+    cy.wait(const_data.mid_wait)
+    cy.get('header .pf-v5-c-toolbar__item .pf-v5-c-menu-toggle__text').should('contain.text', const_data.users.admin.username)
   })
 
   Cypress.Commands.add('filter_api_from_dashboard', (api) => {

@@ -7,6 +7,14 @@ from urllib.error import HTTPError, URLError
 LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
 
 
+def is_testing_enabled_by_env() -> bool:
+    ret = False
+    env_testing = os.getenv("BASIL_TESTING", "")
+    if str(env_testing).lower().strip() in ["1", "true"]:
+        ret = True
+    return ret
+
+
 def add_html_link_to_email_body(settings, body):
     """Append a link to BASIL instance if the app_url setting is populated"""
     if not settings:

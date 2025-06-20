@@ -33,6 +33,7 @@ const AdminListingTable: React.FunctionComponent<AdminListingTableProps> = ({ us
                 isDisabled={true}
               />
             </Td>
+            <Td dataLabel='username'>{user.username}</Td>
             <Td dataLabel='email'>{user.email}</Td>
             <Td dataLabel='role'>{user.role}</Td>
             <Td dataLabel='from'>{user.created_at}</Td>
@@ -47,10 +48,11 @@ const AdminListingTable: React.FunctionComponent<AdminListingTableProps> = ({ us
 
   return (
     <React.Fragment>
-      <Table id='table-user-management' aria-label='User management table'>
+      <Table variant='compact' id='table-user-management' aria-label='User management table'>
         <Thead>
           <Tr>
             <Th>Enabled</Th>
+            <Th>Username</Th>
             <Th>Email</Th>
             <Th>Role</Th>
             <Th>From</Th>

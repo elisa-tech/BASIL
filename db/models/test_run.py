@@ -70,7 +70,7 @@ class TestRunModel(Base):
                  'bugs': self.bugs,
                  'fixes': self.fixes,
                  'config': self.test_run_config.as_dict(),
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  'log': self.log,
                  'notes': self.notes,
                  'report': self.report,

@@ -34,7 +34,7 @@ class CommentModel(Base):
 
     def as_dict(self, full_data=False):
         tmp = {"comment": self.comment,
-               "created_by": self.created_by.email,
+               "created_by": self.created_by.username,
                "created_at": self.created_at.strftime(Base.dt_short_format_str)}
         return tmp
 

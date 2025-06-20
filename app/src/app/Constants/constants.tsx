@@ -383,6 +383,31 @@ export const _trim = (_var) => {
   }
 }
 
+export const fallbackCopyTextToClipboard = (text) => {
+  const textArea = document.createElement('textarea')
+  textArea.value = text
+
+  textArea.style.position = 'fixed'
+  textArea.style.top = '0px'
+  textArea.style.left = '0px'
+  textArea.style.opacity = '0'
+  textArea.style.pointerEvents = 'none'
+  textArea.style.zIndex = '-1'
+
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+
+  try {
+    const successful = document.execCommand('copy')
+    console.log('Fallback: Copying was ' + (successful ? 'successful' : 'unsuccessful'))
+  } catch (err) {
+    console.error('Fallback: Copy command failed', err)
+  }
+
+  document.body.removeChild(textArea)
+}
+
 export const logObject = (obj) => {
   let i
   let k

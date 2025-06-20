@@ -38,29 +38,29 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
     }
 
     payload = {
-      "api_key": "",
-      "test": {
-        "fmf": {
-          "url": "",
-          "ref": "",
-          "name": "",
-          "test_filter": ""
-        }
-      },
-      "environments": [
-        {
-          "arch": "",
-          "os": {"compose": ""},
-          "tmt": {
-            "environment": {
-            },
-            "context": {
+        "api_key": "",
+        "test": {
+            "fmf": {
+                "url": "",
+                "ref": "",
+                "name": "",
+                "test_filter": ""
             }
-          },
-          "variables": {
-          }
-        }
-      ]
+        },
+        "environments": [
+            {
+                "arch": "",
+                "os": {"compose": ""},
+                "tmt": {
+                    "environment": {
+                    },
+                    "context": {
+                    }
+                },
+                "variables": {
+                }
+            }
+        ]
     }
 
     def __init__(self, runner=None, *args, **kwargs):
@@ -92,7 +92,8 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
         self.payload["environments"][0]["variables"]["basil_test_run_title"] = self.runner.db_test_run.title
         self.payload["environments"][0]["variables"]["basil_test_run_config_id"] = self.config["id"]
         self.payload["environments"][0]["variables"]["basil_test_run_config_title"] = self.config["title"]
-        self.payload["environments"][0]["variables"]["basil_user_email"] = self.runner.db_test_run.created_by.email
+        self.payload["environments"][0]["variables"]["basil_user_username"] = \
+            self.runner.db_test_run.created_by.username
 
         self.payload["test"]["fmf"]["url"] = self.TMT_PLAN_URL
         self.payload["test"]["fmf"]["ref"] = self.TMT_PLAN_REF

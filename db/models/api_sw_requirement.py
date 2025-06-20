@@ -56,7 +56,7 @@ class ApiSwRequirementModel(Base):
                f"offset={self.offset!r}, " \
                f"coverage={self.coverage!r}," \
                f"api_id={self.api_id!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"sw_requirement_id={self.sw_requirement_id!r}) - {str(self.api)!r} " \
                f"- {str(self.sw_requirement)!r}"
 
@@ -117,7 +117,7 @@ class ApiSwRequirementModel(Base):
                  'offset': self.offset,
                  'direct': True,
                  'coverage': self.coverage,
-                 'created_by': self.created_by.email,
+                 'created_by': self.created_by.username,
                  'covered': self.get_waterfall_coverage(db_session),
                  '__tablename__': self.__tablename__}
 
@@ -266,5 +266,5 @@ class ApiSwRequirementHistoryModel(Base):
                f"sw_requirement_id={self.sw_requirement_id!r}, " \
                f"coverage={self.coverage!r}, " \
                f"offset={self.offset!r}, " \
-               f"created_by={self.created_by.email!r}, " \
+               f"created_by={self.created_by.username!r}, " \
                f"version={self.version!r})"

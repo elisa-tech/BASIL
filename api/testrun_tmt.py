@@ -43,7 +43,7 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
         self.config["env"]["basil_test_run_title"] = self.runner.db_test_run.title
         self.config["env"]["basil_test_run_config_id"] = self.config["id"]
         self.config["env"]["basil_test_run_config_title"] = self.config["title"]
-        self.config["env"]["basil_user_email"] = self.runner.db_test_run.created_by.email
+        self.config["env"]["basil_user_username"] = self.runner.db_test_run.created_by.username
 
         if len(self.config["context"].keys()) > 0:
             for k, v in self.config["context"].items():

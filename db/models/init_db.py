@@ -37,25 +37,25 @@ from db.models.user import UserModel
 
 def initialization(db_name='basil.db'):
 
-    db_path = os.path.join(currentdir, '..', db_name)
-    if db_name == 'test.db':
-        if os.path.exists(db_path):
-            os.unlink(db_path)
-
     dbi = db_orm.DbInterface(db_name)
+    if db_name == 'test.db':
+        Base.metadata.drop_all(bind=dbi.engine)
     Base.metadata.create_all(bind=dbi.engine)
 
-    if os.getenv('BASIL_ADMIN_PASSWORD', '') != '':
-        admin_count = dbi.session.query(UserModel).filter(
-            UserModel.email == "admin").filter(
-            UserModel.role == 'ADMIN'
-        ).count()
-        if not admin_count:
-            admin = UserModel("admin", "admin", os.getenv('BASIL_ADMIN_PASSWORD'), 'ADMIN')
-            dbi.session.add(admin)
-        del os.environ['BASIL_ADMIN_PASSWORD']
+    admin_pwd = os.getenv('BASIL_ADMIN_PASSWORD', 'admin')
 
-    if db_name == 'test.db':
+    admin_count = dbi.session.query(UserModel).filter(
+        UserModel.email == "admin").filter(
+        UserModel.role == 'ADMIN'
+    ).count()
+    if not admin_count:
+        admin = UserModel("admin", "admin", admin_pwd, 'ADMIN')
+        dbi.session.add(admin)
+
+    if db_name != 'test.db':
+        if 'BASIL_ADMIN_PASSWORD' in os.environ:
+            del os.environ['BASIL_ADMIN_PASSWORD']
+    else:
         guest = UserModel("dummy_guest", "dummy_guest", "dummy_guest", "GUEST")
         dbi.session.add(guest)
         test_user = UserModel("dummy_user", "dummy_user", "dummy_user", "USER")

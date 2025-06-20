@@ -116,7 +116,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         self.payload["environment"]["basil_test_run_title"] = self.runner.db_test_run.title
         self.payload["environment"]["basil_test_run_config_id"] = self.config["id"]
         self.payload["environment"]["basil_test_run_config_title"] = self.config["title"]
-        self.payload["environment"]["basil_user_email"] = self.runner.db_test_run.created_by.email
+        self.payload["environment"]["basil_user_username"] = self.runner.db_test_run.created_by.username
 
         test_config = {
             "repository": self.runner.mapping.test_case.repository,

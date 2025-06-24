@@ -71,15 +71,24 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage != '' ? formData.coverage : '0')
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
 
+  const [reasoningValue, setReasoningValue] = React.useState<string | undefined>()
+
   const [testSpecificationStatusValue, setTestSpecificationStatusValue] = React.useState(formData.status)
 
   const [messageValue, setMessageValue] = React.useState(formMessage)
 
   const [statusValue, setStatusValue] = React.useState('waiting')
+  const [isAIAvailable, setIsAIAvailable] = React.useState(false)
+  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(true)
+  const [askAIMetadataButtonText, setAskAIMetadataButtonText] = React.useState<string>('Ask AI for suggestion')
 
   // Form constants
   const INPUT_BASE_NAME = 'input-test-specification'
   const SELECT_BASE_NAME = 'select-test-specification'
+
+  React.useEffect(() => {
+    Constants.checkEndpoint(Constants.API_BASE_URL + Constants.API_AI_HEALTH_CHECK_ENDPOINT, setIsAIAvailable)
+  }, [Constants.API_AI_HEALTH_CHECK_ENDPOINT])
 
   const resetForm = () => {
     setTitleValue('')
@@ -87,6 +96,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     setTestDescriptionValue('')
     setExpectedBehaviorValue('')
     setCoverageValue('0')
+    setMessageValue('')
   }
 
   React.useEffect(() => {
@@ -312,6 +322,94 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     }
   }
 
+  const handleAskAIMetadataClick = () => {
+    if (!isAskAIMetadataButtonEnabled) return
+    resetForm()
+    setIsAskAIMetadataButtonEnabled(false)
+    setAskAIMetadataButtonText('Elaborating ...')
+    askAiForMetadataSuggestion()
+  }
+
+  const askAiForMetadataSuggestion = () => {
+    let spec = ''
+
+    if (modalIndirect == true || formVerb == 'PUT') {
+      if (parentType == Constants._SR) {
+        spec = parentData.sw_requirement.description
+      } else {
+        spec = parentData.section
+      }
+    } else {
+      spec = modalSection
+    }
+
+    let status
+    let status_text
+
+    const data = {
+      'api-id': api.id,
+      spec: spec,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_AI_SUGGEST_TEST_SPEC_METADATA_ENDPOINT, {
+      method: 'POST',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
+          setStatusValue('Unable to get suggestions for this specification.')
+          return {}
+        } else {
+          setStatusValue('waiting')
+          setMessageValue('')
+          return response.json()
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
+        } else {
+          if ('title' in data && typeof data.title === 'string') {
+            setTitleValue(data.title)
+          }
+
+          if ('preconditions' in data && typeof data.preconditions === 'string') {
+            setPreconditionsValue(data.preconditions)
+          }
+
+          if ('test_description' in data && typeof data.test_description === 'string') {
+            setTestDescriptionValue(data.test_description)
+          }
+
+          if ('expected_behavior' in data && typeof data.expected_behavior === 'string') {
+            setExpectedBehaviorValue(data.expected_behavior)
+          }
+
+          if ('completeness' in data) {
+            setCoverageValue(data.completeness)
+          }
+
+          if ('reasoning' in data && typeof data.reasoning === 'string') {
+            setReasoningValue(data.reasoning)
+            setMessageValue('AI reasoning: ' + data.reasoning)
+          }
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+        setStatusValue('waiting')
+      })
+      .finally(() => {
+        setAskAIMetadataButtonText('Ask AI for suggestion')
+        setIsAskAIMetadataButtonEnabled(true)
+      })
+  }
+
   return (
     <Form
       onSubmit={(event) => {
@@ -445,6 +543,20 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
                 Reset
               </Button>
             </FlexItem>
+            {isAIAvailable ? (
+              <FlexItem>
+                <Button
+                  id='btn-mapping-test-specification-ai-suggestion'
+                  variant='secondary'
+                  disabled={!isAskAIMetadataButtonEnabled}
+                  onClick={() => handleAskAIMetadataClick()}
+                >
+                  {askAIMetadataButtonText}
+                </Button>
+              </FlexItem>
+            ) : (
+              ''
+            )}
           </Flex>
         </ActionGroup>
       ) : (

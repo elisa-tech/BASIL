@@ -5,11 +5,13 @@
 api_server_url=http://localhost
 api_distro=fedora
 api_containerfile=Containerfile-api-fedora
+ai_port=0
+ai_model=phi3.5
 api_port=5000
 app_port=9000
 admin_pw=1234
 
-OPTSTRING=":b:d:e:f:p:u:h"
+OPTSTRING=":a:b:d:e:f:m:p:u:h"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -24,12 +26,14 @@ usage()
 
         usage: ${0##*/} [ -b API_PORT ] [ -u URL ] [ -f APP_PORT ] [ -p ADMIN_PASSWRORD ]
         
+        -a AI_PORT          AI LLM Model API PORT
         -b API_PORT         Api (backend) port
         -d API_DISTRO       Distro used to deploy the api 'fedora' or 'debian', default is 'fedora'
                             That will be also the default distro used in BASIL test infrastructure when
                             user select Container as target test environment
         -e ENV_FILE         Filepath of an environment file you want to inject into the API Container
         -f APP_PORT         App (frontend) port                        
+        -m AI MODEL         AI LLM, default phi3.5
         -p ADMIN_PASSWRORD  Admin user default password (username: admin)
                             use single quote around your password
         -u URL              Full base url
@@ -37,8 +41,9 @@ usage()
                             - http://<ip address> if you want to use a centralized machine 
                             in the local network (e.g.: http://192.168.1.15)
         
-        example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
+        example: ${0##*/} -a 8080 -m phi3.5 -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
 
+        AI MODEL API will be available at [URL][AI_PORT]  e.g. http://192.168.1.15:8080
         BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://192.168.1.15:9005
         BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://192.168.1.15:5005
         To test the Api you can check the /version endpoint e.g. http://192.168.1.15:5005/version
@@ -49,6 +54,9 @@ exit 0
 
 while getopts ${OPTSTRING} opt; do
     case ${opt} in
+        a)
+        ai_port=${OPTARG}
+        ;;
         b)
         api_port=${OPTARG}
         ;;
@@ -63,6 +71,8 @@ while getopts ${OPTSTRING} opt; do
 	;;
         f)
         app_port=${OPTARG}
+        m)
+        ai_model=${OPTARG}
         ;;
         p)
         admin_pw=${OPTARG}
@@ -85,6 +95,8 @@ echo -e "${TITLE_COLOR_STR}\n> kill all running podman container\n${BODY_COLOR_S
 podman stop --all
 
 echo -e "${TITLE_COLOR_STR}\n> Parameters\n${BODY_COLOR_STR}"
+echo -e " - ai_port = ${ai_port}"
+echo -e " - ai_model = ${ai_model}"
 echo -e " - api_server_url = ${api_server_url}"
 echo -e " - api distro = ${api_distro}"
 echo -e " - api port = ${api_port}"
@@ -101,7 +113,9 @@ echo -e "###################################################################"
 echo -e "\n${BODY_COLOR_STR}"
 podman build \
     --build-arg="ADMIN_PASSWORD=${admin_pw}" \
+    --build-arg="AI_PORT=${ai_port}" \
     --build-arg="API_PORT=${api_port}" \
+    --build-arg="API_URL=${api_server_url}" \
     -f ${api_containerfile} \
     -t basil-api-image:${TAG} .
 
@@ -116,6 +130,21 @@ podman build \
     --build-arg="APP_PORT=${app_port}" \
     -f Containerfile-app \
     -t basil-app-image:${TAG} .
+
+if [ "$ai_port" -gt 0 ]; then
+    echo -e "\n${TITLE_COLOR_STR}"
+    echo -e "###################################################################"
+    echo -e "###                 Building AI container"
+    echo -e "###################################################################"
+
+    echo -e "\n${BODY_COLOR_STR}"
+    podman build \
+        --build-arg="TARGET_HOST=${ai_server_url}" \
+        --build-arg="TARGET_PORT=${api_port}" \
+        --build-arg="MODEL_NAME=${ai_model}" \
+        -f Containerfile-ai \
+        -t basil-ai-image:${TAG} .
+fi
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"
@@ -183,6 +212,19 @@ podman run \
     -d \
     --network=host \
     basil-app-image:${TAG}
+
+if [ "$ai_port" -gt 0 ]; then
+    echo -e "\n${TITLE_COLOR_STR}"
+    echo -e "###################################################################"
+    echo -e "###                 Start AI container"
+    echo -e "###################################################################"
+
+    echo -e "\n${BODY_COLOR_STR}"
+    podman run \
+        -d \
+        -p 8080:8080
+        basil-ai-image:${TAG}
+fi
 
 echo -e "\n${TITLE_COLOR_STR}"
 echo -e "###################################################################"

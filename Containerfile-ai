@@ -1,0 +1,30 @@
+FROM fedora:39
+
+# Build arguments
+ARG TARGET_PORT=11434
+ARG TARGET_HOST=0.0.0.0
+ARG MODEL_NAME=phi3.5
+
+# Environment
+ENV BASIL_AI_HOST=${TARGET_HOST}
+ENV BASIL_AI_PORT=${TARGET_PORT}
+ENV BASIL_AI_MODEL=${MODEL_NAME}
+ENV BASIL_AI_VENV_DIR=/app/venv
+
+# Install Python and necessary packages
+RUN dnf install -y python3 python3-pip python3-virtualenv curl git \
+    && dnf clean all
+
+WORKDIR /app
+
+# Set up virtual environment
+RUN python3 -m venv $BASIL_AI_VENV_DIR
+
+# Install the LLM tool (replace with real one if needed)
+RUN . $BASIL_AI_VENV_DIR/bin/activate && pip install --upgrade pip && pip install ramalama
+
+# Expose the selected port
+EXPOSE ${BASIL_AI_PORT}
+
+# Command to start the model server with selected model and port
+CMD ["/bin/bash", "-c", ". /app/venv/bin/activate && ramalama serve --host $BASIL_AI_HOST --webui off -t 6 --temp=0.8 --model $BASIL_AI_MODEL --port $BASIL_AI_PORT"]

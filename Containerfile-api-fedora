@@ -37,7 +37,7 @@ RUN mkdir -p /var/tmp && \
 RUN chmod a+rw /BASIL-API/db
 
 # Apply patches
-RUN patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
+RUN patch -u /BASIL-API/penv/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
     tmt init
 
 EXPOSE ${BASIL_API_PORT}

@@ -1,6 +1,13 @@
 from import_manager import SPDXImportSwRequirements
 from spdx_manager import SPDXManager
 from notifier import EmailNotifier
+from ai import (
+    ai_askfor__software_requirement_metadata,
+    ai_askfor__test_case_implementation,
+    ai_askfor__test_case_metadata,
+    ai_askfor__test_specification_metadata,
+    ai_health_check
+)
 from db.models.user import UserModel
 from db.models.test_specification_test_case import (
     TestSpecificationTestCaseHistoryModel,
@@ -7809,6 +7816,65 @@ class AdminSettings(Resource):
         return ret
 
 
+class AIHealthCheck(Resource):
+
+    def get(self):
+        if ai_health_check():
+            return True
+        else:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+
+class AISuggestTestCaseImplementation(Resource):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec", "title"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        return ai_askfor__test_case_implementation(
+            title=request_data["spec"],
+            spec=request_data["spec"],
+            user_id=user.id
+        )
+
+
+class AISuggestTestCaseMetadata(Resource):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        return ai_askfor__test_case_metadata(spec=request_data["spec"])
+
+
+class AISuggestTestSpecificationMetadata(Resource):
+
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        return ai_askfor__test_specification_metadata(spec=request_data["spec"])
+
+
+class AISuggestSoftwareRequirementMetadata(Resource):
+
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        return ai_askfor__software_requirement_metadata(spec=request_data["spec"])
+
+
 class Version(Resource):
 
     def get(self):
@@ -7877,6 +7943,7 @@ api.add_resource(ForkSwRequirementSwRequirement, "/fork/sw-requirement/sw-requir
 # api.add_resource(ForkTestSpecification, '/fork/api/test-specification')
 # api.add_resource(ForkTestCase, '/fork/api/test-case')
 # api.add_resource(ForkJustification, '/fork/api/justification')
+
 api.add_resource(User, "/user")
 api.add_resource(UserApis, "/user/apis")
 api.add_resource(UserEnable, "/user/enable")
@@ -7893,6 +7960,12 @@ api.add_resource(UserFileContent, "/user/files/content")
 api.add_resource(Testing, "/testing")
 api.add_resource(Version, "/version")
 
+# AI
+api.add_resource(AIHealthCheck, "/ai/health-check")
+api.add_resource(AISuggestTestCaseMetadata, "/ai/suggest/test-case/metadata")
+api.add_resource(AISuggestTestCaseImplementation, "/ai/suggest/test-case/implementation")
+api.add_resource(AISuggestTestSpecificationMetadata, "/ai/suggest/test-specification/metadata")
+api.add_resource(AISuggestSoftwareRequirementMetadata, "/ai/suggest/sw-requirement/metadata")
 
 if __name__ == "__main__":
     import argparse

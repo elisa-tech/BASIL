@@ -45,6 +45,11 @@ export const API_SW_REQUIREMENT_IMPORT_ENDPOINT = '/import/sw-requirements'
 export const API_TEST_CASE_IMPORT_GENERATE_JSON_ENDPOINT = '/import/test-cases-generate-json'
 export const API_TEST_CASE_IMPORT_ENDPOINT = '/import/test-cases'
 export const API_REQUEST_WRITE_PERMISSION_ENDPOINT = '/apis/write-permission-request'
+export const API_AI_HEALTH_CHECK_ENDPOINT = '/ai/health-check'
+export const API_AI_SUGGEST_SW_REQ_METADATA_ENDPOINT = '/ai/suggest/sw-requirement/metadata'
+export const API_AI_SUGGEST_TEST_CASE_IMPLEMENTATION_ENDPOINT = '/ai/suggest/test-case/implementation'
+export const API_AI_SUGGEST_TEST_CASE_METADATA_ENDPOINT = '/ai/suggest/test-case/metadata'
+export const API_AI_SUGGEST_TEST_SPEC_METADATA_ENDPOINT = '/ai/suggest/test-specification/metadata'
 
 export const JSON_HEADER = {
   Accept: 'application/json',
@@ -264,6 +269,16 @@ export const loadFileContent = (_auth, _filename, _setMessage, _setContent) => {
       _setMessage(err.message)
       console.log(err.message)
     })
+}
+
+export async function checkEndpoint(urlToCheck, setIsUrlAvailable) {
+  try {
+    const response = await fetch(urlToCheck)
+    setIsUrlAvailable(response.ok) // true if status is 2xx
+  } catch (error) {
+    console.error('Error checking endpoint:', error)
+    setIsUrlAvailable(false)
+  }
 }
 
 export const percentageStringFormat = (x: number): string => {

@@ -11,7 +11,7 @@ RUN apt update && apt install --assume-yes \
 COPY . .
 
 RUN virtualenv penv && \
-    source penv/bin/activate && \
+    . penv/bin/activate && \
     pip3 install --no-cache-dir -r requirements.txt
 
 # Set the public ip in the api/api_url.py
@@ -37,13 +37,13 @@ RUN chmod a+rw /BASIL-API/db
 RUN patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch && \
     patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman_debian.patch && \
     patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/package_managers/apt.py < /BASIL-API/misc/tmt_provision_podman_debian_apt.patch && \
-    source /BASIL-API/penv/bin/activate && \
+    . /BASIL-API/penv/bin/activate && \
     tmt init
 
 EXPOSE ${BASIL_API_PORT}
 
 WORKDIR /BASIL-API/api
-CMD source /BASIL-API/penv/bin/activate && \
+CMD . /BASIL-API/penv/bin/activate && \
     gunicorn \
     --timeout 120 \
     --workers 4 \

@@ -10,8 +10,6 @@ RUN dnf install -y curl git jq patch \
 
 COPY . .
 
-COPY . .
-
 RUN virtualenv penv && \
     source penv/bin/activate && \
     pip3 install --no-cache-dir -r requirements.txt
@@ -37,7 +35,8 @@ RUN mkdir -p /var/tmp && \
 RUN chmod a+rw /BASIL-API/db
 
 # Apply patches
-RUN patch -u /BASIL-API/penv/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
+RUN patch -u /BASIL-API/penv/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch && \
+    source /BASIL-API/penv/bin/activate && \
     tmt init
 
 EXPOSE ${BASIL_API_PORT}

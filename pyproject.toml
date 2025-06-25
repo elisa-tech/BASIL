@@ -16,6 +16,7 @@ dependencies = [
     "SQLAlchemy==2.0.19",
     "Werkzeug==2.2.2",
     "gunicorn==21.2.0",
+    "openai==1.90.0",
     "pyaml-env==1.2.1",
     "pytest==8.0.1",
     "python-gitlab==3.15.0",

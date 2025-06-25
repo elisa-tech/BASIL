@@ -37,7 +37,8 @@ RUN chmod a+rw /BASIL-API/db
 RUN patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch && \
     patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman_debian.patch && \
     patch -u /BASIL-API/penv/lib/python3.11/site-packages/tmt/package_managers/apt.py < /BASIL-API/misc/tmt_provision_podman_debian_apt.patch && \
-    . /BASIL-API/penv/bin/activate && tmt init
+    source /BASIL-API/penv/bin/activate && \
+    tmt init
 
 EXPOSE ${BASIL_API_PORT}
 

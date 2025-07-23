@@ -40,6 +40,7 @@ class ApiModel(Base):
     manage_permissions: Mapped[str] = mapped_column(String())
     read_denials: Mapped[str] = mapped_column(String())
     write_permissions: Mapped[str] = mapped_column(String())
+    write_permission_requests: Mapped[str] = mapped_column(String())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -66,6 +67,7 @@ class ApiModel(Base):
         self.manage_permissions = f"{[created_by.id]}"
         self.read_denials = ""
         self.write_permissions = f"{[created_by.id]}"
+        self.write_permission_requests = ""
         self.last_coverage = "0"
         self.created_at = datetime.now()
         self.updated_at = self.created_at
@@ -190,6 +192,7 @@ def receive_after_update(mapper, connection, target):
             manage_permissions=target.manage_permissions,
             read_denials=target.read_denials,
             write_permissions=target.write_permissions,
+            write_permission_requests=target.write_permission_requests,
             version=version + 1
         )
         connection.execute(insert_query)
@@ -217,6 +220,7 @@ def receive_after_insert(mapper, connection, target):
         manage_permissions=target.manage_permissions,
         read_denials=target.read_denials,
         write_permissions=target.write_permissions,
+        write_permission_requests=target.write_permission_requests,
         version=1
     )
     connection.execute(insert_query)
@@ -251,6 +255,7 @@ class ApiHistoryModel(Base):
     manage_permissions: Mapped[str] = mapped_column(String())
     read_denials: Mapped[str] = mapped_column(String())
     write_permissions: Mapped[str] = mapped_column(String())
+    write_permission_requests: Mapped[str] = mapped_column(String())
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -259,7 +264,7 @@ class ApiHistoryModel(Base):
                  category, checksum, default_view, implementation_file,
                  implementation_file_from_row, implementation_file_to_row, tags,
                  created_by_id, edited_by_id, delete_permissions, edit_permissions,
-                 manage_permissions, read_denials, write_permissions, version):
+                 manage_permissions, read_denials, write_permissions, write_permission_requests, version):
         self.id = id
         self.api = api
         self.library = library
@@ -279,6 +284,7 @@ class ApiHistoryModel(Base):
         self.manage_permissions = manage_permissions
         self.read_denials = read_denials
         self.write_permissions = write_permissions
+        self.write_permission_requests = write_permission_requests
         self.version = version
         self.created_at = datetime.now()
         self.updated_at = self.created_at

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { Checkbox } from '@patternfly/react-core'
+import { Checkbox, Label } from '@patternfly/react-core'
 import { AdminMenuKebab } from './Menu/AdminMenuKebab'
 import { AdminModal } from './Modal/AdminModal'
 
@@ -35,7 +35,9 @@ const AdminListingTable: React.FunctionComponent<AdminListingTableProps> = ({ us
             </Td>
             <Td dataLabel='username'>{user.username}</Td>
             <Td dataLabel='email'>{user.email}</Td>
-            <Td dataLabel='role'>{user.role}</Td>
+            <Td dataLabel='role'>
+              <Label color={user.role == 'GUEST' ? 'red' : user.role == 'ADMIN' ? 'green' : 'blue'}>{user.role}</Label>
+            </Td>
             <Td dataLabel='from'>{user.created_at}</Td>
             <Td dataLabel='actions'>
               <AdminMenuKebab setModalAdminInfo={setModalAdminInfo} user={user} />

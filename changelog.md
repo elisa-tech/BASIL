@@ -14,6 +14,8 @@
 - Expose user username instead of user email
 - Added test cases to the e2e suite
 - Added test cases to the api unit test suite
+- Send write permission requests from within the application
+- Added notification filters for software component owners and list of users
 
 ## 1.6.x
 

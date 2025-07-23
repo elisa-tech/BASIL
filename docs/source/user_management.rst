@@ -37,6 +37,23 @@ Here following the possible permissions and their meaning:
 Note: It is not possible to assign Write, Edit and Owner permissions to a user with role GUEST.
 
 
+------------------------
+Write Permission Request
+------------------------
+
+Users who wish to contribute to a software component can request **Write Permission** from the component's owners directly within the tool.
+
+When a request is submitted, both **in-app** and **email notifications** (if configured) are sent to the owners of the selected component.
+
+## 📌 How to Request Write Permission:
+
+1. Locate the desired software component.
+2. Click on the **three dots (⋮)** to open the **action menu**.
+3. Select **"Request Write Permission"** from the dropdown.
+
+This action will notify the owners of your interest and allow them to grant you write access.
+
+
 ----------------
 Admin
 ----------------

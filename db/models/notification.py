@@ -21,6 +21,8 @@ class NotificationModel(Base):
     title: Mapped[str] = mapped_column(String())
     description: Mapped[str] = mapped_column(String())
     read_by: Mapped[Optional[str]] = mapped_column(String())
+    for_owners: Mapped[int] = mapped_column(Integer(), default=0)
+    user_ids: Mapped[str] = mapped_column(String(), default="")
     url: Mapped[str] = mapped_column(String())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -34,6 +36,8 @@ class NotificationModel(Base):
         self.description = description
         self.read_by = read_by
         self.url = url
+        self.for_owners = 0
+        self.user_ids = ""
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 

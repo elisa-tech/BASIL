@@ -1,12 +1,13 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { Button, Flex, FlexItem, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Icon, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
 import { APIForm } from './Form/APIForm'
 import { ApiMenuKebab } from './Menu/ApiMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 import { useAuth } from '../User/AuthProvider'
 import { AttentionBellIcon } from '@patternfly/react-icons/dist/esm/icons/attention-bell-icon'
+import { EditIcon, EqualizerIcon, InboxIcon, PendingIcon } from '@patternfly/react-icons'
 
 interface APIHistoryData {
   versionNumber: number
@@ -36,6 +37,7 @@ export interface APIListingTableProps {
   setModalCheckSpecInfo
   setModalDeleteInfo
   setModalManageUserPermissionsInfo
+  setModalNotificationInfo
 }
 
 const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
@@ -43,6 +45,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   setModalCheckSpecInfo,
   setModalDeleteInfo,
   setModalManageUserPermissionsInfo,
+  setModalNotificationInfo,
   apis
 }: APIListingTableProps) => {
   const auth = useAuth()
@@ -136,13 +139,52 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
             <Td dataLabel={columnNames.coverage}>
               <LeavesProgressBar progressValue={dataRow.covered} progressId={'api-coverage-' + dataRow.id} />
             </Td>
-            <Td dataLabel={columnNames.notifications}>{dataRow.notifications == 1 ? <AttentionBellIcon /> : ''}</Td>
+            <Td dataLabel={columnNames.notifications}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                {dataRow?.['notifications'] === 1 ? (
+                  <Icon>
+                    <AttentionBellIcon title='Notification enabled' />
+                  </Icon>
+                ) : (
+                  ''
+                )}
+                {dataRow?.['permissions'].indexOf('w') > -1 ? (
+                  <Icon>
+                    <EditIcon title='You have Write permission' />
+                  </Icon>
+                ) : (
+                  ''
+                )}
+                {dataRow?.['permissions'].indexOf('m') > -1 ? (
+                  <Icon>
+                    <EqualizerIcon title='You have Manage permission' />
+                  </Icon>
+                ) : (
+                  ''
+                )}
+                {dataRow?.['write_permission_request'] === 1 ? (
+                  <Icon>
+                    <PendingIcon title='You requested write access' />
+                  </Icon>
+                ) : (
+                  ''
+                )}
+                {dataRow?.['write_permission_inbox'] === 1 ? (
+                  <Icon status='warning'>
+                    <InboxIcon title='Someone requested write access' />
+                  </Icon>
+                ) : (
+                  ''
+                )}
+              </div>
+            </Td>
             <Td dataLabel={columnNames.actions}>
               <ApiMenuKebab
                 setModalInfo={setModalInfo}
                 setModalCheckSpecInfo={setModalCheckSpecInfo}
                 setModalDeleteInfo={setModalDeleteInfo}
                 setModalManageUserPermissionsInfo={setModalManageUserPermissionsInfo}
+                setModalNotificationInfo={setModalNotificationInfo}
                 apiData={dataRow}
               />
             </Td>

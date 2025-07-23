@@ -21,6 +21,7 @@ import { APIDeleteModal } from './Modal/APIDeleteModal'
 import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
 import { APIManageUserPermissionsModal } from './Modal/APIManageUserPermissionsModal'
 import { useAuth } from '../User/AuthProvider'
+import { ModalNotification } from '@app/Common/Modal/ModalNotification'
 
 export interface APIListingPageSectionProps {
   currentLibrary: string
@@ -57,6 +58,10 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [modalTitle, setModalTitle] = React.useState('')
   const [modalDescription, setModalDescription] = React.useState('')
   const [SPDXContent, setSPDXContent] = React.useState('')
+
+  const [modalNotificationShowState, setModalNotificationShowState] = React.useState(false)
+  const [modalNotificationTitle, setModalNotificationTitle] = React.useState('')
+  const [modalNotificationMessage, setModalNotificationMessage] = React.useState('')
 
   const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false)
   const [modalManageUserPermissionsApiData, setModalManageUserPermissionsApiData] = React.useState(null)
@@ -96,6 +101,12 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const setModalManageUserPermissionsInfo = (_api, _modalShowState) => {
     setModalManageUserPermissionsShowState(_modalShowState)
     setModalManageUserPermissionsApiData(_api)
+  }
+
+  const setModalNotificationInfo = (_title, _message, _modalShowState) => {
+    setModalNotificationTitle(_title)
+    setModalNotificationMessage(_message)
+    setModalNotificationShowState(_modalShowState)
   }
 
   const exportSPDX = () => {
@@ -195,6 +206,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
             setModalCheckSpecInfo={setModalCheckSpecInfo}
             setModalDeleteInfo={setModalDeleteInfo}
             setModalManageUserPermissionsInfo={setModalManageUserPermissionsInfo}
+            setModalNotificationInfo={setModalNotificationInfo}
             apis={apis}
           />
         </CardBody>
@@ -232,6 +244,12 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         api={modalManageUserPermissionsApiData}
         modalShowState={modalManageUserPermissionsShowState}
         setModalShowState={setModalManageUserPermissionsShowState}
+      />
+      <ModalNotification
+        modalMessage={modalNotificationMessage}
+        modalTitle={modalNotificationTitle}
+        modalShowState={modalNotificationShowState}
+        setModalShowState={setModalNotificationShowState}
       />
     </PageSection>
   )

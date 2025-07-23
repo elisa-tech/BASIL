@@ -44,6 +44,7 @@ export const API_ADMIN_RESET_USER_PASSWORD_ENDPOINT = '/admin/reset-user-passwor
 export const API_SW_REQUIREMENT_IMPORT_ENDPOINT = '/import/sw-requirements'
 export const API_TEST_CASE_IMPORT_GENERATE_JSON_ENDPOINT = '/import/test-cases-generate-json'
 export const API_TEST_CASE_IMPORT_ENDPOINT = '/import/test-cases'
+export const API_REQUEST_WRITE_PERMISSION_ENDPOINT = '/apis/write-permission-request'
 
 export const JSON_HEADER = {
   Accept: 'application/json',

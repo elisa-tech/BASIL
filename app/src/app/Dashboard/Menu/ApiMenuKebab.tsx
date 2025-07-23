@@ -9,6 +9,7 @@ export interface ApiMenuKebabProps {
   setModalCheckSpecInfo
   setModalDeleteInfo
   setModalManageUserPermissionsInfo
+  setModalNotificationInfo
   apiData
 }
 
@@ -17,7 +18,8 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
   setModalCheckSpecInfo,
   setModalDeleteInfo,
   setModalManageUserPermissionsInfo,
-  apiData
+  apiData,
+  setModalNotificationInfo
 }: ApiMenuKebabProps) => {
   const auth = useAuth()
   const [isOpen, setIsOpen] = React.useState(false)
@@ -30,6 +32,37 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     setIsOpen(false)
   }
 
+  const writePermissionRequest = (api_id) => {
+    //let response_status
+    let response_data
+
+    const url = Constants.API_BASE_URL + Constants.API_REQUEST_WRITE_PERMISSION_ENDPOINT
+    const data = {
+      'api-id': api_id,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(url, {
+      method: 'PUT',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        response_data = response.json()
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
+        } else {
+          location.reload()
+        }
+        return response_data
+      })
+      .catch((err) => {
+        setModalNotificationInfo('HTTP Error', 'Api is not available, application failed to fetch data.', true)
+        console.error('Fetch error:', err)
+      })
+  }
+
   const toggleUserNotifications = (api_id) => {
     //let response_status
     let response_data
@@ -38,10 +71,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     const data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
+      headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
@@ -138,6 +168,22 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
             }
           >
             New Version
+          </DropdownItem>
+        ) : (
+          ''
+        )}
+
+        {!auth.isGuest() &&
+        apiData?.['write_permission_request'] === 0 &&
+        apiData?.['permissions'].indexOf('m') < 0 &&
+        apiData?.['permissions'].indexOf('w') < 0 ? (
+          <DropdownItem
+            value={0}
+            id={'btn-menu-api-write-premission-request-' + apiData.id}
+            key='action write permission request'
+            onClick={() => writePermissionRequest(apiData.id)}
+          >
+            Request write permission
           </DropdownItem>
         ) : (
           ''

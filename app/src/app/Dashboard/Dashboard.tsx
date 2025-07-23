@@ -27,6 +27,7 @@ const Dashboard: React.FunctionComponent = () => {
   const search = window.location.search
   const params = new URLSearchParams(search)
   const qsCurrentLibrary = params.get('currentLibrary')
+  const qsSearch = params.get('search')
 
   // Pagination
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -106,6 +107,9 @@ const Dashboard: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     loadLibraries('')
+    if (qsSearch) {
+      setSearchValue(qsSearch)
+    }
   }, [])
 
   React.useEffect(() => {

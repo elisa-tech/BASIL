@@ -13,11 +13,13 @@ import {
   Tab,
   TabContent,
   TabContentBody,
-  TabTitleText
+  TabTitleText,
+  Icon
 } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useAuth } from '@app/User/AuthProvider'
+import { PendingIcon } from '@patternfly/react-icons'
 
 export interface ManageUserPermissionsProps {
   api
@@ -515,7 +517,20 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
                     {users
                       ? users.map((userPermission, rowIndex) => (
                           <Tr key={rowIndex}>
-                            <Td dataLabel='username'>{userPermission['username']}</Td>
+                            <Td dataLabel='username'>
+                              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <FlexItem>{userPermission['username']}</FlexItem>
+                                <FlexItem>
+                                  {userPermission?.['write_permission_request'] === 1 ? (
+                                    <Icon status='warning'>
+                                      <PendingIcon title='User requested write permission' />
+                                    </Icon>
+                                  ) : (
+                                    ''
+                                  )}
+                                </FlexItem>
+                              </Flex>
+                            </Td>
                             <Td dataLabel='role'>{userPermission['role']}</Td>
                             <Td
                               select={{

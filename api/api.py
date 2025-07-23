@@ -351,6 +351,19 @@ def get_api_user_permissions(_api, _user, _dbi_session):
     return permissions
 
 
+def get_api_user_requested_write_permissions(_api, _user, _dbi_session):
+    """Return True if user requested write permission, else otherwise
+
+    the write_permission_requests field holds user ids in the format: [x][y]
+    """
+
+    if isinstance(_user, UserModel):
+        if f"[{_user.id}]" in _api.write_permission_requests and _user.role in USER_ROLES_WRITE_PERMISSIONS:
+            return True
+
+    return False
+
+
 def get_combined_history_object(_obj, _map, _obj_fields, _map_fields):
     _obj_fields += ["version"]
     _map_fields += ["version"]
@@ -479,6 +492,7 @@ def get_model_editable_fields(_model, _is_history):
         "manage_permissions",
         "read_denials",
         "write_permissions",
+        "write_permission_requests",
         "checksum",
     ]
 
@@ -491,6 +505,7 @@ def get_model_editable_fields(_model, _is_history):
         "manage_permissions",
         "read_denials",
         "write_permissions",
+        "write_permission_requests",
     ]
 
     all_fields = _model.__table__.columns.keys()
@@ -1163,7 +1178,10 @@ def check_api_user_read_permission(func):
 
         Request data is supposed to be under request.args
         """
-        request_data = request.args
+        if request.is_json:
+            request_data = request.get_json(force=True)
+        else:
+            request_data = request.args
 
         mandatory_fields = ["api-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
@@ -1206,7 +1224,10 @@ def check_api_user_write_permission(func):
 
         Request data is supposed to be under request.json
         """
-        request_data = request.json
+        if request.is_json:
+            request_data = request.get_json(force=True)
+        else:
+            request_data = request.args
 
         mandatory_fields = ["api-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
@@ -1408,7 +1429,7 @@ class Comment(Resource):
                 NOTIFICATION_CATEGORY_NEW,
                 f"New Comment from {user.username}",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments",
             )
             dbi.session.add(notifications)
@@ -1639,25 +1660,37 @@ class Api(Resource):
         apis = query.offset((page - 1) * per_page).limit(per_page).all()
         page_count = math.ceil(count / per_page)
 
+        apis_dict = []
         if len(apis):
-            apis_dict = [x.as_dict() for x in apis]
+            for iApi in range(len(apis)):
+                api_dict = apis[iApi].as_dict()
+                api_dict["covered"] = api_dict["last_coverage"]
 
-        for iApi in range(len(apis_dict)):
-            apis_dict[iApi]["covered"] = apis_dict[iApi]["last_coverage"]
+                # Permissions
+                permissions = get_api_user_permissions(apis[iApi], user, dbi.session)
+                api_dict["permissions"] = permissions
 
-            # Permissions
-            permissions = get_api_user_permissions(apis[iApi], user, dbi.session)
-            apis_dict[iApi]["permissions"] = permissions
+                # Write permission request
+                write_permission_request = get_api_user_requested_write_permissions(apis[iApi], user, dbi.session)
+                api_dict["write_permission_request"] = 1 if write_permission_request else 0
 
-        # Filter api based on read permission
-        apis_dict = [api_dict for api_dict in apis_dict if "r" in api_dict["permissions"]]
+                # Write permission inbox notification
+                # For owners that have to assign write permission
+                api_dict["write_permission_inbox"] = (
+                    1 if apis[iApi].write_permission_requests != "" and "m" in permissions else 0
+                )
 
-        # Populate user notifications settings
-        for i in range(len(apis_dict)):
-            if apis_dict[i]["id"] in user_api_notifications:
-                apis_dict[i]["notifications"] = 1
-            else:
-                apis_dict[i]["notifications"] = 0
+                apis_dict.append(api_dict)
+
+            # Filter api based on read permission
+            apis_dict = [api_dict for api_dict in apis_dict if "r" in api_dict["permissions"]]
+
+            # Populate user notifications settings
+            for i in range(len(apis_dict)):
+                if apis_dict[i]["id"] in user_api_notifications:
+                    apis_dict[i]["notifications"] = 1
+                else:
+                    apis_dict[i]["notifications"] = 0
 
         ret = {
             "apis": sorted(apis_dict, key=lambda api: (api["api"], api["library_version"])),
@@ -1732,7 +1765,7 @@ class Api(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{new_api.api} has been created",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/?currentLibrary={new_api.library}",
         )
         dbi.session.add(notifications)
@@ -1875,7 +1908,7 @@ class Api(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api} has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/?currentLibrary={api.library}",
             )
             dbi.session.add(notifications)
@@ -1953,13 +1986,90 @@ class Api(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api} has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/?currentLibrary={api.library}",
         )
         dbi.session.add(notifications)
         dbi.session.delete(api)
         dbi.session.commit()
         return True
+
+
+class ApiWritePermissionRequest(Resource):
+    @check_api_user_read_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        """
+        Update api write permission request field
+        """
+        request_data = request.get_json(force=True)
+        put_fields = ["api-id"]
+
+        if not check_fields_in_request(put_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # Guest not logged in cannot request write permission as we need an entry in the user table
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Permissions
+        permissions = get_api_user_permissions(api, user, dbi.session)
+
+        if "w" in permissions:
+            return f"{CONFLICT_MESSAGE}: user already has write permission", CONFLICT_STATUS
+
+        write_permission_request = get_api_user_requested_write_permissions(api, user, dbi)
+        if write_permission_request:
+            return f"{CONFLICT_MESSAGE}: user already requested write permission", CONFLICT_STATUS
+        else:
+            api.write_permission_requests += f"[{user.id}]"
+            dbi.session.add(api)
+            dbi.session.commit()
+
+            notification_title = f"Write permission request from {user.username}"
+            notification_message = (
+                f"{user.username} requested write permission for {api.api} "
+                f"of library {api.library} version {api.library_version} (ID {api.id})"
+            )
+
+            # Notification only for api owners
+            notification = NotificationModel(
+                api,
+                NOTIFICATION_CATEGORY_NEW,
+                notification_title,
+                notification_message,
+                f"[{user.id}]",
+                f"/?currentLibrary={api.library}&search={api.api}",
+            )
+            notification.for_owners = 1
+            dbi.session.add(notification)
+            dbi.session.commit()
+
+            # Email Notification for api owners
+            try:
+                ownsers_ids = [int(n) for n in re.findall(r'\[(\d+)\]', api.manage_permissions)]
+                if ownsers_ids:
+                    owners = dbi.session.query(UserModel).filter(UserModel.id.in_(ownsers_ids))
+                    recipient_list = [owner.email for owner in owners]
+
+                    if recipient_list:
+                        email_subject = f"BASIL - {notification_title}"
+                        email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
+                        email_body = notification_message
+
+                        async_email_notification(SETTINGS_FILEPATH,
+                                                 EMAIL_TEMPLATE_PATH,
+                                                 recipient_list,
+                                                 email_subject,
+                                                 email_body,
+                                                 email_footer,
+                                                 True)
+            except Exception as e:
+                print(f"Unable to send email notification: {e}")
+
+            return True
 
 
 class ApiLastCoverage(Resource):
@@ -2293,7 +2403,7 @@ class ApiTestSpecificationsMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api} - Test Specification mapping " f"{new_test_specification_mapping_api.id} " f"has been added",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -2374,7 +2484,7 @@ class ApiTestSpecificationsMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api} - Test Specification has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -2428,7 +2538,7 @@ class ApiTestSpecificationsMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api} - Test Specification has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -2602,7 +2712,7 @@ class ApiTestCasesMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api} - Test Case mapping " f"{new_test_case_mapping_api.id} has been added",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -2676,7 +2786,7 @@ class ApiTestCasesMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api} - Test Case has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -2730,7 +2840,7 @@ class ApiTestCasesMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api} - Test Case has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -3164,7 +3274,7 @@ class ApiJustificationsMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"Justification mapping {new_justification_mapping_api.id} has been added",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -3246,7 +3356,7 @@ class ApiJustificationsMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"Justification mapping {justification_mapping_api.id} " f"has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -3307,7 +3417,7 @@ class ApiJustificationsMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             "Justification mapping has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -3442,7 +3552,7 @@ class ApiDocumentsMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"Document mapping {new_document_mapping_api.id} has been added",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -3513,7 +3623,7 @@ class ApiDocumentsMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"Document mapping {document_mapping_api.id} " f"has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -3556,7 +3666,7 @@ class ApiDocumentsMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             "Document mapping has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -3651,7 +3761,7 @@ class ApiSwRequirementsMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api} - Sw Requirement has been created",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}?asr={new_sw_requirement_mapping_api.id}&view=details",
         )
         dbi.session.add(notifications)
@@ -3716,7 +3826,7 @@ class ApiSwRequirementsMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api} - Sw Requirement has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}?asr={sw_requirement_mapping_api.id}&view=details",
             )
             dbi.session.add(notifications)
@@ -3759,7 +3869,7 @@ class ApiSwRequirementsMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api} - Sw Requirement has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -4213,7 +4323,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api}, a sw requirement has been created",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -4270,7 +4380,7 @@ class SwRequirementSwRequirementsMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api}, a sw requirement has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -4327,7 +4437,7 @@ class SwRequirementSwRequirementsMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api}, a sw requirement has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -4486,7 +4596,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api}, a test specification has been created",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -4562,7 +4672,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api}, a test specification has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -4624,7 +4734,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api}, a test specification has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -4777,7 +4887,7 @@ class SwRequirementTestCasesMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api}, a test case has been created",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -4848,7 +4958,7 @@ class SwRequirementTestCasesMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api}, a test case has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -4907,7 +5017,7 @@ class SwRequirementTestCasesMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api}, a test case has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -5055,7 +5165,7 @@ class TestSpecificationTestCasesMapping(Resource):
             NOTIFICATION_CATEGORY_NEW,
             f"{api.api}, a test case has been created",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -5151,7 +5261,7 @@ class TestSpecificationTestCasesMapping(Resource):
                 NOTIFICATION_CATEGORY_EDIT,
                 f"{api.api}, a test case has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -5236,7 +5346,7 @@ class TestSpecificationTestCasesMapping(Resource):
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api}, a test case has been deleted",
             notification,
-            str(user.id),
+            f"[{user.id}]",
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
@@ -5438,7 +5548,14 @@ class UserSignin(Resource):
 
         # Add Notifications
         notification = f"{user.username} joined us on BASIL!"
-        notifications = NotificationModel(None, NOTIFICATION_CATEGORY_NEW, "New user!", notification, str(user.id), "")
+        notifications = NotificationModel(
+            None,
+            NOTIFICATION_CATEGORY_NEW,
+            "New user!",
+            notification,
+            f"[{user.id}]",
+            "/admin"
+        )
         dbi.session.add(notifications)
         dbi.session.commit()
 
@@ -5647,6 +5764,11 @@ class UserPermissionsApi(Resource):
         for i in range(len(users)):
             tmp = users[i].as_dict()
             tmp["permissions"] = get_api_user_permissions(api, users[i], dbi.session)
+            tmp["write_permission_request"] = (
+                1 if f"[{tmp['id']}]" in api.write_permission_requests and
+                users[i].role in USER_ROLES_WRITE_PERMISSIONS
+                else 0
+            )
             del tmp["api_notifications"]
             users_dict.append(tmp)
         return users_dict
@@ -5688,27 +5810,33 @@ class UserPermissionsApi(Resource):
                     return f"{NOT_FOUND_MESSAGE}: User with id {user_permission_id}", NOT_FOUND_STATUS
 
             permission_string = f"[{target_user.id}]"
+            user_permission_changed = False
 
             # Edit Permission
             if "e" in user_permission["permissions"]:
                 if permission_string not in api.edit_permissions:
                     api.edit_permissions += permission_string
+                    user_permission_changed = True
             else:
                 if permission_string in api.edit_permissions:
                     api.edit_permissions = api.edit_permissions.replace(permission_string, "")
+                    user_permission_changed = True
 
             # Manage Permission
             if "m" in user_permission["permissions"]:
                 if permission_string not in api.manage_permissions:
                     api.manage_permissions += permission_string
+                    user_permission_changed = True
             else:
                 if permission_string in api.manage_permissions:
                     api.manage_permissions = api.manage_permissions.replace(permission_string, "")
+                    user_permission_changed = True
 
             # Read Permission
             if "r" in user_permission["permissions"]:
                 if permission_string in api.read_denials:
                     api.read_denials = api.read_denials.replace(permission_string, "")
+                    user_permission_changed = True
                     if api.read_denials == "[0]":
                         api.read_denials = ""
             else:
@@ -5721,9 +5849,40 @@ class UserPermissionsApi(Resource):
             if "w" in user_permission["permissions"]:
                 if permission_string not in api.write_permissions:
                     api.write_permissions += permission_string
+                    user_permission_changed = True
+                    # Remove permission request
+                    if permission_string in api.write_permission_requests:
+                        api.write_permission_requests = api.write_permission_requests.replace(permission_string, "")
             else:
                 if permission_string in api.write_permissions:
                     api.write_permissions = api.write_permissions.replace(permission_string, "")
+                    user_permission_changed = True
+
+            # Create a notification only for the user
+            if user_permission_changed:
+                notification_text = f"Your permissions for {api.api} are: "
+                if "r" in user_permission["permissions"]:
+                    notification_text += "Read, "
+                if "w" in user_permission["permissions"]:
+                    notification_text += "Write, "
+                if "e" in user_permission["permissions"]:
+                    notification_text += "Edit, "
+                if "m" in user_permission["permissions"]:
+                    notification_text += "Manage User Permission"
+
+                notification_text = notification_text.strip().rstrip(",")
+
+                notification = NotificationModel(
+                    api,
+                    "info",
+                    f"Your permissions for {api.api} changed",
+                    notification_text,
+                    f"[{user.id}]",
+                    f"/?currentLibrary={api.library}&search={api.api}",
+                )
+                notification.user_ids = permission_string
+                dbi.session.add(notification)
+                dbi.session.commit()
 
         dbi.session.add(api)
         dbi.session.commit()
@@ -6079,10 +6238,8 @@ class UserNotifications(Resource):
             )
 
         for i in range(len(notifications)):
-            read_by = notifications[i].read_by.split(",")
-            if user.id not in read_by:
-                read_by.append(user.id)
-            notifications[i].read_by = ",".join([str(x) for x in read_by])
+            if f"[{user.id}]" not in notifications[i].read_by:
+                notifications[i].read_by += f"[{user.id}]"
 
         dbi.session.commit()
         return "Notification updated"
@@ -6102,16 +6259,60 @@ class UserNotifications(Resource):
             user_api_notifications = user.api_notifications.replace(" ", "").split(",")
             user_api_notifications = [int(x) for x in user_api_notifications]  # Need list of int
 
+        # List of api ids for the ones the current use is owner
+        owner_api_list_query = (
+            dbi.session.query(ApiModel.id)
+            .filter(ApiModel.manage_permissions.contains(f"[{user.id}]"))
+        )
+
         NoneVar = None  # To avoid flake8 warning comparing None with `==` instead of `is`
-        notifications = (
+
+        notifications = []
+
+        # Query to extract notifications not related to api
+        no_api_notifications = (
             dbi.session.query(NotificationModel)
-            .filter(or_(NotificationModel.api_id.in_(user_api_notifications), NotificationModel.api_id == NoneVar))
-            .order_by(NotificationModel.created_at.desc())
+            .filter(NotificationModel.api_id == NoneVar)
+            .filter(~NotificationModel.read_by.contains(f"[{user.id}]"))
             .all()
         )
 
+        # Query to extract api related notifications not read from current user
+        # Only api the user requested notifications for
+        api_notifications_not_read_query = (
+            dbi.session.query(NotificationModel)
+            .filter(~NotificationModel.read_by.contains(f"[{user.id}]"))
+        )
+
+        # Owner notifications
+        owner_notifications = (
+            api_notifications_not_read_query
+            .filter(NotificationModel.for_owners == 1)
+            .filter(NotificationModel.api_id.in_(owner_api_list_query))
+            .all()
+        )
+
+        # Not Owner notifications
+        not_owner_notifications = (
+            api_notifications_not_read_query
+            .filter(NotificationModel.for_owners == 0)
+            .filter(
+                or_(
+                    and_(
+                        NotificationModel.user_ids == "",
+                        NotificationModel.api_id.in_(user_api_notifications)
+                    ),
+                    NotificationModel.user_ids.contains(f"[{user.id}]")
+                )
+            ).all()
+        )
+
+        notifications += no_api_notifications
+        notifications += owner_notifications
+        notifications += not_owner_notifications
+
         tmp = [x.as_dict() for x in notifications]
-        tmp = [get_dict_without_keys(x, undesired_keys) for x in tmp if str(user.id) not in x["read_by"]]
+        tmp = [get_dict_without_keys(x, undesired_keys) for x in tmp]
         return tmp
 
     def put(self):
@@ -6683,7 +6884,7 @@ class TestRun(Resource):
                 "info",
                 f"Test Run for {api.api} has been requested",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -6773,7 +6974,7 @@ class TestRun(Resource):
                 "info",
                 f"Test Run for {api.api} has been modified",
                 notification,
-                str(user.id),
+                f"[{user.id}]",
                 f"/mapping/{api.id}",
             )
             dbi.session.add(notifications)
@@ -6857,7 +7058,7 @@ class TestRun(Resource):
             f"{api.api}, library {api.library}"
         )
         notifications = NotificationModel(
-            api, "info", f"Test Run for {api.api} has been removed", notification, str(user.id), f"/mapping/{api.id}"
+            api, "info", f"Test Run for {api.api} has been removed", notification, f"[{user.id}]", f"/mapping/{api.id}"
         )
         dbi.session.add(notifications)
         dbi.session.commit()
@@ -7566,6 +7767,7 @@ class Version(Resource):
 api.add_resource(Api, "/apis")
 api.add_resource(ApiHistory, "/apis/history")
 api.add_resource(ApiSpecification, "/api-specifications")
+api.add_resource(ApiWritePermissionRequest, "/apis/write-permission-request")
 api.add_resource(Library, "/libraries")
 api.add_resource(SPDXLibrary, "/spdx/libraries")
 api.add_resource(SPDXApi, "/spdx/apis")

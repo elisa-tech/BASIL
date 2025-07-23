@@ -143,14 +143,18 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 {dataRow?.['notifications'] === 1 ? (
                   <Icon>
-                    <AttentionBellIcon title='Notification enabled' />
+                    <span data-icon='notification'>
+                      <AttentionBellIcon title='Notification enabled' />
+                    </span>
                   </Icon>
                 ) : (
                   ''
                 )}
                 {dataRow?.['permissions'].indexOf('w') > -1 ? (
                   <Icon>
-                    <EditIcon title='You have Write permission' />
+                    <span data-icon='write-permission'>
+                      <EditIcon title='You have Write permission' />
+                    </span>
                   </Icon>
                 ) : (
                   ''
@@ -164,14 +168,18 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 )}
                 {dataRow?.['write_permission_request'] === 1 ? (
                   <Icon>
-                    <PendingIcon title='You requested write access' />
+                    <span data-icon='write-permission-requested'>
+                      <PendingIcon title='You requested write access' />
+                    </span>
                   </Icon>
                 ) : (
                   ''
                 )}
                 {dataRow?.['write_permission_inbox'] === 1 ? (
                   <Icon status='warning'>
-                    <InboxIcon title='Someone requested write access' />
+                    <span data-icon='write-permission-inbox'>
+                      <InboxIcon title='Someone requested write access' />
+                    </span>
                   </Icon>
                 ) : (
                   ''

@@ -53,7 +53,7 @@ describe('Api Notifications', () => {
     cy.get('#' + table_id_api)
       .find('tr') // find all rows
       .find('td[data-label="' + data_label_notifications + '"]')
-      .find('svg')
+      .get('[data-icon="notification"]')
       .should('exist')
 
     // Disable
@@ -80,7 +80,7 @@ describe('Api Notifications', () => {
     cy.get('#' + table_id_api)
       .find('tr') // find all rows
       .find('td[data-label="' + data_label_notifications + '"]')
-      .find('svg')
+      .get('[data-icon="notification"]')
       .should('not.exist')
   })
 })

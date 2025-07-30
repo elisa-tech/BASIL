@@ -33,14 +33,18 @@ class CommentModel(Base):
         self.updated_at = self.created_at
 
     def as_dict(self, full_data=False):
-        tmp = {"comment": self.comment,
+        tmp = {"id": self.id,
+               "comment": self.comment,
                "created_by": self.created_by.username,
-               "created_at": self.created_at.strftime(Base.dt_short_format_str)}
+               "created_by_id": self.created_by.id,
+               "created_at": self.created_at.strftime(Base.dt_short_format_str),
+               "updated_at": self.updated_at.strftime(Base.dt_short_format_str)}
         return tmp
 
     def __repr__(self) -> str:
         return f"CommentModel(id={self.id!r}, " \
-               f"created_by={self.created_by.eamil!r}, " \
+               f"created_by={self.created_by.username!r}, " \
+               f"created_by_id={self.created_by.id!r}, " \
                f"comment={self.comment!r}), " \
                f"parent_table={self.parent_table!r}, " \
                f"parent_id={self.parent_id!r}"

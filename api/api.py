@@ -1333,9 +1333,10 @@ class SPDXApi(Resource):
 
 
 class Comment(Resource):
-    fields = ["comment", "parent_table", "user-id", "token"]
+    fields = ["api-id", "comment", "parent_table", "parent_id", "user-id", "token"]
 
-    def get(self):
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         # mandatory_fields = ["parent_table", "parent_id"]
         args = get_query_string_args(request.args)
 
@@ -1361,30 +1362,16 @@ class Comment(Resource):
         comments = [c.as_dict() for c in query.all()]
         return comments
 
-    def post(self):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data):
+        if not check_fields_in_request(self.fields, request_data, False):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = db_orm.DbInterface(get_db())
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         parent_table = request_data["parent_table"].strip()
-        if parent_table == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
         parent_id = request_data["parent_id"]
-        if parent_id == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
         comment = request_data["comment"].strip()
-        if comment == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         new_comment = CommentModel(parent_table, parent_id, user, comment)
         dbi.session.add(new_comment)
@@ -1436,6 +1423,71 @@ class Comment(Resource):
             dbi.session.commit()
 
         return new_comment.as_dict()
+
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = self.fields.copy()
+        mandatory_fields.append("comment_id")
+
+        if not check_fields_in_request(mandatory_fields, request_data, False):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        parent_table = request_data["parent_table"].strip()
+        parent_id = request_data["parent_id"]
+        comment_id = request_data["comment_id"]
+        new_comment = request_data["comment"].strip()
+
+        try:
+            comment_model = (
+                dbi.session.query(CommentModel)
+                .filter(CommentModel.id == comment_id)
+                .filter(CommentModel.parent_table == parent_table)
+                .filter(CommentModel.parent_id == parent_id)
+                .filter(CommentModel.created_by_id == user.id)
+                .one()
+            )
+        except NoResultFound:
+            return f"{NOT_FOUND_MESSAGE}: comment not found", NOT_FOUND_STATUS
+
+        comment_model.comment = new_comment
+        dbi.session.add(comment_model)
+        dbi.session.commit()
+
+        return comment_model.as_dict()
+
+    @check_api_user_write_permission
+    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = self.fields.copy()
+        mandatory_fields.append("comment_id")
+        mandatory_fields.remove("comment")
+
+        if not check_fields_in_request(mandatory_fields, request_data, False):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        parent_table = request_data["parent_table"].strip()
+        parent_id = request_data["parent_id"]
+        comment_id = request_data["comment_id"]
+
+        try:
+            comment_model = (
+                dbi.session.query(CommentModel)
+                .filter(CommentModel.id == comment_id)
+                .filter(CommentModel.parent_table == parent_table)
+                .filter(CommentModel.parent_id == parent_id)
+                .filter(CommentModel.created_by_id == user.id)
+                .one()
+            )
+        except NoResultFound:
+            return f"{NOT_FOUND_MESSAGE}: comment not found", NOT_FOUND_STATUS
+
+        dbi.session.delete(comment_model)
+        dbi.session.commit()
+
+        return True
 
 
 class CheckSpecification(Resource):

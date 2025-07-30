@@ -647,7 +647,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         modalShowState={usageModalShowState}
       />
       <MappingCommentModal
-        //api={api}
+        api={api}
         modalDescription={modalDescription}
         modalTitle={modalTitle}
         relationData={modalRelationData}

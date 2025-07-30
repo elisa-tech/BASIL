@@ -12,36 +12,47 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
+  Text,
+  TextVariants,
   TextArea
 } from '@patternfly/react-core'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface CommentFormProps {
+  api
+  commentToEdit
+  setCommentToEdit
   relationData
   workItemType
   parentType
   handleModalToggle
   loadComments
   loadMappingData
+  messageValue
+  setMessageValue
 }
 
 export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
+  api,
+  commentToEdit,
+  setCommentToEdit,
   relationData,
   workItemType,
   parentType,
   handleModalToggle,
   loadComments,
-  loadMappingData
+  loadMappingData,
+  messageValue,
+  setMessageValue
 }: CommentFormProps) => {
   const auth = useAuth()
   const [commentValue, setCommentValue] = React.useState('')
   const [validatedCommentValue, setValidatedCommentValue] = React.useState<Constants.validate>('error')
-
-  const [messageValue, setMessageValue] = React.useState('')
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   const resetForm = () => {
     setCommentValue('')
+    setCommentToEdit({})
   }
 
   React.useEffect(() => {
@@ -51,6 +62,12 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       setValidatedCommentValue('success')
     }
   }, [commentValue])
+
+  React.useEffect(() => {
+    if (commentToEdit.hasOwnProperty('id')) {
+      setCommentValue(commentToEdit.comment)
+    }
+  }, [commentToEdit])
 
   React.useEffect(() => {
     if (statusValue == 'submitted') {
@@ -82,6 +99,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
     setMessageValue('')
 
     const data = {
+      'api-id': api.id,
       parent_table: parent_table,
       parent_id: parent_id,
       comment: commentValue,
@@ -89,8 +107,14 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       token: auth.token
     }
 
+    let verb = 'POST'
+    if (commentToEdit.hasOwnProperty('id')) {
+      verb = 'PUT'
+      data['comment_id'] = commentToEdit.id
+    }
+
     fetch(Constants.API_BASE_URL + '/comments', {
-      method: 'POST',
+      method: verb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
@@ -103,7 +127,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
           loadMappingData(Constants.force_reload)
           setMessageValue('Comment saved')
           setStatusValue('waiting')
-          setCommentValue('')
+          resetForm()
           focusInputComment()
         }
       })
@@ -132,8 +156,16 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       }}
     >
       <FormGroup label='Comment' isRequired fieldId={`input-comment-comment`}>
+        {commentToEdit.hasOwnProperty('id') ? (
+          <Text component={TextVariants.small} style={{ marginBottom: '0.5rem', color: 'var(--pf-global--Color--200)' }}>
+            Editing comment {commentToEdit.id} posted on {commentToEdit.updated_at}
+          </Text>
+        ) : (
+          ''
+        )}
         <TextArea
           isRequired
+          rows={5}
           resizeOrientation='vertical'
           aria-label='Comment comment field'
           id={`input-comment-comment`}

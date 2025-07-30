@@ -1,13 +1,14 @@
 import React from 'react'
-import ReactMarkdown from 'react-markdown'
 import * as Constants from '@app/Constants/constants'
-import { Button, Modal, ModalVariant } from '@patternfly/react-core'
-import { List, ListItem, Text, TextContent } from '@patternfly/react-core'
+import { Modal, ModalVariant } from '@patternfly/react-core'
 import { Panel, PanelMain, PanelMainBody } from '@patternfly/react-core'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { CommentForm } from '../Form/CommentForm'
+import { useAuth } from '../../User/AuthProvider'
+import CommentCard from '@app/Custom/CommentCard'
 
 export interface MappingCommentModalProps {
+  api
   modalDescription
   modalTitle
   relationData
@@ -19,6 +20,7 @@ export interface MappingCommentModalProps {
 }
 
 export const MappingCommentModal: React.FunctionComponent<MappingCommentModalProps> = ({
+  api,
   modalDescription,
   modalTitle,
   relationData,
@@ -31,11 +33,18 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [comments, setComments] = React.useState<any[]>([])
+  const [commentToEdit, setCommentToEdit] = React.useState<any>({})
+  const [messageValue, setMessageValue] = React.useState<string>('')
+
+  const auth = useAuth()
 
   const handleModalToggle = () => {
     const new_state = !modalShowState
     setModalShowState(new_state)
     setIsModalOpen(new_state)
+    if (!new_state) {
+      setMessageValue('')
+    }
   }
 
   React.useEffect(() => {
@@ -61,7 +70,17 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   }, [comments])
 
   const loadComments = (parent_table, parent_id) => {
-    fetch(Constants.API_BASE_URL + '/comments?parent_table=' + parent_table + '&parent_id=' + parent_id)
+    let url = Constants.API_BASE_URL + '/comments'
+    url += '?parent_table=' + parent_table
+    url += '&parent_id=' + parent_id
+    url += '&api-id=' + api.id
+
+    if (auth.isLogged()) {
+      url += '&user-id=' + auth.userId
+      url += '&token=' + auth.token
+    }
+
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         setComments(data)
@@ -73,23 +92,25 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
 
   const getComments = () => {
     return comments.map((comment, index) => (
-      <ListItem key={index}>
-        <em>
-          <b>{comment['created_by']}</b>
-        </em>
-        <span className='date-text'> on {comment['created_at']}</span>
-        <br />
-        <Text>
-          <ReactMarkdown>{comment['comment'].toString()}</ReactMarkdown>
-        </Text>
-      </ListItem>
+      <CommentCard
+        key={'comment-card-' + comment.id}
+        api={api}
+        comment={comment}
+        setCommentToEdit={setCommentToEdit}
+        loadComments={loadComments}
+        editEnabled={comment.created_by_id == auth.userId}
+        parentType={parentType}
+        relationData={relationData}
+        workItemType={workItemType}
+        setMessageValue={setMessageValue}
+      />
     ))
   }
 
   return (
     <React.Fragment>
       <Modal
-        width={Constants.MODAL_WIDTH}
+        width='90%'
         bodyAriaLabel='MappingCommentModal'
         aria-label='mapping comment modal'
         tabIndex={0}
@@ -108,27 +129,26 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
           </Thead>
           <Tbody key={1}>
             <Tr>
-              <Td>
+              <Td width={50}>
                 <Panel isScrollable>
                   <PanelMain tabIndex={0}>
-                    <PanelMainBody>
-                      <TextContent>
-                        <List isPlain isBordered>
-                          {getComments()}
-                        </List>
-                      </TextContent>
-                    </PanelMainBody>
+                    <PanelMainBody>{getComments()}</PanelMainBody>
                   </PanelMain>
                 </Panel>
               </Td>
-              <Td>
+              <Td width={50}>
                 <CommentForm
+                  api={api}
+                  commentToEdit={commentToEdit}
+                  setCommentToEdit={setCommentToEdit}
                   handleModalToggle={handleModalToggle}
                   loadComments={loadComments}
                   loadMappingData={loadMappingData}
                   parentType={parentType}
                   relationData={relationData}
                   workItemType={workItemType}
+                  messageValue={messageValue}
+                  setMessageValue={setMessageValue}
                 />
               </Td>
             </Tr>

@@ -6,10 +6,11 @@ import urllib
 
 # Setup your API endpoint (e.g. OpenAI or Ramalama local server)
 currentdir = os.path.dirname(os.path.realpath(__file__))
-API_BASE_URL = os.environ.get("BASIL_API_URL", "http://localhost")
+API_HOST = os.environ.get("BASIL_AI_HOST", "http://localhost")
+AI_MODEL = os.environ.get("BASIL_AI_MODEL", "phi3.5")
 AI_PORT = os.environ.get("BASIL_AI_PORT", "8080")
-AI_API_BASE_URL = f"{API_BASE_URL}:{AI_PORT}/v1"  # For Ramalama
-API_KEY = "not-needed"  # Placeholder if keyless
+AI_TOKEN = os.environ.get("BASIL_AI_TOKEN", "null")
+AI_API_BASE_URL = f"{API_HOST}:{AI_PORT}/v1"
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")
 
 # 2. Define available tools (function schema)
@@ -131,6 +132,9 @@ def ai_askfor__software_requirement_metadata(api="", spec=""):
     ai_suggestion = custom_key_value_parser(content, ai_suggestion_template.keys())
     if ai_suggestion["completeness"].endswith("%"):
         ai_suggestion["completeness"] = ai_suggestion["completeness"].rstrip("%")
+
+    ai_suggestion["response"] = content
+
     return ai_suggestion
 
 
@@ -161,6 +165,7 @@ Each test case MUST include an implementation proposal in the programming langua
     f.close()
 
     ai_suggestion = {"filepath": filepath}
+    ai_suggestion["response"] = content
 
     return ai_suggestion
 
@@ -194,6 +199,9 @@ Each test case MUST include:
     ai_suggestion = custom_key_value_parser(content, ai_suggestion_template.keys())
     if ai_suggestion["completeness"].endswith("%"):
         ai_suggestion["completeness"] = ai_suggestion["completeness"].rstrip("%")
+
+    ai_suggestion["response"] = content
+
     return ai_suggestion
 
 
@@ -235,19 +243,23 @@ Each test specification MUST include:
     ai_suggestion = custom_key_value_parser(content, ai_suggestion_template.keys())
     if ai_suggestion["completeness"].endswith("%"):
         ai_suggestion["completeness"] = ai_suggestion["completeness"].rstrip("%")
+
+    ai_suggestion["response"] = content
+
     return ai_suggestion
 
 
 def ai_askfor(system_prompt="", user_prompt=""):
     client = OpenAI(
         base_url=AI_API_BASE_URL,
-        api_key=API_KEY,  # Most local servers ignore this, but OpenAI client requires a value
+        api_key=AI_TOKEN,
     )
 
     response = client.chat.completions.create(
-        model="phi3.5",
+        model=AI_MODEL,
         temperature=0,
-        top_p=0.9,
+        top_p=0.5,
+        max_tokens=32,
         messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
         tools=tools,
         tool_choice="auto",

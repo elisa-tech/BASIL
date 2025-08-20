@@ -6,53 +6,147 @@ import traceback
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from pyaml_env import parse_config
+currentdir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(1, os.path.dirname(currentdir))
+
+from api_utils import (
+    get_configuration,
+    load_settings
+)
 
 
 class EmailNotifier():
 
     settings = None
+    settings_last_modified = None
 
-    SMTP_SETTING_FIELD = "smtp"
-    SMTP_SETTING_FIELD_FROM = "from"
-    SMTP_SETTING_FIELD_HOST = "host"
-    SMTP_SETTING_FIELD_PASSWORD = "password"
-    SMTP_SETTING_FIELD_PORT = "port"
-    SMTP_SETTING_FIELD_REPLY_TO = "reply_to"
-    SMTP_SETTING_FIELD_SSL = "ssl"
-    SMTP_SETTING_FIELD_USER = "user"
+    SETTINGS_SMTP_SECTION = "smtp"
+    SETTINGS_SMPT_FIELD_FROM = "from"
+    SETTINGS_SMPT_FIELD_HOST = "host"
+    SETTINGS_SMPT_FIELD_PASSWORD = "password"
+    SETTINGS_SMPT_FIELD_PORT = "port"
+    SETTINGS_SMPT_FIELD_REPLY_TO = "reply_to"
+    SETTINGS_SMPT_FIELD_SSL = "ssl"
+    SETTINGS_SMPT_FIELD_USER = "user"
+    ENV_SMPT_FROM = "BASIL_SMTP_FROM"
+    ENV_SMPT_HOST = "BASIL_SMTP_HOST"
+    ENV_SMPT_PASSWORD = "BASIL_SMTP_PASSWORD"
+    ENV_SMPT_PORT = "BASIL_SMTP_PORT"
+    ENV_SMPT_REPLY_TO = "BASIL_SMTP_REPLY_TO"
+    ENV_SMPT_SSL = "BASIL_SMTP_SSL"
+    ENV_SMPT_USER = "BASIL_SMTP_USER"
+    DEFAULT_SMPT_FROM = None
+    DEFAULT_SMPT_HOST = None
+    DEFAULT_SMPT_PASSWORD = None
+    DEFAULT_SMPT_PORT = None
+    DEFAULT_SMPT_REPLY_TO = None
+    DEFAULT_SMPT_SSL = None
+    DEFAULT_SMPT_USER = None
 
-    def __init__(self, settings):
+    _dry_mode = False
+    _from = None
+    _host = None
+    _password = None
+    _port = None
+    _reply_to = None
+    _ssl = None
+    _user = None
+
+    def __init__(self, settings, settings_last_modified, dry_mode):
         """Init the class with the settings"""
         self.settings = settings
+        self.settings_last_modified = settings_last_modified
+        self._dry_mode = dry_mode
+
+        self._from = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_FROM,
+            env_key=self.ENV_SMPT_FROM,
+            default_value=self.DEFAULT_SMPT_FROM,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
+
+        self._host = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_HOST,
+            env_key=self.ENV_SMPT_HOST,
+            default_value=self.DEFAULT_SMPT_HOST,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
+
+        self._password = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_PASSWORD,
+            env_key=self.ENV_SMPT_PASSWORD,
+            default_value=self.DEFAULT_SMPT_PASSWORD,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
+
+        self._port = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_PORT,
+            env_key=self.ENV_SMPT_PORT,
+            default_value=self.DEFAULT_SMPT_PORT,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
+
+        self._reply_to = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_REPLY_TO,
+            env_key=self.ENV_SMPT_REPLY_TO,
+            default_value=self.DEFAULT_SMPT_REPLY_TO,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
+
+        self._ssl = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_SSL,
+            env_key=self.ENV_SMPT_SSL,
+            default_value=self.DEFAULT_SMPT_SSL,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
+
+        self._user = get_configuration(
+            setting_section=self.SETTINGS_SMTP_SECTION,
+            setting_key=self.SETTINGS_SMPT_FIELD_USER,
+            env_key=self.ENV_SMPT_USER,
+            default_value=self.DEFAULT_SMPT_USER,
+            settings=self.settings,
+            settings_last_modified=self.settings_last_modified
+        )
 
     def validate_settings(self) -> bool:
-        """Validate instance settings."""
-        smtp_mandatory_settings = [self.SMTP_SETTING_FIELD_FROM, self.SMTP_SETTING_FIELD_HOST,
-                                   self.SMTP_SETTING_FIELD_PASSWORD, self.SMTP_SETTING_FIELD_PORT,
-                                   self.SMTP_SETTING_FIELD_SSL, self.SMTP_SETTING_FIELD_USER]
+        """Validate mandatory settings"""
 
-        if not self.settings:
-            print("Invalid settings")
+        if not self._from:
+            print("Error: `from` field is not configured")
             return False
 
-        if "smtp" not in self.settings.keys():
+        if not self._host:
+            print("Error: `host` field is not configured")
             return False
 
-        for setting in smtp_mandatory_settings:
-            if setting not in self.settings[self.SMTP_SETTING_FIELD]:
-                print(f"Field {setting} not in settings")
-                return False
-            else:
-                if self.settings[self.SMTP_SETTING_FIELD][setting] is None:
-                    print(f"Settings are not valid, field {setting} is None.")
-                    return False
-                if str(self.settings[self.SMTP_SETTING_FIELD][setting]).strip() == "":
-                    print(f"Settings are not valid, field {setting} is empty.")
-                    return False
+        if not self._password:
+            print("Error: `password` field is not configured")
+            return False
+
+        if not self._port:
+            print("Error: `port` field is not configured")
+            return False
+
+        if not self._user:
+            print("Error: `user` field is not configured")
+            return False
+
         return True
 
-    def send_email(self, recipient, subject, body, is_html=False):
+    def send_email(self, recipient, subject, body, is_html=False, dry_mode=False):
 
         if not self.validate_settings():
             print("Settings not valid")
@@ -61,36 +155,32 @@ class EmailNotifier():
             print("Settings is valid")
 
         try:
-            smtp_from = self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_FROM]
-            smtp_host = self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_HOST]
-            smtp_password = self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_PASSWORD]
-            smtp_port = self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_PORT]
-            smtp_user = self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_USER]
-
             msg = MIMEMultipart()
-            msg['From'] = smtp_from
+            msg['From'] = self._from
             msg['To'] = recipient
             msg['Subject'] = subject
 
-            if "reply_to" in self.settings[self.SMTP_SETTING_FIELD].keys():
-                msg['Reply-To'] = self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_REPLY_TO]
+            if self._reply_to:
+                msg['Reply-To'] = self._reply_to
 
             if is_html:
                 msg.attach(MIMEText(body, 'html'))
             else:
                 msg.attach(MIMEText(body, 'plain'))
 
-            if self.settings[self.SMTP_SETTING_FIELD][self.SMTP_SETTING_FIELD_SSL]:
+            if self._ssl:
                 context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
-                    server.login(smtp_user, smtp_password)
-                    server.sendmail(msg['From'], msg['To'], msg.as_string())
+                with smtplib.SMTP_SSL(self._host, self._port, context=context) as server:
+                    server.login(self._user, self._password)
+                    if not self._dry_mode:
+                        server.sendmail(msg['From'], msg['To'], msg.as_string())
             else:
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS)
-                with smtplib.SMTP(smtp_host, smtp_port) as server:
+                with smtplib.SMTP(self._host, self._port) as server:
                     server.starttls(context=context)
-                    server.login(smtp_user, smtp_password)
-                    server.sendmail(msg['From'], msg['To'], msg.as_string())
+                    server.login(self._user, self._password)
+                    if not self._dry_mode:
+                        server.sendmail(msg['From'], msg['To'], msg.as_string())
             return True
         except Exception as e:
             print(f"Error on send_email: {e}")
@@ -101,11 +191,13 @@ class EmailNotifier():
 if __name__ == "__main__":
     # To run email async
     # Read configuration file and send an email
-    EXPECTED_ARGV_COUNT = 6
+    EXPECTED_ARGV_COUNT = 7
 
     if len(sys.argv) < EXPECTED_ARGV_COUNT:
         # Use less (<) as logical operator as we can call this script also with ending &
-        print("Usage: python3 notifier.py <config_filepath> <recipient> <title> <body> <is_html>")
+        print(
+            "Usage: python3 notifier.py <config_filepath> <recipient> <title> <body> <is_html> <dry mode [true|false]>"
+        )
         sys.exit(1)
 
     config_filepath = sys.argv[1]
@@ -113,15 +205,9 @@ if __name__ == "__main__":
     email_subject = sys.argv[3]
     email_body = sys.argv[4]
     email_is_html = True if sys.argv[5] in [1, "1", "true", "True", True] else False
+    dry_mode = True if sys.argv[5] in [1, "1", "true", "True", True] else False
 
-    if not os.path.exists(config_filepath):
-        print("Configuration file does not exists")
-        sys.exit(2)
+    settings, settings_last_modified = load_settings(None, None)
 
-    try:
-        email_config = parse_config(path=config_filepath)
-    except Exception as e:
-        print(f"Exception on reading email settings: {e}")
-
-    notifier = EmailNotifier(settings=email_config)
+    notifier = EmailNotifier(settings=settings, settings_last_modified=settings_last_modified, dry_mode=dry_mode)
     notifier.send_email(email_recipient, email_subject, email_body, email_is_html)

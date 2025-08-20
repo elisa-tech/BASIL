@@ -1,13 +1,7 @@
 from import_manager import SPDXImportSwRequirements
 from spdx_manager import SPDXManager
 from notifier import EmailNotifier
-from ai import (
-    ai_askfor__software_requirement_metadata,
-    ai_askfor__test_case_implementation,
-    ai_askfor__test_case_metadata,
-    ai_askfor__test_specification_metadata,
-    ai_health_check
-)
+from ai import AIPrompter
 from db.models.user import UserModel
 from db.models.test_specification_test_case import (
     TestSpecificationTestCaseHistoryModel,
@@ -67,6 +61,7 @@ from api_utils import (
     get_api_specification,
     get_html_email_body_from_template,
     is_testing_enabled_by_env,
+    load_settings,
     read_file
 )
 from testrun import TestRunner
@@ -94,8 +89,8 @@ EMAIL_MATRIX_FOOTER_MESSAGE = "<p>Join our <a href='" \
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
-SETTINGS_CACHE = None
-SETTINGS_LAST_MODIFIED = None
+
+SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(None, None)
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.makedirs(SSH_KEYS_PATH, exist_ok=True)
@@ -191,19 +186,11 @@ _D = "document"
 _Ds = f"{_D}s"
 
 
-def load_settings():
-    """Load settings from yaml file if file last modified date
-    is different from the last time we read it
-    """
+def get_updated_settings():
+    """Update global variables SETTINGS_CACHE and SETTINGS_LAST_MODIFIED
+    and return SETTINGS_CACHE"""
     global SETTINGS_CACHE, SETTINGS_LAST_MODIFIED
-
-    last_modified = os.path.getmtime(SETTINGS_FILEPATH)
-    if SETTINGS_CACHE is None or SETTINGS_LAST_MODIFIED != last_modified:
-        try:
-            SETTINGS_CACHE = parse_config(path=SETTINGS_FILEPATH)
-            SETTINGS_LAST_MODIFIED = last_modified
-        except Exception as e:
-            print(f"Exception on load_settings(): {e}")
+    SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
     return SETTINGS_CACHE
 
 
@@ -6089,8 +6076,10 @@ class UserResetPassword(Resource):
         dbi.session.commit()
         dbi.engine.dispose()
 
+        # Read updated settings
+        settings = get_updated_settings()
+
         # Notification
-        settings = load_settings()
         email_subject = "BASIL - Confirm password reset"
         email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
         email_body = "<p>Your password has been reset</p>"
@@ -6126,7 +6115,8 @@ class UserResetPassword(Resource):
         except NoResultFound:
             return f"User {email} not found", NOT_FOUND_STATUS
 
-        settings = load_settings()
+        # Read updated settings
+        settings = get_updated_settings()
 
         # generate reset_token and reset_pwd
         email_subject = "BASIL - Password reset"
@@ -6238,7 +6228,7 @@ class UserRole(Resource):
         dbi.session.commit()
 
         # Notification
-        settings = load_settings()
+        settings = get_updated_settings()
         email_subject = "BASIL user role changed"
         email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
         email_body = f"<p>Your BASIL user role changed to <b>{target_user.role}</b></p>"
@@ -7810,7 +7800,7 @@ class AdminSettings(Resource):
         f.close()
 
         # Refresh cached settings
-        load_settings()
+        get_updated_settings()
 
         ret["content"] = request_data["content"]
         return ret
@@ -7819,7 +7809,11 @@ class AdminSettings(Resource):
 class AIHealthCheck(Resource):
 
     def get(self):
-        if ai_health_check():
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+
+        if ai_prompter.ai_health_check():
             return True
         else:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
@@ -7833,7 +7827,10 @@ class AISuggestTestCaseImplementation(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        return ai_askfor__test_case_implementation(
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__test_case_implementation(
             title=request_data["spec"],
             spec=request_data["spec"],
             user_id=user.id
@@ -7848,7 +7845,10 @@ class AISuggestTestCaseMetadata(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        return ai_askfor__test_case_metadata(spec=request_data["spec"])
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__test_case_metadata(spec=request_data["spec"])
 
 
 class AISuggestTestSpecificationMetadata(Resource):
@@ -7860,7 +7860,10 @@ class AISuggestTestSpecificationMetadata(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        return ai_askfor__test_specification_metadata(spec=request_data["spec"])
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__test_specification_metadata(spec=request_data["spec"])
 
 
 class AISuggestSoftwareRequirementMetadata(Resource):
@@ -7872,7 +7875,10 @@ class AISuggestSoftwareRequirementMetadata(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        return ai_askfor__software_requirement_metadata(spec=request_data["spec"])
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__software_requirement_metadata(spec=request_data["spec"])
 
 
 class Version(Resource):

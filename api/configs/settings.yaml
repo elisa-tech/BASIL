@@ -7,3 +7,9 @@ smtp:
   user: ""
   ssl: true
   reply_to: ""
+ai:
+  host: ""
+  port: 0
+  model: ""
+  temperature: 0
+  token: ""

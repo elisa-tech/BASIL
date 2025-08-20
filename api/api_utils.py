@@ -1,10 +1,75 @@
 import os
 import subprocess
+import sys
 import urllib
+from pyaml_env import parse_config
 from string import Template
 from urllib.error import HTTPError, URLError
 
+currentdir = os.path.dirname(os.path.realpath(__file__))
+
 LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
+
+CONFIGS_FOLDER = "configs"
+SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
+
+
+def get_configuration(
+        setting_section=None,
+        setting_key=None,
+        env_key=None,
+        default_value=None,
+        settings=None,
+        settings_last_modified=None):
+    """Extract a configuration from settings or from environment file
+    settings should have priority on environment file as admin can overwrite it at runtime"""
+
+    valid_settings_config = True
+    if not setting_section or not setting_key:
+        valid_settings_config = False
+
+    if valid_settings_config:
+        settings, settings_last_modified = load_settings(settings, settings_last_modified)
+        if setting_section in settings.keys():
+            if setting_key in settings[setting_section].keys():
+                return settings[setting_section][setting_key]
+
+    if not env_key:
+        return None
+
+    ret = os.environ.get(env_key, default_value)
+    if not ret:
+        return None
+
+    if ret.lower() == "true":
+        return True
+    if ret.lower() == "false":
+        return False
+
+    return ret
+
+
+def load_settings(settings_cache=None, settings_last_modified=None):
+    """Load settings from yaml file if file last modified date
+    is different from the last time we read it
+    """
+
+    read_settings_file = False
+    last_modified = os.path.getmtime(SETTINGS_FILEPATH)
+
+    if settings_cache is None or settings_last_modified is None:
+        read_settings_file = True
+    else:
+        if settings_last_modified != last_modified:
+            read_settings_file = True
+
+    if read_settings_file:
+        try:
+            settings_cache = parse_config(path=SETTINGS_FILEPATH)
+            settings_last_modified = last_modified
+        except Exception as e:
+            print(f"Exception on load_settings(): {e}")
+    return settings_cache, settings_last_modified
 
 
 def get_available_filepath(filepath):
@@ -88,6 +153,7 @@ def async_email_notification(setting_path, template_path, recipient_list, subjec
                            f"{subject}",
                            f"{body}",
                            f"{is_html}",
+                           "false",  # dry mode
                            "&"]
 
                     subprocess.Popen(cmd,

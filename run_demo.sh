@@ -5,12 +5,11 @@
 api_server_url=http://localhost
 api_distro=fedora
 api_containerfile=Containerfile-api-fedora
-ai_model=""
 api_port=5000
 app_port=9000
 admin_pw=1234
 
-OPTSTRING=":b:d:e:f:m:p:u:h"
+OPTSTRING=":b:d:e:f:p:u:h"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -64,9 +63,6 @@ while getopts ${OPTSTRING} opt; do
         f)
         app_port=${OPTARG}
         ;;
-        m)
-        ai_model=${OPTARG}
-        ;;
         p)
         admin_pw=${OPTARG}
         ;;
@@ -88,7 +84,6 @@ echo -e "${TITLE_COLOR_STR}\n> kill all running podman container\n${BODY_COLOR_S
 podman stop --all
 
 echo -e "${TITLE_COLOR_STR}\n> Parameters\n${BODY_COLOR_STR}"
-echo -e " - ai_model = ${ai_model}"
 echo -e " - api_server_url = ${api_server_url}"
 echo -e " - api distro = ${api_distro}"
 echo -e " - api port = ${api_port}"

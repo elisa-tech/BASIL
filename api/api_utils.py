@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import subprocess
+import sys
 import urllib
 from pyaml_env import parse_config
 from string import Template

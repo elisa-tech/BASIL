@@ -85,7 +85,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
   const [reasoningValue, setReasoningValue] = React.useState<string | undefined>()
 
   const [isAIAvailable, setIsAIAvailable] = React.useState(false)
-  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(true)
+  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(false)
   const [isAskAIImplementationButtonEnabled, setIsAskAIImplementationButtonEnabled] = React.useState(true)
   const [askAIMetadataButtonText, setAskAIMetadataButtonText] = React.useState<string>('Ask AI for suggestion')
   const [askAIImplementationButtonText, setAskAIImplementationButtonText] = React.useState<string>('Ask AI for an implementation draft')
@@ -106,6 +106,19 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     setCoverageValue('0')
     setMessageValue('')
   }
+
+  const verifyAiButtonEnabledPrecondition = () => {
+    if (!Constants.isNotEmptyString(modalSection)) {
+      setMessageValue(Constants.NO_SECTION_SELECTED_MESSAGE + messageValue)
+      return false
+    }
+    setMessageValue(messageValue.replace(Constants.NO_SECTION_SELECTED_MESSAGE, ''))
+    return true
+  }
+
+  React.useEffect(() => {
+    setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+  }, [modalSection])
 
   React.useEffect(() => {
     if (titleValue.trim() === '') {
@@ -452,7 +465,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
       })
       .finally(() => {
         setAskAIMetadataButtonText('Ask AI for suggestion')
-        setIsAskAIMetadataButtonEnabled(true)
+        setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
       })
   }
 

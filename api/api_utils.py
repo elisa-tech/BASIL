@@ -1,12 +1,14 @@
+import logging
 import os
+import re
 import subprocess
-import sys
 import urllib
 from pyaml_env import parse_config
 from string import Template
 from urllib.error import HTTPError, URLError
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(__name__)
 
 LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
 
@@ -68,7 +70,7 @@ def load_settings(settings_cache=None, settings_last_modified=None):
             settings_cache = parse_config(path=SETTINGS_FILEPATH)
             settings_last_modified = last_modified
         except Exception as e:
-            print(f"Exception on load_settings(): {e}")
+            logger.error(f"Exception on load_settings(): {e}")
     return settings_cache, settings_last_modified
 
 
@@ -132,6 +134,11 @@ def get_html_email_body_from_template(template_path, subject, body, footer):
     return body
 
 
+def normalize_whitespace(text: str) -> str:
+    # Replace all types of whitespace (spaces, tabs, newlines) with a single space
+    return re.sub(r'\s+', ' ', text).strip()
+
+
 def async_email_notification(setting_path, template_path, recipient_list, subject, body, footer, is_html):
     """Send async email to a list of recipients
     to be used in case user don't need to know the notification status
@@ -181,13 +188,13 @@ def get_api_specification(_url_or_path):
                     content = resource.read().decode("utf-8")
                 return content
             except HTTPError as excp:
-                print(f"HTTPError: {excp.reason} reading {_url_or_path}")
+                logger.error(f"HTTPError: {excp.reason} reading {_url_or_path}")
                 return None
             except URLError as excp:
-                print(f"URLError: {excp.reason} reading {_url_or_path}")
+                logger.error(f"URLError: {excp.reason} reading {_url_or_path}")
                 return None
             except ValueError as excp:
-                print(f"ValueError reading {_url_or_path}: {excp}")
+                logger.error(f"ValueError reading {_url_or_path}: {excp}")
                 return None
         else:
             if not os.path.exists(_url_or_path):
@@ -199,7 +206,7 @@ def get_api_specification(_url_or_path):
                 f.close()
                 return fc
             except OSError as excp:
-                print(f"OSError for {_url_or_path}: {excp}")
+                logger.error(f"OSError for {_url_or_path}: {excp}")
                 return None
 
 
@@ -209,9 +216,9 @@ def read_file(filepath):
             content = f.read()
         return content
     except FileNotFoundError:
-        print(f"Error: File '{filepath}' not found.")
+        logger.error(f"Error: File '{filepath}' not found.")
     except PermissionError:
-        print(f"Error: Permission denied when reading '{filepath}'.")
+        logger.error(f"Error: Permission denied when reading '{filepath}'.")
     except IOError as e:
-        print(f"Error: I/O error while reading '{filepath}': {e}")
+        logger.error(f"Error: I/O error while reading '{filepath}': {e}")
     return None

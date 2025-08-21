@@ -74,7 +74,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   const [isAIAvailable, setIsAIAvailable] = React.useState(false)
-  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(true)
+  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(false)
   const [askAIMetadataButtonText, setAskAIMetadataButtonText] = React.useState<string>('Ask AI for suggestion')
 
   // Form constants
@@ -91,6 +91,19 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     setCoverageValue('0')
     setMessageValue('')
   }
+
+  const verifyAiButtonEnabledPrecondition = () => {
+    if (!Constants.isNotEmptyString(modalSection)) {
+      setMessageValue(Constants.NO_SECTION_SELECTED_MESSAGE + messageValue)
+      return false
+    }
+    setMessageValue(messageValue.replace(Constants.NO_SECTION_SELECTED_MESSAGE, ''))
+    return true
+  }
+
+  React.useEffect(() => {
+    setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+  }, [modalSection])
 
   React.useEffect(() => {
     if (titleValue == undefined) {
@@ -346,7 +359,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       })
       .finally(() => {
         setAskAIMetadataButtonText('Ask AI for suggestion')
-        setIsAskAIMetadataButtonEnabled(true)
+        setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
       })
   }
 
@@ -393,6 +406,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       <FormGroup label='Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}>
         <TextArea
           isRequired
+          rows={4}
           resizeOrientation='vertical'
           aria-label='Sw Requirement description field'
           id={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}

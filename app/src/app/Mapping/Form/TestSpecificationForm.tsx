@@ -79,7 +79,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
   const [statusValue, setStatusValue] = React.useState('waiting')
   const [isAIAvailable, setIsAIAvailable] = React.useState(false)
-  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(true)
+  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(false)
   const [askAIMetadataButtonText, setAskAIMetadataButtonText] = React.useState<string>('Ask AI for suggestion')
 
   // Form constants
@@ -98,6 +98,19 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
     setCoverageValue('0')
     setMessageValue('')
   }
+
+  const verifyAiButtonEnabledPrecondition = () => {
+    if (!Constants.isNotEmptyString(modalSection)) {
+      setMessageValue(Constants.NO_SECTION_SELECTED_MESSAGE + messageValue)
+      return false
+    }
+    setMessageValue(messageValue.replace(Constants.NO_SECTION_SELECTED_MESSAGE, ''))
+    return true
+  }
+
+  React.useEffect(() => {
+    setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+  }, [modalSection])
 
   React.useEffect(() => {
     if (titleValue == undefined) {
@@ -406,7 +419,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       })
       .finally(() => {
         setAskAIMetadataButtonText('Ask AI for suggestion')
-        setIsAskAIMetadataButtonEnabled(true)
+        setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
       })
   }
 
@@ -453,6 +466,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       <FormGroup label='Preconditions' fieldId={`${INPUT_BASE_NAME}-${formAction}-preconditions-${formData.id}`}>
         <TextArea
           isRequired
+          rows={4}
           resizeOrientation='vertical'
           aria-label='Test Specification preconditions field'
           id={`${INPUT_BASE_NAME}-${formAction}-preconditions-${formData.id}`}
@@ -464,6 +478,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       <FormGroup label='Test Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-test-description-${formData.id}`}>
         <TextArea
           isRequired
+          rows={4}
           resizeOrientation='vertical'
           aria-label='Test Specification test description field'
           id={`${INPUT_BASE_NAME}-${formAction}-test-description-${formData.id}`}
@@ -482,6 +497,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
       <FormGroup label='Expected Behavior' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-expected-behavior-${formData.id}`}>
         <TextArea
           isRequired
+          rows={4}
           resizeOrientation='vertical'
           aria-label='Test Specification expected behavior field'
           id={`${INPUT_BASE_NAME}-${formAction}-expected-behavior-${formData.id}`}

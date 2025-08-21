@@ -22,6 +22,7 @@ export const _TSs = 'test-specifications'
 export const _TS_ = 'test_specification'
 export const _TSs_ = 'test_specifications'
 
+export const NO_SECTION_SELECTED_MESSAGE = 'No section selected, please select one from the `Mapping Section` tab.'
 export const UNVALID_REF_DOCUMENT_SECTION_MESSAGE =
   'Section of the Reference Document is mandatory. Open the Mapping Section tab to select it.'
 export const MODAL_WIDTH = '80%'
@@ -422,6 +423,13 @@ export const fallbackCopyTextToClipboard = (text) => {
   }
 
   document.body.removeChild(textArea)
+}
+
+export const isNotEmptyString = (_input) => {
+  if (typeof _input === 'string' && _input.trim() !== '') {
+    return true
+  }
+  return false
 }
 
 export const logObject = (obj) => {

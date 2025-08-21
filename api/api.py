@@ -67,8 +67,13 @@ from api_utils import (
 from testrun import TestRunner
 import db.models.init_db as init_db
 
-logging.basicConfig()
-logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+logger.info("Starting API")
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
@@ -132,7 +137,7 @@ SW_COMPONENT_NOT_FOUND_MESSAGE = "Sw Component not found."
 NOT_FOUND_STATUS = 404
 CONFLICT_MESSAGE = "Conflict with existing data"
 CONFLICT_STATUS = 409
-PRECONDITION_FAILED_MESSAGE = "Same precondition failed"
+PRECONDITION_FAILED_MESSAGE = "Some precondition failed"
 PRECONDITION_FAILED_STATUS = 412
 SERVER_ERROR_MESSAGE = "Unexpected Server Error"
 SERVER_ERROR_STATUS = 500
@@ -159,10 +164,10 @@ if not app.config.get("TESTING", False):
         app.config["TESTING"] = is_testing_enabled_by_env()
 
 if app.config.get("TESTING", False):
-    print(" * TESTING ON")
+    logger.info(" * TESTING ON")
     app.config["DB"] = "test.db"
 else:
-    print(" * TESTING OFF")
+    logger.info(" * TESTING OFF")
     app.config["DB"] = "basil.db"
 
 init_db.initialization(app.config["DB"])
@@ -242,7 +247,7 @@ def get_direct_sw_requirement_mapping_id(_mapping, _dbisession):
         parent_mapping_field_id = "sw_requirement_mapping_sw_requirement_id"
         parent_mapping_api_field_id = "sw_requirement_mapping_api_id"
     else:
-        print(f"\n WARNING: mapping is instance of {type(_mapping)}")
+        logger.warning(f"Mapping is instance of {type(_mapping)}")
         return None
 
     api_mapping_id = getattr(_mapping, parent_mapping_api_field_id)
@@ -736,14 +741,14 @@ def get_split_sections(_specification, _mapping, _work_item_types):
 def check_fields_in_request(fields, request, allow_empty_string=True):
     for field in fields:
         if field not in request.keys():
-            print(f"field: {field} not in request: {request.keys()}")
+            logger.warning(f"field: {field} not in request: {request.keys()}")
             return False
         else:
             if allow_empty_string:
                 pass
             else:
                 if not str(request[field]):
-                    print(f"field {field} is empty")
+                    logger.warning(f"field {field} is empty")
                     return False
     return True
 
@@ -7252,7 +7257,7 @@ class TestRunPluginPresets(Resource):
                     if isinstance(presets[plugin], list):
                         return [x["name"] for x in presets[plugin] if "name" in x.keys()]
             except Exception:
-                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+                logger.error(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
                 return []
         return []
 
@@ -7383,7 +7388,7 @@ class ExternalTestRuns(Resource):
                                 ]
                                 filtered_by_params = True
                             except ValueError as e:
-                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                logger.error(f"ExternalTestRuns Exception at gitlab ci {e}")
                                 pass
 
                     if "updated_before" in params.keys():
@@ -7397,7 +7402,7 @@ class ExternalTestRuns(Resource):
                                 ]
                                 filtered_by_params = True
                             except ValueError as e:
-                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                logger.error(f"ExternalTestRuns Exception at gitlab ci {e}")
                                 pass
 
                 if not filtered_by_params:
@@ -7530,7 +7535,7 @@ class ExternalTestRuns(Resource):
                             compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
                             params_strings[i] = f"created__gt={compare_date_str}"
                         except ValueError as e:
-                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            logger.error(f"ExternalTestRuns Exception at KernelCI {e}")
                             pass
                     elif k == "created_before":
                         try:
@@ -7538,7 +7543,7 @@ class ExternalTestRuns(Resource):
                             compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
                             params_strings[i] = f"created__lt={compare_date_str}"
                         except ValueError as e:
-                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            logger.error(f"ExternalTestRuns Exception at KernelCI {e}")
                             pass
                     else:
                         params_strings[i] = f"{k.replace('__', '.')}={v}"
@@ -7616,7 +7621,7 @@ class ExternalTestRuns(Resource):
                     try:
                         lava_definition = parse_config(data=p["definition"])
                     except Exception as exc:
-                        print(f"Error reading LAVA job definition: {exc}")
+                        logger.error(f"Error reading LAVA job definition: {exc}")
                         lava_definition = None
 
                     branch = "default"
@@ -7669,7 +7674,7 @@ class ExternalTestRuns(Resource):
                         else:
                             lava_test_results = "unknown"
                     except Exception as e:
-                        print(f"Unable to read LAVA job {p['id']} results: {e}")
+                        logger.error(f"Unable to read LAVA job {p['id']} results: {e}")
                         lava_test_results = "unknown"
 
                     # Update test run status
@@ -7712,7 +7717,7 @@ class AdminTestRunPluginsPresets(Resource):
                 f.close()
                 ret["content"] = fc
             except Exception:
-                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+                logger.error(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
         return ret
 
     def put(self):
@@ -7770,7 +7775,7 @@ class AdminSettings(Resource):
                 f.close()
                 ret["content"] = fc
             except Exception:
-                print("Unable to read settings file")
+                logger.error("Unable to read settings file")
         return ret
 
     def put(self):
@@ -7831,6 +7836,7 @@ class AISuggestTestCaseImplementation(Resource):
         if not ai_prompter.validate_settings():
             return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
         return ai_prompter.ai_askfor__test_case_implementation(
+            api=api.api,
             title=request_data["spec"],
             spec=request_data["spec"],
             user_id=user.id
@@ -7848,7 +7854,10 @@ class AISuggestTestCaseMetadata(Resource):
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
             return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
-        return ai_prompter.ai_askfor__test_case_metadata(spec=request_data["spec"])
+        return ai_prompter.ai_askfor__test_case_metadata(
+            api=api.api,
+            spec=request_data["spec"]
+        )
 
 
 class AISuggestTestSpecificationMetadata(Resource):
@@ -7863,7 +7872,10 @@ class AISuggestTestSpecificationMetadata(Resource):
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
             return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
-        return ai_prompter.ai_askfor__test_specification_metadata(spec=request_data["spec"])
+        return ai_prompter.ai_askfor__test_specification_metadata(
+            api=api.api,
+            spec=request_data["spec"]
+        )
 
 
 class AISuggestSoftwareRequirementMetadata(Resource):
@@ -7878,7 +7890,10 @@ class AISuggestSoftwareRequirementMetadata(Resource):
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
             return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
-        return ai_prompter.ai_askfor__software_requirement_metadata(spec=request_data["spec"])
+        return ai_prompter.ai_askfor__software_requirement_metadata(
+            api=api.api,
+            spec=request_data["spec"]
+        )
 
 
 class Version(Resource):

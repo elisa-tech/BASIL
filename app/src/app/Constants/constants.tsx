@@ -432,6 +432,10 @@ export const isNotEmptyString = (_input) => {
   return false
 }
 
+export const removeExtension = (filename: string, extension: string) => {
+  return filename.endsWith(extension) ? filename.slice(0, -extension.length) : filename
+}
+
 export const logObject = (obj) => {
   let i
   let k

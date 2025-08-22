@@ -257,7 +257,10 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     setMessageValue('')
 
     const tc_repository: string = implementationSource == 'url' ? repositoryValue : implementationFilePath.split('/api/')[0]
-    const tc_relative_path: string = implementationSource == 'url' ? relativePathValue : implementationFilePath.slice(tc_repository.length)
+    const tc_relative_path: string =
+      implementationSource == 'url'
+        ? relativePathValue
+        : Constants.removeExtension(implementationFilePath.slice(tc_repository.length), '.fmf')
 
     const data = {
       'api-id': api.id,

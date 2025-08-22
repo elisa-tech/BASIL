@@ -432,10 +432,11 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
                     </Text>
                   </GalleryItem>
                 ))}
-              </Gallery>) : (
-                <TextContent>
-                  <Text component={TextVariants.p}>empty</Text>
-                </TextContent>
+              </Gallery>
+            ) : (
+              <TextContent>
+                <Text component={TextVariants.p}>empty</Text>
+              </TextContent>
             )}
           </TabContentBody>
         </TabContent>

@@ -17,6 +17,8 @@
 - Send write permission requests from within the application
 - Added notification filters for software component owners and list of users
 - Add in-app AI suggestions using openai API
+- Support LAVA Test execution using a file from user files
+- Links to ELISA Discord
 
 ## 1.6.x
 

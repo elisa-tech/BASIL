@@ -37,3 +37,9 @@ repos:
         pass_filenames: false
         always_run: true
         language: system
+      - id: versions_check
+        name: version_check
+        entry: "bash -c ./scripts/check_version.sh"
+        pass_filenames: false
+        always_run: true
+        language: system

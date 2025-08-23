@@ -1,0 +1,14 @@
+metadata:
+    name: basil-demo-passing-test
+    format: "Lava-Test Test Definition 1.0"
+    description: "LAVA demo passing test"
+    maintainer:
+        - lpellecc@redhat.com
+    scope:
+        - demo
+    devices:
+        - qemu
+
+run:
+    steps:
+        - echo "SUCCESS"

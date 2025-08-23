@@ -118,12 +118,38 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         self.payload["environment"]["basil_test_run_config_title"] = self.config["title"]
         self.payload["environment"]["basil_user_username"] = self.runner.db_test_run.created_by.username
 
-        test_config = {
-            "repository": self.runner.mapping.test_case.repository,
-            "from": "git",
-            "path": self.runner.mapping.test_case.relative_path,
-            "name": self.test_case_name,
-        }
+        if self.runner.mapping.test_case.repository.startswith("http"):
+            test_config = {
+                "repository": self.runner.mapping.test_case.repository,
+                "from": "git",
+                "path": self.runner.mapping.test_case.relative_path,
+                "name": self.test_case_name,
+            }
+        else:
+            # read the file
+            test_file_path = os.path.join(
+                self.runner.mapping.test_case.repository,
+                self.runner.mapping.test_case.relative_path.lstrip("/")
+            )
+
+            if os.path.exists(test_file_path):
+                with open(test_file_path, "r") as test_file:
+                    test_file_content = test_file.read()
+
+                try:
+                    test_yaml = yaml.safe_load(test_file_content)
+                except yaml.YAMLError as e:
+                    self.throw_error(f"Unable to read test file {test_file_path} - {e}\n", self.VALIDATION_ERROR_NUM)
+
+                test_config = {
+                    "from": "inline",
+                    "repository": test_yaml,
+                    "path": f"inline/{self.runner.mapping.test_case.relative_path.lstrip('/')}",
+                    "name": self.test_case_name
+                }
+
+            else:
+                self.throw_error(f"Test file {test_file_path} does not exists.\n", self.VALIDATION_ERROR_NUM)
 
         if self.config.get("git_repo_ref", None):
             test_config["branch"] = self.config["git_repo_ref"]
@@ -131,7 +157,16 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         if "actions" not in self.payload.keys():
             self.throw_error("Missed 'actions' definition in Job file\n", self.VALIDATION_ERROR_NUM)
 
-        self.payload["actions"].append({"test": {"definitions": [test_config]}})
+        self.payload["actions"].append(
+            {
+                "test": {
+                    "definitions": [test_config],
+                    "timeout": {
+                        "minutes": 9999
+                    }
+                }
+            }
+        )
 
         if len(self.config["env"].keys()) > 0:
             for k, v in self.config["env"].items():

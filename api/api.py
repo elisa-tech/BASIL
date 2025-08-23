@@ -7587,8 +7587,7 @@ class ExternalTestRuns(Resource):
                 lava_filter_keys = ["id", "project", "ref", "details"]
 
                 headers = {
-                    "Authorization": "Token ",
-                    "Content-Type": "application/json"
+                    "Accept": "application/json",
                 }
 
                 if not check_fields_in_request(lava_mandatory_fields, preset_config, allow_empty_string=False):
@@ -7602,18 +7601,25 @@ class ExternalTestRuns(Resource):
                 if "page" in params.keys():
                     lava_url += f"&page={params['page']}"
 
-                headers = {
-                    "Authorization": f"Token {preset_config['private_token']}",
-                }
+                lava_request = urllib.request.Request(url=lava_url, headers=headers)
 
                 try:
-                    lava_request = urllib.request.Request(url=lava_url, headers=headers)
-                    response_data = urllib.request.urlopen(lava_request).read()
-                    content = json.loads(response_data.decode("utf-8"))
+                    with urllib.request.urlopen(lava_request) as response:
+                        response_data = response.read()
+                        content = json.loads(response_data.decode("utf-8"))
+                except urllib.error.HTTPError as e:
+                    logger.error(f"HTTP Error: {e.code} - {e.reason}")
+                    error_content = e.read().decode()
+                    logger.error(f"Error details: {error_content}")
+                    return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+                except urllib.error.URLError as e:
+                    logger.error(f"URL Error: {e.reason}")
+                    return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
                 except Exception as e:
-                    return f"{BAD_REQUEST_MESSAGE} Unable to read LAVA jobs {e}", BAD_REQUEST_STATUS
-                else:
-                    ret_pipelines = content["results"]
+                    logger.error(f"Unexpected error: {e}")
+                    return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+
+                ret_pipelines = content["results"]
 
                 for p in ret_pipelines:
 

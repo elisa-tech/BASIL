@@ -23,21 +23,21 @@ usage()
         BASIL Deployment script
 
         usage: ${0##*/} [ -b API_PORT ] [ -u URL ] [ -f APP_PORT ] [ -p ADMIN_PASSWRORD ]
-        
+
         -b API_PORT         Api (backend) port
         -d API_DISTRO       Distro used to deploy the api 'fedora' or 'debian', default is 'fedora'
                             That will be also the default distro used in BASIL test infrastructure when
                             user select Container as target test environment
         -e ENV_FILE         Filepath of an environment file you want to inject into the API Container
-        -f APP_PORT         App (frontend) port                        
+        -f APP_PORT         App (frontend) port
         -p ADMIN_PASSWRORD  Admin user default password (username: admin)
                             use single quote around your password
         -u URL              Full base url
                             - http://localhost if you want to evaluate it on your machine
-                            - http://<ip address> if you want to use a centralized machine 
+                            - http://<ip address> if you want to use a centralized machine
                             in the local network (e.g.: http://192.168.1.15)
-        
-        example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
+
+        example: ${0##*/} -b 5005 -m phi3.5 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
 
         BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://192.168.1.15:9005
         BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://192.168.1.15:5005
@@ -59,8 +59,8 @@ while getopts ${OPTSTRING} opt; do
         fi
         ;;
         e)
-	environment_file=${OPTARG}
-	;;
+        environment_file=${OPTARG}
+        ;;
         f)
         app_port=${OPTARG}
         ;;
@@ -180,7 +180,7 @@ echo -e "###################################################################"
 
 echo -e "\n${BODY_COLOR_STR}"
 podman run \
-    -d \
+    --detach \
     --network=host \
     basil-app-image:${TAG}
 

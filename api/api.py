@@ -1,6 +1,7 @@
 from import_manager import SPDXImportSwRequirements
 from spdx_manager import SPDXManager
 from notifier import EmailNotifier
+from ai import AIPrompter
 from db.models.user import UserModel
 from db.models.test_specification_test_case import (
     TestSpecificationTestCaseHistoryModel,
@@ -60,13 +61,19 @@ from api_utils import (
     get_api_specification,
     get_html_email_body_from_template,
     is_testing_enabled_by_env,
+    load_settings,
     read_file
 )
 from testrun import TestRunner
 import db.models.init_db as init_db
 
-logging.basicConfig()
-logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+logger.info("Starting API")
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
@@ -87,8 +94,8 @@ EMAIL_MATRIX_FOOTER_MESSAGE = "<p>Join our <a href='" \
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
-SETTINGS_CACHE = None
-SETTINGS_LAST_MODIFIED = None
+
+SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(None, None)
 
 if not os.path.exists(SSH_KEYS_PATH):
     os.makedirs(SSH_KEYS_PATH, exist_ok=True)
@@ -130,7 +137,7 @@ SW_COMPONENT_NOT_FOUND_MESSAGE = "Sw Component not found."
 NOT_FOUND_STATUS = 404
 CONFLICT_MESSAGE = "Conflict with existing data"
 CONFLICT_STATUS = 409
-PRECONDITION_FAILED_MESSAGE = "Same precondition failed"
+PRECONDITION_FAILED_MESSAGE = "Some precondition failed"
 PRECONDITION_FAILED_STATUS = 412
 SERVER_ERROR_MESSAGE = "Unexpected Server Error"
 SERVER_ERROR_STATUS = 500
@@ -157,10 +164,10 @@ if not app.config.get("TESTING", False):
         app.config["TESTING"] = is_testing_enabled_by_env()
 
 if app.config.get("TESTING", False):
-    print(" * TESTING ON")
+    logger.info(" * TESTING ON")
     app.config["DB"] = "test.db"
 else:
-    print(" * TESTING OFF")
+    logger.info(" * TESTING OFF")
     app.config["DB"] = "basil.db"
 
 init_db.initialization(app.config["DB"])
@@ -184,19 +191,11 @@ _D = "document"
 _Ds = f"{_D}s"
 
 
-def load_settings():
-    """Load settings from yaml file if file last modified date
-    is different from the last time we read it
-    """
+def get_updated_settings():
+    """Update global variables SETTINGS_CACHE and SETTINGS_LAST_MODIFIED
+    and return SETTINGS_CACHE"""
     global SETTINGS_CACHE, SETTINGS_LAST_MODIFIED
-
-    last_modified = os.path.getmtime(SETTINGS_FILEPATH)
-    if SETTINGS_CACHE is None or SETTINGS_LAST_MODIFIED != last_modified:
-        try:
-            SETTINGS_CACHE = parse_config(path=SETTINGS_FILEPATH)
-            SETTINGS_LAST_MODIFIED = last_modified
-        except Exception as e:
-            print(f"Exception on load_settings(): {e}")
+    SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
     return SETTINGS_CACHE
 
 
@@ -248,7 +247,7 @@ def get_direct_sw_requirement_mapping_id(_mapping, _dbisession):
         parent_mapping_field_id = "sw_requirement_mapping_sw_requirement_id"
         parent_mapping_api_field_id = "sw_requirement_mapping_api_id"
     else:
-        print(f"\n WARNING: mapping is instance of {type(_mapping)}")
+        logger.warning(f"Mapping is instance of {type(_mapping)}")
         return None
 
     api_mapping_id = getattr(_mapping, parent_mapping_api_field_id)
@@ -742,14 +741,14 @@ def get_split_sections(_specification, _mapping, _work_item_types):
 def check_fields_in_request(fields, request, allow_empty_string=True):
     for field in fields:
         if field not in request.keys():
-            print(f"field: {field} not in request: {request.keys()}")
+            logger.warning(f"field: {field} not in request: {request.keys()}")
             return False
         else:
             if allow_empty_string:
                 pass
             else:
                 if not str(request[field]):
-                    print(f"field {field} is empty")
+                    logger.warning(f"field {field} is empty")
                     return False
     return True
 
@@ -6082,8 +6081,10 @@ class UserResetPassword(Resource):
         dbi.session.commit()
         dbi.engine.dispose()
 
+        # Read updated settings
+        settings = get_updated_settings()
+
         # Notification
-        settings = load_settings()
         email_subject = "BASIL - Confirm password reset"
         email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
         email_body = "<p>Your password has been reset</p>"
@@ -6119,7 +6120,8 @@ class UserResetPassword(Resource):
         except NoResultFound:
             return f"User {email} not found", NOT_FOUND_STATUS
 
-        settings = load_settings()
+        # Read updated settings
+        settings = get_updated_settings()
 
         # generate reset_token and reset_pwd
         email_subject = "BASIL - Password reset"
@@ -6231,7 +6233,7 @@ class UserRole(Resource):
         dbi.session.commit()
 
         # Notification
-        settings = load_settings()
+        settings = get_updated_settings()
         email_subject = "BASIL user role changed"
         email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
         email_body = f"<p>Your BASIL user role changed to <b>{target_user.role}</b></p>"
@@ -7255,7 +7257,7 @@ class TestRunPluginPresets(Resource):
                     if isinstance(presets[plugin], list):
                         return [x["name"] for x in presets[plugin] if "name" in x.keys()]
             except Exception:
-                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+                logger.error(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
                 return []
         return []
 
@@ -7386,7 +7388,7 @@ class ExternalTestRuns(Resource):
                                 ]
                                 filtered_by_params = True
                             except ValueError as e:
-                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                logger.error(f"ExternalTestRuns Exception at gitlab ci {e}")
                                 pass
 
                     if "updated_before" in params.keys():
@@ -7400,7 +7402,7 @@ class ExternalTestRuns(Resource):
                                 ]
                                 filtered_by_params = True
                             except ValueError as e:
-                                print(f"ExternalTestRuns Exception at gitlab ci {e}")
+                                logger.error(f"ExternalTestRuns Exception at gitlab ci {e}")
                                 pass
 
                 if not filtered_by_params:
@@ -7533,7 +7535,7 @@ class ExternalTestRuns(Resource):
                             compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
                             params_strings[i] = f"created__gt={compare_date_str}"
                         except ValueError as e:
-                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            logger.error(f"ExternalTestRuns Exception at KernelCI {e}")
                             pass
                     elif k == "created_before":
                         try:
@@ -7541,7 +7543,7 @@ class ExternalTestRuns(Resource):
                             compare_date_str = compare_date.strftime(KERNEL_CI_DATE_FORMAT)
                             params_strings[i] = f"created__lt={compare_date_str}"
                         except ValueError as e:
-                            print(f"ExternalTestRuns Exception at KernelCI {e}")
+                            logger.error(f"ExternalTestRuns Exception at KernelCI {e}")
                             pass
                     else:
                         params_strings[i] = f"{k.replace('__', '.')}={v}"
@@ -7619,7 +7621,7 @@ class ExternalTestRuns(Resource):
                     try:
                         lava_definition = parse_config(data=p["definition"])
                     except Exception as exc:
-                        print(f"Error reading LAVA job definition: {exc}")
+                        logger.error(f"Error reading LAVA job definition: {exc}")
                         lava_definition = None
 
                     branch = "default"
@@ -7672,7 +7674,7 @@ class ExternalTestRuns(Resource):
                         else:
                             lava_test_results = "unknown"
                     except Exception as e:
-                        print(f"Unable to read LAVA job {p['id']} results: {e}")
+                        logger.error(f"Unable to read LAVA job {p['id']} results: {e}")
                         lava_test_results = "unknown"
 
                     # Update test run status
@@ -7715,7 +7717,7 @@ class AdminTestRunPluginsPresets(Resource):
                 f.close()
                 ret["content"] = fc
             except Exception:
-                print(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+                logger.error(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
         return ret
 
     def put(self):
@@ -7773,7 +7775,7 @@ class AdminSettings(Resource):
                 f.close()
                 ret["content"] = fc
             except Exception:
-                print("Unable to read settings file")
+                logger.error("Unable to read settings file")
         return ret
 
     def put(self):
@@ -7803,10 +7805,95 @@ class AdminSettings(Resource):
         f.close()
 
         # Refresh cached settings
-        load_settings()
+        get_updated_settings()
 
         ret["content"] = request_data["content"]
         return ret
+
+
+class AIHealthCheck(Resource):
+
+    def get(self):
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+
+        if ai_prompter.ai_health_check():
+            return True
+        else:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+
+class AISuggestTestCaseImplementation(Resource):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec", "title"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__test_case_implementation(
+            api=api.api,
+            title=request_data["spec"],
+            spec=request_data["spec"],
+            user_id=user.id
+        )
+
+
+class AISuggestTestCaseMetadata(Resource):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__test_case_metadata(
+            api=api.api,
+            spec=request_data["spec"]
+        )
+
+
+class AISuggestTestSpecificationMetadata(Resource):
+
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__test_specification_metadata(
+            api=api.api,
+            spec=request_data["spec"]
+        )
+
+
+class AISuggestSoftwareRequirementMetadata(Resource):
+
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["spec"]
+        request_data = request.get_json(force=True)
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+        if not ai_prompter.validate_settings():
+            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+        return ai_prompter.ai_askfor__software_requirement_metadata(
+            api=api.api,
+            spec=request_data["spec"]
+        )
 
 
 class Version(Resource):
@@ -7877,6 +7964,7 @@ api.add_resource(ForkSwRequirementSwRequirement, "/fork/sw-requirement/sw-requir
 # api.add_resource(ForkTestSpecification, '/fork/api/test-specification')
 # api.add_resource(ForkTestCase, '/fork/api/test-case')
 # api.add_resource(ForkJustification, '/fork/api/justification')
+
 api.add_resource(User, "/user")
 api.add_resource(UserApis, "/user/apis")
 api.add_resource(UserEnable, "/user/enable")
@@ -7893,6 +7981,12 @@ api.add_resource(UserFileContent, "/user/files/content")
 api.add_resource(Testing, "/testing")
 api.add_resource(Version, "/version")
 
+# AI
+api.add_resource(AIHealthCheck, "/ai/health-check")
+api.add_resource(AISuggestTestCaseMetadata, "/ai/suggest/test-case/metadata")
+api.add_resource(AISuggestTestCaseImplementation, "/ai/suggest/test-case/implementation")
+api.add_resource(AISuggestTestSpecificationMetadata, "/ai/suggest/test-specification/metadata")
+api.add_resource(AISuggestSoftwareRequirementMetadata, "/ai/suggest/sw-requirement/metadata")
 
 if __name__ == "__main__":
     import argparse

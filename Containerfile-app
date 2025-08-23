@@ -33,4 +33,3 @@ RUN sed -i "s#0.0.0.0:80#0.0.0.0:${APP_PORT}#g" /etc/nginx/nginx.conf
 
 EXPOSE ${APP_PORT}
 ENTRYPOINT ["nginx", "-g", "daemon off;"]
-

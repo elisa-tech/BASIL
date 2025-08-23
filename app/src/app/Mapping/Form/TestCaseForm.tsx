@@ -82,9 +82,21 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
   const [statusValue, setStatusValue] = React.useState('waiting')
 
+  const [reasoningValue, setReasoningValue] = React.useState<string | undefined>()
+
+  const [isAIAvailable, setIsAIAvailable] = React.useState(false)
+  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(false)
+  const [isAskAIImplementationButtonEnabled, setIsAskAIImplementationButtonEnabled] = React.useState(true)
+  const [askAIMetadataButtonText, setAskAIMetadataButtonText] = React.useState<string>('Ask AI for suggestion')
+  const [askAIImplementationButtonText, setAskAIImplementationButtonText] = React.useState<string>('Ask AI for an implementation draft')
+
   // Form constants
   const INPUT_BASE_NAME = 'input-test-case'
   const SELECT_BASE_NAME = 'select-test-case'
+
+  React.useEffect(() => {
+    Constants.checkEndpoint(Constants.API_BASE_URL + Constants.API_AI_HEALTH_CHECK_ENDPOINT, setIsAIAvailable)
+  }, [Constants.API_AI_HEALTH_CHECK_ENDPOINT])
 
   const resetForm = () => {
     setTitleValue('')
@@ -92,7 +104,21 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     setRepositoryValue('')
     setRelativePathValue('')
     setCoverageValue('0')
+    setMessageValue('')
   }
+
+  const verifyAiButtonEnabledPrecondition = () => {
+    if (!Constants.isNotEmptyString(modalSection)) {
+      setMessageValue(Constants.NO_SECTION_SELECTED_MESSAGE + messageValue)
+      return false
+    }
+    setMessageValue(messageValue.replace(Constants.NO_SECTION_SELECTED_MESSAGE, ''))
+    return true
+  }
+
+  React.useEffect(() => {
+    setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+  }, [modalSection])
 
   React.useEffect(() => {
     if (titleValue.trim() === '') {
@@ -231,7 +257,10 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     setMessageValue('')
 
     const tc_repository: string = implementationSource == 'url' ? repositoryValue : implementationFilePath.split('/api/')[0]
-    const tc_relative_path: string = implementationSource == 'url' ? relativePathValue : implementationFilePath.slice(tc_repository.length)
+    const tc_relative_path: string =
+      implementationSource == 'url'
+        ? relativePathValue
+        : Constants.removeExtension(implementationFilePath.slice(tc_repository.length), '.fmf')
 
     const data = {
       'api-id': api.id,
@@ -354,6 +383,159 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
     if (event.key === 'Enter') {
       handleSubmit()
     }
+  }
+
+  const handleAskAIMetadataClick = () => {
+    if (!isAskAIMetadataButtonEnabled) return
+    resetForm()
+    setIsAskAIMetadataButtonEnabled(false)
+    setAskAIMetadataButtonText('Elaborating ...')
+    askAiForMetadataSuggestion()
+  }
+
+  const handleAskAIImplementationClick = () => {
+    if (!isAskAIImplementationButtonEnabled) return
+    setIsAskAIImplementationButtonEnabled(false)
+    setAskAIImplementationButtonText('Elaborating ...')
+    askAiForImplementationSuggestion()
+  }
+
+  const askAiForMetadataSuggestion = () => {
+    let spec = ''
+
+    if (modalIndirect == true || formVerb == 'PUT') {
+      if (parentType == Constants._SR) {
+        spec = parentData.sw_requirement.description
+      } else {
+        spec = parentData.section
+      }
+    } else {
+      spec = modalSection
+    }
+
+    let status
+    let status_text
+
+    const data = {
+      'api-id': api.id,
+      spec: spec,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_AI_SUGGEST_TEST_CASE_METADATA_ENDPOINT, {
+      method: 'POST',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
+          setStatusValue('Unable to get suggestions for this specification.')
+          return {}
+        } else {
+          setStatusValue('waiting')
+          setMessageValue('')
+          return response.json()
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
+        } else {
+          if ('title' in data && typeof data.title === 'string') {
+            setTitleValue(data.title)
+          }
+
+          if ('description' in data && typeof data.description === 'string') {
+            setDescriptionValue(data.description)
+          }
+
+          if ('completeness' in data) {
+            setCoverageValue(data.completeness)
+          }
+
+          if ('reasoning' in data && typeof data.reasoning === 'string') {
+            setReasoningValue(data.reasoning)
+            setMessageValue('AI reasoning: ' + data.reasoning)
+          }
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+        setStatusValue('waiting')
+      })
+      .finally(() => {
+        setAskAIMetadataButtonText('Ask AI for suggestion')
+        setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+      })
+  }
+
+  const askAiForImplementationSuggestion = () => {
+    let spec = ''
+
+    if (modalIndirect == true || formVerb == 'PUT') {
+      if (parentType == Constants._SR) {
+        spec = parentData.sw_requirement.description
+      } else {
+        spec = parentData.section
+      }
+    } else {
+      spec = modalSection
+    }
+
+    let status
+    let status_text
+
+    const data = {
+      'api-id': api.id,
+      title: titleValue,
+      spec: spec,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_AI_SUGGEST_TEST_CASE_IMPLEMENTATION_ENDPOINT, {
+      method: 'POST',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
+          setStatusValue('Unable to get suggestions for this specification.')
+          return {}
+        } else {
+          setStatusValue('waiting')
+          setMessageValue('')
+          return response.json()
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
+        } else {
+          if ('filepath' in data && typeof data.filepath === 'string') {
+            setImplementationSource('user-files')
+            setImplementationFilePath(data.filepath)
+          }
+
+          if ('reasoning' in data && typeof data.reasoning === 'string') {
+            setReasoningValue(data.reasoning)
+            setMessageValue('AI reasoning: ' + data.reasoning)
+          }
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+        setStatusValue('waiting')
+      })
+      .finally(() => {
+        setAskAIImplementationButtonText('Ask AI for an implementation draft')
+        setIsAskAIImplementationButtonEnabled(true)
+      })
   }
 
   return (
@@ -539,6 +721,34 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
               </Button>
             </FlexItem>
           </Flex>
+          {isAIAvailable ? (
+            <FlexItem>
+              <Button
+                id='btn-mapping-test-specification-ai-suggestion'
+                variant='secondary'
+                disabled={!isAskAIMetadataButtonEnabled}
+                onClick={() => handleAskAIMetadataClick()}
+              >
+                {askAIMetadataButtonText}
+              </Button>
+            </FlexItem>
+          ) : (
+            ''
+          )}
+          {isAIAvailable && descriptionValue.trim() != '' ? (
+            <FlexItem>
+              <Button
+                id='btn-mapping-test-specification-ai-suggestion'
+                variant='secondary'
+                disabled={!isAskAIImplementationButtonEnabled}
+                onClick={() => handleAskAIImplementationClick()}
+              >
+                {askAIImplementationButtonText}
+              </Button>
+            </FlexItem>
+          ) : (
+            ''
+          )}
         </ActionGroup>
       ) : (
         <span></span>

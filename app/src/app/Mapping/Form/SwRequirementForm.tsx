@@ -68,18 +68,42 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
   const [swRequirementStatusValue, setSwRequirementStatusValue] = React.useState(formData.status)
 
+  const [reasoningValue, setReasoningValue] = React.useState<string | undefined>()
+
   const [messageValue, setMessageValue] = React.useState(formMessage)
   const [statusValue, setStatusValue] = React.useState('waiting')
+
+  const [isAIAvailable, setIsAIAvailable] = React.useState(false)
+  const [isAskAIMetadataButtonEnabled, setIsAskAIMetadataButtonEnabled] = React.useState(false)
+  const [askAIMetadataButtonText, setAskAIMetadataButtonText] = React.useState<string>('Ask AI for suggestion')
 
   // Form constants
   const INPUT_BASE_NAME = 'input-sw-requirement'
   const SELECT_BASE_NAME = 'select-sw-requirement'
 
+  React.useEffect(() => {
+    Constants.checkEndpoint(Constants.API_BASE_URL + Constants.API_AI_HEALTH_CHECK_ENDPOINT, setIsAIAvailable)
+  }, [Constants.API_AI_HEALTH_CHECK_ENDPOINT])
+
   const resetForm = () => {
     setTitleValue('')
     setDescriptionValue('')
     setCoverageValue('0')
+    setMessageValue('')
   }
+
+  const verifyAiButtonEnabledPrecondition = () => {
+    if (!Constants.isNotEmptyString(modalSection)) {
+      setMessageValue(Constants.NO_SECTION_SELECTED_MESSAGE + messageValue)
+      return false
+    }
+    setMessageValue(messageValue.replace(Constants.NO_SECTION_SELECTED_MESSAGE, ''))
+    return true
+  }
+
+  React.useEffect(() => {
+    setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+  }, [modalSection])
 
   React.useEffect(() => {
     if (titleValue == undefined) {
@@ -259,6 +283,86 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
     }
   }
 
+  const handleAskAIMetadataClick = () => {
+    if (!isAskAIMetadataButtonEnabled) return
+    resetForm()
+    setIsAskAIMetadataButtonEnabled(false)
+    setAskAIMetadataButtonText('Elaborating ...')
+    askAiForMetadataSuggestion()
+  }
+
+  const askAiForMetadataSuggestion = () => {
+    let spec = ''
+
+    if (modalIndirect == true || formVerb == 'PUT') {
+      if (parentType == Constants._SR) {
+        spec = parentData.sw_requirement.description
+      } else {
+        spec = parentData.section
+      }
+    } else {
+      spec = modalSection
+    }
+
+    let status
+    let status_text
+
+    const data = {
+      'api-id': api.id,
+      spec: spec,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_AI_SUGGEST_SW_REQ_METADATA_ENDPOINT, {
+      method: 'POST',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        status = response.status
+        status_text = response.statusText
+        if (status !== 200) {
+          setStatusValue('Unable to get suggestions for this specification.')
+          return {}
+        } else {
+          setStatusValue('waiting')
+          setMessageValue('')
+          return response.json()
+        }
+      })
+      .then((data) => {
+        if (status != 200) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
+        } else {
+          if ('title' in data && typeof data.title === 'string') {
+            setTitleValue(data.title)
+          }
+
+          if ('description' in data && typeof data.description === 'string') {
+            setDescriptionValue(data.description)
+          }
+
+          if ('completeness' in data) {
+            setCoverageValue(data.completeness)
+          }
+
+          if ('reasoning' in data && typeof data.reasoning === 'string') {
+            setReasoningValue(data.reasoning)
+            setMessageValue('AI reasoning: ' + data.reasoning)
+          }
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+        setStatusValue('waiting')
+      })
+      .finally(() => {
+        setAskAIMetadataButtonText('Ask AI for suggestion')
+        setIsAskAIMetadataButtonEnabled(verifyAiButtonEnabledPrecondition())
+      })
+  }
+
   return (
     <Form
       onSubmit={(event) => {
@@ -302,6 +406,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
       <FormGroup label='Description' isRequired fieldId={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}>
         <TextArea
           isRequired
+          rows={4}
           resizeOrientation='vertical'
           aria-label='Sw Requirement description field'
           id={`${INPUT_BASE_NAME}-${formAction}-description-${formData.id}`}
@@ -361,6 +466,20 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
                 Reset
               </Button>
             </FlexItem>
+            {isAIAvailable ? (
+              <FlexItem>
+                <Button
+                  id='btn-mapping-test-specification-ai-suggestion'
+                  variant='secondary'
+                  disabled={!isAskAIMetadataButtonEnabled}
+                  onClick={() => handleAskAIMetadataClick()}
+                >
+                  {askAIMetadataButtonText}
+                </Button>
+              </FlexItem>
+            ) : (
+              ''
+            )}
           </Flex>
         </ActionGroup>
       ) : (

@@ -1,10 +1,101 @@
+import logging
 import os
+import re
 import subprocess
 import urllib
+from pyaml_env import parse_config
 from string import Template
 from urllib.error import HTTPError, URLError
 
+currentdir = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(__name__)
+
 LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
+
+CONFIGS_FOLDER = "configs"
+SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
+
+
+def get_configuration(
+        setting_section=None,
+        setting_key=None,
+        env_key=None,
+        default_value=None,
+        settings=None,
+        settings_last_modified=None):
+    """Extract a configuration from settings or from environment file
+    settings should have priority on environment file as admin can overwrite it at runtime"""
+
+    valid_settings_config = True
+    if not setting_section or not setting_key:
+        valid_settings_config = False
+
+    if valid_settings_config:
+        settings, settings_last_modified = load_settings(settings, settings_last_modified)
+        if setting_section in settings.keys():
+            if setting_key in settings[setting_section].keys():
+                return settings[setting_section][setting_key]
+
+    if not env_key:
+        return None
+
+    ret = os.environ.get(env_key, default_value)
+    if not ret:
+        return None
+
+    if ret.lower() == "true":
+        return True
+    if ret.lower() == "false":
+        return False
+
+    return ret
+
+
+def load_settings(settings_cache=None, settings_last_modified=None):
+    """Load settings from yaml file if file last modified date
+    is different from the last time we read it
+    """
+
+    read_settings_file = False
+    last_modified = os.path.getmtime(SETTINGS_FILEPATH)
+
+    if settings_cache is None or settings_last_modified is None:
+        read_settings_file = True
+    else:
+        if settings_last_modified != last_modified:
+            read_settings_file = True
+
+    if read_settings_file:
+        try:
+            settings_cache = parse_config(path=SETTINGS_FILEPATH)
+            settings_last_modified = last_modified
+        except Exception as e:
+            logger.error(f"Exception on load_settings(): {e}")
+    return settings_cache, settings_last_modified
+
+
+def get_available_filepath(filepath):
+    """
+    Given a full file path, returns a new path that doesn't exist
+    by appending _1, _2, etc. to the base filename if needed.
+
+    Example:
+        /home/user/report.txt →
+        /home/user/report_1.txt (if report.txt exists)
+    """
+    if not os.path.exists(filepath):
+        return filepath
+
+    directory, filename = os.path.split(filepath)
+    base, ext = os.path.splitext(filename)
+    counter = 1
+
+    while True:
+        new_filename = f"{base}_{counter}{ext}"
+        new_filepath = os.path.join(directory, new_filename)
+        if not os.path.exists(new_filepath):
+            return new_filepath
+        counter += 1
 
 
 def is_testing_enabled_by_env() -> bool:
@@ -43,6 +134,11 @@ def get_html_email_body_from_template(template_path, subject, body, footer):
     return body
 
 
+def normalize_whitespace(text: str) -> str:
+    # Replace all types of whitespace (spaces, tabs, newlines) with a single space
+    return re.sub(r'\s+', ' ', text).strip()
+
+
 def async_email_notification(setting_path, template_path, recipient_list, subject, body, footer, is_html):
     """Send async email to a list of recipients
     to be used in case user don't need to know the notification status
@@ -64,6 +160,7 @@ def async_email_notification(setting_path, template_path, recipient_list, subjec
                            f"{subject}",
                            f"{body}",
                            f"{is_html}",
+                           "false",  # dry mode
                            "&"]
 
                     subprocess.Popen(cmd,
@@ -91,13 +188,13 @@ def get_api_specification(_url_or_path):
                     content = resource.read().decode("utf-8")
                 return content
             except HTTPError as excp:
-                print(f"HTTPError: {excp.reason} reading {_url_or_path}")
+                logger.error(f"HTTPError: {excp.reason} reading {_url_or_path}")
                 return None
             except URLError as excp:
-                print(f"URLError: {excp.reason} reading {_url_or_path}")
+                logger.error(f"URLError: {excp.reason} reading {_url_or_path}")
                 return None
             except ValueError as excp:
-                print(f"ValueError reading {_url_or_path}: {excp}")
+                logger.error(f"ValueError reading {_url_or_path}: {excp}")
                 return None
         else:
             if not os.path.exists(_url_or_path):
@@ -109,7 +206,7 @@ def get_api_specification(_url_or_path):
                 f.close()
                 return fc
             except OSError as excp:
-                print(f"OSError for {_url_or_path}: {excp}")
+                logger.error(f"OSError for {_url_or_path}: {excp}")
                 return None
 
 
@@ -119,9 +216,9 @@ def read_file(filepath):
             content = f.read()
         return content
     except FileNotFoundError:
-        print(f"Error: File '{filepath}' not found.")
+        logger.error(f"Error: File '{filepath}' not found.")
     except PermissionError:
-        print(f"Error: Permission denied when reading '{filepath}'.")
+        logger.error(f"Error: Permission denied when reading '{filepath}'.")
     except IOError as e:
-        print(f"Error: I/O error while reading '{filepath}': {e}")
+        logger.error(f"Error: I/O error while reading '{filepath}': {e}")
     return None

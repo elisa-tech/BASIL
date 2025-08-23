@@ -20,7 +20,7 @@ actions:
       images:
         rootfs:
           image_arg: -drive format=raw,file={rootfs}
-          url: https://images.validation.linaro.org/kvm/standard/stretch-2.img.gz
+          url: https://images.validation.linaro.org/kvm/standard/large-stable-6.img.gz
           compression: gz
   - boot:
       timeout:

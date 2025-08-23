@@ -98,30 +98,6 @@ def get_available_filepath(filepath):
         counter += 1
 
 
-def get_available_filepath(filepath):
-    """
-    Given a full file path, returns a new path that doesn't exist
-    by appending _1, _2, etc. to the base filename if needed.
-
-    Example:
-        /home/user/report.txt →
-        /home/user/report_1.txt (if report.txt exists)
-    """
-    if not os.path.exists(filepath):
-        return filepath
-
-    directory, filename = os.path.split(filepath)
-    base, ext = os.path.splitext(filename)
-    counter = 1
-
-    while True:
-        new_filename = f"{base}_{counter}{ext}"
-        new_filepath = os.path.join(directory, new_filename)
-        if not os.path.exists(new_filepath):
-            return new_filepath
-        counter += 1
-
-
 def is_testing_enabled_by_env() -> bool:
     ret = False
     env_testing = os.getenv("BASIL_TESTING", "")

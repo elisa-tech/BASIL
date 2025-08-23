@@ -155,197 +155,205 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   }
 
   const Navigation = (
-    <Nav aria-label='Mixed global'>
-      <NavList>
-        <NavItem
-          preventDefault
-          id='nav-item-home'
-          to='#nav-item-home'
-          onClick={() => redirect('/')}
-          itemId='ungrouped-item-1'
-          isActive={location.pathname == '/' && queryCurrentLibrary == null}
-        >
-          Home
-        </NavItem>
-
-        {!auth.isLogged() ? (
+    <>
+      <Nav aria-label='Mixed global'>
+        <NavList>
           <NavItem
             preventDefault
-            id='nav-item-login'
-            to='#nav-item-login'
-            onClick={() => redirect('/login')}
-            itemId='ungrouped-item-2'
-            isActive={location.pathname == '/login'}
+            id='nav-item-home'
+            to='#nav-item-home'
+            onClick={() => redirect('/')}
+            itemId='ungrouped-item-1'
+            isActive={location.pathname == '/' && queryCurrentLibrary == null}
           >
-            Login
+            Home
           </NavItem>
-        ) : (
-          ''
-        )}
 
-        {!auth.isLogged() ? (
-          <NavItem
-            preventDefault
-            id='nav-item-signin'
-            to='#nav-item-signin'
-            onClick={() => redirect('/signin')}
-            itemId='ungrouped-item-3'
-            isActive={location.pathname == '/signin'}
-          >
-            Sign In
-          </NavItem>
-        ) : (
-          ''
-        )}
-
-        {auth.isLogged() && auth.isAdmin() ? (
-          <>
+          {!auth.isLogged() ? (
             <NavItem
               preventDefault
-              id='nav-item-user-management'
-              to='#nav-item-user-management'
-              onClick={() => redirect('/admin')}
-              itemId='ungrouped-item-4'
-              isActive={location.pathname == '/admin'}
+              id='nav-item-login'
+              to='#nav-item-login'
+              onClick={() => redirect('/login')}
+              itemId='ungrouped-item-2'
+              isActive={location.pathname == '/login'}
             >
-              User Management
+              Login
+            </NavItem>
+          ) : (
+            ''
+          )}
+
+          {!auth.isLogged() ? (
+            <NavItem
+              preventDefault
+              id='nav-item-signin'
+              to='#nav-item-signin'
+              onClick={() => redirect('/signin')}
+              itemId='ungrouped-item-3'
+              isActive={location.pathname == '/signin'}
+            >
+              Sign In
+            </NavItem>
+          ) : (
+            ''
+          )}
+
+          {auth.isLogged() && auth.isAdmin() ? (
+            <>
+              <NavItem
+                preventDefault
+                id='nav-item-user-management'
+                to='#nav-item-user-management'
+                onClick={() => redirect('/admin')}
+                itemId='ungrouped-item-4'
+                isActive={location.pathname == '/admin'}
+              >
+                User Management
+              </NavItem>
+              <NavItem
+                preventDefault
+                id='nav-item-test-run-plugins-presets'
+                to='#nav-item-test-run-plugins-presets'
+                onClick={() => redirect('/plugins-presets')}
+                itemId='ungrouped-item-5'
+                isActive={location.pathname == '/plugins-presets'}
+              >
+                Test Run Plugin Presets
+              </NavItem>
+              <NavItem
+                preventDefault
+                id='nav-item-settings'
+                to='#nav-item-settings'
+                onClick={() => redirect('/settings')}
+                itemId='ungrouped-item-6'
+                isActive={location.pathname == '/settings'}
+              >
+                Settings
+              </NavItem>
+            </>
+          ) : (
+            ''
+          )}
+
+          {auth.isLogged() && !auth.isGuest() ? (
+            <>
+              <NavItem
+                preventDefault
+                id='nav-item-user-ssh-keys'
+                to='#nav-item-user-ssh-keys'
+                onClick={() => redirect('/ssh-keys')}
+                itemId='ungrouped-item-7'
+                isActive={location.pathname == '/ssh-keys'}
+              >
+                SSH Keys
+              </NavItem>
+              <NavItem
+                preventDefault
+                id='nav-item-user-files'
+                to='#nav-item-user-files'
+                onClick={() => redirect('/user-files')}
+                itemId='ungrouped-item-8'
+                isActive={location.pathname == '/user-files'}
+              >
+                User Files
+              </NavItem>
+            </>
+          ) : (
+            ''
+          )}
+
+          <NavExpandable
+            title='Libraries'
+            groupId='nav-group-libraries'
+            isExpanded={location.pathname == '/' && queryCurrentLibrary != null}
+          >
+            {getLibrariesNavItems()}
+          </NavExpandable>
+          <NavExpandable title='Useful Links' groupId='nav-useful-links' isActive={false}>
+            <NavItem
+              preventDefault
+              id='nav-useful-links-contribute'
+              to='#nav-useful-links-contribute'
+              onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-1'
+              isActive={false}
+            >
+              Contribute
             </NavItem>
             <NavItem
               preventDefault
-              id='nav-item-test-run-plugins-presets'
-              to='#nav-item-test-run-plugins-presets'
-              onClick={() => redirect('/plugins-presets')}
-              itemId='ungrouped-item-5'
-              isActive={location.pathname == '/plugins-presets'}
+              id='nav-useful-links-documentation'
+              to='#nav-useful-links-documentation'
+              onClick={() => navigate('https://basil-the-fusa-spice.readthedocs.io/')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-2'
+              isActive={false}
             >
-              Test Run Plugin Presets
+              Documentation
             </NavItem>
             <NavItem
               preventDefault
-              id='nav-item-settings'
-              to='#nav-item-settings'
-              onClick={() => redirect('/settings')}
-              itemId='ungrouped-item-6'
-              isActive={location.pathname == '/settings'}
+              id='nav-useful-links-elisa'
+              to='#nav-useful-links-elisa'
+              onClick={() => navigate('https://elisa.tech/')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-3'
+              isActive={false}
             >
-              Settings
-            </NavItem>
-          </>
-        ) : (
-          ''
-        )}
-
-        {auth.isLogged() && !auth.isGuest() ? (
-          <>
-            <NavItem
-              preventDefault
-              id='nav-item-user-ssh-keys'
-              to='#nav-item-user-ssh-keys'
-              onClick={() => redirect('/ssh-keys')}
-              itemId='ungrouped-item-7'
-              isActive={location.pathname == '/ssh-keys'}
-            >
-              SSH Keys
+              ELISA
             </NavItem>
             <NavItem
               preventDefault
-              id='nav-item-user-files'
-              to='#nav-item-user-files'
-              onClick={() => redirect('/user-files')}
-              itemId='ungrouped-item-8'
-              isActive={location.pathname == '/user-files'}
+              id='nav-useful-links-basil-github'
+              to='#nav-useful-links-basil-github'
+              onClick={() => navigate('https://github.com/elisa-tech/BASIL')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-4'
+              isActive={false}
             >
-              User Files
+              GitHub
             </NavItem>
-          </>
-        ) : (
-          ''
-        )}
-
-        <NavExpandable title='Libraries' groupId='nav-group-libraries' isExpanded={location.pathname == '/' && queryCurrentLibrary != null}>
-          {getLibrariesNavItems()}
-        </NavExpandable>
-        <NavExpandable title='Useful Links' groupId='nav-useful-links' isActive={false}>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-contribute'
-            to='#nav-useful-links-contribute'
-            onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-1'
-            isActive={false}
-          >
-            Contribute
-          </NavItem>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-documentation'
-            to='#nav-useful-links-documentation'
-            onClick={() => navigate('https://basil-the-fusa-spice.readthedocs.io/')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-2'
-            isActive={false}
-          >
-            Documentation
-          </NavItem>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-elisa'
-            to='#nav-useful-links-elisa'
-            onClick={() => navigate('https://elisa.tech/')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-3'
-            isActive={false}
-          >
-            ELISA
-          </NavItem>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-basil-github'
-            to='#nav-useful-links-basil-github'
-            onClick={() => navigate('https://github.com/elisa-tech/BASIL')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-4'
-            isActive={false}
-          >
-            GitHub
-          </NavItem>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-matrix'
-            to='#nav-useful-links-matrix'
-            onClick={() => navigate('https://matrix.to/#/!RoPWKbVtTKUKNouZCV:matrix.org?via=matrix.org')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-5'
-            isActive={false}
-          >
-            Matrix chat room
-          </NavItem>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-report-a-bug'
-            to='#nav-useful-links-report-a-bug'
-            onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues/new')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-6'
-            isActive={false}
-          >
-            Report a bug
-          </NavItem>
-          <NavItem
-            preventDefault
-            id='nav-useful-links-youtube'
-            to='#nav-useful-links-youtube'
-            onClick={() => navigate('https://www.youtube.com/@basil-the-fusa-spice')}
-            groupId='nav-useful-links'
-            itemId='nav-useful-links-item-7'
-            isActive={false}
-          >
-            Youtube
-          </NavItem>
-        </NavExpandable>
-      </NavList>
-    </Nav>
+            <NavItem
+              preventDefault
+              id='nav-useful-links-discord'
+              to='#nav-useful-links-discord'
+              onClick={() => navigate('https://discord.gg/2sCQSTZHTW')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-5'
+              isActive={false}
+            >
+              Discord
+            </NavItem>
+            <NavItem
+              preventDefault
+              id='nav-useful-links-report-a-bug'
+              to='#nav-useful-links-report-a-bug'
+              onClick={() => navigate('https://github.com/elisa-tech/BASIL/issues/new')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-6'
+              isActive={false}
+            >
+              Report a bug
+            </NavItem>
+            <NavItem
+              preventDefault
+              id='nav-useful-links-youtube'
+              to='#nav-useful-links-youtube'
+              onClick={() => navigate('https://www.youtube.com/@basil-the-fusa-spice')}
+              groupId='nav-useful-links'
+              itemId='nav-useful-links-item-7'
+              isActive={false}
+            >
+              Youtube
+            </NavItem>
+          </NavExpandable>
+        </NavList>
+      </Nav>
+      <div style={{ flexGrow: 1 }} />
+      <div style={{ padding: '1.5rem', fontSize: '0.8rem', color: '#FFF' }}>Version: {Constants.BASIL_VERSION}</div>
+    </>
   )
 
   const Sidebar = (

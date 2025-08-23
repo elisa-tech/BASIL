@@ -31,6 +31,7 @@ BASIL will help you on identifying gaps and on tracking progress.
 - Export traceability matrix in SPDX Model 3
 - Import Software Requirements from multiple sources: SPDX Model3 json, yaml, json, csv, xlsx
 - Import Test Cases from remote test repositories (via tmt)
+- In-app AI suggestions for work item design using openai API
 
 ## Supported Work Items
 

@@ -16,6 +16,7 @@
 - Added test cases to the api unit test suite
 - Send write permission requests from within the application
 - Added notification filters for software component owners and list of users
+- Add in-app AI suggestions using openai API
 
 ## 1.6.x
 

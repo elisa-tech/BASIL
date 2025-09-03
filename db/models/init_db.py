@@ -1,3 +1,4 @@
+import logging
 import os
 from sqlalchemy import create_engine
 import sys
@@ -34,13 +35,19 @@ from db.models.test_specification_test_case import TestSpecificationTestCaseHist
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 from db.models.user import UserModel
 
+logger = logging.getLogger(__name__)
 
-def initialization(db_name='basil.db'):
+
+def initialization(db_name='basil'):
 
     dbi = db_orm.DbInterface(db_name)
-    if db_name == 'test.db':
+    if db_name == 'test':
         Base.metadata.drop_all(bind=dbi.engine)
-    Base.metadata.create_all(bind=dbi.engine)
+
+    try:
+        Base.metadata.create_all(bind=dbi.engine)
+    except Exception as e:
+        logger.error(f"Unable to run database create_all\n{e}")
 
     admin_pwd = os.getenv('BASIL_ADMIN_PASSWORD', 'admin')
 
@@ -52,7 +59,7 @@ def initialization(db_name='basil.db'):
         admin = UserModel("admin", "admin", admin_pwd, 'ADMIN')
         dbi.session.add(admin)
 
-    if db_name != 'test.db':
+    if db_name != 'test':
         if 'BASIL_ADMIN_PASSWORD' in os.environ:
             del os.environ['BASIL_ADMIN_PASSWORD']
     else:

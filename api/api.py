@@ -165,10 +165,10 @@ if not app.config.get("TESTING", False):
 
 if app.config.get("TESTING", False):
     logger.info(" * TESTING ON")
-    app.config["DB"] = "test.db"
+    app.config["DB"] = "test"
 else:
     logger.info(" * TESTING OFF")
-    app.config["DB"] = "basil.db"
+    app.config["DB"] = "basil"
 
 init_db.initialization(app.config["DB"])
 
@@ -546,7 +546,7 @@ def get_db():
     db = app.config.get("DB", "")
     if db:
         return db
-    return "basil.db"
+    return "basil"
 
 
 def get_api_coverage(_sections):
@@ -1207,8 +1207,7 @@ def check_api_user_read_permission(func):
         # Now, call the original function with the same arguments
         result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         return result
     return wrapper
@@ -1255,9 +1254,7 @@ def check_api_user_write_permission(func):
 
         # Now, call the original function with the same arguments
         result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
-
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         return result
     return wrapper
@@ -1695,7 +1692,7 @@ class Api(Resource):
 
         query = dbi.session.query(ApiModel)
         query = filter_query(query, args, ApiModel, False)
-        query = query.order_by(and_(ApiModel.api, ApiModel.library_version))
+        query = query.order_by(ApiModel.api, ApiModel.library_version)
 
         # Pagination
         page = 1
@@ -2015,6 +2012,8 @@ class Api(Resource):
 
         docs_mapping_api = dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).all()
 
+        api_notifications = dbi.session.query(NotificationModel).filter(NotificationModel.api_id == api.id).all()
+
         for j_mapping in justifications_mapping_api:
             dbi.session.delete(j_mapping)
 
@@ -2030,15 +2029,18 @@ class Api(Resource):
         for doc_mapping in docs_mapping_api:
             dbi.session.delete(doc_mapping)
 
+        for notification in api_notifications:
+            dbi.session.delete(notification)
+
         # Add Notifications
         notification = f"{user.username} deleted sw component " f"{api.api} as part of the library {api.library}"
         notifications = NotificationModel(
-            api,
+            None,
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api} has been deleted",
             notification,
             f"[{user.id}]",
-            f"/?currentLibrary={api.library}",
+            "",
         )
         dbi.session.add(notifications)
         dbi.session.delete(api)
@@ -3998,8 +4000,7 @@ class TestCaseGenerateJson(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -4047,8 +4048,7 @@ class TestCaseImport(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6034,7 +6034,7 @@ class User(Resource):
             user.username = username
             dbi.session.add(user)
             dbi.session.commit()
-            dbi.engine.dispose()
+            dbi.close()
             return {"result": "success", "message": "Your username has been saved. Please login again."}
 
         # Edit password
@@ -6046,7 +6046,7 @@ class User(Resource):
             user.pwd = encoded_password
             dbi.session.add(user)
             dbi.session.commit()
-            dbi.engine.dispose()
+            dbi.close()
             return {"result": "success", "message": "Your password has been saved. Please login again."}
 
 
@@ -6079,7 +6079,7 @@ class UserResetPassword(Resource):
         target_user.reset_token = ""
         dbi.session.add(target_user)
         dbi.session.commit()
-        dbi.engine.dispose()
+        dbi.close()
 
         # Read updated settings
         settings = get_updated_settings()
@@ -6140,7 +6140,7 @@ class UserResetPassword(Resource):
         target_user.reset_token = reset_token
         dbi.session.add(target_user)
         dbi.session.commit()
-        dbi.engine.dispose()
+        dbi.close()
         email_body = f"""
                 <p>Someone requested a password reset for your account.</p>
                 <p>If you have not requested a password reset, please ignore and delete this email.
@@ -6534,8 +6534,7 @@ class UserFiles(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6574,8 +6573,7 @@ class UserFiles(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6619,8 +6617,7 @@ class UserFiles(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6664,8 +6661,7 @@ class UserFileContent(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6703,8 +6699,7 @@ class UserFileContent(Resource):
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -8000,7 +7995,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--testing", default=False, action="store_true", help="Test Api Project using db/test.db database"
+        "--testing", default=False, action="store_true", help="Test Api Project using a test database"
     )
     args = parser.parse_args()
 

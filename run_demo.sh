@@ -8,13 +8,26 @@ api_containerfile=Containerfile-api-fedora
 api_port=5000
 app_port=9000
 admin_pw=1234
+db_port=5432
+db_password=default_db_password
 
-OPTSTRING=":b:d:e:f:p:u:h"
+OPTSTRING=":b:d:e:f:p:u:w:h"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
 RESET_COLORS_STR="\033[0m"
+BASIL_NETWORK="basil-network"
+BASIL_POD="basil-pod"
 TAG=$(git describe --tags | sed 's/-/_/g')
+
+echoSectionTitle()
+{
+    title=$1
+    echo -e "\n${TITLE_COLOR_STR}"
+    echo -e "###################################################################"
+    echo -e "###                 ${title}"
+    echo -e "###################################################################"
+}
 
 usage()
 {
@@ -35,12 +48,14 @@ usage()
                             - http://localhost if you want to evaluate it on your machine
                             - http://<ip address> if you want to use a centralized machine
                             in the local network (e.g.: http://192.168.1.15)
+        -w DB_PASSWPRD      password of the basil-admin user of the postgreSQL database
 
-        example: ${0##*/} -b 5005 -m phi3.5 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!'
+        example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
 
         BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://192.168.1.15:9005
         BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://192.168.1.15:5005
-        To test the Api you can check the /version endpoint e.g. http://192.168.1.15:5005/version
+         - To test the Api you can check the /version endpoint e.g. http://192.168.1.15:5005/version
+        BASIL DB will be available at [URL][DB_PORT] e.g. http://192.168.1.15:5432
 
 	EOF
 exit 0
@@ -69,16 +84,23 @@ while getopts ${OPTSTRING} opt; do
         u)
         api_server_url=${OPTARG}
         ;;
+        w)
+        db_password=${OPTARG}
+        ;;
         h)
         usage
+        ;;
     esac
 done
 
-echo -e "${TITLE_COLOR_STR}"
+
+# ---------------------------------------
+echo -e "\n${TITLE_COLOR_STR}"
 clear
-echo -e "###################################################################"
-echo -e "###                 Prepairing BASIL deployment"
-echo -e "###################################################################"
+
+
+# ---------------------------------------
+echoSectionTitle "Prepairing BASIL deployment"
 
 echo -e "${TITLE_COLOR_STR}\n> kill all running podman container\n${BODY_COLOR_STR}"
 podman stop --all
@@ -91,23 +113,53 @@ echo -e " - app port = ${app_port}"
 echo -e " - admin pw = ${admin_pw}"
 echo -e " - environment file = ${environment_file:=''}"
 echo -e " - tag = ${TAG}"
+echo -e " - db port = ${db_port}"
+echo -e " - db password = ${db_password}"
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 Building API container"
-echo -e "###################################################################"
 
-echo -e "\n${BODY_COLOR_STR}"
+# ---------------------------------------
+echoSectionTitle "Create podman pod"
+
+# Check if the pod already exists
+if podman pod exists "$BASIL_POD"; then
+  echo "Pod $BASIL_POD exists. Removing..."
+  podman pod rm -f "$BASIL_POD"
+else
+  echo "Pod $BASIL_POD does not exist."
+fi
+
+# Check if network already exists
+if podman network exists "$BASIL_NETWORK"; then
+  echo "Network $BASIL_NETWORK exists. Removing..."
+  podman network rm "$BASIL_NETWORK"
+else
+  echo "Network $BASIL_NETWORK does not exist."
+fi
+
+podman network create ${BASIL_NETWORK}
+
+podman pod create \
+  --name ${BASIL_POD} \
+  --network ${BASIL_NETWORK} \
+  --publish ${db_port}:${db_port} \
+  --publish ${api_port}:${api_port} \
+  --publish ${app_port}:${app_port}
+
+
+# ---------------------------------------
+echoSectionTitle "Building API container"
+
 podman build \
     --build-arg="ADMIN_PASSWORD=${admin_pw}" \
     --build-arg="API_PORT=${api_port}" \
+    --build-arg="DB_PORT=${db_port}" \
+    --build-arg="DB_PASSWORD=${db_password}" \
     -f ${api_containerfile} \
     -t basil-api-image:${TAG} .
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 Building APP container"
-echo -e "###################################################################"
+
+# ---------------------------------------
+echoSectionTitle "Building APP container"
 
 echo -e "\n${BODY_COLOR_STR}"
 podman build \
@@ -116,10 +168,9 @@ podman build \
     -f Containerfile-app \
     -t basil-app-image:${TAG} .
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 Create and mount volumes"
-echo -e "###################################################################"
+
+# ---------------------------------------
+echoSectionTitle "Create and mount volumes"
 
 echo -e "\n${BODY_COLOR_STR}"
 list='basil-configs-vol basil-db-vol basil-ssh-keys-vol basil-tmt-logs-vol basil-user-files-vol'
@@ -141,18 +192,31 @@ do
     podman volume mount "${element}" || true
 done
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 Install cronjobs"
-echo -e "###################################################################"
+
+# ---------------------------------------
+echoSectionTitle "Install cronjobs"
 
 echo -e "\n${BODY_COLOR_STR}"
 cp -va misc/cronjobs/daily/. /etc/cron.daily/
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 Start API container"
-echo -e "###################################################################"
+
+# ---------------------------------------
+echoSectionTitle "Start PostgreSQL DB container"
+
+echo -e "\n${BODY_COLOR_STR}"
+podman run \
+  --detach \
+  --name basil-db \
+  --pod ${BASIL_POD} \
+  -e POSTGRES_USER=basil-admin \
+  -e POSTGRES_PASSWORD=${db_password} \
+  -e POSTGRES_DB=basil \
+  -v basil-db-vol:/var/lib/pgsql/data \
+  docker.io/library/postgres:15
+
+
+# ---------------------------------------
+echoSectionTitle "Start API container"
 
 echo -e "\n${BODY_COLOR_STR}"
 
@@ -162,9 +226,8 @@ if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
   podman_cmd="$podman_cmd --env-file $environment_file"
 fi
 
-podman_cmd="$podman_cmd --detach --privileged --network=host"
+podman_cmd="$podman_cmd --detach --privileged --pod=${BASIL_POD}"
 podman_cmd="$podman_cmd -v basil-configs-vol:/BASIL-API/api/configs"
-podman_cmd="$podman_cmd -v basil-db-vol:/BASIL-API/db/sqlite3"
 podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
 podman_cmd="$podman_cmd -v basil-user-files-vol:/BASIL-API/api/user-files"
 podman_cmd="$podman_cmd -v basil-tmt-logs-vol:/var/tmp/tmt"
@@ -172,21 +235,19 @@ podman_cmd="$podman_cmd basil-api-image:${TAG}"
 
 $podman_cmd
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 Start APP container"
-echo -e "###################################################################"
+
+# ---------------------------------------
+echoSectionTitle "Start APP container"
 
 echo -e "\n${BODY_COLOR_STR}"
 podman run \
     --detach \
-    --network=host \
+    --pod=${BASIL_POD} \
     basil-app-image:${TAG}
 
-echo -e "\n${TITLE_COLOR_STR}"
-echo -e "###################################################################"
-echo -e "###                 List running containers"
-echo -e "###################################################################"
+
+# ---------------------------------------
+echoSectionTitle "List running containers"
 
 echo -e "\n${BODY_COLOR_STR}"
 podman ps

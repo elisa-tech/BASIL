@@ -1,3 +1,4 @@
+import logging
 import os
 os.environ['BASIL_TESTING'] = "True"
 
@@ -10,7 +11,9 @@ from db.models.db_base import Base
 import db.models.init_db as init_db
 from db.models.user import UserModel
 
-DB_NAME = 'test.db'
+logger = logging.getLogger(__name__)
+
+DB_NAME = 'test'
 
 UT_USER_NAME = 'ut_user_name'
 UT_USER_EMAIL = 'ut_user_email'
@@ -47,6 +50,12 @@ def client_db():
 
     yield dbi
 
+    try:
+        dbi.session.rollback()
+    except Exception as e:
+        logging.error(f"Exception: {e}")
+
+    dbi.close()
     Base.metadata.drop_all(bind=dbi.engine)
 
 

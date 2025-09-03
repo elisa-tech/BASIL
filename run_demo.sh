@@ -18,7 +18,8 @@ ALERT_COLOR_STR="\033[0;31;40m"
 RESET_COLORS_STR="\033[0m"
 BASIL_NETWORK="basil-network"
 BASIL_POD="basil-pod"
-TAG=$(git describe --tags | sed 's/-/_/g')
+TAG=$(git describe --tags 2>/dev/null | sed 's/-/_/g')
+TAG=${TAG:-"latest"}
 
 echoSectionTitle()
 {
@@ -197,7 +198,7 @@ done
 echoSectionTitle "Install cronjobs"
 
 echo -e "\n${BODY_COLOR_STR}"
-cp -va misc/cronjobs/daily/. /etc/cron.daily/
+sudo cp -va misc/cronjobs/daily/. /etc/cron.daily/ || echo "WARNING: Unable to install cronjobs"
 
 
 # ---------------------------------------

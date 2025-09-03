@@ -54,7 +54,7 @@ jobs:
         run: |
           echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
           echo "BASIL_API_PORT=5005" >> "$GITHUB_ENV"
-          echo "BASIL_APP_PORT=9005" >> "$GITHUB_ENV"
+          echo "BASIL_APP_PORT=9056" >> "$GITHUB_ENV"
           echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
           echo "BASIL_DB_PORT=5432" >> "$GITHUB_ENV"
           TEMPDIR=$(mktemp -d)

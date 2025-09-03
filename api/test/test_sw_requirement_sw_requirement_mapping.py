@@ -28,6 +28,7 @@ _UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_A
                           f'Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
 UNMATCHING_ID = 99999
 
+
 def get_sw_requirement_model(client_db, utilities):
     user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
     return SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',

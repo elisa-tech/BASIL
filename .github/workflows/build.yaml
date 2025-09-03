@@ -57,6 +57,8 @@ jobs:
           echo "BASIL_APP_PORT=9056" >> "$GITHUB_ENV"
           echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
           echo "BASIL_DB_PORT=5432" >> "$GITHUB_ENV"
+          echo "BASIL_ADMIN_PASSWORD=dummy_password" >> "$GITHUB_ENV"
+          echo "BASIL_TESTING=1" >> "$GITHUB_ENV"
           TEMPDIR=$(mktemp -d)
           echo "TEST_RUNS_BASE_DIR=$TEMPDIR" >> $GITHUB_ENV
           

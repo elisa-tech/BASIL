@@ -53,7 +53,7 @@ from flask import Flask, redirect, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
-from sqlalchemy import and_, or_, update
+from sqlalchemy import String, and_, cast, or_, update
 from sqlalchemy.orm.exc import NoResultFound
 from api_utils import (
     add_html_link_to_email_body,
@@ -62,6 +62,7 @@ from api_utils import (
     get_html_email_body_from_template,
     is_testing_enabled_by_env,
     load_settings,
+    parse_int,
     read_file
 )
 from testrun import TestRunner
@@ -537,7 +538,13 @@ def filter_query(_query, _args, _model, _is_history):
                 _query = _query.filter(_model.id == filter)
 
         if arg_key == "search":
-            _query = _query.filter(or_(getattr(_model, field).like(f'%{_args["search"]}%') for field in fields))
+            _query = _query.filter(
+                or_(
+                    cast(getattr(_model, field), String)
+                    .like(f'%{_args["search"]}%')
+                    for field in fields
+                )
+            )
 
     return _query
 
@@ -1787,6 +1794,9 @@ class Api(Resource):
             if source_api[0].library != request_data["library"]:
                 return "New Api library differ from the original one", CONFLICT_STATUS
 
+        file_from_row = parse_int(request_data.get("implementation-file-from-row", ""))
+        file_to_row = parse_int(request_data.get("implementation-file-to-row", ""))
+
         new_api = ApiModel(
             request_data["api"],
             request_data["library"],
@@ -1795,8 +1805,8 @@ class Api(Resource):
             request_data["category"],
             "",  # Checksum
             request_data["implementation-file"],
-            request_data["implementation-file-from-row"],
-            request_data["implementation-file-to-row"],
+            file_from_row,
+            file_to_row,
             request_data["tags"],
             user,
         )

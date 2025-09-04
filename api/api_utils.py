@@ -222,3 +222,11 @@ def read_file(filepath):
     except IOError as e:
         logger.error(f"Error: I/O error while reading '{filepath}': {e}")
     return None
+
+
+def parse_int(value):
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None  # or raise ValueError if needed

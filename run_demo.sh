@@ -8,10 +8,12 @@ api_containerfile=Containerfile-api-fedora
 api_port=5000
 app_port=9000
 admin_pw=1234
+db_name=basil
 db_port=5432
 db_password=default_db_password
+testing=0
 
-OPTSTRING=":b:d:e:f:p:u:w:h"
+OPTSTRING=":b:d:e:f:p:t:u:w:h"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -43,8 +45,9 @@ usage()
                             user select Container as target test environment
         -e ENV_FILE         Filepath of an environment file you want to inject into the API Container
         -f APP_PORT         App (frontend) port
-        -p ADMIN_PASSWRORD  Admin user default password (username: admin)
+        -p ADMIN_PASSWRORD  Admin user password (username: admin) - Only if testing is off
                             use single quote around your password
+        -t TESTING          1 to enable Testing
         -u URL              Full base url
                             - http://localhost if you want to evaluate it on your machine
                             - http://<ip address> if you want to use a centralized machine
@@ -52,6 +55,7 @@ usage()
         -w DB_PASSWPRD      password of the basil-admin user of the postgreSQL database
 
         example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
+        example for testing: ${0##*/} -t 1 -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
 
         BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://192.168.1.15:9005
         BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://192.168.1.15:5005
@@ -82,6 +86,9 @@ while getopts ${OPTSTRING} opt; do
         p)
         admin_pw=${OPTARG}
         ;;
+        t)
+        testing=${OPTARG}
+        ;;
         u)
         api_server_url=${OPTARG}
         ;;
@@ -94,6 +101,11 @@ while getopts ${OPTSTRING} opt; do
     esac
 done
 
+
+if [ "$testing" -eq 1 ]; then
+  db_name=test
+  admin_pw=dummy_password
+fi
 
 # ---------------------------------------
 echo -e "\n${TITLE_COLOR_STR}"
@@ -114,8 +126,10 @@ echo -e " - app port = ${app_port}"
 echo -e " - admin pw = ${admin_pw}"
 echo -e " - environment file = ${environment_file:=''}"
 echo -e " - tag = ${TAG}"
+echo -e " - db name = ${db_name}"
 echo -e " - db port = ${db_port}"
 echo -e " - db password = ${db_password}"
+echo -e " - testing = ${testing}"
 
 
 # ---------------------------------------
@@ -154,6 +168,7 @@ podman build \
     --build-arg="ADMIN_PASSWORD=${admin_pw}" \
     --build-arg="API_PORT=${api_port}" \
     --build-arg="DB_PORT=${db_port}" \
+    --build-arg="TESTING=${testing}" \
     --build-arg="DB_PASSWORD=${db_password}" \
     -f ${api_containerfile} \
     -t basil-api-image:${TAG} .
@@ -211,7 +226,7 @@ podman run \
   --pod ${BASIL_POD} \
   -e POSTGRES_USER=basil-admin \
   -e POSTGRES_PASSWORD=${db_password} \
-  -e POSTGRES_DB=basil \
+  -e POSTGRES_DB=${db_name} \
   -v basil-db-vol:/var/lib/pgsql/data \
   docker.io/library/postgres:15
 

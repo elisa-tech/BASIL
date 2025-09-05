@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 def initialization(db_name='basil'):
-
+    logger.info(f"Database initialization: {db_name}")
     dbi = db_orm.DbInterface(db_name)
     if db_name == 'test':
         Base.metadata.drop_all(bind=dbi.engine)

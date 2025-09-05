@@ -23,9 +23,44 @@ BASIL_POD="basil-pod"
 TAG=$(git describe --tags 2>/dev/null | sed 's/-/_/g')
 TAG=${TAG:-"latest"}
 
+# ---------------------------------------
+# Functions
+# ---------------------------------------
+sanitize_git_tag_for_container_name()
+{
+  local raw_tag="$1"
+
+  # Convert to lowercase using `tr`
+  local tag=$(echo "$raw_tag" | tr '[:upper:]' '[:lower:]')
+
+  # Replace all characters that are not a-z, 0-9, ., _, or - with dashes
+  tag=$(echo "$tag" | sed 's/[^a-z0-9_.-]/-/g')
+
+  # Remove leading/trailing dashes (optional cleanup)
+  tag="${tag##[-]}"
+  tag="${tag%%[-]}"
+
+  # Ensure it starts with a letter (prepend 'tag-' if needed)
+  if [[ ! "$tag" =~ ^[a-z] ]]; then
+    tag="tag-$tag"
+  fi
+
+  echo "$tag"
+}
+
+
+remove_container()
+{
+  local container_name=$1
+  if podman container exists $container_name; then
+    echo "Container $container_name exists, removing it"
+    podman rm -f $container_name
+  fi
+}
+
 echoSectionTitle()
 {
-    title=$1
+    local title=$1
     echo -e "\n${TITLE_COLOR_STR}"
     echo -e "###################################################################"
     echo -e "###                 ${title}"
@@ -101,6 +136,10 @@ while getopts ${OPTSTRING} opt; do
     esac
 done
 
+SANITIZED_TAG_FOR_CONTAINER_NAME=$(sanitize_git_tag_for_container_name ${TAG})
+BASIL_API_CONTAINER=basil-api-${SANITIZED_TAG_FOR_CONTAINER_NAME}
+BASIL_APP_CONTAINER=basil-app-${SANITIZED_TAG_FOR_CONTAINER_NAME}
+BASIL_DB_CONTAINER=basil-db-${SANITIZED_TAG_FOR_CONTAINER_NAME}
 
 if [ "$testing" -eq 1 ]; then
   db_name=test
@@ -130,6 +169,14 @@ echo -e " - db name = ${db_name}"
 echo -e " - db port = ${db_port}"
 echo -e " - db password = ${db_password}"
 echo -e " - testing = ${testing}"
+
+
+# ---------------------------------------
+echoSectionTitle "Remove existing containers"
+
+remove_container $BASIL_API_CONTAINER
+remove_container $BASIL_APP_CONTAINER
+remove_container $BASIL_DB_CONTAINER
 
 
 # ---------------------------------------
@@ -222,14 +269,23 @@ echoSectionTitle "Start PostgreSQL DB container"
 echo -e "\n${BODY_COLOR_STR}"
 podman run \
   --detach \
-  --name basil-db \
+  --name ${BASIL_DB_CONTAINER} \
   --pod ${BASIL_POD} \
   -e POSTGRES_USER=basil-admin \
   -e POSTGRES_PASSWORD=${db_password} \
   -e POSTGRES_DB=${db_name} \
-  -v basil-db-vol:/var/lib/pgsql/data \
+  -v basil-db-vol:/var/lib/postgresql/data \
   docker.io/library/postgres:15
 
+# wait until the db container is up
+for i in {1..10}; do
+  if podman exec ${BASIL_DB_CONTAINER} pg_isready -U postgres; then
+    echo "PostgreSQL container ${BASIL_DB_CONTAINER} is ready"
+    break
+  fi
+  echo "Waiting for PostgreSQL container ${BASIL_DB_CONTAINER} to be ready..."
+  sleep 10
+done
 
 # ---------------------------------------
 echoSectionTitle "Start API container"
@@ -242,6 +298,7 @@ if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
   podman_cmd="$podman_cmd --env-file $environment_file"
 fi
 
+podman_cmd="$podman_cmd --name ${BASIL_API_CONTAINER}"
 podman_cmd="$podman_cmd --detach --privileged --pod=${BASIL_POD}"
 podman_cmd="$podman_cmd -v basil-configs-vol:/BASIL-API/api/configs"
 podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
@@ -257,6 +314,7 @@ echoSectionTitle "Start APP container"
 
 echo -e "\n${BODY_COLOR_STR}"
 podman run \
+    --name ${BASIL_APP_CONTAINER} \
     --detach \
     --pod=${BASIL_POD} \
     basil-app-image:${TAG}

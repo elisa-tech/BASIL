@@ -25,7 +25,7 @@ class DbInterface():
             Session = sessionmaker(bind=self.engine)
             self.session = Session()
         except Exception as e:
-            logger.error(f"Unable to connect to the db\n{e}")
+            logger.error(f"Unable to connect to the database: {db_name}\n{e}")
 
     def __del__(self):
         if self.session:
@@ -61,7 +61,7 @@ class DbInterface():
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             exists = cur.fetchone()
             if not exists:
+                logger.info(f"✅ Database created: {db_name}")
                 cur.execute(f'CREATE DATABASE "{db_name}"')
-                print(f"✅ Created database: {db_name}")
 
         conn.close()

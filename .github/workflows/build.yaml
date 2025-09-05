@@ -65,7 +65,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y podman
-          
+
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        
       - name: Make run_demo.sh executable
         run: chmod +x ./run_demo.sh
         
@@ -82,13 +85,10 @@ jobs:
         run: npm install -g wait-on
 
       - name: Wait for API to be ready
-        run: wait-on http://localhost:$BASIL_API_PORT/user/login
+        run: wait-on http://localhost:$BASIL_API_PORT/apis
 
       - name: Wait for frontend to be ready (optional)
         run: wait-on http://localhost:$BASIL_APP_PORT
-
-      - name: Install PostgreSQL client tools
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Wait for PostgreSQL to be ready
         run: |

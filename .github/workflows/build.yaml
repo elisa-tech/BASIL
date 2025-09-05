@@ -77,11 +77,34 @@ jobs:
           -t $BASIL_TESTING \
           -u 'http://localhost' \
           -w $BASIL_DB_PASSWORD
-  
+
+      - name: Install wait-on
+        run: npm install -g wait-on
+
+      - name: Wait for API to be ready
+        run: wait-on http://localhost:$BASIL_API_PORT/user/login
+
+      - name: Wait for frontend to be ready (optional)
+        run: wait-on http://localhost:$BASIL_APP_PORT
+
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..10}; do
+            if pg_isready -h localhost -p $BASIL_DB_PORT; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL..."
+            sleep 3
+          done
+
       - name: Test Container are up and running
         run: |
-          sleep 20
           echo "Test Api is running"
+          curl -vf http://localhost:$BASIL_API_PORT/apis
           curl -vf http://localhost:$BASIL_API_PORT/version
           echo "Test App is running"
           curl -vf http://localhost:$BASIL_APP_PORT

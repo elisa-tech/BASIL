@@ -57,7 +57,6 @@ jobs:
           echo "BASIL_APP_PORT=9056" >> "$GITHUB_ENV"
           echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
           echo "BASIL_DB_PORT=5432" >> "$GITHUB_ENV"
-          echo "BASIL_ADMIN_PASSWORD=dummy_password" >> "$GITHUB_ENV"
           echo "BASIL_TESTING=1" >> "$GITHUB_ENV"
           TEMPDIR=$(mktemp -d)
           echo "TEST_RUNS_BASE_DIR=$TEMPDIR" >> $GITHUB_ENV
@@ -71,7 +70,13 @@ jobs:
         run: chmod +x ./run_demo.sh
         
       - name: Run demo environment
-        run: ./run_demo.sh -b $BASIL_API_PORT -u 'http://localhost' -f $BASIL_APP_PORT -w $BASIL_DB_PASSWORD
+        run: |
+          ./run_demo.sh \
+          -b $BASIL_API_PORT \
+          -f $BASIL_APP_PORT \
+          -t $BASIL_TESTING \
+          -u 'http://localhost' \
+          -w $BASIL_DB_PASSWORD
   
       - name: Test Container are up and running
         run: |

@@ -139,6 +139,7 @@ jobs:
           browser: chrome
           working-directory: ./app
           spec: 'cypress/**/*.cy.js'
+          command: npx cypress run --browser chrome --spec "cypress/**/*.cy.js" --fail-fast
         env:
           LIBGL_ALWAYS_SOFTWARE: 1
           
@@ -153,6 +154,7 @@ jobs:
           retention-days: 7
 
       - name: Collect logs of all running Podman containers
+        if: always()
         run: |
              mkdir -p podman-logs
              for cid in $(podman ps -q); do
@@ -161,6 +163,7 @@ jobs:
              done
 
       - name: Upload Podman logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: podman-logs

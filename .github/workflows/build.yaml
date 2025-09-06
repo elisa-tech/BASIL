@@ -133,16 +133,20 @@ jobs:
           name: api-coverage-html-report
           path: api-htmlcov.tar.gz
           
+      - name: Install cypress-fail-fast plugin
+        run: npm install --save-dev cypress-fail-fast
+        working-directory: ./app
+
       - name: Cypress E2E Testing Chrome
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
           working-directory: ./app
           spec: 'cypress/**/*.cy.js'
-          command: npx cypress run --browser chrome --spec "cypress/**/*.cy.js" --fail-fast
+          command: npx cypress run --browser chrome --spec "cypress/**/*.cy.js" --env failFast=true --exit
         env:
           LIBGL_ALWAYS_SOFTWARE: 1
-          
+
       - name: Upload Cypress screenshots
         uses: actions/upload-artifact@v4
         if: failure()

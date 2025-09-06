@@ -1,9 +1,11 @@
 import { defineConfig } from 'cypress'
+import failFastPlugin from 'cypress-fail-fast/plugin'
 
 export default defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
-      // implement node event listeners here
-    }
-  }
+      failFastPlugin(on, config)
+      return config
+    },
+  },
 })

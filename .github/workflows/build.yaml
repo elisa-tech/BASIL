@@ -151,3 +151,17 @@ jobs:
             app/cypress/screenshots
             api/user-files
           retention-days: 7
+
+      - name: Collect logs of all running Podman containers
+        run: |
+             mkdir -p podman-logs
+             for cid in $(podman ps -q); do
+               cname=$(podman inspect --format '{{.Name}}' $cid | sed 's/^\///')
+               podman logs $cid > "podman-logs/${cname}.log"
+             done
+
+      - name: Upload Podman logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: podman-logs
+          path: podman-logs/

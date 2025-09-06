@@ -161,10 +161,11 @@ jobs:
         if: always()
         run: |
              mkdir -p podman-logs
-             for cid in $(podman ps -q); do
-               cname=$(podman inspect --format '{{.Name}}' $cid | sed 's/^\///')
-               podman logs $cid > "podman-logs/${cname}.log"
+             for cid in $(sudo podman ps -q); do
+               cname=$(sudo podman inspect --format '{{.Name}}' $cid | sed 's/^\///')
+               sudo podman logs $cid > "podman-logs/${cname}.log"
              done
+             ls -lh podman-logs
 
       - name: Upload Podman logs
         if: always()

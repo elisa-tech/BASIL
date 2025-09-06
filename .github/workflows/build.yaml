@@ -74,7 +74,7 @@ jobs:
         
       - name: Run demo environment
         run: |
-          ./run_demo.sh \
+          sudo ./run_demo.sh \
           -b $BASIL_API_PORT \
           -f $BASIL_APP_PORT \
           -t $BASIL_TESTING \

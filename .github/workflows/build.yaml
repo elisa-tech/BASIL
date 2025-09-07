@@ -84,12 +84,6 @@ jobs:
       - name: Install wait-on
         run: npm install -g wait-on
 
-      - name: Wait for API to be ready
-        run: wait-on http://localhost:$BASIL_API_PORT/apis
-
-      - name: Wait for frontend to be ready (optional)
-        run: wait-on http://localhost:$BASIL_APP_PORT
-
       - name: Wait for PostgreSQL to be ready
         run: |
           for i in {1..10}; do
@@ -101,10 +95,17 @@ jobs:
             sleep 3
           done
 
+      - name: Wait for API to be ready
+        run: wait-on http://localhost:$BASIL_API_PORT/apis
+
+      - name: Wait for frontend to be ready (optional)
+        run: wait-on http://localhost:$BASIL_APP_PORT
+
       - name: Test Container are up and running
         run: |
           echo "Test Api is running"
           curl -vf http://localhost:$BASIL_API_PORT/apis
+          curl -vf http://localhost:$BASIL_API_PORT/libraries
           curl -vf http://localhost:$BASIL_API_PORT/version
           echo "Test App is running"
           curl -vf http://localhost:$BASIL_APP_PORT

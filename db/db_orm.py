@@ -4,7 +4,7 @@ import psycopg2
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +22,15 @@ class DbInterface():
             self.DB_URL = f"{self.DB_URL}/{db_name}"
             self.ensure_database_exists()
             self.engine = create_engine(self.DB_URL, echo=False, pool_pre_ping=True)
-            Session = sessionmaker(bind=self.engine)
+            Session = scoped_session(sessionmaker(bind=self.engine))
             self.session = Session()
         except Exception as e:
             logger.error(f"Unable to connect to the database: {db_name}\n{e}")
 
     def __del__(self):
-        if self.session:
+        if hasattr(self, 'session') and self.session:
             try:
-                self.session.close()
+                self.close()
             except Exception as e:
                 logger.warning(f"Error closing session in __del__: {e}")
 

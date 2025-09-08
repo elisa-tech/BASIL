@@ -39,6 +39,7 @@ EXPOSE ${BASIL_API_PORT}
 CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && cd api && \
                         BASIL_TESTING=${BASIL_TESTING} gunicorn \
                         --timeout 120 \
+                        --workers 4 \
                         --access-logfile - \
                         --error-logfile - \
                         --bind 0.0.0.0:${BASIL_API_PORT} api:app

@@ -43,6 +43,10 @@ def initialization(db_name='basil'):
     dbi = db_orm.DbInterface(db_name)
 
     try:
+        if db_name == 'test':
+            logger.info("Drop all tables")
+            Base.metadata.drop_all(bind=dbi.engine)
+
         logger.info("Creating all the tables")
         Base.metadata.create_all(bind=dbi.engine)
     except Exception as e:

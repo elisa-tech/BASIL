@@ -133,7 +133,16 @@ jobs:
         with:
           name: api-coverage-html-report
           path: api-htmlcov.tar.gz
-          
+
+      - name: Init clean db after API Testing
+        run: |
+          curl -vf http://localhost:$BASIL_API_PORT/test-support/init-db
+          sleep 10
+          echo "Test Api is running"
+          curl -vf http://localhost:$BASIL_API_PORT/apis
+          curl -vf http://localhost:$BASIL_API_PORT/libraries
+          curl -vf http://localhost:$BASIL_API_PORT/version
+        
       - name: Install cypress-fail-fast plugin
         run: npm install --save-dev cypress-fail-fast
         working-directory: ./app

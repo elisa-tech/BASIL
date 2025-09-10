@@ -55,8 +55,12 @@ class ApiModel(Base):
         self.category = category
         self.checksum = checksum
         self.implementation_file = implementation_file
-        self.implementation_file_from_row = implementation_file_from_row
-        self.implementation_file_to_row = implementation_file_to_row
+        self.implementation_file_from_row = (
+            implementation_file_from_row if isinstance(implementation_file_from_row, int) else None
+        )
+        self.implementation_file_to_row = (
+            implementation_file_to_row if isinstance(implementation_file_to_row, int) else None
+        )
         self.tags = tags
         self.created_by = created_by
         self.created_by_id = created_by.id
@@ -274,8 +278,12 @@ class ApiHistoryModel(Base):
         self.checksum = checksum
         self.default_view = default_view
         self.implementation_file = implementation_file
-        self.implementation_file_from_row = implementation_file_from_row
-        self.implementation_file_to_row = implementation_file_to_row
+        self.implementation_file_from_row = (
+            implementation_file_from_row if isinstance(implementation_file_from_row, int) else None
+        )
+        self.implementation_file_to_row = (
+            implementation_file_to_row if isinstance(implementation_file_to_row, int) else None
+        )
         self.tags = tags
         self.created_by_id = created_by_id
         self.edited_by_id = edited_by_id

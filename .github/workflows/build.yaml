@@ -1,5 +1,5 @@
 name: ci
-run-name: ci [${{ inputs.uuid && inputs.uuid || 'N/A' }}]
+run-name: ci [${{ inputs.uuid || 'N/A' }}]
 
 on:
   push:
@@ -10,144 +10,153 @@ on:
         required: false
 
 jobs:
-  build:
+  lint:
+    name: Lint Python and JavaScript
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+  
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+  
+      - name: Install Python lint dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+  
+      - name: Run flake8
+        run: flake8 api/ db/
+  
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+  
+      - name: Install Prettier
+        run: npm install --no-save prettier
+  
+      - name: Run Prettier
+        run: npx prettier --check app/src/app
+
+  build_and_test:
     runs-on: ubuntu-latest
     steps:
+    
       - name: Checkout
         uses: actions/checkout@v4
+        
       - name: Define global variables
         id: global_variables
         run: |
           echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
-          echo "CONTAINER_ID=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build Api - fedora
-        env:
-          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
-        uses: docker/build-push-action@v6
-        with:
-          build-args: |
-            ADMIN_PASSWORD=dummy_password
-            API_PORT=5005
-            TESTING=1
-          context: .
-          file: Containerfile-api-fedora
-          push: false
-          no-cache: true
-          tags: basil-api_${{ env.CONTAINER_ID }}
-          outputs: type=docker,dest=/tmp/basil-api_${{ env.CONTAINER_ID }}.tar
-      - name: Build Api - debian
-        env:
-          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
-        uses: docker/build-push-action@v6
-        with:
-          build-args: |
-            ADMIN_PASSWORD=dummy_password
-            API_PORT=5005
-          context: .
-          file: Containerfile-api-debian
-          push: false
-          no-cache: true
-          tags: basil-api-debian_${{ env.CONTAINER_ID }}
-      - name: Build App
-        env:
-          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
-        uses: docker/build-push-action@v6
-        with:
-          build-args: |
-            API_ENDPOINT=http://localhost:5005
-            APP_PORT=9056
-          context: .
-          file: Containerfile-app
-          push: false
-          no-cache: true
-          tags: basil-app_${{ env.CONTAINER_ID }}
-          outputs: type=docker,dest=/tmp/basil-app_${{ env.CONTAINER_ID }}.tar
-      - name: Upload basil-api artifact
-        env:
-          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: basil-api
-          path: /tmp/basil-api_${{ env.CONTAINER_ID }}.tar
-      - name: Upload basil-app artifact
-        env:
-          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: basil-app
-          path: /tmp/basil-app_${{ env.CONTAINER_ID }}.tar
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Define global variables
-        id: global_variables
-        run: |
-          echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
-          echo "CONTAINER_ID=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "BASIL_API_PORT=5005" >> "$GITHUB_ENV"
+          echo "BASIL_APP_PORT=9056" >> "$GITHUB_ENV"
+          echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
+          echo "BASIL_DB_PORT=5432" >> "$GITHUB_ENV"
+          echo "BASIL_TESTING=1" >> "$GITHUB_ENV"
           TEMPDIR=$(mktemp -d)
           echo "TEST_RUNS_BASE_DIR=$TEMPDIR" >> $GITHUB_ENV
-      - name: Install python3
-        uses: actions/setup-python@v2
+          
+      - name: Install Podman (if needed)
+        run: |
+          sudo apt update
+          sudo apt install -y podman
+
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        
+      - name: Make run_demo.sh executable
+        run: chmod +x ./run_demo.sh
+        
+      - name: Run demo environment
+        run: |
+          sudo ./run_demo.sh \
+          -b $BASIL_API_PORT \
+          -f $BASIL_APP_PORT \
+          -t $BASIL_TESTING \
+          -u 'http://localhost' \
+          -w $BASIL_DB_PASSWORD
+
+      - name: Install wait-on
+        run: npm install -g wait-on
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..10}; do
+            if pg_isready -h localhost -p $BASIL_DB_PORT; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL..."
+            sleep 3
+          done
+
+      - name: Wait for API to be ready
+        run: wait-on http://localhost:$BASIL_API_PORT/apis
+
+      - name: Wait for frontend to be ready (optional)
+        run: wait-on http://localhost:$BASIL_APP_PORT
+
+      - name: Test Container are up and running
+        run: |
+          echo "Test Api is running"
+          curl -vf http://localhost:$BASIL_API_PORT/apis
+          curl -vf http://localhost:$BASIL_API_PORT/libraries
+          curl -vf http://localhost:$BASIL_API_PORT/version
+          echo "Test App is running"
+          curl -vf http://localhost:$BASIL_APP_PORT
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
+          
       - name: Install python dependencies
         run: |
-          python -m venv venv
-          source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
+          
       - name: API unit testing 
         run: |
-          source venv/bin/activate
           pytest -v ./api/test --cov=api --cov-branch --cov-report=term --cov-report=html
+          
       - name: Create tarball of coverage report
         run: |
           tar -czf api-htmlcov.tar.gz htmlcov
+          
       - name: Upload coverage report artifact
         uses: actions/upload-artifact@v4
         with:
           name: api-coverage-html-report
           path: api-htmlcov.tar.gz
-      - name: Download basil-api artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: basil-api
-          path: /tmp
-      - name: Download basil-app artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: basil-app
-          path: /tmp
-      - name: Load images
-        env:
-          CONTAINER_ID: ${{ steps.global_variables.outputs.CONTAINER_ID }}
+
+      - name: Init clean db after API Testing
         run: |
-          docker load --input /tmp/basil-api_${{ env.CONTAINER_ID }}.tar
-          docker load --input /tmp/basil-app_${{ env.CONTAINER_ID }}.tar
-          docker image ls -a
-          docker run -d --network=host basil-api_${{ env.CONTAINER_ID }}
-          docker run -d --network=host basil-app_${{ env.CONTAINER_ID }}
-          sleep 60
-          docker ps
+          curl -vf http://localhost:$BASIL_API_PORT/test-support/init-db
+          sleep 10
           echo "Test Api is running"
-          curl -vf http://localhost:5005/version
-          echo "Test App is running"
-          curl -vf http://localhost:9056
-      - name: Cypress E2E Testing
+          curl -vf http://localhost:$BASIL_API_PORT/apis
+          curl -vf http://localhost:$BASIL_API_PORT/libraries
+          curl -vf http://localhost:$BASIL_API_PORT/version
+        
+      - name: Install cypress-fail-fast plugin
+        run: npm install --save-dev cypress-fail-fast
+        working-directory: ./app
+
+      - name: Cypress E2E Testing Chrome
         uses: cypress-io/github-action@v6
         with:
           browser: chrome
           working-directory: ./app
           spec: 'cypress/**/*.cy.js'
+          command: npx cypress run --browser chrome --spec cypress/**/*.cy.js --env failFast=true
         env:
           LIBGL_ALWAYS_SOFTWARE: 1
+
       - name: Upload Cypress screenshots
         uses: actions/upload-artifact@v4
         if: failure()
@@ -157,3 +166,20 @@ jobs:
             app/cypress/screenshots
             api/user-files
           retention-days: 7
+
+      - name: Collect logs of all running Podman containers
+        if: always()
+        run: |
+             mkdir -p podman-logs
+             for cid in $(sudo podman ps -q); do
+               cname=$(sudo podman inspect --format '{{.Name}}' $cid | sed 's/^\///')
+               sudo podman logs $cid > "podman-logs/${cname}.log"
+             done
+             ls -lh podman-logs
+
+      - name: Upload Podman logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: podman-logs
+          path: podman-logs/

@@ -16,7 +16,7 @@ Architecture
 
 + A Web Rest API
 + A Web Front End Application
-+ A Database (default sqlite)
++ A Database (default postgreSQL)
 
 
 -----------------
@@ -34,7 +34,7 @@ To see all the possible parameters that can be changed, run the following comman
 Here and example command to deploy BASIL using Debian on a Raspberry Pi that is available at the ip 192.168.1.13 in a local netowork with API running on port 5005, APP running on port 9005, and admin password eqaul to **dummy_password**
 
 .. code-block:: bash
-   
+
    sudo ./run_demo.sh -b 5005 -f 9005 -d debian -p 'dummy_password' -u http://192.168.1.13
 
 Here and example command to deploy BASIL for evaluation on localhost with default configuration.
@@ -71,11 +71,11 @@ create an ADMIN user with name **admin** and password **admin**.
       -f Containerfile-api-fedora \
       -t basil-api-image-default .
 
-You can customize your container, configuring a different port and admin password using following 
+You can customize your container, configuring a different port and admin password using following
 build arguments:
 
  + API_PORT (default is 5000)
- + ADMIN_PASSWORD (default is **admin**) 
+ + ADMIN_PASSWORD (default is **admin**)
 
 Here an example of a build command for a custom container:
 
@@ -84,12 +84,14 @@ Here an example of a build command for a custom container:
    podman build \
       --build-arg="ADMIN_PASSWORD=your-desired-password" \
       --build-arg="API_PORT=1234" \
+      --build-arg="DB_PORT=your-desired-db-port-default-5432" \
+      --build-arg="DB_PASSWORD=your-desired-db-password" \
       -f Containerfile-api-fedora \
       -t basil-api-image .
 
 At the same way you can build the APP project using Containerfile-app
 
-The default configuration will start the web application on the port 9000 and 
+The default configuration will start the web application on the port 9000 and
 will try to communicate with the api project on the port 5000.
 
 .. code-block:: bash
@@ -159,7 +161,6 @@ Here an example of usage of volumes:
     --privileged \
     --network=host \
     -v "basil-configs-vol:/BASIL-API/api/configs" \
-    -v "basil-db-vol:/BASIL-API/db/sqlite3" \
     -v "basil-ssh-keys-vol:/BASIL-API/api/ssh_keys" \
     -v "basil-user-files-vol:/BASIL-API/api/user-files" \
     -v "basil-tmt-logs-vol:/var/tmp/tmt" \
@@ -176,6 +177,21 @@ You can start the app default container above created with the following command
       -d \
       --network=host \
       basil-app-image-default
+
+
+Starting from BASIL 1.8.0 the default database is postgreSQL.
+To start a postgreSQL conainer you can run the following command:
+
+.. code-block:: bash
+
+   podman run \
+      --detach \
+      --name your-desired-container-name \
+      -e POSTGRES_USER=basil-admin \
+      -e POSTGRES_PASSWORD=your-desired-db-password \
+      -e POSTGRES_DB=basil \
+      -v basil-db-vol:/var/lib/postgresql/data \
+      docker.io/library/postgres:15
 
 
 # Check Containers Status
@@ -201,25 +217,21 @@ You can inspect an image overriding the --entrypoint
       --network=host \
       --entrypoint=/bin/bash <YOUR IMAGE>
 
-Once you are inside the api container you can, as an example, read the database to check your data.
-To do that you need to install **sqlite3** that is not installed by default and then
-connect to the db:
-
-.. code-block:: bash
-
-   dnf install -y sqlite3
-   sqlite3 db/sqlite3/basil.db
-
 
 # Backup BASIL DB from Container
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-BASIL default sqlite3 database is part of the API project and due to that you should refer to the **basil-api** container.
-You can copy the db file locally with the following command:
+You can generate a dump of you database using
 
 .. code-block:: bash
 
-   podman cp basil-api-container:/BASIL-API/db/sqlite3/basil.db </YOUR/LOCAL/LOCATION>
+   PGPASSWORD=your-db-password pg_dump \
+      -h localhost \
+      -p 5432 \
+      -U basil-admin \
+      -F c \
+      -d basil \
+      -f backup.dump
 
 or you can backup the podman volume if you have configured it
 
@@ -227,7 +239,7 @@ or you can backup the podman volume if you have configured it
 
    podman volume export basil-db-vol --output basil-db-vol_$(date '+%Y%m%d_%H%M').tar
 
-We also provide a cronjob in the **misc/cronjobs/daily** folder that can be installed in the **/etc/cron.daily** folder of 
+We also provide a cronjob in the **misc/cronjobs/daily** folder that can be installed in the **/etc/cron.daily** folder of
 the machine running the api container to automatically backup the database volume each day.
 
 # Stop Containers
@@ -238,9 +250,8 @@ You can stop running containers, the one that you can see listed with the **ps**
 
    podman stop <NAME OF THE API CONTAINER>
    podman stop <NAME OF THE APP CONTAINER>
+   podman stop <NAME OF THE DB CONTAINER>
 
-
-NOTE: above mentioned commands are tested on fedora 37 x86_64 virutal machine with podman version 4.2.1
 
 .. toctree::
    :maxdepth: 1

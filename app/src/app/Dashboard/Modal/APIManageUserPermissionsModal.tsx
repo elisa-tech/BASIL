@@ -102,29 +102,31 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     let allWrite = true
     let allEdit = true
     let allOwner = true
-    for (let i = 0; i < users.length; i++) {
-      if (allRead) {
-        if (users[i]['permissions'].indexOf(_READ) < 0) {
-          allRead = false
+    if (Array.isArray(users) && users.length > 0) {
+      for (let i = 0; i < users.length; i++) {
+        if (allRead) {
+          if (users[i]['permissions'].indexOf(_READ) < 0) {
+            allRead = false
+          }
         }
-      }
-      //Guest can READ
-      if (userRoleIsGuest(users[i])) {
-        continue
-      }
-      if (allWrite) {
-        if (users[i]['permissions'].indexOf(_WRITE) < 0) {
-          allWrite = false
+        //Guest can READ
+        if (userRoleIsGuest(users[i])) {
+          continue
         }
-      }
-      if (allEdit) {
-        if (users[i]['permissions'].indexOf(_EDIT) < 0) {
-          allEdit = false
+        if (allWrite) {
+          if (users[i]['permissions'].indexOf(_WRITE) < 0) {
+            allWrite = false
+          }
         }
-      }
-      if (allOwner) {
-        if (users[i]['permissions'].indexOf(_OWNER) < 0) {
-          allOwner = false
+        if (allEdit) {
+          if (users[i]['permissions'].indexOf(_EDIT) < 0) {
+            allEdit = false
+          }
+        }
+        if (allOwner) {
+          if (users[i]['permissions'].indexOf(_OWNER) < 0) {
+            allOwner = false
+          }
         }
       }
     }
@@ -136,10 +138,12 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
 
   React.useEffect(() => {
     let allUserApis = true
-    for (let i = 0; i < userApis.length; i++) {
-      if (userApis[i]['selected'] != 1) {
-        allUserApis = false
-        break
+    if (Array.isArray(userApis) && userApis.length > 0) {
+      for (let i = 0; i < userApis.length; i++) {
+        if (userApis[i]['selected'] != 1) {
+          allUserApis = false
+          break
+        }
       }
     }
     setAllUserApisSelected(allUserApis)
@@ -238,9 +242,11 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   const handleCopyUserPermissionSubmit = () => {
     let response_data
     let copy_to: number[] = []
-    for (let i = 0; i < userApis.length; i++) {
-      if (userApis[i]['selected'] == 1) {
-        copy_to.push(userApis[i]['id'])
+    if (Array.isArray(userApis) && userApis.length > 0) {
+      for (let i = 0; i < userApis.length; i++) {
+        if (userApis[i]['selected'] == 1) {
+          copy_to.push(userApis[i]['id'])
+        }
       }
     }
     if (copy_to.length == 0) {
@@ -324,8 +330,10 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   const selectAllUserApis = (isSelecting: boolean) => {
     setMessageValue('')
     let tmp = _.cloneDeep(userApis)
-    for (let i = 0; i < tmp.length; i++) {
-      tmp[i]['selected'] = isSelecting ? 1 : 0
+    if (Array.isArray(tmp) && tmp.length > 0) {
+      for (let i = 0; i < tmp.length; i++) {
+        tmp[i]['selected'] = isSelecting ? 1 : 0
+      }
     }
     setUserApis(tmp)
   }
@@ -333,18 +341,20 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   const selectAll = (permissionType: string, isSelecting: boolean) => {
     setMessageValue('')
     let tmp = _.cloneDeep(users)
-    for (let i = 0; i < tmp.length; i++) {
-      if (permissionType != _READ && userRoleIsGuest(tmp[i])) {
-        tmp[i]['permissions'] = tmp[i]['permissions'].replace(permissionType, '')
-        continue
-      }
-      if (isSelecting) {
-        if (tmp[i]['permissions'].indexOf(permissionType) < 0) {
-          tmp[i]['permissions'] = tmp[i]['permissions'] + permissionType
-        }
-      } else {
-        if (tmp[i]['permissions'].indexOf(permissionType) >= 0) {
+    if (Array.isArray(tmp) && tmp.length > 0) {
+      for (let i = 0; i < tmp.length; i++) {
+        if (permissionType != _READ && userRoleIsGuest(tmp[i])) {
           tmp[i]['permissions'] = tmp[i]['permissions'].replace(permissionType, '')
+          continue
+        }
+        if (isSelecting) {
+          if (tmp[i]['permissions'].indexOf(permissionType) < 0) {
+            tmp[i]['permissions'] = tmp[i]['permissions'] + permissionType
+          }
+        } else {
+          if (tmp[i]['permissions'].indexOf(permissionType) >= 0) {
+            tmp[i]['permissions'] = tmp[i]['permissions'].replace(permissionType, '')
+          }
         }
       }
     }
@@ -356,28 +366,30 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     // Adding Write permission, will add also Read permission
     setMessageValue('')
     let tmp = _.cloneDeep(users)
-    for (let i = 0; i < tmp.length; i++) {
-      if (tmp[i]['id'] == userPermission['id']) {
-        if (isSelecting) {
-          if (tmp[i]['permissions'].indexOf(permissionType) < 0) {
-            tmp[i]['permissions'] = tmp[i]['permissions'] + permissionType
-          }
-          if (permissionType == _WRITE) {
-            if (tmp[i]['permissions'].indexOf(_READ) < 0) {
-              tmp[i]['permissions'] = tmp[i]['permissions'] + _READ
+    if (Array.isArray(tmp) && tmp.length > 0) {
+      for (let i = 0; i < tmp.length; i++) {
+        if (tmp[i]['id'] == userPermission['id']) {
+          if (isSelecting) {
+            if (tmp[i]['permissions'].indexOf(permissionType) < 0) {
+              tmp[i]['permissions'] = tmp[i]['permissions'] + permissionType
+            }
+            if (permissionType == _WRITE) {
+              if (tmp[i]['permissions'].indexOf(_READ) < 0) {
+                tmp[i]['permissions'] = tmp[i]['permissions'] + _READ
+              }
+            }
+          } else {
+            if (tmp[i]['permissions'].indexOf(permissionType) >= 0) {
+              tmp[i]['permissions'] = tmp[i]['permissions'].replace(permissionType, '')
+            }
+            if (permissionType == _READ) {
+              if (tmp[i]['permissions'].indexOf(_WRITE) >= 0) {
+                tmp[i]['permissions'] = tmp[i]['permissions'].replace(_WRITE, '')
+              }
             }
           }
-        } else {
-          if (tmp[i]['permissions'].indexOf(permissionType) >= 0) {
-            tmp[i]['permissions'] = tmp[i]['permissions'].replace(permissionType, '')
-          }
-          if (permissionType == _READ) {
-            if (tmp[i]['permissions'].indexOf(_WRITE) >= 0) {
-              tmp[i]['permissions'] = tmp[i]['permissions'].replace(_WRITE, '')
-            }
-          }
+          break
         }
-        break
       }
     }
     setUsers(tmp)
@@ -386,10 +398,12 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
   const onSelectUserApi = (userApi, isSelecting: boolean) => {
     setMessageValue('')
     let tmp = _.cloneDeep(userApis)
-    for (let i = 0; i < tmp.length; i++) {
-      if (tmp[i]['id'] == userApi['id']) {
-        tmp[i]['selected'] = isSelecting ? 1 : 0
-        break
+    if (Array.isArray(tmp) && tmp.length > 0) {
+      for (let i = 0; i < tmp.length; i++) {
+        if (tmp[i]['id'] == userApi['id']) {
+          tmp[i]['selected'] = isSelecting ? 1 : 0
+          break
+        }
       }
     }
     setUserApis(tmp)

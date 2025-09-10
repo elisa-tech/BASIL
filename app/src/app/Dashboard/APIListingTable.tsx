@@ -87,9 +87,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   }
 
   const getHistory = () => {
-    if (currentApiHistory.length == 0) {
-      return ''
-    } else {
+    if (Array.isArray(currentApiHistory) && currentApiHistory.length > 0) {
       return currentApiHistory.map((version, versionIndex) => (
         <React.Fragment key={versionIndex}>
           <Text component={TextVariants.h3}>
@@ -105,13 +103,13 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
           </TextList>
         </React.Fragment>
       ))
+    } else {
+      return ''
     }
   }
 
   const getTable = () => {
-    if (apis.length == 0) {
-      return ''
-    } else {
+    if (Array.isArray(apis) && apis.length > 0) {
       return apis.map((dataRow, rowIndex) => (
         <Tbody key={dataRow.id} isExpanded={isRepoExpanded(dataRow)}>
           <Tr>
@@ -220,6 +218,8 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
           </Tr>
         </Tbody>
       ))
+    } else {
+      return ''
     }
   }
 

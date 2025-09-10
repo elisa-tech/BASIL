@@ -49,11 +49,11 @@ import urllib
 from uuid import uuid4
 
 import gitlab
-from flask import Flask, redirect, request, send_file, send_from_directory
+from flask import Flask, g, redirect, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
-from sqlalchemy import and_, or_, update
+from sqlalchemy import String, and_, cast, or_, update
 from sqlalchemy.orm.exc import NoResultFound
 from api_utils import (
     add_html_link_to_email_body,
@@ -62,6 +62,7 @@ from api_utils import (
     get_html_email_body_from_template,
     is_testing_enabled_by_env,
     load_settings,
+    parse_int,
     read_file
 )
 from testrun import TestRunner
@@ -165,10 +166,10 @@ if not app.config.get("TESTING", False):
 
 if app.config.get("TESTING", False):
     logger.info(" * TESTING ON")
-    app.config["DB"] = "test.db"
+    app.config["DB"] = "test"
 else:
     logger.info(" * TESTING OFF")
-    app.config["DB"] = "basil.db"
+    app.config["DB"] = "basil"
 
 init_db.initialization(app.config["DB"])
 
@@ -189,6 +190,26 @@ _J = "justification"
 _Js = f"{_J}s"
 _D = "document"
 _Ds = f"{_D}s"
+
+
+def get_db_name():
+    db = app.config.get("DB", "")
+    if db:
+        return db
+    return "basil"
+
+
+def get_db():
+    if 'db' not in g:
+        g.db = db_orm.DbInterface(get_db_name())
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exception=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
 
 
 def get_updated_settings():
@@ -537,16 +558,15 @@ def filter_query(_query, _args, _model, _is_history):
                 _query = _query.filter(_model.id == filter)
 
         if arg_key == "search":
-            _query = _query.filter(or_(getattr(_model, field).like(f'%{_args["search"]}%') for field in fields))
+            _query = _query.filter(
+                or_(
+                    cast(getattr(_model, field), String)
+                    .like(f'%{_args["search"]}%')
+                    for field in fields
+                )
+            )
 
     return _query
-
-
-def get_db():
-    db = app.config.get("DB", "")
-    if db:
-        return db
-    return "basil.db"
 
 
 def get_api_coverage(_sections):
@@ -1186,7 +1206,7 @@ def check_api_user_read_permission(func):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
 
@@ -1207,8 +1227,7 @@ def check_api_user_read_permission(func):
         # Now, call the original function with the same arguments
         result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         return result
     return wrapper
@@ -1232,7 +1251,7 @@ def check_api_user_write_permission(func):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
 
@@ -1255,9 +1274,7 @@ def check_api_user_write_permission(func):
 
         # Now, call the original function with the same arguments
         result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
-
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         return result
     return wrapper
@@ -1275,7 +1292,7 @@ class SPDXLibrary(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = dbi.session.query(ApiModel).filter(ApiModel.library == request_data["library"])
         apis = query.all()
@@ -1307,7 +1324,7 @@ class SPDXApi(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["id"])
         try:
@@ -1342,7 +1359,7 @@ class Comment(Resource):
         if "parent_table" not in args.keys() or "parent_id" not in args.keys():
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = (
             dbi.session.query(CommentModel)
@@ -1499,7 +1516,7 @@ class CheckSpecification(Resource):
         if not check_fields_in_request(self.fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = dbi.session.query(ApiModel).filter(ApiModel.id == args["id"])
         apis = query.all()
@@ -1521,7 +1538,7 @@ class CheckSpecification(Resource):
 class Document(Resource):
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
         query = dbi.session.query(DocumentModel)
         query = filter_query(query, args, DocumentModel, False)
         docs = [doc.as_dict() for doc in query.all()]
@@ -1538,7 +1555,7 @@ class RemoteDocument(Resource):
         if "id" not in args.keys() and "url" not in args.keys():
             return {}
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User permission
         user = get_active_user_from_request(args, dbi.session)
@@ -1600,7 +1617,7 @@ class FixNewSpecificationWarnings(Resource):
         if not check_fields_in_request(self.fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = dbi.session.query(ApiModel).filter(ApiModel.id == args["id"])
         apis = query.all()
@@ -1680,7 +1697,7 @@ class Api(Resource):
     def get(self):
         apis_dict = []
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User permission
         user = get_active_user_from_request(args, dbi.session)
@@ -1695,7 +1712,7 @@ class Api(Resource):
 
         query = dbi.session.query(ApiModel)
         query = filter_query(query, args, ApiModel, False)
-        query = query.order_by(and_(ApiModel.api, ApiModel.library_version))
+        query = query.order_by(ApiModel.api, ApiModel.library_version)
 
         # Pagination
         page = 1
@@ -1761,7 +1778,7 @@ class Api(Resource):
         if not check_fields_in_request(post_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = (
@@ -1790,6 +1807,9 @@ class Api(Resource):
             if source_api[0].library != request_data["library"]:
                 return "New Api library differ from the original one", CONFLICT_STATUS
 
+        file_from_row = parse_int(request_data.get("implementation-file-from-row", ""))
+        file_to_row = parse_int(request_data.get("implementation-file-to-row", ""))
+
         new_api = ApiModel(
             request_data["api"],
             request_data["library"],
@@ -1798,8 +1818,8 @@ class Api(Resource):
             request_data["category"],
             "",  # Checksum
             request_data["implementation-file"],
-            request_data["implementation-file-from-row"],
-            request_data["implementation-file-to-row"],
+            file_from_row,
+            file_to_row,
             request_data["tags"],
             user,
         )
@@ -1911,7 +1931,7 @@ class Api(Resource):
         if not check_fields_in_request(put_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -1974,7 +1994,7 @@ class Api(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         try:
@@ -2015,6 +2035,8 @@ class Api(Resource):
 
         docs_mapping_api = dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).all()
 
+        api_notifications = dbi.session.query(NotificationModel).filter(NotificationModel.api_id == api.id).all()
+
         for j_mapping in justifications_mapping_api:
             dbi.session.delete(j_mapping)
 
@@ -2030,15 +2052,18 @@ class Api(Resource):
         for doc_mapping in docs_mapping_api:
             dbi.session.delete(doc_mapping)
 
+        for notification in api_notifications:
+            dbi.session.delete(notification)
+
         # Add Notifications
         notification = f"{user.username} deleted sw component " f"{api.api} as part of the library {api.library}"
         notifications = NotificationModel(
-            api,
+            None,
             NOTIFICATION_CATEGORY_DELETE,
             f"{api.api} has been deleted",
             notification,
             f"[{user.id}]",
-            f"/?currentLibrary={api.library}",
+            "",
         )
         dbi.session.add(notifications)
         dbi.session.delete(api)
@@ -2135,7 +2160,7 @@ class ApiLastCoverage(Resource):
         if not check_fields_in_request(put_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = get_api_from_request(request_data, dbi.session)
@@ -2172,7 +2197,7 @@ class ApiHistory(Resource):
         if "api-id" not in args.keys():
             return []
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         _model = ApiModel
         _model_history = ApiHistoryModel
@@ -2242,7 +2267,7 @@ class Library(Resource):
 
     def get(self):
         # args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
         libraries = dbi.session.query(ApiModel.library).distinct().all()
         return sorted([x.library for x in libraries])
 
@@ -2253,7 +2278,7 @@ class ApiSpecification(Resource):
         if "api-id" not in args.keys():
             return {}
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(args, dbi.session)
@@ -2285,7 +2310,7 @@ class ApiTestSpecificationsMapping(Resource):
 
         undesired_keys = ["section", "offset"]
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -2363,7 +2388,7 @@ class ApiTestSpecificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -2467,7 +2492,7 @@ class ApiTestSpecificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -2549,7 +2574,7 @@ class ApiTestSpecificationsMapping(Resource):
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -2616,7 +2641,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(["api-id"], args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -2681,7 +2706,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -2775,7 +2800,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -2851,7 +2876,7 @@ class ApiTestCasesMapping(Resource):
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -2913,7 +2938,7 @@ class ApiTestCasesMapping(Resource):
 class MappingHistory(Resource):
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         if (
             "work_item_type" not in args.keys()
@@ -3081,7 +3106,7 @@ class MappingUsage(Resource):
           is used
         """
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         if "work_item_type" not in args.keys() or "id" not in args.keys():
             return []
@@ -3165,7 +3190,7 @@ class ApiSpecificationsMapping(Resource):
 
         # undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -3202,7 +3227,7 @@ class ApiJustificationsMapping(Resource):
 
         # undesired_keys = ['section', 'offset']
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # Find api
         api = get_api_from_request(args, dbi.session)
@@ -3249,7 +3274,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -3339,7 +3364,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(self.fields + ["relation-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -3421,7 +3446,7 @@ class ApiJustificationsMapping(Resource):
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -3954,7 +3979,7 @@ class SwRequirementImport(Resource):
         if not check_fields_in_request(["file_content", "items"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -3991,15 +4016,14 @@ class TestCaseGenerateJson(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -4040,15 +4064,14 @@ class TestCaseImport(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -4104,7 +4127,7 @@ class TestCaseImport(Resource):
         if not check_fields_in_request(["items"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -4148,7 +4171,7 @@ class Justification(Resource):
 
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
         query = dbi.session.query(JustificationModel)
         query = filter_query(query, args, JustificationModel, False)
         jus = [ju.as_dict() for ju in query.all()]
@@ -4167,7 +4190,7 @@ class TestSpecification(Resource):
 
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = dbi.session.query(TestSpecificationModel)
         query = filter_query(query, args, TestSpecificationModel, False)
@@ -4187,7 +4210,7 @@ class SwRequirement(Resource):
 
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         query = dbi.session.query(SwRequirementModel)
         query = filter_query(query, args, SwRequirementModel, False)
@@ -4207,7 +4230,7 @@ class TestCase(Resource):
 
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
         query = dbi.session.query(TestCaseModel)
         query = filter_query(query, args, TestCaseModel, False)
         tcs = [tc.as_dict() for tc in query.all()]
@@ -4518,7 +4541,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -4661,7 +4684,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -4738,7 +4761,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -4816,7 +4839,7 @@ class SwRequirementTestCasesMapping(Resource):
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -4952,7 +4975,7 @@ class SwRequirementTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5025,7 +5048,7 @@ class SwRequirementTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5096,7 +5119,7 @@ class TestSpecificationTestCasesMapping(Resource):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5230,7 +5253,7 @@ class TestSpecificationTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5327,7 +5350,7 @@ class TestSpecificationTestCasesMapping(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5413,7 +5436,7 @@ class ForkApiSwRequirement(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5452,7 +5475,7 @@ class ForkSwRequirementSwRequirement(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -5522,7 +5545,7 @@ class UserLogin(Resource):
 
         try:
             str_encoded_password = base64.b64encode(request_data["password"].encode("utf-8")).decode("utf-8")
-            dbi = db_orm.DbInterface(get_db())
+            dbi = get_db()
             user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
             if not user.enabled:
                 return "This user has been disabled, please contact your BASIL admin", UNAUTHORIZED_STATUS
@@ -5566,7 +5589,7 @@ class UserSignin(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         username = request_data["username"]
         email = request_data["email"]
@@ -5649,7 +5672,7 @@ class UserApis(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not user:
@@ -5728,7 +5751,7 @@ class UserPermissionsApiCopy(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -5778,7 +5801,7 @@ class UserPermissionsApi(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not user:
@@ -5833,7 +5856,7 @@ class UserPermissionsApi(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return f"{BAD_REQUEST_MESSAGE}", BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -5959,7 +5982,7 @@ class UserEnable(Resource):
         if not str(request_data["target-user"]["enabled"]).strip().isnumeric():
             return f"{BAD_REQUEST_MESSAGE}: Not numeric value", BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -5991,7 +6014,7 @@ class User(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6015,7 +6038,7 @@ class User(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6034,7 +6057,7 @@ class User(Resource):
             user.username = username
             dbi.session.add(user)
             dbi.session.commit()
-            dbi.engine.dispose()
+            dbi.close()
             return {"result": "success", "message": "Your username has been saved. Please login again."}
 
         # Edit password
@@ -6046,7 +6069,7 @@ class User(Resource):
             user.pwd = encoded_password
             dbi.session.add(user)
             dbi.session.commit()
-            dbi.engine.dispose()
+            dbi.close()
             return {"result": "success", "message": "Your password has been saved. Please login again."}
 
 
@@ -6062,7 +6085,7 @@ class UserResetPassword(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         email = request_data["email"].strip()
         reset_token = request_data["reset_token"].strip()
@@ -6079,7 +6102,7 @@ class UserResetPassword(Resource):
         target_user.reset_token = ""
         dbi.session.add(target_user)
         dbi.session.commit()
-        dbi.engine.dispose()
+        dbi.close()
 
         # Read updated settings
         settings = get_updated_settings()
@@ -6111,7 +6134,7 @@ class UserResetPassword(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         email = request_data["email"].strip()
 
@@ -6140,7 +6163,7 @@ class UserResetPassword(Resource):
         target_user.reset_token = reset_token
         dbi.session.add(target_user)
         dbi.session.commit()
-        dbi.engine.dispose()
+        dbi.close()
         email_body = f"""
                 <p>Someone requested a password reset for your account.</p>
                 <p>If you have not requested a password reset, please ignore and delete this email.
@@ -6176,7 +6199,7 @@ class AdminResetUserPassword(Resource):
         if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6215,7 +6238,7 @@ class UserRole(Resource):
         if target_user_role not in ["ADMIN", "GUEST", "USER"]:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6261,7 +6284,7 @@ class UserNotifications(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6302,7 +6325,7 @@ class UserNotifications(Resource):
         undesired_keys = ["ready_by"]
         request_data = request.args
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6375,7 +6398,7 @@ class UserNotifications(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -6404,7 +6427,7 @@ class UserNotifications(Resource):
 class Testing(Resource):
     def get(self):
         request_data = request.args
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
         if "mapped_to_id" not in request_data.keys():
             return "wrong input", 400
 
@@ -6428,7 +6451,7 @@ class UserSshKey(Resource):
 
     def get(self):
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(args, dbi.session)
@@ -6450,7 +6473,7 @@ class UserSshKey(Resource):
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -6498,7 +6521,7 @@ class UserSshKey(Resource):
         if not check_fields_in_request(["id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -6527,15 +6550,14 @@ class UserFiles(Resource):
     def get(self):
         ret = []
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(args, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6567,15 +6589,14 @@ class UserFiles(Resource):
         if not check_fields_in_request(fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6612,15 +6633,14 @@ class UserFiles(Resource):
         if not check_fields_in_request(fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6657,15 +6677,14 @@ class UserFileContent(Resource):
         if not check_fields_in_request(fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(args, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6696,15 +6715,14 @@ class UserFileContent(Resource):
         if not check_fields_in_request(fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        dbi.session.close()
-        dbi.engine.dispose()
+        dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -6748,7 +6766,7 @@ class TestRunConfig(Resource):
     def get(self):
 
         args = get_query_string_args(request.args)
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(args, dbi.session)
@@ -6776,7 +6794,7 @@ class TestRunConfig(Resource):
     def post(self):
         request_data = request.get_json(force=True)
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -6802,7 +6820,7 @@ class TestRun(Resource):
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(args, dbi.session)
@@ -6861,7 +6879,7 @@ class TestRun(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -6952,7 +6970,7 @@ class TestRun(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -7042,7 +7060,7 @@ class TestRun(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
@@ -7127,7 +7145,7 @@ class TestRunLog(Resource):
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(args, dbi.session)
@@ -7186,7 +7204,7 @@ class TestRunArtifacts(Resource):
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(args, dbi.session)
@@ -7233,7 +7251,7 @@ class TestRunPluginPresets(Resource):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         plugin = args["plugin"]
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(args, dbi.session)
@@ -7284,7 +7302,7 @@ class ExternalTestRuns(Resource):
         params = {}
 
         preset_config = None
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         # User
         user = get_active_user_from_request(args, dbi.session)
@@ -7707,7 +7725,7 @@ class AdminTestRunPluginsPresets(Resource):
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(args, dbi.session)
         if not isinstance(user, UserModel):
@@ -7733,7 +7751,7 @@ class AdminTestRunPluginsPresets(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -7765,7 +7783,7 @@ class AdminSettings(Resource):
         if not check_fields_in_request(mandatory_fields, args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(args, dbi.session)
         if not isinstance(user, UserModel):
@@ -7791,7 +7809,7 @@ class AdminSettings(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = db_orm.DbInterface(get_db())
+        dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
@@ -8000,7 +8018,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--testing", default=False, action="store_true", help="Test Api Project using db/test.db database"
+        "--testing", default=False, action="store_true", help="Test Api Project using a test database"
     )
     args = parser.parse_args()
 

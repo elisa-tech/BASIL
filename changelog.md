@@ -1,5 +1,9 @@
 # CHANGE LOG
 
+## 1.8.x
+
+- PostgreSQL as default database
+
 ## 1.7.x
 
 - API Testing extended to support user management

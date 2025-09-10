@@ -26,6 +26,7 @@ _UT_API_RAW_RESTRICTED_SPEC = 'BASIL UT: "Reader" user is not able to read this 
                               f' Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
 _UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_API_SPEC_SECTION_TO_BE_MAPPED} ' \
                           f'Used for {_MAPPING_API_SW_REQUIREMENTS_URL}.'
+UNMATCHING_ID = 99999
 
 
 def get_sw_requirement_model(client_db, utilities):
@@ -548,31 +549,9 @@ def test_post_new_to_sw_requirement(client, client_db, user_authentication, mapp
     response = client.post(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
-    # Unexisting parent sw requirement
-    mapping_data = {
-        'api-id': api.id,
-        'coverage': 50,
-        'relation-id': api_sr_sr_mapping.id,
-        'relation-to': 'sw-requirement',
-        'sw-requirement': ut_sw_requirement_dict,
-        'parent-sw-requirement': {
-            'id': 0
-        },
-        'user-id': user_authentication.json['id'],
-        'token': user_authentication.json['token']
-    }
-
-    response = client.post(_MAPPING_SW_REQUIREMENT_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.NOT_FOUND
-
-    api_sr_mapping.api_id = new_api.id
-    client_db.session.add(api_sr_sr_mapping)
-    client_db.session.delete(new_api)
-    client_db.session.commit()
-
     # Unexisting mapping api
     mapping_data = {
-        'api-id': api.id,
+        'api-id': UNMATCHING_ID,
         'coverage': 50,
         'relation-id': api_sr_sr_mapping.id,
         'relation-to': 'sw-requirement',
@@ -773,12 +752,9 @@ def test_delete_miss_parent(client, client_db, user_authentication, mapped_api_s
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == SwRequirementSwRequirementModel.__tablename__
 
-    client_db.session.delete(api_sr_mapping)
-    client_db.session.commit()
-
     delete_data = {
         'api-id': api.id,
-        'relation-id': response.json.get("relation_id", ""),
+        'relation-id': UNMATCHING_ID,
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     }

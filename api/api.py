@@ -758,8 +758,8 @@ def get_split_sections(_specification, _mapping, _work_item_types):
     return sorted(mapped_sections, key=lambda k: k["offset"])
 
 
-def check_fields_in_request(fields, request, allow_empty_string=True):
-    for field in fields:
+def check_fields_in_request(fields=[], request={}, allow_empty_string=True, int_fields=[]) -> bool:
+    for field in fields + int_fields:
         if field not in request.keys():
             logger.warning(f"field: {field} not in request: {request.keys()}")
             return False
@@ -770,6 +770,12 @@ def check_fields_in_request(fields, request, allow_empty_string=True):
                 if not str(request[field]):
                     logger.warning(f"field {field} is empty")
                     return False
+
+    for field in int_fields:
+        if parse_int(request.get(field)) is None:
+            logger.warning(f"field {field} is not an integer")
+            return False
+
     return True
 
 
@@ -1203,7 +1209,11 @@ def check_api_user_read_permission(func):
             request_data = request.args
 
         mandatory_fields = ["api-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
+        if not check_fields_in_request(
+                fields=[],
+                request=request_data,
+                allow_empty_string=False,
+                int_fields=mandatory_fields):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         dbi = get_db()
@@ -1248,8 +1258,12 @@ def check_api_user_write_permission(func):
             request_data = request.args
 
         mandatory_fields = ["api-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        if not check_fields_in_request(
+                fields=[],
+                request=request_data,
+                allow_empty_string=False,
+                int_fields=mandatory_fields):
+            return f"{BAD_REQUEST_MESSAGE} - api-id missing", BAD_REQUEST_STATUS
 
         dbi = get_db()
 
@@ -4522,31 +4536,61 @@ class SwRequirementSwRequirementsMapping(Resource):
 class SwRequirementTestSpecificationsMapping(Resource):
     fields = ["api-id", "sw-requirement", "test-specification", "coverage"]
 
-    def get(self):
-        ret = {}
-        return ret
-
-    def post(self):
-        api_sr = None
-        sr_sr = None
-
-        request_data = request.get_json(force=True)
-        mandatory_fields = self.fields + ["relation-id", "relation-to"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        if "id" not in request_data["sw-requirement"].keys():
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        request_data = request.args
+        mandatory_int_fields = ["api-id", "relation-id"]
+        mandatory_fields = ["relation-to"]
+        if not check_fields_in_request(
+                    fields=mandatory_fields,
+                    request=request_data,
+                    allow_empty_string=False,
+                    int_fields=mandatory_int_fields):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
 
-        dbi = get_db()
+        if relation_to == 'api':
+            ret = (
+                dbi.session.query(SwRequirementTestSpecificationModel)
+                .filter(SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == relation_id).all()
+            )
+        elif relation_to == "sw-requirement":
+            ret = (
+                dbi.session.query(SwRequirementTestSpecificationModel)
+                .filter(
+                    SwRequirementTestSpecificationModel.sw_requirement_mapping_sw_requirement_id == relation_id
+                ).all()
+            )
+        else:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        return [row.as_dict() for row in ret]
 
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        api_sr = None
+        sr_sr = None
+
+        request_data = request.get_json(force=True)
+        mandatory_fields = self.fields + ["relation-id", "relation-to"]
+        mandatory_int_fields = ["api-id", "relation-id"]
+        if not check_fields_in_request(
+                fields=mandatory_fields,
+                request=request_data,
+                allow_empty_string=False,
+                int_fields=mandatory_int_fields):
+            return f"{BAD_REQUEST_MESSAGE} - Mandatory field missing", BAD_REQUEST_STATUS
+
+        if not check_fields_in_request(
+                fields=[],
+                request=request_data["sw-requirement"],
+                allow_empty_string=False,
+                int_fields=["id"]):
+            return f"{BAD_REQUEST_MESSAGE} - Mandatory field in Sw Requirement missing", BAD_REQUEST_STATUS
+
+        relation_id = request_data["relation-id"]
+        relation_to = request_data["relation-to"]
 
         sw_requirement_id = request_data["sw-requirement"]["id"]
         coverage = request_data["coverage"]
@@ -4583,12 +4627,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
             if not isinstance(api, ApiModel):
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return f"{BAD_REQUEST_MESSAGE} - wrong relation-to", BAD_REQUEST_STATUS
 
         if relation_to == "api":
             api_sr = relation_to_item
@@ -4602,7 +4641,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestSpecification.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-specification"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    return f"{BAD_REQUEST_MESSAGE} - {check_field} missing", BAD_REQUEST_STATUS
 
             title = request_data["test-specification"]["title"]
             preconditions = request_data["test-specification"]["preconditions"]
@@ -4649,7 +4688,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
                     .one()
                 )
             except NoResultFound:
-                return "Unable to find the selected Test Specification", 400
+                return "Unable to find the selected Test Specification", NOT_FOUND_STATUS
 
             if not isinstance(test_specification, TestSpecificationModel):
                 return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
@@ -4677,19 +4716,13 @@ class SwRequirementTestSpecificationsMapping(Resource):
         dbi.session.commit()
         return new_test_specification_mapping_sw_requirement.as_dict()
 
-    def put(self):
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         mandatory_fields = self.fields + ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
             sw_mapping_ts = (
@@ -4701,17 +4734,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
             return (
                 f"Unable to find the Test Specification "
                 f"mapping to Sw Requirement id {request_data['relation-id']}",
-                400,
+                NOT_FOUND_STATUS,
             )
-
-        api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_ts, dbi.session)
-        if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         test_specification = sw_mapping_ts.test_specification
 
@@ -4753,20 +4777,13 @@ class SwRequirementTestSpecificationsMapping(Resource):
             dbi.session.commit()
         return ret
 
-    def delete(self):
-        ret = False
+    @check_api_user_write_permission
+    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         mandatory_fields = ["relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
             sw_mapping_ts = (
@@ -4778,20 +4795,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
             return (
                 f"Unable to find the Test Specification "
                 f"mapping to Sw Requirement id {request_data['relation-id']}",
-                400,
+                NOT_FOUND_STATUS,
             )
-
-        api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_ts, dbi.session)
-        if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # test_specification = sw_mapping_ts.test_specification
-        # dbi.session.delete(test_specification)
 
         notification_ts_id = sw_mapping_ts.test_specification.id
         notification_ts_title = sw_mapping_ts.test_specification.title
@@ -4814,7 +4819,7 @@ class SwRequirementTestSpecificationsMapping(Resource):
         dbi.session.add(notifications)
         dbi.session.commit()
 
-        return ret
+        return True
 
 
 class SwRequirementTestCasesMapping(Resource):

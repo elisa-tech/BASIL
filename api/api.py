@@ -1322,7 +1322,14 @@ class SPDXLibrary(Resource):
         if not apis:
             return f"Nothing to export, no apis found as part of library {request_data['library']}", 400
 
-        spdxManager = SPDXManager(request_data["library"])
+        # TODO: Verify permission for all the api
+        spdxManager = SPDXManager(
+            username="",
+            library_name=request_data["library"],
+            apis=apis,
+            dbi=dbi
+        )
+
         for api in apis:
             spdxManager.add_api_to_export(dbi, api)
         dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1339,27 +1346,18 @@ class SPDXLibrary(Resource):
 
 
 class SPDXApi(Resource):
-    fields = ["id"]
 
-    def get(self):
-        request_data = request.args
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
 
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        spdxManager = SPDXManager(
+            username=user.username,
+            library_name=api.library,
+            apis=[api],
+            dbi=dbi
+        )
 
-        dbi = get_db()
-
-        query = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["id"])
-        try:
-            api = query.one()
-        except NoResultFound:
-            if not api:
-                return f"Nothing to export, no apis found with id {request_data['id']}", 400
-
-        spdxManager = SPDXManager(api.library)
-        spdxManager.add_api_to_export(dbi, api)
         dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
         spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
         spdx_filename = f"{api.library}-{api.id}-{dt}"
         spdx_filepath = os.path.join(spdx_public_path, spdx_filename)

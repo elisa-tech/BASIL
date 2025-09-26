@@ -3,9 +3,13 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import sys
+from graphviz import Digraph
 from pathlib import Path
 from typing import List, Optional, Union
+
+from sqlalchemy import desc
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
@@ -219,7 +223,7 @@ class SPDXAnnotation:
 
 class SPDXPerson:
     def __init__(self, spdx_id: str = "", name: str = "", creation_info: SPDXCreationInfo = None):
-        self.spdx_id = f"spdx:person:{spdx_id}"
+        self.spdx_id = f"{spdx_id}"
         self.name = name
         self.creation_info = creation_info
 
@@ -460,8 +464,16 @@ class SPDXManager:
     tool = None
 
     def __init__(
-        self, username: str = "", library_name: str = "", apis: List[ApiModel] = None, dbi: DbInterface = None
+        self,
+        user: UserModel = None,
+        library_name: str = "",
+        apis: List[ApiModel] = None,
+        include_test_runs: bool = True,
+        test_runs_limit: int = 20,
+        dbi: DbInterface = None,
     ):
+        self.include_test_runs = include_test_runs
+        self.test_runs_limit = test_runs_limit
 
         spdx_document_id = f"spdx:document:basil:export:{library_name.strip()}"
 
@@ -473,8 +485,8 @@ class SPDXManager:
         )
 
         sbom_spdx_person = SPDXPerson(
-            spdx_id=username,
-            name=username,
+            spdx_id=f"spdx:person:basil:user:{user.id}",
+            name=user.username,
             creation_info=self.sbom_creation_info,
         )
 
@@ -503,7 +515,7 @@ class SPDXManager:
         )
 
         # Library
-        library_spdx_id = f"spdx:file:{library_name}"
+        library_spdx_id = f"spdx:file:basil:library:{library_name}"
         library_dict = {"name": library_name}
 
         library_hash = self.make_hash_object(data_dict=library_dict)
@@ -511,8 +523,8 @@ class SPDXManager:
         library = SPDXFile(
             spdx_id=library_spdx_id,
             name=f"Library {library_name}",
-            comment="",
-            description="",
+            comment=f"BASIL Library {library_name}",
+            description=f"BASIL Library {library_name}",
             purpose="library",
             copyright_text="",
             verified_using=[library_hash],
@@ -520,7 +532,7 @@ class SPDXManager:
         )
 
         library_annotation = SPDXAnnotation(
-            spdx_id=f"annotation:basil:library:{library_name}",
+            spdx_id=f"spdx:annotation:basil:library:{library_name}",
             name=f"Annotation for BASIL Library '{library_name}'",
             subject=library,
             object=library_dict,
@@ -535,9 +547,13 @@ class SPDXManager:
         self.add_to_sbom(library_annotation)
         document.root_element.append(library.spdx_id)
 
+        added_apis = []
         for api in apis:
-            print(" *  ITERATION")
             api_creation_info, api_person, spdx_api = self.addApi(api, dbi.session)
+            added_apis.append(spdx_api)
+
+        if added_apis:
+            self.addRelationship(from_element=library, to=added_apis, relationship_type="contains")
 
         self.add_to_sbom(document)
 
@@ -574,8 +590,10 @@ class SPDXManager:
         creation_info = SPDXCreationInfo(
             spdx_id=self.make_spdx_id(f"creation_info_{item_id}"), created_by=[], created_using=[], created=created_at
         )
-
-        person = SPDXPerson(spdx_id=f"{created_by}", name=created_by, creation_info=self.sbom_creation_info)
+        spdx_person_id = f"spdx:person:basil:user:{created_by.id}"
+        person = SPDXPerson(
+            spdx_id=f"{spdx_person_id}", name=created_by.username, creation_info=self.sbom_creation_info
+        )
 
         creation_info.created_by = [person]
         creation_info.created_using = [self.tool]
@@ -604,6 +622,11 @@ class SPDXManager:
                 relation_dict.pop(key, None)
         return relation_dict
 
+    def getSnippetIndex(self) -> int:
+        """Get next id of a relationship"""
+        relationships = [item for item in self.sbom if isinstance(item, SPDXSnippet)]
+        return len(relationships) + 1
+
     def getRelationshipIndex(self) -> int:
         """Get next id of a relationship"""
         relationships = [item for item in self.sbom if isinstance(item, SPDXRelationship)]
@@ -617,6 +640,20 @@ class SPDXManager:
             if coverage >= 0:
                 return "incomplete"
         return "noAssertion"
+
+    def getSnippetFromSBOM(self, snippet: SPDXSnippet):
+        """Check if the selected snippet already exists in the SBOM
+        return True and the existing SPDXSnippet if it exists, otherwise will return False and the argument SPDXSnippet
+        """
+        sbom_snippets = [item for item in self.sbom if isinstance(item, SPDXSnippet)]
+        for curr_snippet in sbom_snippets:
+            if snippet.name == curr_snippet.name:
+                if (
+                    snippet.byte_range.beginIntegerRange == curr_snippet.byte_range.beginIntegerRange
+                    and snippet.byte_range.endIntegerRange == curr_snippet.byte_range.endIntegerRange
+                ):
+                    return True, curr_snippet
+        return False, snippet
 
     def addSnippet(self, spdx_api_file=None, spdx_api_ref_doc_file=None, mapping=None, dbsession=None):
         """In BASIL, Software Component Reference Document are
@@ -648,17 +685,17 @@ class SPDXManager:
         relation_id = mapping_dict["relation_id"]
         mapping_dict = self.clean_api_relation_dict(mapping_dict)
 
-        snippet_id = f"spdx:snippet:api:{api_id}:{mapping_to_id_prefix}:{mapping_to_id}:relation-id:{relation_id}"
+        snippet_id = f"spdx:snippet:api:{api_id}:{self.getSnippetIndex()}"
 
         creation_info, person = self.getCreationInfoAndPerson(
-            item_id=snippet_id, created_by=mapping.created_by.username, created_at=mapping.created_at, add_to_sbom=True
+            item_id=snippet_id, created_by=mapping.created_by, created_at=mapping.created_at, add_to_sbom=True
         )
 
         snippet = SPDXSnippet(
             spdx_id=snippet_id,
             from_file=spdx_api_ref_doc_file,
-            name=f"Snippet of api {api} reference document",
-            comment="",
+            name=mapping.api.raw_specification_url,
+            comment=f"Snippet of api {api} reference document",
             byte_range=PositiveIntegerRange(
                 mapping_dict["offset"] + 1, mapping_dict["offset"] + len(mapping_dict["section"]) + 1
             ),
@@ -674,16 +711,20 @@ class SPDXManager:
             creation_info=creation_info,
         )
 
+        snippet_in_sbom, sbom_snippet = self.getSnippetFromSBOM(snippet=snippet)
+
+        if not snippet_in_sbom:
+            self.add_to_sbom(sbom_snippet)
+            self.add_to_sbom(snippet_annotation)
+
         self.addRelationship(
             from_element=spdx_api_file,
-            to=[snippet],
+            to=[sbom_snippet],
             relationship_type="contains",
             completeness_percentage=mapping.coverage,
         )
 
-        self.add_to_sbom(snippet)
-        self.add_to_sbom(snippet_annotation)
-        return snippet
+        return sbom_snippet
 
     def addApi(self, api=None, dbsession=None):
         """This function create SPDX File class describing a BASIL Software Component"""
@@ -694,14 +735,14 @@ class SPDXManager:
         file_api_id = f"spdx:file:basil:api:{api_dict['id']}"
 
         creation_info, person = self.getCreationInfoAndPerson(
-            item_id=file_api_id, created_by=api.created_by.username, created_at=api.created_at, add_to_sbom=True
+            item_id=file_api_id, created_by=api.created_by, created_at=api.created_at, add_to_sbom=True
         )
 
         file_api = SPDXFile(
             spdx_id=file_api_id,
             name=api.api,
-            comment="",
-            description="",
+            comment=f"BASIL Software Component id {api.id}",
+            description=f"BASIL Software Component id {api.id}",
             purpose="module",
             copyright_text="",
             verified_using=[file_api_hash],
@@ -722,9 +763,9 @@ class SPDXManager:
         file_api_ref_doc_hash = self.make_hash_object(data_dict=file_api_ref_doc_dict)
         file_api_ref_doc = SPDXFile(
             spdx_id=file_api_ref_doc_id,
-            name=api.api,
-            comment="",
-            description=f"BASIL Reference Document for API {api.api} of library {api.library}",
+            name=api.raw_specification_url,
+            comment=f"BASIL Reference Document for Software Component {api.api}",
+            description=f"BASIL Reference Document for Software Component {api.api} of library {api.library}",
             purpose="specification",
             copyright_text="",
             verified_using=[file_api_ref_doc_hash],
@@ -744,6 +785,8 @@ class SPDXManager:
 
         self.add_to_sbom(file_api_ref_doc)
         self.add_to_sbom(file_api_ref_doc_annotation)
+
+        self.addRelationship(from_element=file_api, to=[file_api_ref_doc], relationship_type="hasDocumentation")
 
         self.addApiSwRequirements(spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
 
@@ -781,7 +824,7 @@ class SPDXManager:
 
         creation_info, person = self.getCreationInfoAndPerson(
             item_id=sr_id,
-            created_by=software_requirement.created_by.username,
+            created_by=software_requirement.created_by,
             created_at=software_requirement.created_at,
             add_to_sbom=True,
         )
@@ -789,7 +832,7 @@ class SPDXManager:
         sr_file = SPDXFile(
             spdx_id=sr_id,
             name=software_requirement.title,
-            comment="",
+            comment=f"BASIL Software Requirement ID {software_requirement.id}",
             description=software_requirement.description,
             purpose="requirement",
             copyright_text="",
@@ -818,7 +861,7 @@ class SPDXManager:
 
         creation_info, person = self.getCreationInfoAndPerson(
             item_id=ts_id,
-            created_by=test_specification.created_by.username,
+            created_by=test_specification.created_by,
             created_at=test_specification.created_at,
             add_to_sbom=True,
         )
@@ -826,7 +869,7 @@ class SPDXManager:
         ts_file = SPDXFile(
             spdx_id=ts_id,
             name=test_specification.title,
-            comment="",
+            comment=f"BASIL Test Specification ID {test_specification.id}",
             description=test_specification.test_description,
             purpose="specification",
             copyright_text="",
@@ -854,15 +897,15 @@ class SPDXManager:
         tc_hash = self.make_hash_object(data_dict=tc_dict)
 
         creation_info, person = self.getCreationInfoAndPerson(
-            item_id=tc_id, created_by=test_case.created_by.username, created_at=test_case.created_at, add_to_sbom=True
+            item_id=tc_id, created_by=test_case.created_by, created_at=test_case.created_at, add_to_sbom=True
         )
 
         tc_file = SPDXFile(
             spdx_id=tc_id,
             name=test_case.title,
-            comment="",
+            comment=f"BASIL Test Case ID {test_case.id}",
             description=test_case.description,
-            purpose="specification",
+            purpose="test",
             copyright_text="",
             verified_using=[tc_hash],
             creation_info=creation_info,
@@ -888,13 +931,13 @@ class SPDXManager:
         doc_hash = self.make_hash_object(data_dict=doc_dict)
 
         creation_info, person = self.getCreationInfoAndPerson(
-            item_id=doc_id, created_by=document.created_by.username, created_at=document.created_at, add_to_sbom=True
+            item_id=doc_id, created_by=document.created_by, created_at=document.created_at, add_to_sbom=True
         )
 
         doc_file = SPDXFile(
             spdx_id=doc_id,
             name=document.title,
-            comment="",
+            comment=f"BASIL Document ID {document.id}",
             description=document.description,
             purpose="documentation",
             copyright_text="",
@@ -923,7 +966,7 @@ class SPDXManager:
 
         creation_info, person = self.getCreationInfoAndPerson(
             item_id=js_id,
-            created_by=justification.created_by.username,
+            created_by=justification.created_by,
             created_at=justification.created_at,
             add_to_sbom=True,
         )
@@ -931,7 +974,7 @@ class SPDXManager:
         js_file = SPDXFile(
             spdx_id=js_id,
             name=f"justification {justification.id}",
-            comment="",
+            comment=f"BASIL Justification ID {justification.id}",
             description=justification.description,
             purpose="evidence",
             copyright_text="",
@@ -951,15 +994,30 @@ class SPDXManager:
         self.add_to_sbom(js_annotation)
         return js_file
 
-    def addTestRuns(self, mapping_to, mapping_id, dbsession=None):
-        test_runs = (
+    def addTestRuns(self, spdx_tc: SPDXFile = None, mapping_to: str = "", mapping_id: int = 0, dbsession=None):
+        if not self.include_test_runs:
+            logger.warning("Skip Test Runs as per export configuration")
+
+        added_test_runs = []
+        test_runs_query = (
             dbsession.query(TestRunModel)
             .filter(TestRunModel.mapping_to == mapping_to)
             .filter(TestRunModel.mapping_id == mapping_id)
-            .all()
+            .order_by(desc(TestRunModel.id))
         )
+
+        if self.test_runs_limit > 0:
+            logger.info(f"Limiting test runs to {self.test_runs_limit} as per export configuration")
+            test_runs_query = test_runs_query.limit(self.test_runs_limit)
+
+        test_runs = test_runs_query.all()
+
         for test_run in test_runs:
-            self.addTestRun(test_run=test_run, dbsession=dbsession)
+            tmp = self.addTestRun(test_run=test_run, dbsession=dbsession)
+            added_test_runs.append(tmp)
+
+        if added_test_runs:
+            self.addRelationship(from_element=spdx_tc, to=added_test_runs, relationship_type="hasEvidence")
 
     def addTestRun(self, test_run: TestRunModel = None, dbsession=None):
         """This function create SPDX File class describing a BASIL Test Run"""
@@ -969,13 +1027,13 @@ class SPDXManager:
         tr_hash = self.make_hash_object(data_dict=tr_dict)
 
         creation_info, person = self.getCreationInfoAndPerson(
-            item_id=tr_id, created_by=test_run.created_by.username, created_at=test_run.created_at, add_to_sbom=True
+            item_id=tr_id, created_by=test_run.created_by, created_at=test_run.created_at, add_to_sbom=True
         )
 
         tr_file = SPDXFile(
             spdx_id=tr_id,
             name=test_run.title,
-            comment="",
+            comment=f"BASIL Test Run ID {test_run.id}",
             description=test_run.notes,
             purpose="evidence",
             copyright_text="",
@@ -995,11 +1053,11 @@ class SPDXManager:
         self.add_to_sbom(tr_annotation)
         return tr_file
 
-    def get_x_sr_children(
+    def addSoftwareRequirementNestedElements(
         self,
         api: ApiModel = None,
         xsr: Optional[Union[ApiSwRequirementModel, SwRequirementSwRequirementModel]] = None,
-        spdx_sr: SPDXFile = None,
+        spdx_sr: SPDXFile = None,  # SPDX object of SwRequirement from xsr.sw_requriement
         dbsession=None,
     ):
         """In BASIL user can create a complex hierarchy of Software Requirements.
@@ -1013,9 +1071,11 @@ class SPDXManager:
         :return:
         """
         if isinstance(xsr, ApiSwRequirementModel):
-            mapping_field_id = f"{ApiSwRequirementModel.__tablename__}_id"
+            mapping_field = f"{ApiSwRequirementModel.__tablename__}"
+            mapping_field_id = f"{mapping_field}_id"
         elif isinstance(xsr, SwRequirementSwRequirementModel):
-            mapping_field_id = f"{SwRequirementSwRequirementModel.__tablename__}_id"
+            mapping_field = f"{SwRequirementSwRequirementModel.__tablename__}"
+            mapping_field_id = f"{mapping_field}_id"
         else:
             return
 
@@ -1028,7 +1088,7 @@ class SPDXManager:
         for sr_sr in sr_srs:
             spdx_sr_sr = self.addSwRequirement(software_requirement=sr_sr.sw_requirement, dbsession=dbsession)
             self.addRelationship(
-                from_element=xsr,
+                from_element=spdx_sr,
                 to=[spdx_sr_sr],
                 relationship_type="hasRequirement",
                 completeness_percentage=xsr.coverage,
@@ -1036,15 +1096,15 @@ class SPDXManager:
 
             # SwRequirementTestSpecification
             self.addSwRequirementTestSpecifications(
-                spdx_sr=spdx_sr_sr, mapping_to=mapping_field_id, mapping_id=xsr.id, dbsession=dbsession
+                spdx_sr=spdx_sr_sr, mapping_to=mapping_field, mapping_id=xsr.id, dbsession=dbsession
             )
 
             # SwRequirementTestCases
             self.addSwRequirementTestCases(
-                spdx_sr=spdx_sr_sr, mapping_to=mapping_field_id, mapping_id=xsr.id, dbsession=dbsession
+                spdx_sr=spdx_sr_sr, mapping_to=mapping_field, mapping_id=xsr.id, dbsession=dbsession
             )
 
-            self.get_x_sr_children(api=api, xsr=sr_sr, spdx_sr=spdx_sr_sr, dbsession=dbsession)
+            self.addSoftwareRequirementNestedElements(api=api, xsr=sr_sr, spdx_sr=spdx_sr_sr, dbsession=dbsession)
 
     def addApiSwRequirements(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
         """Collect all the work items of a BASIL Software Component and their relationships
@@ -1067,9 +1127,7 @@ class SPDXManager:
                 completeness_percentage=asr.coverage,
             )
 
-            # child_files, child_relationships = self.get_x_sr_children(api, asr, spdx_sr, dbi)
-            # self.add_files_to_payload(child_files)
-            # self.add_files_to_payload(child_relationships)
+            self.addSoftwareRequirementNestedElements(api=api, xsr=asr, spdx_sr=spdx_sr, dbsession=dbsession)
 
     def addApiTestSpecifications(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
         """..."""
@@ -1115,7 +1173,7 @@ class SPDXManager:
         for sr_ts in sr_tss:
             spdx_ts = self.addTestSpecification(test_specification=sr_ts.test_specification, dbsession=dbsession)
             self.addRelationship(
-                from_element=sr_ts,
+                from_element=spdx_sr,
                 to=[spdx_ts],
                 relationship_type="hasSpecification",
                 completeness_percentage=sr_ts.coverage,
@@ -1127,7 +1185,6 @@ class SPDXManager:
             )
 
     def addSwRequirementTestCases(self, spdx_sr=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None):
-
         if mapping_to not in [ApiSwRequirementModel.__tablename__, SwRequirementSwRequirementModel.__tablename__]:
             return
 
@@ -1141,16 +1198,18 @@ class SPDXManager:
         for sr_tc in sw_requirement_test_cases:
             spdx_tc = self.addTestCase(test_case=sr_tc.test_case, dbsession=dbsession)
             self.addRelationship(
-                from_element=sr_tc, to=[spdx_tc], relationship_type="hasTest", completeness_percentage=sr_tc.coverage
+                from_element=spdx_sr, to=[spdx_tc], relationship_type="hasTest", completeness_percentage=sr_tc.coverage
             )
 
             # Test Runs
             self.addTestRuns(
-                mapping_to=SwRequirementTestCaseModel.__tablename__, mapping_id=sr_tc.id, dbsession=dbsession
+                spdx_tc=spdx_tc,
+                mapping_to=SwRequirementTestCaseModel.__tablename__,
+                mapping_id=sr_tc.id,
+                dbsession=dbsession,
             )
 
     def addTestSpecificationTestCases(self, spdx_ts=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None):
-
         if mapping_to == ApiTestSpecificationModel.__tablename__:
             test_specification_test_cases = (
                 dbsession.query(TestSpecificationTestCaseModel)
@@ -1174,12 +1233,13 @@ class SPDXManager:
 
             # Test Runs
             self.addTestRuns(
-                mapping_to=TestSpecificationTestCaseModel.__tablename__, mapping_id=ts_tc.id, dbsession=dbsession
+                spdx_tc=spdx_tc,
+                mapping_to=TestSpecificationTestCaseModel.__tablename__,
+                mapping_id=ts_tc.id,
+                dbsession=dbsession,
             )
 
     def addApiTestCases(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
-        """..."""
-
         # ApiTestCases
         api_test_cases = dbsession.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == api.id).all()
         for atc in api_test_cases:
@@ -1196,11 +1256,11 @@ class SPDXManager:
             )
 
             # Test Runs
-            self.addTestRuns(mapping_to=ApiTestCaseModel.__tablename__, mapping_id=atc.id, dbsession=dbsession)
+            self.addTestRuns(
+                spdx_tc=spdx_tc, mapping_to=ApiTestCaseModel.__tablename__, mapping_id=atc.id, dbsession=dbsession
+            )
 
     def addApiDocuments(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
-        """..."""
-
         # ApiDocuments
         api_documents = dbsession.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).all()
         for adoc in api_documents:
@@ -1217,8 +1277,6 @@ class SPDXManager:
             )
 
     def addApiJustifications(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
-        """..."""
-
         # ApiJustifications
         api_justifications = (
             dbsession.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).all()
@@ -1236,26 +1294,151 @@ class SPDXManager:
                 completeness_percentage=ajs.coverage,
             )
 
+    def generate_diagraph(self, output_file: str = ""):
+        """
+        Generate a directed graph from a list of edges and save it as a PNG.
+
+        Parameters:
+        - edges: list of dicts with keys 'from', 'to', and 'type'
+        - output_file: output PNG file name
+        """
+
+        def get_file_node_color(node):
+            purpose_colors = {
+                "library": "brown",
+                "snippet": "yellow",
+                "reference document": "magenta",
+                "software component": "gray",
+                "software requirement": "red",
+                "justification": "green",
+                "document": "cyan",
+                "test specification": "blue",
+                "test case": "orange",
+                "test run": "purple",
+            }
+
+            if hasattr(node, "comment"):
+                for cKey in purpose_colors.keys():
+                    if cKey in node.comment.lower():
+                        return purpose_colors[cKey]
+            return "white"
+
+        # Create a directed graph
+        dot = Digraph(format="png")
+        dot.attr(rankdir="TB")
+        added_nodes = {}
+
+        # Add edges with appropriate colors
+        relationships = [item for item in self.sbom if isinstance(item, SPDXRelationship)]
+
+        for relationship in relationships:
+            if isinstance(relationship.from_element, SPDXCreationInfo):
+                continue
+            if isinstance(relationship.from_element, SPDXPerson):
+                continue
+            if isinstance(relationship.from_element, SPDXAnnotation):
+                continue
+            if not [item for item in relationship.to if isinstance(item, SPDXFile)]:
+                continue
+
+            for to_relationship in relationship.to:
+                from_node = relationship.from_element
+                from_node_str = from_node.spdx_id.replace(":", "_")
+                from_color = get_file_node_color(from_node)
+
+                to_node = to_relationship
+                to_node_str = to_node.spdx_id.replace(":", "_")
+                to_color = get_file_node_color(to_node)
+
+                # Add 'from' node with color based on type
+                if from_node_str not in added_nodes:
+                    dot.node(from_node_str, style="filled", fillcolor=from_color)
+                    added_nodes[from_node_str] = from_color
+
+                # Add 'to' node with color based on type
+                if to_node_str not in added_nodes:
+                    dot.node(to_node_str, style="filled", fillcolor=to_color)
+                    added_nodes[to_node_str] = to_color
+
+                if isinstance(to_node, SPDXSnippet):
+                    from_file_str = to_node.from_file.spdx_id.replace(":", "_")
+                    if from_file_str not in added_nodes:
+                        dot.node(from_file_str, style="filled", fillcolor="yellow")
+                        added_nodes[from_file_str] = "yellow"
+                    dot.edge(from_file_str, to_node_str, label="contains")
+
+                if isinstance(from_node, SPDXSnippet):
+                    from_file_str = from_node.from_file.spdx_id.replace(":", "_")
+                    if from_file_str not in added_nodes:
+                        dot.node(from_file_str, style="filled", fillcolor="yellow")
+                        added_nodes[from_file_str] = "yellow"
+                    dot.edge(from_file_str, from_node_str, label="contains")
+
+                # Add edge without special color
+                dot.edge(from_node_str, to_node_str, label=relationship.relationship_type)
+
+        # --- Legend Subgraph ---
+        legend = Digraph(name="cluster_legend")
+        legend.attr(label="Legend", fontsize="12", style="dashed")
+        legend.attr("node", shape="box", style="filled", width="1")
+
+        # Create legend nodes
+        legend.node("library", label="Library", shape="box", style="filled", fillcolor="brown")
+        legend.node("software_component", label="Software Component", shape="box", style="filled", fillcolor="gray")
+        legend.node("reference_document", label="Reference Document", shape="box", style="filled", fillcolor="magenta")
+        legend.node("snippet", label="Snippet", shape="box", style="filled", fillcolor="yellow")
+        legend.node("justification", label="Justification", shape="box", style="filled", fillcolor="green")
+        legend.node("document", label="Document", shape="box", style="filled", fillcolor="cyan")
+        legend.node("software_requirement", label="Software Requirement", shape="box", style="filled", fillcolor="red")
+        legend.node("test_specification", label="Test Specification", shape="box", style="filled", fillcolor="blue")
+        legend.node("test_case", label="Test Case", shape="box", style="filled", fillcolor="orange")
+        legend.node("test_run", label="Test Run", shape="box", style="filled", fillcolor="purple")
+
+        # Stack legend nodes vertically
+        legend.edge("library", "software_component", style="invis", weight="100")
+        legend.edge("software_component", "reference_document", style="invis", weight="100")
+        legend.edge("reference_document", "snippet", style="invis", weight="100")
+        legend.edge("snippet", "justification", style="invis", weight="100")
+        legend.edge("justification", "document", style="invis", weight="100")
+        legend.edge("document", "software_requirement", style="invis", weight="100")
+        legend.edge("software_requirement", "test_specification", style="invis", weight="100")
+        legend.edge("test_specification", "test_case", style="invis", weight="100")
+        legend.edge("test_case", "test_run", style="invis", weight="100")
+
+        dot.subgraph(legend)
+
+        with open("diagraph.dot", "w") as f:
+            f.write(dot.source)
+
+        # Save to file
+        dot.render(filename=output_file, cleanup=True)
+
     def export(self, filepath):
         """Export payload into json"""
         json_data = {"@context": SPDX_CONTEXT_URL, "@graph": []}
 
         for item in self.sbom:
-            print(f"{item}")
             json_data["@graph"].append(item.to_dict())
 
         json_data["@graph"] = sorted(json_data["@graph"], key=lambda d: d["type"], reverse=False)
 
-        print(f"{json_data}")
         if not filepath.endswith(".jsonld"):
             filepath += ".jsonld"
 
-        # try:
-        with open(filepath, "w") as f:
-            json.dump(json_data, f, indent=2)
+        try:
+            with open(filepath, "w") as f:
+                json.dump(json_data, f, indent=2)
 
-        latest_filepath = Path(filepath).with_name("latest.jsonld")
-        with open(latest_filepath, "w") as f:
-            json.dump(json_data, f, indent=2)
-        # except Exception as e:
-        #    logger.warning(f"Could not write sbom data to {filepath}: {e}")
+            latest_jsonld_filepath = Path(filepath).with_name("latest.jsonld")
+            diagraph_filepath = filepath[: -len(".jsonld")]
+            latest_diagraph_filepath = Path(filepath).with_name("latest.png")
+
+            with open(latest_jsonld_filepath, "w") as f:
+                json.dump(json_data, f, indent=2)
+
+            self.generate_diagraph(diagraph_filepath)
+            if os.path.exists(f"{diagraph_filepath}.png"):
+                shutil.copy(f"{diagraph_filepath}.png", latest_diagraph_filepath)
+
+        except Exception as e:
+            logger.warning(f"Could not write sbom data to {filepath}: {e}")

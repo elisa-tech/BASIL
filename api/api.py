@@ -1351,9 +1351,11 @@ class SPDXApi(Resource):
     def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
 
         spdxManager = SPDXManager(
-            username=user.username,
+            user=user,
             library_name=api.library,
             apis=[api],
+            include_test_runs=True,
+            test_runs_limit=5,
             dbi=dbi
         )
 

@@ -4,7 +4,7 @@ RUN mkdir BASIL-API
 WORKDIR /BASIL-API
 
 # Install dependencies
-RUN dnf install -y curl git jq patch python3 python3-pip podman rsync
+RUN dnf install -y curl git graphviz jq patch python3 python3-pip podman rsync
 
 COPY . .
 

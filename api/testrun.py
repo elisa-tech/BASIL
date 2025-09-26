@@ -1,5 +1,6 @@
 #! /bin/python3
 import argparse
+import logging
 import os
 import sys
 import traceback
@@ -22,6 +23,10 @@ from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
 from db.models.test_run import TestRunModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 
+logging.basicConfig(stream=sys.stdout, format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.info("Starting BASI Test Run")
+
 
 class TestRunner:
     """
@@ -39,63 +44,68 @@ class TestRunner:
      - 5: The selected plugin is not supported yet
      - 6: Exceptions
     """
-    RESULT_FAIL = 'fail'
-    RESULT_PASS = 'pass'
 
-    STATUS_CREATED = 'created'
-    STATUS_ERROR = 'error'
-    STATUS_RUNNING = 'running'
-    STATUS_COMPLETED = 'completed'
+    RESULT_FAIL = "fail"
+    RESULT_PASS = "pass"
 
-    KERNEL_CI = 'KernelCI'
-    GITLAB_CI = 'gitlab_ci'
-    GITHUB_ACTIONS = 'github_actions'
-    LAVA = 'LAVA'
-    TMT = 'tmt'
-    TESTING_FARM = 'testing_farm'
+    STATUS_CREATED = "created"
+    STATUS_ERROR = "error"
+    STATUS_RUNNING = "running"
+    STATUS_COMPLETED = "completed"
 
-    CONFIGS_FOLDER = 'configs'
+    KERNEL_CI = "KernelCI"
+    GITLAB_CI = "gitlab_ci"
+    GITHUB_ACTIONS = "github_actions"
+    LAVA = "LAVA"
+    TMT = "tmt"
+    TESTING_FARM = "testing_farm"
 
-    test_run_plugin_models = {'KernelCI': None,
-                              'LAVA': TestRunnerLAVAPlugin,
-                              'github_actions': TestRunnerGithubActionsPlugin,
-                              'gitlab_ci': TestRunnerGitlabCIPlugin,
-                              'testing_farm': TestRunnerTestingFarmPlugin,
-                              'tmt': TestRunnerTmtPlugin}
+    CONFIGS_FOLDER = "configs"
+
+    test_run_plugin_models = {
+        "KernelCI": None,
+        "LAVA": TestRunnerLAVAPlugin,
+        "github_actions": TestRunnerGithubActionsPlugin,
+        "gitlab_ci": TestRunnerGitlabCIPlugin,
+        "testing_farm": TestRunnerTestingFarmPlugin,
+        "tmt": TestRunnerTmtPlugin,
+    }
 
     runner_plugin = None
     config = {}
 
     id = None
-    ssh_keys_dir = os.path.join(currentdir, 'ssh_keys')  # Same as SSH_KEYS_PATH defined in api.py
-    presets_filepath = os.path.join(currentdir, CONFIGS_FOLDER, 'testrun_plugin_presets.yaml')
+    ssh_keys_dir = os.path.join(currentdir, "ssh_keys")  # Same as SSH_KEYS_PATH defined in api.py
+    presets_filepath = os.path.join(currentdir, CONFIGS_FOLDER, "testrun_plugin_presets.yaml")
 
     dbi = None
     db_test_run = None
     db_test_case = None
     mapping_to_model = None
     mapping = None
-    DB_NAME = 'basil.db'
+    DB_NAME = "basil"
 
     def __init__(self, id):
         self.id = id
-        self.dbi = db_orm.DbInterface(self.DB_NAME)
+        self.dbi = db_orm.DbInterface(db_name=self.DB_NAME)
 
         # Test Run
         try:
-            self.db_test_run = self.dbi.session.query(TestRunModel).filter(
-                TestRunModel.id == self.id
-            ).one()
+            self.db_test_run = self.dbi.session.query(TestRunModel).filter(TestRunModel.id == self.id).one()
         except NoResultFound:
-            print("ERROR: Unable to find the Test Run in the db")
+            logging.error("Unable to find the Test Run in the db")
             sys.exit(1)
+
+        logging.info(f"Test Run {id} data collected from the db")
 
         if not self.db_test_run.log:
             self.db_test_run.log = ""
 
         if self.db_test_run.status != self.STATUS_CREATED:
-            print(f"ERROR: Test Run {id} has been already triggered, current status is `{self.db_test_run.status}`.")
+            logging.error(f"Test Run {id} has been already triggered, current status is `{self.db_test_run.status}`.")
             sys.exit(2)
+
+        logging.info(f"Test Run {id} status: CREATED")
 
         # Test Case
         if self.db_test_run.mapping_to == ApiTestCaseModel.__tablename__:
@@ -106,16 +116,18 @@ class TestRunner:
             self.mapping_model = TestSpecificationTestCaseModel
         else:
             # TODO: Update db with the error info
-            print("Unable to find the Model of the parent item in the mapping definition")
+            logging.error("Unable to find the Model of the parent item in the mapping definition")
             sys.exit(3)
 
         try:
-            self.mapping = self.dbi.session.query(self.mapping_model).filter(
-                self.mapping_model.id == self.db_test_run.mapping_id
-            ).one()
+            self.mapping = (
+                self.dbi.session.query(self.mapping_model)
+                .filter(self.mapping_model.id == self.db_test_run.mapping_id)
+                .one()
+            )
         except BaseException:
             # TODO: Update db with the error info
-            print("ERROR: Unable to find the Mapping in the db")
+            logging.error("Unable to find the Mapping in the db")
             sys.exit(4)
 
         db_config = self.db_test_run.test_run_config.as_dict()
@@ -168,8 +180,8 @@ class TestRunner:
     def unpack_kv_str(self, _string):
         # return a dict from a string formatted as
         # key1=value1;key2=value2...
-        PAIRS_DIV = ';'
-        KV_DIV = '='
+        PAIRS_DIV = ";"
+        KV_DIV = "="
         ret = {}
         pairs = _string.split(PAIRS_DIV)
         for pair in pairs:
@@ -195,21 +207,24 @@ class TestRunner:
             return
 
         if self.db_test_run.result == self.RESULT_PASS:
-            variant = 'success'
+            variant = "success"
         else:
-            variant = 'danger'
+            variant = "danger"
 
-        notification = f'Test Run for Test Case ' \
-                       f'`{self.mapping.test_case.title}` as part of the sw component ' \
-                       f'`{self.db_test_run.api.api}`, library `{self.db_test_run.api.library}` ' \
-                       f'completed with: {self.db_test_run.result.upper()}'
-        notifications = NotificationModel(self.db_test_run.api,
-                                          variant,
-                                          f'Test Run for `{self.db_test_run.api.api}` '
-                                          f'{self.db_test_run.result.upper()}',
-                                          notification,
-                                          '',
-                                          f'/mapping/{self.db_test_run.api.id}')
+        notification = (
+            f"Test Run for Test Case "
+            f"`{self.mapping.test_case.title}` as part of the sw component "
+            f"`{self.db_test_run.api.api}`, library `{self.db_test_run.api.library}` "
+            f"completed with: {self.db_test_run.result.upper()}"
+        )
+        notifications = NotificationModel(
+            self.db_test_run.api,
+            variant,
+            f"Test Run for `{self.db_test_run.api.api}` " f"{self.db_test_run.result.upper()}",
+            notification,
+            "",
+            f"/mapping/{self.db_test_run.api.id}",
+        )
         self.dbi.session.add(notifications)
         self.dbi.session.commit()
 
@@ -222,31 +237,33 @@ class TestRunner:
 
     def run(self):
         # Test Run Plugin
+        logging.info(f"Test run {self.id} start execution")
         try:
             if self.db_test_run.test_run_config.plugin in self.test_run_plugin_models.keys():
-                self.runner_plugin = self.test_run_plugin_models[
-                    self.db_test_run.test_run_config.plugin](runner=self,
-                                                             currentdir=currentdir)
+                self.runner_plugin = self.test_run_plugin_models[self.db_test_run.test_run_config.plugin](
+                    runner=self, currentdir=currentdir
+                )
                 self.runner_plugin.run()
                 self.runner_plugin.collect_artifacts()
                 self.runner_plugin.cleanup()
                 self.publish()
             else:
                 reason = "\nERROR: The selected plugin is not supported yet"
-                print(reason)
+                logging.error(reason)
                 self.db_test_run.status = "error"
                 self.db_test_run.log += reason
                 self.publish()
                 sys.exit(5)
         except Exception:
+            logger.error(f"Exception: {traceback.format_exc()}")
             self.db_test_run.status = "error"
             self.db_test_run.log += f"\nException: {traceback.format_exc()}"
             self.publish()
-            print(self.db_test_run.log)
+            logging.error(self.db_test_run.log)
             sys.exit(6)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     This file is called by the api.py via a terminal and
     require as argument an id of the TestRun table

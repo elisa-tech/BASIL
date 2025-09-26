@@ -1,14 +1,17 @@
 #! /bin/python3
-import os
 import json
+import logging
+import os
 import re
-import requests
 import time
 import traceback
-import yaml
 
+import requests
+import yaml
 from api_utils import get_api_specification
 from testrun_base import TestRunnerBasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
@@ -43,19 +46,9 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
     job_state_endpoint = ""
     test_result_endpoint = ""
 
-    headers = {
-        "Authorization": "Token ",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": "Token ", "Content-Type": "application/json"}
 
-    LAVA_STATUS = [
-        "Submitted",
-        "Scheduling",
-        "Scheduled",
-        "Running",
-        "Canceling",
-        "Finished"
-    ]
+    LAVA_STATUS = ["Submitted", "Scheduling", "Scheduled", "Running", "Canceling", "Finished"]
 
     LAVA_RESULTS = ["pass", "fail", "skip", "unknown"]
 
@@ -64,14 +57,16 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
     def __init__(self, runner=None, *args, **kwargs):
         super().__init__(runner=runner, *args, **kwargs)
 
-        self.result_overall_map_result = {"pass": self.runner.RESULT_PASS,
-                                          "fail": self.runner.RESULT_FAIL,
-                                          "skip": self.runner.RESULT_FAIL,
-                                          "unknown": self.runner.RESULT_FAIL}
+        self.result_overall_map_result = {
+            "pass": self.runner.RESULT_PASS,
+            "fail": self.runner.RESULT_FAIL,
+            "skip": self.runner.RESULT_FAIL,
+            "unknown": self.runner.RESULT_FAIL,
+        }
 
         # Api endpoints
-        if self.config['url'].endswith("/"):
-            self.config['url'] = self.config['url'][:-1]
+        if self.config["url"].endswith("/"):
+            self.config["url"] = self.config["url"][:-1]
         self.update_api_endpoints()
 
         # Load Job file
@@ -81,14 +76,12 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         try:
             job_config = get_api_specification(self.config["job"])
         except Exception as e:
-            self.throw_error(f"Unable to read job file - {e}\n",
-                             self.VALIDATION_ERROR_NUM)
+            self.throw_error(f"Unable to read job file - {e}\n", self.VALIDATION_ERROR_NUM)
 
         try:
             self.payload = yaml.safe_load(job_config)
         except yaml.YAMLError as e:
-            self.throw_error(f"Unable to read job file - {e}\n",
-                             self.VALIDATION_ERROR_NUM)
+            self.throw_error(f"Unable to read job file - {e}\n", self.VALIDATION_ERROR_NUM)
 
         self.test_case_name = self.generate_lava_test_case_name(self.runner.mapping.test_case.title)
 
@@ -96,19 +89,16 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         self.headers["Authorization"] += self.config["private_token"]
 
         # Extend job definition adding environment variables and test
-        self.payload.setdefault('environment', {}).update({'uid': self.runner.db_test_run.uid})
+        self.payload.setdefault("environment", {}).update({"uid": self.runner.db_test_run.uid})
         self.payload["environment"]["basil_test_case_id"] = self.runner.mapping.test_case.id
         self.payload["environment"]["basil_test_case_title"] = self.runner.mapping.test_case.title
         self.payload["environment"]["basil_test_case_lava_title"] = self.test_case_name
         self.payload["environment"]["basil_api_api"] = self.runner.db_test_run.api.api
         self.payload["environment"]["basil_api_library"] = self.runner.db_test_run.api.library
-        self.payload["environment"]["basil_api_library_version"] = \
-            self.runner.db_test_run.api.library_version
-        self.payload["environment"]["basil_test_case_mapping_table"] = \
-            self.runner.db_test_run.mapping_to
+        self.payload["environment"]["basil_api_library_version"] = self.runner.db_test_run.api.library_version
+        self.payload["environment"]["basil_test_case_mapping_table"] = self.runner.db_test_run.mapping_to
         self.payload["environment"]["basil_test_case_mapping_id"] = self.runner.db_test_run.mapping_id
-        self.payload["environment"]["basil_test_relative_path"] = \
-            self.runner.mapping.test_case.relative_path
+        self.payload["environment"]["basil_test_relative_path"] = self.runner.mapping.test_case.relative_path
         self.payload["environment"]["basil_test_repo_path"] = self.runner.mapping.test_case.repository
         self.payload["environment"]["basil_test_repo_url"] = self.runner.mapping.test_case.repository
         self.payload["environment"]["basil_test_repo_ref"] = self.config.get("git_repo_ref", None)
@@ -128,8 +118,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         else:
             # read the file
             test_file_path = os.path.join(
-                self.runner.mapping.test_case.repository,
-                self.runner.mapping.test_case.relative_path.lstrip("/")
+                self.runner.mapping.test_case.repository, self.runner.mapping.test_case.relative_path.lstrip("/")
             )
 
             if os.path.exists(test_file_path):
@@ -145,7 +134,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
                     "from": "inline",
                     "repository": test_yaml,
                     "path": f"inline/{self.runner.mapping.test_case.relative_path.lstrip('/')}",
-                    "name": self.test_case_name
+                    "name": self.test_case_name,
                 }
 
             else:
@@ -157,16 +146,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         if "actions" not in self.payload.keys():
             self.throw_error("Missed 'actions' definition in Job file\n", self.VALIDATION_ERROR_NUM)
 
-        self.payload["actions"].append(
-            {
-                "test": {
-                    "definitions": [test_config],
-                    "timeout": {
-                        "minutes": 9999
-                    }
-                }
-            }
-        )
+        self.payload["actions"].append({"test": {"definitions": [test_config], "timeout": {"minutes": 9999}}})
 
         if len(self.config["env"].keys()) > 0:
             for k, v in self.config["env"].items():
@@ -187,7 +167,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         """
         LAVA Test Case name should complies with the regex ^[-_a-zA-Z0-9.]+$
         """
-        return re.sub(r'[^-_a-zA-Z0-9.]', '', test_case_name)
+        return re.sub(r"[^-_a-zA-Z0-9.]", "", test_case_name)
 
     def get_result(self):
         """
@@ -207,13 +187,15 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
                 self.execution_log = ""
                 response = requests.get(url=self.job_state_endpoint, headers=self.headers)
                 if response.status_code != 200:
-                    self.throw_error(f"Unable to read request status from the api at {self.job_state_endpoint}. "
-                                     f"Status Code {response.status_code}", self.MONITOR_ERROR_NUM)
+                    self.throw_error(
+                        f"Unable to read request status from the api at {self.job_state_endpoint}. "
+                        f"Status Code {response.status_code}",
+                        self.MONITOR_ERROR_NUM,
+                    )
 
                 response_json = response.json()
                 if "state" not in response_json.keys():
-                    self.throw_error("`state` is not in the response",
-                                     self.MONITOR_ERROR_NUM)
+                    self.throw_error("`state` is not in the response", self.MONITOR_ERROR_NUM)
 
                 self.execution_log += f"request id: {response_json['id']}\n"
                 self.execution_log += f"request state: {response_json['state']}\n"
@@ -235,7 +217,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
 
             except Exception:
                 self.append_log(self.execution_log)
-                print(f"Exception: {traceback.format_exc()}")
+                logger.error(f"Exception: {traceback.format_exc()}")
                 self.append_log(f"Exception: {traceback.format_exc()}")
                 self.append_log(f"{response_json}")
                 self.status_update()  # Update the log
@@ -243,14 +225,18 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
 
         response = requests.get(url=self.test_result_endpoint, headers=self.headers)
         if response.status_code != 200:
-            self.throw_error(f"Unable to read request result from the api at {self.test_result_endpoint}. "
-                             f"Status Code {response.status_code}", self.MONITOR_ERROR_NUM)
+            self.throw_error(
+                f"Unable to read request result from the api at {self.test_result_endpoint}. "
+                f"Status Code {response.status_code}",
+                self.MONITOR_ERROR_NUM,
+            )
 
         try:
             response_data = response.json()
             if "results" not in response_data.keys():
-                self.throw_error(f"Results not available from the api at {self.test_result_endpoint}.",
-                                 self.MONITOR_ERROR_NUM)
+                self.throw_error(
+                    f"Results not available from the api at {self.test_result_endpoint}.", self.MONITOR_ERROR_NUM
+                )
             tc_results = response_data["results"]
             tc_found = False
 
@@ -258,8 +244,9 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
                 if self.match_test_name_in_results(self.test_case_name, tc_result):
                     tc_found = True
                     if tc_result["result"] in self.LAVA_RESULTS:
-                        overall_result = self.result_overall_map_result.get(tc_result["result"],
-                                                                            self.runner.RESULT_FAIL)
+                        overall_result = self.result_overall_map_result.get(
+                            tc_result["result"], self.runner.RESULT_FAIL
+                        )
                         self.append_log(f"Overall result is: `{overall_result}`")
                     else:
                         overall_result = self.runner.RESULT_FAIL
@@ -271,8 +258,10 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
                 self.append_log(f"Test Case `{self.test_case_name}` not in the result yaml")
 
         except Exception as ex:
-            self.throw_error(f"Unable to read request result. Exception: {ex}\n"
-                             f"Status Code {response.status_code}", self.MONITOR_ERROR_NUM)
+            self.throw_error(
+                f"Unable to read request result. Exception: {ex}\n" f"Status Code {response.status_code}",
+                self.MONITOR_ERROR_NUM,
+            )
 
         self.test_status = self.runner.STATUS_COMPLETED
         self.test_result = overall_result
@@ -285,7 +274,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         - Job state endpoint: http://localhost:8080/api/v0.2/jobs/123
         - Test result endpoint: http://localhost:8080/api/v0.2/tests
         - Test report: http://localhost:8080/scheduler/job/34
-        # """
+        #"""
         self.job_trigger_endpoint = f"{self.config['url']}/jobs/"
         if self.request_id:
             self.job_state_endpoint = f"{self.config['url']}/jobs/{self.request_id}"
@@ -307,10 +296,12 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         tmp_log = f"LAVA Job payload: {payload_to_log}\n"
         tmp_log += f"LAVA Job endpoint: {self.job_trigger_endpoint}\n"
 
-        response = requests.post(url=self.job_trigger_endpoint,
-                                 json={"definition": json.dumps(self.payload)},
-                                 headers=self.headers,
-                                 timeout=self.HTTP_REQUEST_TIMEOUT)
+        response = requests.post(
+            url=self.job_trigger_endpoint,
+            json={"definition": json.dumps(self.payload)},
+            headers=self.headers,
+            timeout=self.HTTP_REQUEST_TIMEOUT,
+        )
 
         f = open("request.log", "w")
         f.write(f"{response.__dict__}")
@@ -320,7 +311,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         tmp_log += f"Response status code: {response.status_code}\n"
 
         if response.status_code == 201:
-            if 'job_ids' in response_json.keys():
+            if "job_ids" in response_json.keys():
                 self.test_status = self.runner.STATUS_RUNNING
                 self.request_id = response_json["job_ids"][0]
                 self.update_api_endpoints()
@@ -344,9 +335,7 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
         # Validate mandatory fields
         for f in self.config_mandatory_fields:
             if f not in self.config.keys():
-                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                 self.VALIDATION_ERROR_NUM)
+                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
             else:
                 if not self.config[f]:
-                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                     self.VALIDATION_ERROR_NUM)
+                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)

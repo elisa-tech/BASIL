@@ -254,14 +254,14 @@ def test_tmt_files_exist():
     assert os.path.exists(failing_test_path), f"Failing test file not found: {failing_test_path}"
 
     # Verify file contents contain expected FMF metadata
-    with open(passing_test_path, "r") as f:
+    with open(f"{passing_test_path}.fmf", "r") as f:
         passing_content = f.read()
         assert "summary:" in passing_content
         assert "test:" in passing_content
         assert "framework: shell" in passing_content
         assert "exit 1" not in passing_content  # Should not have exit 1
 
-    with open(failing_test_path, "r") as f:
+    with open(f"{failing_test_path}.fmf", "r") as f:
         failing_content = f.read()
         assert "summary:" in failing_content
         assert "test:" in passing_content

@@ -96,10 +96,10 @@ jobs:
           done
 
       - name: Wait for API to be ready
-        run: wait-on http://localhost:$BASIL_API_PORT/apis
+        run: wait-on http://localhost:$BASIL_API_PORT/apis --timeout 120000
 
       - name: Wait for frontend to be ready (optional)
-        run: wait-on http://localhost:$BASIL_APP_PORT
+        run: wait-on http://localhost:$BASIL_APP_PORT --timeout 120000
 
       - name: Test Container are up and running
         run: |

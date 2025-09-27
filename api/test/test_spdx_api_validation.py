@@ -23,7 +23,7 @@ from db.models.document import DocumentModel
 from db.models.api_document import ApiDocumentModel
 from db.models.test_run import TestRunModel
 from db.models.test_run_config import TestRunConfigModel
-from conftest import UT_USER_EMAIL, UT_USER_NAME
+from conftest import UT_USER_EMAIL
 
 _SPDX_API_URL = "/spdx/apis"
 
@@ -531,7 +531,8 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     assert len(snippets) > 0, "Should have Snippet elements representing spec mappings"
 
     print(
-        f"✓ SPDX structure validation passed: {len(files)} files, {len(relationships)} relationships, {len(snippets)} snippets"
+        f"✓ SPDX structure validation passed: {len(files)} files, "
+        f"{len(relationships)} relationships, {len(snippets)} snippets"
     )
 
     """Test that all types of work items are represented in the SPDX output"""

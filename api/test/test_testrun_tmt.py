@@ -15,7 +15,7 @@ from db.models.test_run_config import TestRunConfigModel
 from conftest import UT_USER_EMAIL
 
 # BASIL project root path - full path
-BASIL_PROJECT_ROOT = "/Users/lpellecc/Documents/tmp/github/BASIL"
+BASIL_PROJECT_ROOT = "/BASIL-API"
 
 # Test file paths relative to project root
 TMT_PASSING_TEST_PATH = "examples/tmt/local/tmt-dummy-test"
@@ -521,22 +521,6 @@ def test_tmt_command_generation(tmt_test_setup_passing):
     assert test_case.repository == BASIL_PROJECT_ROOT
     assert test_case.relative_path == TMT_PASSING_TEST_PATH
     logger.info(f"   ✅ Test case path: {test_case.relative_path}")
-
-    # Expected TMT command components that API will generate:
-    # (Test run UID will be generated when created via API)
-    expected_cmd_components = [
-        "tmt",
-        "run -vvv -a",
-        "--id <generated-test-run-uid>",
-        "provision --how container --stop-time 30",
-        "plan --name tmt-plan",
-    ]
-
-    logger.info("📋 Expected TMT command components:")
-    for component in expected_cmd_components:
-        logger.info(f"   ✅ {component}")
-
-    logger.info("✅ TMT command generation data validation passed - API will use this to build command")
 
 
 if __name__ == "__main__":

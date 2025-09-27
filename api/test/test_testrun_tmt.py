@@ -15,7 +15,8 @@ from db.models.test_run_config import TestRunConfigModel
 from conftest import UT_USER_EMAIL
 
 # BASIL project root path - full path
-BASIL_PROJECT_ROOT = "/BASIL-API"
+current_dir = os.path.dirname(os.path.abspath(__file__))
+BASIL_PROJECT_ROOT = os.path.dirname(os.path.dirname(current_dir))
 
 # Test file paths relative to project root
 TMT_PASSING_TEST_PATH = "examples/tmt/local/tmt-dummy-test"

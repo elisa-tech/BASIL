@@ -1,17 +1,20 @@
 #! /bin/python3
 import datetime
+import logging
 import sys
 import time
 
+logger = logging.getLogger(__name__)
 
-class TestRunnerBasePlugin():
 
+class TestRunnerBasePlugin:
     """
     Error numbers:
     7: validation issue
     8: execution issue
     9: monitor issue
     """
+
     VALIDATION_ERROR_NUM = 7
     EXECUTION_ERROR_NUM = 8
     MONITOR_ERROR_NUM = 9
@@ -19,7 +22,7 @@ class TestRunnerBasePlugin():
     config = None
     currentdir = None
     execution_result = None
-    log = ''
+    log = ""
     runner = None
     test_result = None
     test_status = None
@@ -59,7 +62,7 @@ class TestRunnerBasePlugin():
         delay_log = f"Delayed request, it will start in {minutes} minutes"
         self.append_log(delay_log)
         self.status_update()
-        time.sleep(minutes*60)
+        time.sleep(minutes * 60)
 
     def run(self):
         """
@@ -77,7 +80,7 @@ class TestRunnerBasePlugin():
                 self.delay_run(int(self.config["env"]["delay"]))
 
     def timestamp(self):
-        TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
+        TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
         return f"{datetime.datetime.utcnow().strftime(TIMESTAMP_FORMAT)} UTC"
 
     def status_update(self):
@@ -85,6 +88,7 @@ class TestRunnerBasePlugin():
         propagate log, report, result, status to the db instance inside the runner
         and update the database using the TestRunner publish method
         """
+        logger.info(f"DB Update - Status: {self.test_status} - Result: {self.test_result}")
         self.runner.db_test_run.log = self.log
         self.runner.db_test_run.report = self.test_report
         self.runner.db_test_run.result = self.test_result
@@ -98,7 +102,7 @@ class TestRunnerBasePlugin():
         pass
 
     def throw_error(self, message: str, return_value: int):
-        print(f"ERROR: {message}")
+        logging.error(f"{message}")
         self.append_log(f"ERROR: {message}\nRETURN VALUE: {return_value}")
         self.test_status = self.runner.STATUS_ERROR
         self.test_result = self.runner.STATUS_ERROR

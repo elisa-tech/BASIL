@@ -1,10 +1,13 @@
 #! /bin/python3
 import json
+import logging
 import time
 
 import gitlab
 import requests
 from testrun_base import TestRunnerBasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
@@ -31,21 +34,24 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
     def __init__(self, runner=None, *args, **kwargs):
         super().__init__(runner=runner, *args, **kwargs)
 
-        if self.config['url'].endswith("/"):
-            self.config['url'] = self.config['url'][:-1]
-        self.project_pipeline_url = f"{self.config['url']}/api/v4/projects/" \
-                                    f"{self.config['project_id']}/trigger/pipeline"
+        if self.config["url"].endswith("/"):
+            self.config["url"] = self.config["url"][:-1]
+        self.project_pipeline_url = (
+            f"{self.config['url']}/api/v4/projects/" f"{self.config['project_id']}/trigger/pipeline"
+        )
 
-        self.status_map_result = {"failed": self.runner.RESULT_FAIL,
-                                  "warning": None,
-                                  "pending": None,
-                                  "running": None,
-                                  "manual": None,
-                                  "scheduled": None,
-                                  "canceled": self.runner.RESULT_FAIL,
-                                  "success": self.runner.RESULT_PASS,
-                                  "skipped": self.runner.RESULT_FAIL,
-                                  "created": None, }
+        self.status_map_result = {
+            "failed": self.runner.RESULT_FAIL,
+            "warning": None,
+            "pending": None,
+            "running": None,
+            "manual": None,
+            "scheduled": None,
+            "canceled": self.runner.RESULT_FAIL,
+            "success": self.runner.RESULT_PASS,
+            "skipped": self.runner.RESULT_FAIL,
+            "created": None,
+        }
 
         optional_fields = ["stage", "job"]
 
@@ -62,13 +68,11 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
     def connect(self):
         project = None
         try:
-            gl = gitlab.Gitlab(url=self.config["url"],
-                               private_token=self.config["private_token"])
+            gl = gitlab.Gitlab(url=self.config["url"], private_token=self.config["private_token"])
             gl.auth()
             project = gl.projects.get(id=self.config["project_id"])
         except Exception as e:
-            self.throw_error(f"Unable to connect to gitlab instance {e}",
-                             self.MONITOR_ERROR_NUM)
+            self.throw_error(f"Unable to connect to gitlab instance {e}", self.MONITOR_ERROR_NUM)
         return project
 
     def log_pipeline_job(self, pipeline_job):
@@ -88,8 +92,7 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
         project = self.connect()
 
         if not project:
-            self.throw_error("Unable to connect to gitlab instance",
-                             self.MONITOR_ERROR_NUM)
+            self.throw_error("Unable to connect to gitlab instance", self.MONITOR_ERROR_NUM)
 
         iteration = 1
         while not completed:
@@ -168,13 +171,13 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
                 self.status_update()  # Update the log
 
             except Exception as e:
-                print(f"Unable to connect to gitlab: {e}")
+                logger.error(f"Unable to connect to gitlab: {e}")
                 self.append_log(f"Unable to connect to gitlab: {e}")
                 self.status_update()  # Update the log
 
         self.test_status = self.local_status
-        if self.test_status == 'wait-all':
-            self.test_status = 'success'
+        if self.test_status == "wait-all":
+            self.test_status = "success"
 
         self.test_result = self.status_map_result.get(self.test_status)
         self.status_update()
@@ -185,18 +188,18 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
     def run(self):
 
         super().run()
-        data = {"token": self.config["trigger_token"],
-                "ref": self.config["git_repo_ref"],
-                "variables": self.config["env"]}
+        data = {
+            "token": self.config["trigger_token"],
+            "ref": self.config["git_repo_ref"],
+            "variables": self.config["env"],
+        }
 
         # Hide token in the log
         data_log = data.copy()
         data_log["token"] = "***"
         self.append_log(f"CI trigger payload: {data_log}")
 
-        response = requests.post(self.project_pipeline_url,
-                                 json=data,
-                                 timeout=self.HTTP_REQUEST_TIMEOUT)
+        response = requests.post(self.project_pipeline_url, json=data, timeout=self.HTTP_REQUEST_TIMEOUT)
 
         response_dict = json.loads(response.text)
 
@@ -214,12 +217,10 @@ class TestRunnerGitlabCIPlugin(TestRunnerBasePlugin):
         # Validate mandatory fields
         for f in self.config_mandatory_fields:
             if f not in self.config.keys():
-                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                 self.VALIDATION_ERROR_NUM)
+                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
             else:
                 if not self.config[f]:
-                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                     self.VALIDATION_ERROR_NUM)
+                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
 
         if "stage" in self.config.keys():
             if isinstance(self.config["stage"], str):

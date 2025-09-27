@@ -1,8 +1,11 @@
 #! /bin/python3
+import logging
 import time
 
 import requests
 from testrun_base import TestRunnerBasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
@@ -37,20 +40,21 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": "Bearer ",
-        "X-GitHub-Api-Version": "2022-11-28"
+        "X-GitHub-Api-Version": "2022-11-28",
     }
 
     def __init__(self, runner=None, *args, **kwargs):
         super().__init__(runner=runner, *args, **kwargs)
 
-        self.conclusion_map_result = {"success": self.runner.RESULT_PASS,
-                                      "failure": self.runner.RESULT_FAIL,
-                                      "neutral": self.runner.RESULT_FAIL,
-                                      "cancelled": self.runner.RESULT_FAIL,
-                                      "skipped": self.runner.RESULT_FAIL,
-                                      "timed_out": self.runner.RESULT_FAIL,
-                                      "action_required": self.runner.RESULT_FAIL
-                                      }
+        self.conclusion_map_result = {
+            "success": self.runner.RESULT_PASS,
+            "failure": self.runner.RESULT_FAIL,
+            "neutral": self.runner.RESULT_FAIL,
+            "cancelled": self.runner.RESULT_FAIL,
+            "skipped": self.runner.RESULT_FAIL,
+            "timed_out": self.runner.RESULT_FAIL,
+            "action_required": self.runner.RESULT_FAIL,
+        }
         optional_fields = ["job"]
 
         self.headers["Authorization"] += self.config["private_token"]
@@ -86,9 +90,11 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
         self.append_log(self.execution_log)
         self.execution_log = ""
 
-        workflow_url = f"{self.api_base_url}/runs?branch={self.config['git_repo_ref']}" \
-                       f"&workflow_id={self.workflow_id}" \
-                       f"&event=workflow_dispatch"
+        workflow_url = (
+            f"{self.api_base_url}/runs?branch={self.config['git_repo_ref']}"
+            f"&workflow_id={self.workflow_id}"
+            f"&event=workflow_dispatch"
+        )
         self.test_report = workflow_url
 
         iteration = 1
@@ -98,12 +104,13 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
                 self.execution_log = ""
                 workflow_response = requests.get(url=workflow_url, headers=self.headers)
                 if workflow_response.status_code != 200:
-                    self.throw_error(f"Unable to read workflow runs. Status Code {workflow_response.status_code}",
-                                     self.MONITOR_ERROR_NUM)
+                    self.throw_error(
+                        f"Unable to read workflow runs. Status Code {workflow_response.status_code}",
+                        self.MONITOR_ERROR_NUM,
+                    )
 
                 if "workflow_runs" not in workflow_response.json().keys():
-                    self.throw_error("workflow_runs is not in the response",
-                                     self.MONITOR_ERROR_NUM)
+                    self.throw_error("workflow_runs is not in the response", self.MONITOR_ERROR_NUM)
 
                 if not workflow_response.json()["workflow_runs"]:
                     self.throw_error("workflow_runs is empty", self.MONITOR_ERROR_NUM)
@@ -126,8 +133,9 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
 
                     jobs_response = requests.get(url=jobs_url)
                     if jobs_response.status_code != 200:
-                        self.throw_error(f"Unable to read jobs. Status Code {jobs_response.status_code}",
-                                         self.MONITOR_ERROR_NUM)
+                        self.throw_error(
+                            f"Unable to read jobs. Status Code {jobs_response.status_code}", self.MONITOR_ERROR_NUM
+                        )
 
                     if "jobs" not in jobs_response.json().keys():
                         self.throw_error("`jobs` is not in the response", self.MONITOR_ERROR_NUM)
@@ -149,9 +157,8 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
                                 break
 
                     if not job_exists:
-                        if workflow_run['conclusion']:
-                            self.throw_error("Selected job is not part of the workflow",
-                                             self.MONITOR_ERROR_NUM)
+                        if workflow_run["conclusion"]:
+                            self.throw_error("Selected job is not part of the workflow", self.MONITOR_ERROR_NUM)
 
                 if not completed:
                     self.execution_log += f"Not completed yet at iteration {iteration}\n"
@@ -166,7 +173,7 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
                 self.status_update()  # Update the log
 
             except Exception as e:
-                print(f"Exception: {e}")
+                logger.error(f"Exception: {e}")
                 self.append_log(f"Exception: {e}")
                 self.status_update()  # Update the log
 
@@ -180,8 +187,7 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
     def run(self):
         super().run()
 
-        data = {"ref": self.config["git_repo_ref"],
-                "inputs": self.config["env"]}
+        data = {"ref": self.config["git_repo_ref"], "inputs": self.config["env"]}
 
         # Add and override config inputs
         if "inputs" in self.config.keys():
@@ -201,10 +207,7 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
         self.append_log(f"CI trigger payload: {data}")
 
         trigger_url = f"{self.api_base_url}/workflows/{self.workflow_id}/dispatches"
-        response = requests.post(url=trigger_url,
-                                 json=data,
-                                 headers=self.headers,
-                                 timeout=self.HTTP_REQUEST_TIMEOUT)
+        response = requests.post(url=trigger_url, json=data, headers=self.headers, timeout=self.HTTP_REQUEST_TIMEOUT)
 
         if response.status_code == 204:
             self.test_status = self.runner.STATUS_RUNNING
@@ -220,30 +223,28 @@ class TestRunnerGithubActionsPlugin(TestRunnerBasePlugin):
         # Validate mandatory fields
         for f in self.config_mandatory_fields:
             if f not in self.config.keys():
-                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                 self.VALIDATION_ERROR_NUM)
+                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
             else:
                 if not self.config[f]:
-                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                     self.VALIDATION_ERROR_NUM)
+                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
 
         # Expected url format examples:
         # - https://github.com/elisa-tech/BASIL
         # - https://github.com/elisa-tech/BASIL/
         # - https://github.com/elisa-tech/BASIL.git
         # - https://github.com/elisa-tech/BASIL.git/
-        if self.config['url'].endswith("/"):
-            self.config['url'] = self.config['url'][:-1]
-        if self.config['url'].endswith(".git"):
-            self.config['url'] = self.config['url'][:-4]
+        if self.config["url"].endswith("/"):
+            self.config["url"] = self.config["url"][:-1]
+        if self.config["url"].endswith(".git"):
+            self.config["url"] = self.config["url"][:-4]
 
-        if 'workflow_id' in self.config.keys():
-            if self.config['workflow_id']:
-                self.workflow_id = self.config['workflow_id']
+        if "workflow_id" in self.config.keys():
+            if self.config["workflow_id"]:
+                self.workflow_id = self.config["workflow_id"]
         if not self.workflow_id:
             self.throw_error("Github workflow_id is not valid", self.VALIDATION_ERROR_NUM)
 
-        url_split = self.config['url'].split('/')
+        url_split = self.config["url"].split("/")
         if len(url_split) < 2:
             self.throw_error("Github repository url is not valid", self.VALIDATION_ERROR_NUM)
 

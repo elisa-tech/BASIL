@@ -1,9 +1,12 @@
 #! /bin/python3
+import logging
 import time
 import traceback
 
 import requests
 from testrun_base import TestRunnerBasePlugin
+
+logger = logging.getLogger(__name__)
 
 
 class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
@@ -39,38 +42,22 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
 
     payload = {
         "api_key": "",
-        "test": {
-            "fmf": {
-                "url": "",
-                "ref": "",
-                "name": "",
-                "test_filter": ""
-            }
-        },
+        "test": {"fmf": {"url": "", "ref": "", "name": "", "test_filter": ""}},
         "environments": [
-            {
-                "arch": "",
-                "os": {"compose": ""},
-                "tmt": {
-                    "environment": {
-                    },
-                    "context": {
-                    }
-                },
-                "variables": {
-                }
-            }
-        ]
+            {"arch": "", "os": {"compose": ""}, "tmt": {"environment": {}, "context": {}}, "variables": {}}
+        ],
     }
 
     def __init__(self, runner=None, *args, **kwargs):
         super().__init__(runner=runner, *args, **kwargs)
 
-        self.result_overall_map_result = {"passed": self.runner.RESULT_PASS,
-                                          "failed": self.runner.RESULT_FAIL,
-                                          "skipped": self.runner.RESULT_FAIL,
-                                          "unknown": self.runner.RESULT_FAIL,
-                                          "error": self.runner.RESULT_FAIL}
+        self.result_overall_map_result = {
+            "passed": self.runner.RESULT_PASS,
+            "failed": self.runner.RESULT_FAIL,
+            "skipped": self.runner.RESULT_FAIL,
+            "unknown": self.runner.RESULT_FAIL,
+            "error": self.runner.RESULT_FAIL,
+        }
 
         self.payload["api_key"] += self.config["private_token"]
         self.payload["environments"][0]["variables"]["uid"] = self.runner.db_test_run.uid
@@ -78,13 +65,16 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
         self.payload["environments"][0]["variables"]["basil_test_case_title"] = self.runner.mapping.test_case.title
         self.payload["environments"][0]["variables"]["basil_api_api"] = self.runner.db_test_run.api.api
         self.payload["environments"][0]["variables"]["basil_api_library"] = self.runner.db_test_run.api.library
-        self.payload["environments"][0]["variables"]["basil_api_library_version"] = \
-            self.runner.db_test_run.api.library_version
-        self.payload["environments"][0]["variables"]["basil_test_case_mapping_table"] = \
-            self.runner.db_test_run.mapping_to
+        self.payload["environments"][0]["variables"][
+            "basil_api_library_version"
+        ] = self.runner.db_test_run.api.library_version
+        self.payload["environments"][0]["variables"][
+            "basil_test_case_mapping_table"
+        ] = self.runner.db_test_run.mapping_to
         self.payload["environments"][0]["variables"]["basil_test_case_mapping_id"] = self.runner.db_test_run.mapping_id
-        self.payload["environments"][0]["variables"]["basil_test_relative_path"] = \
-            self.runner.mapping.test_case.relative_path
+        self.payload["environments"][0]["variables"][
+            "basil_test_relative_path"
+        ] = self.runner.mapping.test_case.relative_path
         self.payload["environments"][0]["variables"]["basil_test_repo_path"] = self.runner.mapping.test_case.repository
         self.payload["environments"][0]["variables"]["basil_test_repo_url"] = self.runner.mapping.test_case.repository
         self.payload["environments"][0]["variables"]["basil_test_repo_ref"] = self.config["git_repo_ref"]
@@ -92,8 +82,9 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
         self.payload["environments"][0]["variables"]["basil_test_run_title"] = self.runner.db_test_run.title
         self.payload["environments"][0]["variables"]["basil_test_run_config_id"] = self.config["id"]
         self.payload["environments"][0]["variables"]["basil_test_run_config_title"] = self.config["title"]
-        self.payload["environments"][0]["variables"]["basil_user_username"] = \
-            self.runner.db_test_run.created_by.username
+        self.payload["environments"][0]["variables"][
+            "basil_user_username"
+        ] = self.runner.db_test_run.created_by.username
 
         self.payload["test"]["fmf"]["url"] = self.TMT_PLAN_URL
         self.payload["test"]["fmf"]["ref"] = self.TMT_PLAN_REF
@@ -136,13 +127,15 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
                 self.execution_log = ""
                 response = requests.get(url=api_endpoint, headers=self.headers)
                 if response.status_code != 200:
-                    self.throw_error(f"Unable to read request status from the api at {api_endpoint}. "
-                                     f"Status Code {response.status_code}", self.MONITOR_ERROR_NUM)
+                    self.throw_error(
+                        f"Unable to read request status from the api at {api_endpoint}. "
+                        f"Status Code {response.status_code}",
+                        self.MONITOR_ERROR_NUM,
+                    )
 
                 response_json = response.json()
                 if "state" not in response_json.keys():
-                    self.throw_error("`state` is not in the response",
-                                     self.MONITOR_ERROR_NUM)
+                    self.throw_error("`state` is not in the response", self.MONITOR_ERROR_NUM)
 
                 self.execution_log += f"request id: {response_json['id']}\n"
                 self.execution_log += f"request state: {response_json['state']}\n"
@@ -150,18 +143,19 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
                 if "run" in response_json.keys():
                     if isinstance(response_json["run"], dict):
                         if "artifacts" in response_json["run"].keys():
-                            if response_json['run']['artifacts']:
-                                self.test_report = response_json['run']['artifacts']
+                            if response_json["run"]["artifacts"]:
+                                self.test_report = response_json["run"]["artifacts"]
 
-                if response_json["state"] in ['complete']:
-                    if isinstance(response_json['result'], dict):
+                if response_json["state"] in ["complete"]:
+                    if isinstance(response_json["result"], dict):
                         self.execution_log += f"request result overall: {response_json['result']['overall']}\n"
                         self.execution_log += f"workflow result summary: {response_json['result']['summary']}\n"
-                        overall_result = self.result_overall_map_result.get(response_json['result']['overall'],
-                                                                            self.runner.RESULT_FAIL)
+                        overall_result = self.result_overall_map_result.get(
+                            response_json["result"]["overall"], self.runner.RESULT_FAIL
+                        )
                         completed = True
-                elif response_json["state"] in ['error']:
-                    overall_result = 'error'
+                elif response_json["state"] in ["error"]:
+                    overall_result = "error"
                     completed = True
 
                 if not completed:
@@ -177,7 +171,7 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
                 self.status_update()  # Update the log
 
             except Exception:
-                print(f"Exception: {traceback.format_exc()}")
+                logger.error(f"Exception: {traceback.format_exc()}")
                 self.append_log(f"Exception: {traceback.format_exc()}")
                 self.append_log(f"{response_json}")
                 self.status_update()  # Update the log
@@ -198,16 +192,15 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
 
         self.append_log(f"CI trigger payload: {payload_to_log}")
 
-        response = requests.post(url=self.config['url'],
-                                 json=self.payload,
-                                 headers=self.headers,
-                                 timeout=self.HTTP_REQUEST_TIMEOUT)
+        response = requests.post(
+            url=self.config["url"], json=self.payload, headers=self.headers, timeout=self.HTTP_REQUEST_TIMEOUT
+        )
 
         response_json = response.json()
         if response.status_code == 200:
-            if 'id' in response_json.keys():
+            if "id" in response_json.keys():
                 self.test_status = self.runner.STATUS_RUNNING
-                self.request_id = response_json['id']
+                self.request_id = response_json["id"]
                 self.append_log(f"STATUS: RUNNING\nTesting Farm request id: {self.request_id}")
                 self.status_update()
                 self.get_result()
@@ -226,15 +219,13 @@ class TestRunnerTestingFarmPlugin(TestRunnerBasePlugin):
         # Validate mandatory fields
         for f in self.config_mandatory_fields:
             if f not in self.config.keys():
-                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                 self.VALIDATION_ERROR_NUM)
+                self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
             else:
                 if not self.config[f]:
-                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n",
-                                     self.VALIDATION_ERROR_NUM)
+                    self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
 
         # Expected url format examples:
         # - https://api.dev.testing-farm.io/v0.1/requests
         # - https://api.dev.testing-farm.io/v0.1/requests/
-        if self.config['url'].endswith("/"):
-            self.config['url'] = self.config['url'][:-1]
+        if self.config["url"].endswith("/"):
+            self.config["url"] = self.config["url"][:-1]

@@ -6954,7 +6954,10 @@ class TestRun(Resource):
             )
 
             if current_db == "test":
-                logger.info(f"Starting TestRunner for test run {new_test_run.id} with --unit-test flag (database: {current_db})")
+                logger.info(
+                    f"Starting TestRunner for test run {new_test_run.id} with "
+                    f"--unit-test flag (database: {current_db})"
+                )
             else:
                 logger.info(f"Starting TestRunner for test run {new_test_run.id} (database: {current_db})")
 

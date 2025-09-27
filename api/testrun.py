@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--id", type=str, help="Test Run ID from the TestRun table")
     parser.add_argument("--unit-test", action="store_true",
-                       help="Use 'test' database instead of 'basil' database (for unit testing)")
+                        help="Use 'test' database instead of 'basil' database (for unit testing)")
     args = parser.parse_args()
 
     tr = TestRunner(id=args.id, unit_test=args.unit_test)

@@ -6944,10 +6944,20 @@ class TestRun(Resource):
 
         # Start the detached process to run the test async
         if new_test_run.status == "created":
+            # Add --unit-test argument if using test database (for unit testing)
+            current_db = get_db_name()
+            unit_test_arg = "--unit-test" if current_db == "test" else ""
+
             cmd = (
                 f"python3 {os.path.join(currentdir, 'testrun.py')} --id {new_test_run.id} "
-                f"&> {TEST_RUNS_BASE_DIR}/{new_test_run.uid}.log &"
+                f"{unit_test_arg} &> {TEST_RUNS_BASE_DIR}/{new_test_run.uid}.log &"
             )
+
+            if current_db == "test":
+                logger.info(f"Starting TestRunner for test run {new_test_run.id} with --unit-test flag (database: {current_db})")
+            else:
+                logger.info(f"Starting TestRunner for test run {new_test_run.id} (database: {current_db})")
+
             os.system(cmd)
 
             # Notification

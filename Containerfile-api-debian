@@ -25,8 +25,7 @@ ENV BASIL_ADMIN_PASSWORD=${ADMIN_PASSWORD} \
     BASIL_API_PORT=${API_PORT} \
     BASIL_TESTING=${TESTING} \
     BASIL_DB_PORT=${DB_PORT} \
-    BASIL_DB_PASSWORD=${DB_PASSWORD} \
-    XDG_RUNTIME_DIR=/run/user/$(id -u)
+    BASIL_DB_PASSWORD=${DB_PASSWORD}
 
 # Create directories
 RUN mkdir -p /var/tmp && \

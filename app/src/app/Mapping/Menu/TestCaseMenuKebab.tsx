@@ -106,6 +106,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         <DropdownItem
           value={3}
           key='history'
+          id={'btn-menu-test-case-history-' + mappingList[mappingIndex].relation_id}
           onClick={() => setHistoryModalInfo(true, Constants._TC, mappingParentType, mappingList[mappingIndex].relation_id)}
         >
           History
@@ -113,7 +114,12 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
 
         {api?.permissions.indexOf('w') >= 0 ? (
           <>
-            <DropdownItem value={4} key='run' onClick={() => setTestRunModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}>
+            <DropdownItem
+              value={4}
+              key='run'
+              id={'btn-menu-test-case-run-' + mappingList[mappingIndex].relation_id}
+              onClick={() => setTestRunModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}
+            >
               Run
             </DropdownItem>
           </>
@@ -124,6 +130,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         <DropdownItem
           value={5}
           key='show-details'
+          id={'btn-menu-test-case-details-' + mappingList[mappingIndex].relation_id}
           onClick={() => setDetailsModalInfo(true, Constants._TC, mappingList[mappingIndex][Constants._TC_]['id'])}
         >
           Show Details
@@ -134,6 +141,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
             <DropdownItem
               value={6}
               key='test result'
+              id={'btn-menu-test-case-results-' + mappingList[mappingIndex].relation_id}
               onClick={() => setTestResultsModalInfo(true, api, mappingList[mappingIndex], mappingParentType)}
             >
               Test Results
@@ -146,6 +154,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         <DropdownItem
           value={7}
           key='usage'
+          id={'btn-menu-test-case-usage-' + mappingList[mappingIndex].relation_id}
           onClick={() => setUsageModalInfo(true, Constants._TC, mappingList[mappingIndex][Constants._TC_]['id'])}
         >
           Usage

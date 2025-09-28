@@ -1,6 +1,6 @@
 {
-  "app_base_url": "http://localhost:9056",
-  "api_base_url": "http://localhost:5005",
+  "app_base_url": "http://localhost:9055",
+  "api_base_url": "http://localhost:5004",
   "login": {
     "input_username": "#pf-login-username-id",
     "input_password": "#pf-login-password-id"
@@ -56,6 +56,18 @@
     "select_view_id": "#select-mapping-view",
     "table_matching_id": "#table-matching-sections",
     "table_unmatching_id": "#table-unmatching-sections"
+  },
+  "test_run": {
+    "modal_id": "[aria-label='test run modal']",
+    "form_id": "#tabContentTestRunForm",
+    "form_submit_button_id": "#btn-test-run-add-submit",
+    "form_cancel_button_id": "#btn-test-run-add-cancel",
+    "results_modal_id": "[aria-label='test result modal']",
+    "details_modal_id": "[aria-label='test result details modal']",
+    "results_table_id": "table[aria-label='BASIL Test Results Table']",
+    "run_button_id": "button:contains('Run')",
+    "results_button_text": "Test Results",
+    "details_button_text": "Details"
   },
   "users": {
     "admin": {

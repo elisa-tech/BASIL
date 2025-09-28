@@ -293,6 +293,11 @@ echoSectionTitle "Start API container"
 echo -e "\n${BODY_COLOR_STR}"
 
 podman_cmd="podman run"
+
+if [ "$testing" -eq 1 ]; then
+  podman_cmd="$podman_cmd -e XDG_RUNTIME_DIR=\"/run/user/$(id -u)\""
+fi
+
 if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
   echo -e "\nAdding environment file $environment_file"
   podman_cmd="$podman_cmd --env-file $environment_file"

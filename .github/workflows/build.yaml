@@ -48,7 +48,8 @@ jobs:
     
       - name: Checkout
         uses: actions/checkout@v4
-        
+
+        # TEST_RUNS_BASE_DIR required by pytest
       - name: Define global variables
         id: global_variables
         run: |
@@ -58,6 +59,8 @@ jobs:
           echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
           echo "BASIL_DB_PORT=5432" >> "$GITHUB_ENV"
           echo "BASIL_TESTING=1" >> "$GITHUB_ENV"
+          TEMPDIR=$(mktemp -d)
+          echo "TEST_RUNS_BASE_DIR=$TEMPDIR" >> $GITHUB_ENV
           
       - name: Install Podman (if needed)
         run: |

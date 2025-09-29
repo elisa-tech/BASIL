@@ -32,7 +32,12 @@ RUN mkdir -p /var/tmp && \
 RUN chmod a+rw /BASIL-API/db
 
 # Apply patches
-RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
+RUN set -eux; \
+    TARGET=$(find / -type f -name podman.py | head -n 1); \
+    [ -f "$TARGET" ] || { echo "No podman.py file found"; exit 1; }; \
+    patch "$TARGET" < /BASIL-API/misc/tmt_provision_podman.patch
+
+RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py <   && \
     tmt init
 
 EXPOSE ${BASIL_API_PORT}

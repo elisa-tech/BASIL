@@ -58,8 +58,6 @@ jobs:
           echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
           echo "BASIL_DB_PORT=5432" >> "$GITHUB_ENV"
           echo "BASIL_TESTING=1" >> "$GITHUB_ENV"
-          TEMPDIR=$(mktemp -d)
-          echo "TEST_RUNS_BASE_DIR=$TEMPDIR" >> $GITHUB_ENV
           
       - name: Install Podman (if needed)
         run: |
@@ -134,7 +132,7 @@ jobs:
       - name: Copy /var/tmp/tmt from basil-api-latest container
         if: failure()
         run: |
-          sudo podman cp basil-api-latest:$TEST_RUNS_BASE_DIR ./tmt-logs
+          sudo podman cp basil-api-latest:/var/test-runs ./tmt-logs
           tar -czf tmt-logs.tar.gz ./tmt-logs
       
       - name: Upload tmt logs as artifact

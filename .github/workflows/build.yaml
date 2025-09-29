@@ -130,6 +130,19 @@ jobs:
       - name: API unit testing 
         run: |
           pytest -v ./api/test --cov=api --cov-branch --cov-report=term --cov-report=html
+
+      - name: Copy /var/tmp/tmt from basil-api-latest container
+        if: failure()
+        run: |
+          sudo podman cp basil-api-latest:/var/tmp/tmt ./tmt-logs
+          tar -czf tmt-logs.tar.gz ./tmt-logs
+      
+      - name: Upload tmt logs as artifact
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: tmt-logs
+          path: tmt-logs.tar.gz
           
       - name: Create tarball of coverage report
         run: |

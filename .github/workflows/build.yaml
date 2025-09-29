@@ -110,16 +110,13 @@ jobs:
           echo "Test App is running"
           curl -vf http://localhost:$BASIL_APP_PORT
 
-      - name: Save image to tar
+      - name: Debug podman command in patched tmt
         run: |
-          sudo podman save --format docker-archive -o basil-api-image.latest.tar basil-api-image:latest
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: basil-api-image.latest.tar
-          path: basil-api-image.latest.tar
-          
+          sudo podman run --rm \
+            --entrypoint python3 \
+            basil-api-image:latest \
+            -c "import sys; from pathlib import Path; print(Path('/usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py').read_text()); import tmt; print(tmt.__version__, tmt.__file__)"
+    
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

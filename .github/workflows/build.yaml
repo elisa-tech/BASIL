@@ -138,7 +138,7 @@ jobs:
           tar -czf tmt-logs.tar.gz ./tmt-logs
       
       - name: Upload tmt logs as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: tmt-logs

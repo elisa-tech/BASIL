@@ -109,6 +109,16 @@ jobs:
           curl -vf http://localhost:$BASIL_API_PORT/version
           echo "Test App is running"
           curl -vf http://localhost:$BASIL_APP_PORT
+
+      - name: Save image to tar
+        run: |
+          podman save --format docker-archive -o basil-api-image.latest.tar basil-api-image:latest
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: basil-api-image.latest.tar
+          path: basil-api-image.latest.tar
           
       - name: Set up Python
         uses: actions/setup-python@v5

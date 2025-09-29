@@ -134,7 +134,7 @@ jobs:
       - name: Copy /var/tmp/tmt from basil-api-latest container
         if: failure()
         run: |
-          sudo podman cp basil-api-latest:/var/tmp/tmt ./tmt-logs
+          sudo podman cp basil-api-latest:$TEST_RUNS_BASE_DIR ./tmt-logs
           tar -czf tmt-logs.tar.gz ./tmt-logs
       
       - name: Upload tmt logs as artifact

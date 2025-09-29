@@ -23,6 +23,10 @@ const Mapping: React.FunctionComponent = () => {
   //const queryView = params.get('view')
 
   const loadMappingData = (force_reload) => {
+    if (!Constants.isValidId(api_id)) {
+      return
+    }
+
     if (force_reload == false || force_reload == undefined) {
       if (num > 0) {
         return

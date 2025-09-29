@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://localhost:5000'
+export const API_BASE_URL = 'http://localhost:5004'
 export const BASIL_VERSION = '1.8.0'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
@@ -435,6 +435,10 @@ export const isNotEmptyString = (_input) => {
 
 export const removeExtension = (filename: string, extension: string) => {
   return filename.endsWith(extension) ? filename.slice(0, -extension.length) : filename
+}
+
+export const isValidId = (id_str: string) => {
+  return /^\d+$/.test(id_str) && Number(id_str) > 0 && Number.isSafeInteger(Number(id_str))
 }
 
 export const logObject = (obj) => {

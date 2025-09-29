@@ -54,7 +54,14 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
       onSelect={onSelect}
       onOpenChange={(isOpen: boolean) => setIsOpen(isOpen)}
       toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-        <MenuToggle ref={toggleRef} aria-label='kebab dropdown toggle' variant='plain' onClick={onToggleClick} isExpanded={isOpen}>
+        <MenuToggle
+          id={'btn-menu-test-case-kebab-' + mappingList[mappingIndex].relation_id}
+          ref={toggleRef}
+          aria-label='kebab dropdown toggle'
+          variant='plain'
+          onClick={onToggleClick}
+          isExpanded={isOpen}
+        >
           <EllipsisVIcon />
         </MenuToggle>
       )}

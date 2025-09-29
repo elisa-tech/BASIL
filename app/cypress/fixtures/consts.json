@@ -1,6 +1,7 @@
 {
   "app_base_url": "http://localhost:9055",
   "api_base_url": "http://localhost:5004",
+  "api_base_path": "/BASIL-API",
   "login": {
     "input_username": "#pf-login-username-id",
     "input_password": "#pf-login-password-id"

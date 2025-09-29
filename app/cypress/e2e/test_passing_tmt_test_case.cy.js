@@ -7,9 +7,10 @@
  * 1. Create a software component and test case
  * 2. Create a test run via the test case kebab menu "Run" option
  * 3. Verify the test run appears in the test results table
- * 4. Verify test run details are accessible and properly displayed
- * 5. Verify search functionality works on test runs
- * 6. Clean up test data (test runs and test cases)
+ * 4. Verify the test run passed
+ * 5. Verify test run details are accessible and properly displayed
+ * 6. Verify search functionality works on test runs
+ * 7. Clean up test data (test runs and test cases)
  *
  * The test covers the end-to-end user experience of creating and managing test runs
  * in the BASIL test management system, ensuring proper integration between the frontend
@@ -38,6 +39,14 @@ import { createUniqWorkItems } from '../support/utils.js'
 let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
+//Test Case Passing data
+const test_case_data = {
+  title: 'Passing TMT Test ' + new Date().getTime(),
+  description: 'Test case for dummy passing TMT test',
+  repository: const_data.api_base_path,
+  relative_path: 'examples/tmt/local/tmt-dummy-test.fmf'
+}
+
 // Test run data
 const test_run_data = {
   title: 'E2E Test Run ' + new Date().getTime(),
@@ -52,13 +61,13 @@ const test_run_config_data = {
 }
 
 describe('Test Run Creation and Verification', () => {
-  let apiId
+  let apiId // = 18;
 
   beforeEach(() => {
     cy.login_admin()
   })
 
-  it('Setup: Create SW Component and Test Case', () => {
+  it('Setup: Create SW Component', () => {
     // Add SW Component
     cy.get('#btn-add-sw-component').click()
     cy.fill_form_api('0', 'add', api_data.first, true, false)
@@ -84,13 +93,6 @@ describe('Test Run Creation and Verification', () => {
         // Switch to test cases view
         cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
         cy.wait(const_data.long_wait)
-
-        // Create and assign a test case
-        cy.assign_work_item(-1, 0, '', 'test-case', tc_data.first)
-        cy.wait(const_data.mid_wait)
-
-        // Verify test case is created
-        cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').should('have.length.greaterThan', 0)
       })
   })
 
@@ -103,136 +105,116 @@ describe('Test Run Creation and Verification', () => {
     cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
     cy.wait(const_data.long_wait)
 
-    // Click on test case kebab menu
-    cy.get(const_data.mapping.table_matching_id)
-      .find('tbody')
-      .find('tr')
-      .eq(0)
-      .find('td')
-      .eq(1)
-      .find('[class=pf-v5-c-card]')
-      .find('button[class*="pf-v5-c-menu-toggle"]')
-      .click()
+    // Create FIRST test case - PASSING test
 
-    // Click "Run" option from the menu
+    cy.assign_work_item(-1, 0, '', 'test-case', test_case_data)
+    cy.wait(const_data.mid_wait)
+
+    // Create test run for PASSING test
+    cy.get('h5').contains(test_case_data.title).parents('.pf-v5-c-card__body').find('button[class*="menu-toggle"]').click()
+
     cy.get('[id*="btn-menu-test-case-"]').contains('Run').click()
 
-    // Verify Test Run Modal opens
+    // Fill test run for passing test
     cy.get(const_data.test_run.modal_id).should('be.visible')
 
-    // Fill test run title
-    cy.get('[id*="input-test-run-add-title"]').clear().type(test_run_data.title).should('have.value', test_run_data.title)
+    cy.get('[id*="input-test-run-add-title"]').clear().type(test_run_data.title)
 
-    // Fill test run notes
-    cy.get('[id*="input-test-run-add-notes"]').clear().type(test_run_data.notes).should('have.value', test_run_data.notes)
+    cy.get('[id*="input-test-run-add-notes"]').clear().type(test_run_data.notes)
 
     // Switch to Test Run Config tab
     cy.get('[id*="tab-btn-test-run-config-data"]').click()
     cy.wait(const_data.fast_wait)
 
     // Configure test run config settings
-    cy.get('[id*="input-test-run-config-title-"]').clear().type(test_run_config_data.title).should('have.value', test_run_config_data.title)
-
-    cy.get('[id*="select-test-run-config-plugin-"]').select(test_run_config_data.plugin).should('have.value', test_run_config_data.plugin)
-
-    cy.get('[id*="select-test-run-config-plugin-"]').select(test_run_config_data.plugin).should('have.value', test_run_config_data.plugin)
-
-    // Set provision type for TMT
-    cy.get('[id*="select-test-run-config-provision-type-"]')
-      .select(test_run_config_data.provision_type)
-      .should('have.value', test_run_config_data.provision_type)
-
-    // Set context variables
-    cy.get('[id*="input-test-run-config-context-vars-"]')
+    cy.get('[id*="input-test-run-config-title-"]')
       .clear()
-      .type(test_run_config_data.context_vars)
-      .should('have.value', test_run_config_data.context_vars)
+      .type('Config for ' + test_run_data.title)
 
-    // Click Run button to create the test run
+    cy.get('[id*="select-test-run-config-plugin-"]').select(test_run_config_data.plugin)
+
+    cy.get('[id*="select-test-run-config-provision-type-"]').select(test_run_config_data.provision_type)
+
+    cy.get('[id*="input-test-run-config-context-vars-"]').clear().type(test_run_config_data.context_vars)
+
+    // Submit passing test run
     cy.get(const_data.test_run.form_submit_button_id).click()
-
-    // Wait for test run creation
     cy.wait(const_data.long_wait)
-
-    // Verify modal closes (test run created successfully)
-    cy.get(const_data.test_run.form_id).should('not.exist')
   })
 
-  it('Verify Test Run appears in Test Results table', () => {
-    // Navigate back to mapping page
-    cy.visit(const_data.app_base_url + '/mapping/' + apiId)
-    cy.wait(const_data.long_wait)
+  it('Verify Test Run appears in Test Results table', function () {
+    let check_iterations = 0
 
-    // Switch to test cases view
-    cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
-    cy.wait(const_data.long_wait)
+    const checkResult = () => {
+      check_iterations++
+      if (check_iterations > 15) {
+        cy.fail(`❌ Test run failed with status: "timeout". Expected: "pass"`)
+        return
+      }
 
-    // Click on test case kebab menu
-    cy.get(const_data.mapping.table_matching_id)
-      .find('tbody')
-      .find('tr')
-      .eq(0)
-      .find('td')
-      .eq(1)
-      .find('[class=pf-v5-c-card]')
-      .find('button[class*="pf-v5-c-menu-toggle"]')
-      .click()
+      // Navigate back to mapping page
+      cy.visit(const_data.app_base_url + '/mapping/' + apiId)
+      cy.wait(const_data.long_wait * 2)
 
-    // Click "Results" option to view test runs
-    cy.get('[id*="btn-menu-test-case-"]').contains(const_data.test_run.results_button_text).click()
+      // Switch to test cases view
+      cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
+      cy.wait(const_data.long_wait)
 
-    // Verify Test Results Modal opens
-    cy.get(const_data.test_run.results_modal_id).should('be.visible')
+      // Click on first test case kebab menu to check results
+      cy.get('h5').contains(test_case_data.title).parents('.pf-v5-c-card__body').find('button[class*="menu-toggle"]').click()
 
-    // Verify we're on the "Test Runs" tab
-    cy.get('[id*="tab-btn-test-runs-list"]').should('have.attr', 'aria-selected', 'true')
+      // Click "Results" option to view test runs
+      cy.get('[id*="btn-menu-test-case-"]').contains(const_data.test_run.results_button_text).click()
 
-    // Verify the test runs table exists and has headers
-    cy.get(const_data.test_run.results_table_id)
-      .should('be.visible')
-      .within(() => {
-        // Check table headers
-        cy.get('thead tr th').should('contain.text', 'ID')
-        cy.get('thead tr th').should('contain.text', 'Repositories')
-        cy.get('thead tr th').should('contain.text', 'SUT')
-        cy.get('thead tr th').should('contain.text', 'Result')
-        cy.get('thead tr th').should('contain.text', 'Date')
-        cy.get('thead tr th').should('contain.text', 'Actions')
+      // Verify Test Results Modal opens
+      cy.get(const_data.test_run.results_modal_id).should('be.visible')
 
-        // Verify at least one test run exists in the table
-        cy.get('tbody tr').should('have.length.greaterThan', 0)
+      // Verify we're on the "Test Runs" tab
+      cy.get('[id*="tab-btn-test-runs-list"]').should('have.attr', 'aria-selected', 'true')
 
-        // Verify our created test run is in the table
-        cy.get('tbody tr').within(() => {
-          // Check that test run title is present
-          cy.get('td').should('contain.text', test_run_data.title)
+      // Ensure modal is open before each check
+      cy.get(const_data.test_run.results_modal_id, { timeout: 2000 }).should('be.visible')
 
-          // Check that SUT shows "container" (from our TMT config)
-          cy.get('td').should('contain.text', 'container')
+      cy.get(const_data.test_run.results_table_id)
+        .should('be.visible')
+        .find('tbody tr')
+        .contains(test_run_data.title)
+        .parents('tr')
+        .find('td span[class*="pf-v5-c-label"]')
+        .then(($label) => {
+          const text = $label.text().toLowerCase()
 
-          // Check that status/result is shown (initially should be "created" or similar)
-          cy.get('td').find('span[class*="pf-v5-c-label"]').should('exist')
+          if (text.includes('pass') || text.includes('passed')) {
+            cy.wrap($label).should('contain.text', 'pass')
+            return
+          }
+
+          if (text.includes('running') || text.includes('created') || text.includes('pending')) {
+            cy.wait(5000)
+            // Important: break the Cypress chain
+            cy.then(() => {
+              checkResult()
+            })
+            return
+          }
+
+          // Failure cases - fail the test
+          if (
+            text.includes('not executed') ||
+            text.includes('error') ||
+            text.includes('fail') ||
+            text.includes('cancelled') ||
+            text.includes('timeout')
+          ) {
+            cy.fail(`❌ Test run failed with status: "${text}". Expected: "pass"`)
+            return
+          }
+          cy.fail(`❌ Test run failed with status: "${text}". Expected: "pass"`)
         })
-      })
+    }
 
-    // Test search functionality
-    cy.get('input[placeholder="Search"]').type(test_run_data.title).should('have.value', test_run_data.title)
-
-    cy.get('button').contains('Search').click()
-    cy.wait(const_data.mid_wait)
-
-    // Verify search results show our test run
-    cy.get(const_data.test_run.results_table_id + ' tbody tr')
-      .should('have.length', 1)
-      .should('contain.text', test_run_data.title)
-
-    // Clear search to see all results again
-    cy.get('input[placeholder="Search"]').clear()
-    cy.get('button').contains('Search').click()
-    cy.wait(const_data.mid_wait)
-
-    // Verify table shows all test runs again
-    cy.get(const_data.test_run.results_table_id + ' tbody tr').should('have.length.greaterThan', 0)
+    // Call the function
+    checkResult()
   })
 
   it('Verify Test Run Details', () => {

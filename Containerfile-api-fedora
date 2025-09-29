@@ -37,9 +37,6 @@ RUN set -eux; \
     [ -f "$TARGET" ] || { echo "No podman.py file found"; exit 1; }; \
     patch "$TARGET" < /BASIL-API/misc/tmt_provision_podman.patch
 
-RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py <   && \
-    tmt init
-
 EXPOSE ${BASIL_API_PORT}
 CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && cd api && \
                         BASIL_TESTING=${BASIL_TESTING} gunicorn \

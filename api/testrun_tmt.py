@@ -44,7 +44,7 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
         self.config["env"]["basil_api_library_version"] = self.runner.db_test_run.api.library_version
         self.config["env"]["basil_test_case_mapping_table"] = self.runner.db_test_run.mapping_to
         self.config["env"]["basil_test_case_mapping_id"] = self.runner.db_test_run.mapping_id
-        self.config["env"]["basil_test_relative_path"] = self.runner.mapping.test_case.relative_path.rstrip(".fmf")
+        self.config["env"]["basil_test_relative_path"] = self.runner.mapping.test_case.relative_path.lstrip("/").rstrip(".fmf")
         self.config["env"]["basil_test_repo_path"] = self.runner.mapping.test_case.repository
         self.config["env"]["basil_test_repo_url"] = self.runner.mapping.test_case.repository
         self.config["env"]["basil_test_repo_ref"] = self.config.get("git_repo_ref", "")

@@ -30,6 +30,12 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
         if not os.path.exists(self.root_dir):
             os.mkdir(self.root_dir)
 
+        if "env" not in self.config.keys():
+            self.throw_error("Wrong configuration. Miss mandatory field env\n", self.VALIDATION_ERROR_NUM)
+
+        if "context" not in self.config.keys():
+            self.throw_error("Wrong configuration. Miss mandatory field context\n", self.VALIDATION_ERROR_NUM)
+
         self.config["env"]["uid"] = self.runner.db_test_run.uid
         self.config["env"]["basil_test_case_id"] = self.runner.mapping.test_case.id
         self.config["env"]["basil_test_case_title"] = self.runner.mapping.test_case.title
@@ -74,6 +80,36 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
                 else:
                     if not self.config[f]:
                         self.throw_error(f"Wrong configuration. Miss mandatory field {f}\n", self.VALIDATION_ERROR_NUM)
+
+        # Validate that in case of context variable plan_type=local the
+        # combination of basil_test_repo_path and basil_test_relative_path is or
+        # - the BASIL example path
+        # - a path inside the user folder at /<BASIL-PATH>/api/user-files/<user_id>/
+        if self.config["context"].get("plan_type", "") == "local":
+            if self.config["basil_test_repo_path"] == "" or self.config["basil_test_relative_path"] == "":
+                self.throw_error(
+                    "Wrong configuration. Miss mandatory field basil_test_repo_path or basil_test_relative_path\n",
+                    self.VALIDATION_ERROR_NUM,
+                )
+            else:
+                # Calculate the BASIL path
+                basil_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                # Calculate the BASIL examples tmt local path
+                basil_example_path = os.path.join(basil_path, "examples", "tmt", "local")
+                # Calculate the user folder path
+                user_folder_path = os.path.join(basil_path, "api", "user-files", self.runner.db_test_run.created_by.id)
+                # Calculate resulting test path considering also possible ../ (or multiple ../)
+                test_path = os.path.join(self.config["basil_test_repo_path"], self.config["basil_test_relative_path"])
+
+                # Verfify that test path is nested under basil_path or user_folder_path
+                if not os.path.abspath(test_path).startswith(
+                    os.path.abspath(basil_example_path)
+                ) and not os.path.abspath(test_path).startswith(os.path.abspath(user_folder_path)):
+                    self.throw_error(
+                        "Wrong configuration. basil_test_repo_path must be nested under BASIL "
+                        "examples/tmt/local path or user folder path\n",
+                        self.VALIDATION_ERROR_NUM,
+                    )
 
     def run(self):
         super().run()

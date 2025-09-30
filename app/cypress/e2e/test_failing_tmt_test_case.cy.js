@@ -270,7 +270,10 @@ describe('Test Run Creation and Verification', () => {
         // Check for a code tag inside the pre
         cy.get('code').should('exist')
         // Check for the expected execution result string
-        cy.get('code').should('contain.text', 'EXECUTION RESULT: fail')
+        cy.get('code')
+          .should('contain.text', 'EXECUTION RESULT: pass')
+          .should('contain.text', 'summary: 1 test failed')
+          .should('contain.text', 'total: 1 test failed')
       })
   })
 

@@ -333,8 +333,12 @@ def get_active_user_from_request(_request, _db_session):
 
 def get_usernames_from_ids(_ids, _dbi_session):
     # _ids list format [1][3][34]
+    if not _ids:
+        return []
     user_ids = _ids.split("][")
     user_ids = [x.replace("[", "").replace("]", "") for x in user_ids]
+    if not user_ids:
+        return []
     query = _dbi_session.query(UserModel.username).filter(UserModel.id.in_(user_ids))
     users = query.all()
     ret = [x.username for x in users]

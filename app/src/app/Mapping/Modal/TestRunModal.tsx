@@ -138,13 +138,12 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   const sectionItemsRef = React.createRef<HTMLElement>()
   const existingItemsRef = React.createRef<HTMLElement>()
 
-  React.useEffect(() => {
-    if (Object.keys(testRunConfig).length > 0) {
-      document.getElementById('pf-tab-1-tab-btn-test-run-config-data')?.click()
-    }
-  }, [testRunConfig])
-
   const validateConfig = () => {
+    if (!validatedTitleValue) {
+      setMessageValue('Test Run title is not defined')
+      setActiveTabKey(0)
+      return false
+    }
     if (testRunConfig == null) {
       setMessageValue('Test Configuration is not defined')
       setActiveTabKey(1)
@@ -322,10 +321,10 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
-          <Button key='run' variant='primary' onClick={handleRun}>
+          <Button id='btn-test-run-add-submit' key='run' variant='primary' onClick={() => handleRun()}>
             Run
           </Button>,
-          <Button key='cancel' variant='secondary' onClick={handleModalToggle}>
+          <Button id='btn-test-run-add-cancel' key='cancel' variant='secondary' onClick={() => handleModalToggle()}>
             Cancel
           </Button>
         ]}

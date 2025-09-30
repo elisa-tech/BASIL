@@ -102,6 +102,7 @@ if not os.path.exists(SSH_KEYS_PATH):
     os.makedirs(SSH_KEYS_PATH, exist_ok=True)
 
 if not os.path.exists(TEST_RUNS_BASE_DIR):
+    logger.info(f"Creating TEST_RUNS_BASE_DIR: {TEST_RUNS_BASE_DIR}")
     os.makedirs(TEST_RUNS_BASE_DIR, exist_ok=True)
 
 if not os.path.exists(USER_FILES_BASE_DIR):
@@ -308,9 +309,13 @@ def get_username_from_id(_id, _db_session):
 
 def get_active_user_from_request(_request, _db_session):
     mandatory_fields = ["user-id", "token"]
-    for field in mandatory_fields:
-        if field not in _request.keys():
-            return None
+    if not check_fields_in_request(
+        fields=mandatory_fields,
+        request=_request,
+        allow_empty_string=False,
+        int_fields=["user-id"]
+    ):
+        return None
 
     query = (
         _db_session.query(UserModel)
@@ -328,8 +333,12 @@ def get_active_user_from_request(_request, _db_session):
 
 def get_usernames_from_ids(_ids, _dbi_session):
     # _ids list format [1][3][34]
+    if not _ids:
+        return []
     user_ids = _ids.split("][")
     user_ids = [x.replace("[", "").replace("]", "") for x in user_ids]
+    if not user_ids:
+        return []
     query = _dbi_session.query(UserModel.username).filter(UserModel.id.in_(user_ids))
     users = query.all()
     ret = [x.username for x in users]
@@ -6854,7 +6863,7 @@ class TestRun(Resource):
             search = args["search"]
             runs_query = runs_query.filter(
                 or_(
-                    TestRunModel.id.like(f"%{search}%"),
+                    cast(TestRunModel.id, String).like(f"%{search}%"),
                     TestRunModel.uid.like(f"%{search}%"),
                     TestRunModel.title.like(f"%{search}%"),
                     TestRunModel.notes.like(f"%{search}%"),
@@ -6862,7 +6871,7 @@ class TestRun(Resource):
                     TestRunModel.fixes.like(f"%{search}%"),
                     TestRunModel.report.like(f"%{search}%"),
                     TestRunModel.result.like(f"%{search}%"),
-                    TestRunModel.created_at.like(f"%{search}%"),
+                    cast(TestRunModel.created_at, String).like(f"%{search}%"),
                     TestRunConfigModel.title.like(f"%{search}%"),
                     TestRunConfigModel.provision_type.like(f"%{search}%"),
                     TestRunConfigModel.git_repo_ref.like(f"%{search}%"),
@@ -6944,10 +6953,23 @@ class TestRun(Resource):
 
         # Start the detached process to run the test async
         if new_test_run.status == "created":
+            # Add --unit-test argument if using test database (for unit testing)
+            current_db = get_db_name()
+            unit_test_arg = "--unit-test" if current_db == "test" else ""
+
             cmd = (
                 f"python3 {os.path.join(currentdir, 'testrun.py')} --id {new_test_run.id} "
-                f"&> {TEST_RUNS_BASE_DIR}/{new_test_run.uid}.log &"
+                f"{unit_test_arg} &> {TEST_RUNS_BASE_DIR}/{new_test_run.uid}.log &"
             )
+
+            if current_db == "test":
+                logger.info(
+                    f"Starting TestRunner for test run {new_test_run.id} with "
+                    f"--unit-test flag (database: {current_db})"
+                )
+            else:
+                logger.info(f"Starting TestRunner for test run {new_test_run.id} (database: {current_db})")
+
             os.system(cmd)
 
             # Notification

@@ -85,15 +85,22 @@ class TestRunner:
     mapping = None
     DB_NAME = "basil"
 
-    def __init__(self, id):
+    def __init__(self, id, unit_test=False):
         self.id = id
-        self.dbi = db_orm.DbInterface(db_name=self.DB_NAME)
+        # Use 'test' database during unit testing, otherwise use default 'basil'
+        db_name = "test" if unit_test else self.DB_NAME
+
+        logger.info(f"TestRunner initializing with database: {db_name}")
+        if unit_test:
+            logger.info("Unit test mode enabled - using 'test' database")
+
+        self.dbi = db_orm.DbInterface(db_name=db_name)
 
         # Test Run
         try:
             self.db_test_run = self.dbi.session.query(TestRunModel).filter(TestRunModel.id == self.id).one()
         except NoResultFound:
-            logging.error("Unable to find the Test Run in the db")
+            logging.error(f"Unable to find the Test Run `{self.id}` in the db")
             sys.exit(1)
 
         logging.info(f"Test Run {id} data collected from the db")
@@ -270,9 +277,11 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--id", type=str, help="TODO")
+    parser.add_argument("--id", type=str, help="Test Run ID from the TestRun table")
+    parser.add_argument("--unit-test", action="store_true",
+                        help="Use 'test' database instead of 'basil' database (for unit testing)")
     args = parser.parse_args()
 
-    tr = TestRunner(id=args.id)
+    tr = TestRunner(id=args.id, unit_test=args.unit_test)
     tr.run()
     tr.notify()

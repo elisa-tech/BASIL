@@ -48,11 +48,13 @@ jobs:
     
       - name: Checkout
         uses: actions/checkout@v4
-        
+
+        # TEST_RUNS_BASE_DIR required by pytest
       - name: Define global variables
         id: global_variables
         run: |
           echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "BASIL_ADMIN_PASSWORD=dummy_password" >> "$GITHUB_ENV"
           echo "BASIL_API_PORT=5005" >> "$GITHUB_ENV"
           echo "BASIL_APP_PORT=9056" >> "$GITHUB_ENV"
           echo "BASIL_DB_PASSWORD=dbSecret123" >> "$GITHUB_ENV"
@@ -77,6 +79,7 @@ jobs:
           sudo ./run_demo.sh \
           -b $BASIL_API_PORT \
           -f $BASIL_APP_PORT \
+          -p $BASIL_ADMIN_PASSWORD \
           -t $BASIL_TESTING \
           -u 'http://localhost' \
           -w $BASIL_DB_PASSWORD
@@ -96,10 +99,10 @@ jobs:
           done
 
       - name: Wait for API to be ready
-        run: wait-on http://localhost:$BASIL_API_PORT/apis
+        run: wait-on http://localhost:$BASIL_API_PORT/apis --timeout 120000
 
       - name: Wait for frontend to be ready (optional)
-        run: wait-on http://localhost:$BASIL_APP_PORT
+        run: wait-on http://localhost:$BASIL_APP_PORT --timeout 120000
 
       - name: Test Container are up and running
         run: |
@@ -109,7 +112,7 @@ jobs:
           curl -vf http://localhost:$BASIL_API_PORT/version
           echo "Test App is running"
           curl -vf http://localhost:$BASIL_APP_PORT
-          
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -167,6 +170,19 @@ jobs:
             api/user-files
           retention-days: 7
 
+      - name: Copy /var/tmp/tmt from basil-api-latest container
+        if: failure()
+        run: |
+          sudo podman cp basil-api-latest:/var/test-runs ./tmt-logs
+          tar -czf tmt-logs.tar.gz ./tmt-logs
+      
+      - name: Upload tmt logs as artifact
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: tmt-logs
+          path: tmt-logs.tar.gz
+          
       - name: Collect logs of all running Podman containers
         if: always()
         run: |

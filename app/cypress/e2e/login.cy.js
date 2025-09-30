@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 
-import '../support/e2e.ts'
+import '../support/e2e.js'
 import const_data from '../fixtures/consts.json'
 
 describe('Login', () => {

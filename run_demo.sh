@@ -293,6 +293,7 @@ echoSectionTitle "Start API container"
 echo -e "\n${BODY_COLOR_STR}"
 
 podman_cmd="podman run"
+
 if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
   echo -e "\nAdding environment file $environment_file"
   podman_cmd="$podman_cmd --env-file $environment_file"

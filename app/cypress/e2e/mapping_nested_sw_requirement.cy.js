@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 
-import '../support/e2e.ts'
+import '../support/e2e.js'
 import api_data_fixture from '../fixtures/api.json'
 import const_data from '../fixtures/consts.json'
 import sr_data_fixture from '../fixtures/sw_requirement.json'

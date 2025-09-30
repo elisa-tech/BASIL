@@ -1,19 +1,11 @@
---- ../../virtual-envs/basil/lib/python3.9/site-packages/tmt/steps/provision/podman.py	2025-09-19 11:46:09
-+++ ../../virtual-envs/basil/lib/python3.9/site-packages/tmt/steps/provision/podman_modified.py	2025-09-28 23:41:03
-@@ -152,7 +152,7 @@
+--- steps/provision/podman.py
++++ steps/provision/podman_modified.py
+@@ -151,7 +151,7 @@
              else:
                  raise err
 
 -        return ['--network', self.network]
-+        return ['--network', 'host']
++        return ['--network=host']
 
      def start(self) -> None:
          """ Start provisioned guest """
-@@ -208,6 +208,7 @@
-         assert self.container is not None
-         self.podman(Command(
-             'run',
-+            '--privileged',
-             *additional_args,
-             '--name', self.container,
-             '-v', f'{workdir}:{workdir}:z',

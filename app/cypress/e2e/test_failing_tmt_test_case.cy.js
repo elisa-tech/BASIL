@@ -8,6 +8,8 @@
  * 2. Create a test run via the test case kebab menu "Run" option
  * 3. Verify the test run appears in the test results table
  * 4. Verify the test run failed
+ * 5. Verify test run details are accessible and properly displayed
+ * 6. Clean up test data (test runs and test cases)
  *
  * The test covers the end-to-end user experience of creating and managing test runs
  * in the BASIL test management system, ensuring proper integration between the frontend
@@ -58,7 +60,7 @@ const test_run_config_data = {
 }
 
 describe('Test Run Creation and Verification', () => {
-  let apiId // = 18;
+  let apiId
 
   beforeEach(() => {
     cy.login_admin()
@@ -212,5 +214,111 @@ describe('Test Run Creation and Verification', () => {
 
     // Call the function
     checkResult()
+  })
+
+  it('Verify Test Run Details', () => {
+    // Navigate back to test results modal
+    cy.visit(const_data.app_base_url + '/mapping/' + apiId)
+    cy.wait(const_data.long_wait)
+
+    cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
+    cy.wait(const_data.long_wait)
+
+    // Open test case menu and click Results
+    cy.get(const_data.mapping.table_matching_id)
+      .find('tbody tr')
+      .eq(0)
+      .find('td')
+      .eq(1)
+      .find('[class=pf-v5-c-card]')
+      .find('button[class*="pf-v5-c-menu-toggle"]')
+      .click()
+
+    cy.get('[id*="btn-menu-test-case-"]').contains(const_data.test_run.results_button_text).click()
+    cy.wait(const_data.long_wait)
+
+    // Click on our test run row to see details
+    cy.get(const_data.test_run.results_table_id).should('be.visible').find('tbody tr').contains(test_run_data.title).parents('tr').click()
+
+    // Click Details button
+    cy.get('button').contains(const_data.test_run.details_button_text).click()
+
+    // Verify Test Run Details Modal opens
+    cy.get(const_data.test_run.details_modal_id).should('be.visible')
+
+    // Verify Info tab shows test run details
+    cy.get('[id*="tab-btn-test-run-details"]').should('have.attr', 'aria-selected', 'true')
+
+    // Verify test run information is displayed
+    cy.get('h3').should('contain.text', 'Test Run')
+    cy.get('p').should('contain.text', test_run_data.title)
+    cy.get('p').should('contain.text', test_run_data.notes)
+
+    // Test other tabs are available
+    cy.get('[id*="tab-btn-test-run-details-log"]').should('be.visible')
+    cy.get('[id*="tab-btn-test-run-bugs-fixes-notes"]').should('be.visible')
+    cy.get('[id*="tab-btn-test-run-artifacts"]').should('be.visible')
+
+    // Click on Log tab
+    cy.get('[id*="tab-btn-test-run-details-log"]').click()
+    cy.wait(const_data.fast_wait)
+
+    // Verify log section is visible
+    cy.get('pre#code-block-test-run-details-log.pf-v5-c-code-block__pre')
+      .scrollIntoView()
+      .within(() => {
+        // Check for a code tag inside the pre
+        cy.get('code').should('exist')
+        // Check for the expected execution result string
+        cy.get('code').should('contain.text', 'EXECUTION RESULT: fail')
+      })
+  })
+
+  it('Cleanup: Delete Test Run and Test Case', () => {
+    // Navigate back to test results modal
+    cy.visit(const_data.app_base_url + '/mapping/' + apiId)
+    cy.wait(const_data.long_wait)
+
+    cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
+    cy.wait(const_data.long_wait)
+
+    // Open test results
+    cy.get(const_data.mapping.table_matching_id)
+      .find('tbody tr')
+      .eq(0)
+      .find('td')
+      .eq(1)
+      .find('[class=pf-v5-c-card]')
+      .find('button[class*="pf-v5-c-menu-toggle"]')
+      .click()
+
+    cy.get('[id*="btn-menu-test-case-"]').contains(const_data.test_run.results_button_text).click()
+
+    // Delete the test run
+    cy.get(const_data.test_run.results_table_id + ' tbody tr')
+      .contains(test_run_data.title)
+      .parent()
+      .within(() => {
+        cy.get('button').contains('Delete').click()
+      })
+
+    // Confirm deletion if prompted
+    cy.get('body').then(($body) => {
+      if ($body.find('button').filter(':contains("Confirm")').length > 0) {
+        cy.get('button').contains('Confirm').click()
+      }
+    })
+
+    cy.wait(const_data.mid_wait)
+
+    // Close test results modal
+    cy.get(const_data.test_run.results_modal_id).find('button[aria-label="Close"]').click()
+
+    // Delete the test case
+    cy.delete_work_item(0, 'test-case')
+    cy.wait(const_data.mid_wait)
+
+    // Verify test case is deleted
+    cy.contains('h2', 'Test Case').should('not.exist')
   })
 })

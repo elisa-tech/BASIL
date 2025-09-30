@@ -317,10 +317,6 @@ def get_active_user_from_request(_request, _db_session):
     ):
         return None
 
-    for field in mandatory_fields:
-        if field not in _request.keys():
-            return None
-
     query = (
         _db_session.query(UserModel)
         .filter(UserModel.id == _request["user-id"])

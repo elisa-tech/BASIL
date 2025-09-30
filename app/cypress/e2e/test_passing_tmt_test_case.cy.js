@@ -9,8 +9,7 @@
  * 3. Verify the test run appears in the test results table
  * 4. Verify the test run passed
  * 5. Verify test run details are accessible and properly displayed
- * 6. Verify search functionality works on test runs
- * 7. Clean up test data (test runs and test cases)
+ * 6. Clean up test data (test runs and test cases)
  *
  * The test covers the end-to-end user experience of creating and managing test runs
  * in the BASIL test management system, ensuring proper integration between the frontend
@@ -61,7 +60,7 @@ const test_run_config_data = {
 }
 
 describe('Test Run Creation and Verification', () => {
-  let apiId // = 18;
+  let apiId
 
   beforeEach(() => {
     cy.login_admin()
@@ -142,7 +141,7 @@ describe('Test Run Creation and Verification', () => {
     cy.wait(const_data.long_wait)
   })
 
-  it('Verify Test Run appears in Test Results table', function () {
+  it('Verify Test Run passing', function () {
     let check_iterations = 0
 
     const checkResult = () => {
@@ -236,11 +235,10 @@ describe('Test Run Creation and Verification', () => {
       .click()
 
     cy.get('[id*="btn-menu-test-case-"]').contains(const_data.test_run.results_button_text).click()
+    cy.wait(const_data.long_wait)
 
     // Click on our test run row to see details
-    cy.get(const_data.test_run.results_table_id + ' tbody tr')
-      .contains(test_run_data.title)
-      .click()
+    cy.get(const_data.test_run.results_table_id).should('be.visible').find('tbody tr').contains(test_run_data.title).parents('tr').click()
 
     // Click Details button
     cy.get('button').contains(const_data.test_run.details_button_text).click()
@@ -266,7 +264,14 @@ describe('Test Run Creation and Verification', () => {
     cy.wait(const_data.fast_wait)
 
     // Verify log section is visible
-    cy.get('#code-block-test-run-details-log').should('be.visible')
+    cy.get('pre#code-block-test-run-details-log.pf-v5-c-code-block__pre')
+      .scrollIntoView()
+      .within(() => {
+        // Check for a code tag inside the pre
+        cy.get('code').should('exist')
+        // Check for the expected execution result string
+        cy.get('code').should('contain.text', 'EXECUTION RESULT: pass')
+      })
   })
 
   it('Cleanup: Delete Test Run and Test Case', () => {

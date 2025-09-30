@@ -105,9 +105,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         # Create runner for User X trying to access User Y's files
@@ -136,9 +137,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -162,9 +164,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -189,9 +192,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -216,9 +220,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -241,9 +246,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": "",  # Empty repo path
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": "",  # Empty repo path
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -265,9 +271,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": "",  # Empty relative path
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": "",  # Empty relative path
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -290,9 +297,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "remote"},  # Not local, so validation should be skipped
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)
@@ -320,9 +328,10 @@ class TestTMTValidation:
             "provision_type": "container",
             "context": {"plan_type": "local"},
             "git_repo_ref": "",
-            "basil_test_repo_path": test_case.repository,
-            "basil_test_relative_path": test_case.relative_path,
-            "env": {},
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
         }
 
         runner = MockRunner(user_x, test_case, config)

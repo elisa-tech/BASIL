@@ -93,7 +93,7 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
                 )
             else:
                 # Calculate the BASIL path
-                basil_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                basil_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 # Calculate the BASIL examples tmt local path
                 basil_example_path = os.path.join(basil_path, "examples", "tmt", "local")
                 # Calculate the user folder path

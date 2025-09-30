@@ -79,7 +79,7 @@ class TestTMTValidation:
         """Get the BASIL project root path"""
         # Calculate BASIL path (same logic as in testrun_tmt.py)
         current_file = os.path.abspath(__file__)
-        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        return os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
 
     @pytest.fixture
     def user_x(self):

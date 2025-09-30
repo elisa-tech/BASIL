@@ -141,7 +141,7 @@ describe('Test Run Creation and Verification', () => {
     cy.wait(const_data.long_wait)
   })
 
-  it('Verify Test Run passing', function () {
+  it('Verify Test Run passed', function () {
     let check_iterations = 0
 
     const checkResult = () => {
@@ -270,7 +270,10 @@ describe('Test Run Creation and Verification', () => {
         // Check for a code tag inside the pre
         cy.get('code').should('exist')
         // Check for the expected execution result string
-        cy.get('code').should('contain.text', 'EXECUTION RESULT: pass')
+        cy.get('code')
+          .should('contain.text', 'EXECUTION RESULT: pass')
+          .should('contain.text', 'summary: 1 test pass')
+          .should('contain.text', 'total: 1 test pass')
       })
   })
 

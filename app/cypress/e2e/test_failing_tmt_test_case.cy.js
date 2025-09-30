@@ -141,7 +141,7 @@ describe('Test Run Creation and Verification', () => {
     cy.wait(const_data.long_wait)
   })
 
-  it('Verify Test Run appears in Test Results table', function () {
+  it('Verify Test Run failed', function () {
     let check_iterations = 0
 
     const checkResult = () => {

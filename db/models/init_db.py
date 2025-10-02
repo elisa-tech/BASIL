@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from sqlalchemy import text
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(os.path.dirname(currentdir)))
@@ -33,7 +34,6 @@ from db.models.test_specification_test_case import TestSpecificationTestCaseMode
 from db.models.test_specification_test_case import TestSpecificationTestCaseHistoryModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 from db.models.user import UserModel
-
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +41,6 @@ def initialization(db_name='basil'):
     logger.info(f"Database initialization: {db_name}")
 
     dbi = db_orm.DbInterface(db_name)
-
     try:
         if db_name == 'test':
             logger.info("Drop all tables")
@@ -53,6 +52,9 @@ def initialization(db_name='basil'):
         logger.error(f"Unable to run database create_all\n{e}")
 
     admin_pwd = os.getenv('BASIL_ADMIN_PASSWORD', 'admin')
+
+    # Prevent multiple workers write same entries
+    dbi.session.execute(text("LOCK TABLE users IN ACCESS EXCLUSIVE MODE"))
 
     admin_count = dbi.session.query(UserModel).filter(
         UserModel.email == "admin").filter(
@@ -67,14 +69,26 @@ def initialization(db_name='basil'):
         if 'BASIL_ADMIN_PASSWORD' in os.environ:
             del os.environ['BASIL_ADMIN_PASSWORD']
     else:
-        logger.info("Creating dummy_guest user with GUEST role")
-        guest = UserModel("dummy_guest", "dummy_guest", "dummy_guest", "GUEST")
-        dbi.session.add(guest)
-        logger.info("Creating dummy_user user with USER role")
-        test_user = UserModel("dummy_user", "dummy_user", "dummy_user", "USER")
-        dbi.session.add(test_user)
+        dummy_guest_count = dbi.session.query(UserModel).filter(
+            UserModel.email == "dummy_guest").filter(
+            UserModel.role == 'GUEST'
+        ).count()
+        if not dummy_guest_count:
+            logger.info("Creating dummy_guest user with GUEST role")
+            dummy_guest = UserModel("dummy_guest", "dummy_guest", "dummy_guest", "GUEST")
+            dbi.session.add(dummy_guest)
+
+        dummy_user_count = dbi.session.query(UserModel).filter(
+            UserModel.email == "dummy_user").filter(
+            UserModel.role == 'USER'
+        ).count()
+        if not dummy_user_count:
+            logger.info("Creating dummy_user user with USER role")
+            dummy_user = UserModel("dummy_user", "dummy_user", "dummy_user", "USER")
+            dbi.session.add(dummy_user)
 
     dbi.session.commit()
+    dbi.close()
 
 
 if __name__ == "__main__":

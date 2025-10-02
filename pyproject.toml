@@ -1,6 +1,6 @@
 [project]
 name = "BASIL"
-version = "1.8.1"
+version = "1.8.2"
 description = "open source software quality management tool"
 authors = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"},
@@ -15,6 +15,7 @@ dependencies = [
     "PyYAML==6.0.1",
     "SQLAlchemy==2.0.19",
     "Werkzeug==2.2.2",
+    "graphviz==0.21",
     "gunicorn==21.2.0",
     "openai==1.90.0",
     "psycopg2-binary==2.9.10",
@@ -22,7 +23,7 @@ dependencies = [
     "pytest==8.0.1",
     "python-gitlab==3.15.0",
     "requests==2.28.2",
-    "spdx-tools==0.8.3",
+    "spdx3-validate==0.0.5",
     "tmt==1.36.0",
     "tmt[provision-container]"
 ]

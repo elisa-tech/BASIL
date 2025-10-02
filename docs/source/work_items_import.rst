@@ -47,7 +47,7 @@ or using list of dictionaries as follows:
        on multimple lines
 
 
-in both examples other properites can be populated. 
+in both examples other properites can be populated.
 
 These properites will be discarded but the **id** one.
 
@@ -59,7 +59,7 @@ Here an example:
 
    id: SW-REQ-XXX-1 # will be ignored as data but proposed at the import time
    created_at: 2025-05-12 # will be ignored
-   owner: Micky Mouse  # will be ignored  
+   owner: Micky Mouse  # will be ignored
    title: Software Requirement Example 1
    description: |
     Statement that describes software requirement example 1
@@ -87,7 +87,7 @@ or using list of dictionaries as follows:
        "description": "Statement that describes software requirement example 2"}
    ]
 
-in both examples other properites can be populated. 
+in both examples other properites can be populated.
 
 These properites will be discarded but the **id** one.
 
@@ -101,35 +101,54 @@ Here an example:
     "created_at": "2025-05-12",
     "owner": "Micky Mouse",
     "title": "Software Requirement Example 1",
-    "description": "Statement that describes software requirement example 1"}    
+    "description": "Statement that describes software requirement example 1"}
 
 
 SPDX JSONLD
 ^^^^^^^^^^^
-In BASIL user can export work items in jsonld SPDX SBOMs and same file can be used to import Software Requirements.
+In BASIL user can export work the software component traceability matrix in jsonld using the SPDX 3.0.1 SBOMs definitions and same file can be used to import Software Requirements.
 
 A BASIL Software Requirement is exported as the following example:
 
-.. code-block:: json
+.. code-block:: jsonld
 
     {
-      "@type": "File",
-      "@id": "SW-REQUIREMENT_1",
-      "name": "SwReq1",
-      "summary": "Software Requirement",
+      "type": "software_File",
+      "spdxId": "spdx:file:basil:software-requirement:4",
+      "software_copyrightText": "",
+      "software_primaryPurpose": "requirement",
+      "name": "Example Requirement one",
+      "comment": "BASIL Software Requirement ID 4",
+      "description": "Description of the example requirement one",
       "verifiedUsing": [
         {
-          "@type": "Hash",
+          "type": "Hash",
           "algorithm": "md5",
-          "hashValue": "00f211e29f2e41e6d33edb844aca955d"
+          "hashValue": "6db25f81a86bab932810f1badd87dc57"
         }
       ],
-      "attributionText": "{\"id\": 1, \"title\": \"SwReq1\", \"description\": \"description of sw requirement 1\", \"status\": \"NEW\", \"created_by\": \"useremail\", \"version\": \"1\", \"created_at\": \"2025-01-16 16:06\", \"updated_at\": \"2025-01-16 16:06\", \"__tablename__\": \"sw_requirements\"}"
+      "creationInfo": "_:creation_info_spdx:file:basil:software-requirement:4"
     },
 
-and it is recognized by the import tool using the **summary** field that should be equal to 'Software Requirement'.
+and it is recognized by the import tool using the **type** field, that should be equal to 'software_File' and from the **software_primaryPurpose** field, that should be equal to 'requirement'.
 
-All the information of the work item are reported as stringified json inside the **attributionText** field.
+All the information of the work item are reported as stringified json inside an **Annotation** element.
+
+
+Here following an example of an Annotation element that contains the information of the Software Requirement:
+
+.. code-block:: jsonld
+
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:basil:software-requirement:4",
+      "subject": "spdx:file:basil:software-requirement:4",
+      "statement": "{\"id\": 4, \"title\": \"Example Requirement one\", \"description\": \"Description of the example requirement one\", \"status\": \"NEW\", \"created_by\": \"one1\", \"version\": \"1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\", \"__tablename__\": \"sw_requirements\"}",
+      "creationInfo": "_:creation_info_spdx:file:basil:software-requirement:4"
+    },
+
+Please note that the **statement** field contains the stringified json of the Software Requirement.
 
 Other tools are also able to export Software Requirements in this format, StrictDoc is an example.
 

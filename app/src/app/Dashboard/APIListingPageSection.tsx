@@ -18,7 +18,6 @@ import { APIListingTable } from './APIListingTable'
 import { APIModal } from './Modal/APIModal'
 import { APICheckSpecModal } from './Modal/APICheckSpecModal'
 import { APIDeleteModal } from './Modal/APIDeleteModal'
-import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
 import { APIManageUserPermissionsModal } from './Modal/APIManageUserPermissionsModal'
 import { useAuth } from '../User/AuthProvider'
 import { ModalNotification } from '@app/Common/Modal/ModalNotification'
@@ -49,7 +48,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [modalShowState, setModalShowState] = React.useState(false)
 
   const [modalCheckSpecShowState, setModalCheckSpecShowState] = React.useState(false)
-  const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false)
   const [modalCheckSpecApiData, setModalCheckSpecApiData] = React.useState(null)
   const [modalObject, setModalObject] = React.useState('')
   const [modalAction, setModalAction] = React.useState('')
@@ -57,7 +55,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [modalFormData, setModalFormData] = React.useState('')
   const [modalTitle, setModalTitle] = React.useState('')
   const [modalDescription, setModalDescription] = React.useState('')
-  const [SPDXContent, setSPDXContent] = React.useState('')
 
   const [modalNotificationShowState, setModalNotificationShowState] = React.useState(false)
   const [modalNotificationTitle, setModalNotificationTitle] = React.useState('')
@@ -107,18 +104,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
     setModalNotificationTitle(_title)
     setModalNotificationMessage(_message)
     setModalNotificationShowState(_modalShowState)
-  }
-
-  const exportSPDX = () => {
-    fetch(Constants.API_BASE_URL + '/spdx/libraries?library=' + currentLibrary)
-      .then((res) => res.json())
-      .then((data) => {
-        setSPDXContent(JSON.stringify(data, null, 2))
-        setModalSPDXExportShowState(true)
-      })
-      .catch((err) => {
-        console.log(err.message)
-      })
   }
 
   const renderPagination = (variant, isCompact) => (
@@ -189,11 +174,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
                 )}
               </FlexItem>
               <FlexItem>
-                <Button id='btn-export-sw-components-to-spdx' variant='secondary' onClick={() => exportSPDX()}>
-                  Export to SPDX
-                </Button>
-              </FlexItem>
-              <FlexItem>
                 <Button variant='secondary' isDisabled>
                   Baseline
                 </Button>
@@ -233,12 +213,6 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         api={modalCheckSpecApiData}
         modalShowState={modalCheckSpecShowState}
         setModalShowState={setModalCheckSpecShowState}
-      />
-      <APIExportSPDXModal
-        SPDXContent={SPDXContent}
-        setSPDXContent={setSPDXContent}
-        modalShowState={modalSPDXExportShowState}
-        setModalShowState={setModalSPDXExportShowState}
       />
       <APIManageUserPermissionsModal
         api={modalManageUserPermissionsApiData}

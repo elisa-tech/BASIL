@@ -23,7 +23,11 @@ from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
 from db.models.test_run import TestRunModel
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 
-logging.basicConfig(stream=sys.stdout, format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    stream=sys.stdout,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 logger = logging.getLogger(__name__)
 logger.info("Starting BASI Test Run")
 
@@ -75,8 +79,12 @@ class TestRunner:
     config = {}
 
     id = None
-    ssh_keys_dir = os.path.join(currentdir, "ssh_keys")  # Same as SSH_KEYS_PATH defined in api.py
-    presets_filepath = os.path.join(currentdir, CONFIGS_FOLDER, "testrun_plugin_presets.yaml")
+    ssh_keys_dir = os.path.join(
+        currentdir, "ssh_keys"
+    )  # Same as SSH_KEYS_PATH defined in api.py
+    presets_filepath = os.path.join(
+        currentdir, CONFIGS_FOLDER, "testrun_plugin_presets.yaml"
+    )
 
     dbi = None
     db_test_run = None
@@ -98,7 +106,11 @@ class TestRunner:
 
         # Test Run
         try:
-            self.db_test_run = self.dbi.session.query(TestRunModel).filter(TestRunModel.id == self.id).one()
+            self.db_test_run = (
+                self.dbi.session.query(TestRunModel)
+                .filter(TestRunModel.id == self.id)
+                .one()
+            )
         except NoResultFound:
             logging.error(f"Unable to find the Test Run `{self.id}` in the db")
             sys.exit(1)
@@ -109,7 +121,9 @@ class TestRunner:
             self.db_test_run.log = ""
 
         if self.db_test_run.status != self.STATUS_CREATED:
-            logging.error(f"Test Run {id} has been already triggered, current status is `{self.db_test_run.status}`.")
+            logging.error(
+                f"Test Run {id} has been already triggered, current status is `{self.db_test_run.status}`."
+            )
             sys.exit(2)
 
         logging.info(f"Test Run {id} status: CREATED")
@@ -119,11 +133,15 @@ class TestRunner:
             self.mapping_model = ApiTestCaseModel
         elif self.db_test_run.mapping_to == SwRequirementTestCaseModel.__tablename__:
             self.mapping_model = SwRequirementTestCaseModel
-        elif self.db_test_run.mapping_to == TestSpecificationTestCaseModel.__tablename__:
+        elif (
+            self.db_test_run.mapping_to == TestSpecificationTestCaseModel.__tablename__
+        ):
             self.mapping_model = TestSpecificationTestCaseModel
         else:
             # TODO: Update db with the error info
-            logging.error("Unable to find the Model of the parent item in the mapping definition")
+            logging.error(
+                "Unable to find the Model of the parent item in the mapping definition"
+            )
             sys.exit(3)
 
         try:
@@ -227,7 +245,8 @@ class TestRunner:
         notifications = NotificationModel(
             self.db_test_run.api,
             variant,
-            f"Test Run for `{self.db_test_run.api.api}` " f"{self.db_test_run.result.upper()}",
+            f"Test Run for `{self.db_test_run.api.api}` "
+            f"{self.db_test_run.result.upper()}",
             notification,
             "",
             f"/mapping/{self.db_test_run.api.id}",
@@ -246,10 +265,13 @@ class TestRunner:
         # Test Run Plugin
         logging.info(f"Test run {self.id} start execution")
         try:
-            if self.db_test_run.test_run_config.plugin in self.test_run_plugin_models.keys():
-                self.runner_plugin = self.test_run_plugin_models[self.db_test_run.test_run_config.plugin](
-                    runner=self, currentdir=currentdir
-                )
+            if (
+                self.db_test_run.test_run_config.plugin
+                in self.test_run_plugin_models.keys()
+            ):
+                self.runner_plugin = self.test_run_plugin_models[
+                    self.db_test_run.test_run_config.plugin
+                ](runner=self, currentdir=currentdir)
                 self.runner_plugin.run()
                 self.runner_plugin.collect_artifacts()
                 self.runner_plugin.cleanup()
@@ -269,6 +291,9 @@ class TestRunner:
             logging.error(self.db_test_run.log)
             sys.exit(6)
 
+    def close(self):
+        self.dbi.close()
+
 
 if __name__ == "__main__":
     """
@@ -278,10 +303,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--id", type=str, help="Test Run ID from the TestRun table")
-    parser.add_argument("--unit-test", action="store_true",
-                        help="Use 'test' database instead of 'basil' database (for unit testing)")
+    parser.add_argument(
+        "--unit-test",
+        action="store_true",
+        help="Use 'test' database instead of 'basil' database (for unit testing)",
+    )
     args = parser.parse_args()
 
     tr = TestRunner(id=args.id, unit_test=args.unit_test)
     tr.run()
     tr.notify()
+    tr.close()

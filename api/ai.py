@@ -100,15 +100,15 @@ class AIPrompter():
         """Validate mandatory fields"""
 
         if not self._host:
-            logger.error("Error. `AI host` is not configured")
+            logger.warning("Error. `AI host` is not configured")
             return False
 
         if not self._port:
-            logger.error("Error. `AI port` is not configured")
+            logger.warning("Error. `AI port` is not configured")
             return False
 
         if not self._model:
-            logger.error("Error. `AI model` is not configured")
+            logger.warning("Error. `AI model` is not configured")
             return False
 
         logger.info("AIPromter settings are valid")

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import {
   Brand,
   Button,
+  Label,
   Masthead,
   MastheadBrand,
   MastheadContent,
@@ -15,7 +16,8 @@ import {
   Page,
   PageSidebar,
   PageSidebarBody,
-  SkipToContent
+  SkipToContent,
+  Text
 } from '@patternfly/react-core'
 import BarsIcon from '@patternfly/react-icons/dist/esm/icons/bars-icon'
 import { HeaderToolbar } from './HeaderToolbar'
@@ -24,6 +26,7 @@ import logo from '@app/bgimages/basil.svg'
 import * as Constants from '../Constants/constants'
 import { useAuth } from '../User/AuthProvider'
 import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
+import { InfoCircleIcon } from '@patternfly/react-icons'
 
 interface IAppLayout {
   children: React.ReactNode
@@ -40,6 +43,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
   const [libraries, setLibraries] = React.useState([])
   const [fetchNotificationCount, setFetchNotificationCount] = React.useState(0)
   const [fetchLibrariesCount, setFetchLibrariesCount] = React.useState(0)
+  const [newVersionAvailabe, setNewVersionAvailable] = React.useState(false)
 
   const search = window.location.search
   const params = new URLSearchParams(search)
@@ -60,6 +64,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
     if (libraries.length == 0) {
       loadLibraries()
     }
+    Constants.checkNewVersionAvailable(setNewVersionAvailable)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -352,7 +357,23 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
         </NavList>
       </Nav>
       <div style={{ flexGrow: 1 }} />
-      <div style={{ padding: '1.5rem', fontSize: '0.8rem', color: '#FFF' }}>Version: {Constants.BASIL_VERSION}</div>
+      <div style={{ padding: '1.5rem', fontSize: '0.8rem', color: '#FFF' }}>
+        <Text>Version: {Constants.BASIL_VERSION}</Text>
+        {newVersionAvailabe ? (
+          <a
+            href='https://github.com/elisa-tech/BASIL/releases'
+            target='_blank'
+            rel='noopener noreferrer'
+            style={{ textDecoration: 'none' }}
+          >
+            <Label isCompact variant='filled' color='green' icon={<InfoCircleIcon />}>
+              New version available
+            </Label>
+          </a>
+        ) : (
+          ''
+        )}
+      </div>
     </>
   )
 

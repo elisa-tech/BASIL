@@ -3,6 +3,9 @@ export const BASIL_VERSION = '1.8.2'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
+const GITHUB_REPO_RELEASES_URL = 'https://api.github.com/repos/elisa-tech/BASIL/releases/latest'
+const COOKIE_BASIL_LASTEST_RELEASE_VERSION = 'basil-latest-release-version'
+
 export const _A = 'api'
 export const _D = 'document'
 export const _Ds = 'documents'
@@ -441,6 +444,69 @@ export const removeExtension = (filename: string, extension: string) => {
 
 export const isValidId = (id_str: string) => {
   return /^\d+$/.test(id_str) && Number(id_str) > 0 && Number.isSafeInteger(Number(id_str))
+}
+
+export const setCookie = (name, value, days) => {
+  const date = new Date()
+  date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000)
+  const expires = 'expires=' + date.toUTCString()
+  document.cookie = `${name}=${value}; ${expires}; path=/`
+}
+
+export const getCookieValue = (name) => {
+  const cookies = document.cookie.split(';')
+
+  for (let cookie of cookies) {
+    const [key, value] = cookie.trim().split('=')
+    if (key === name) {
+      return decodeURIComponent(value)
+    }
+  }
+
+  return undefined
+}
+
+// Compare semantic versions (e.g. "1.8.0" < "1.9.0")
+export const isNewerVersion = (latest: string = '', current: string = '') => {
+  const latestParts = latest.split('.').map(Number)
+  const currentParts = current.split('.').map(Number)
+
+  for (let i = 0; i < latestParts.length; i++) {
+    if ((latestParts[i] || 0) > (currentParts[i] || 0)) return true
+    if ((latestParts[i] || 0) < (currentParts[i] || 0)) return false
+  }
+  return false
+}
+
+export const checkNewVersionAvailable = (setNewVersionAvailable) => {
+  const value = getCookieValue(COOKIE_BASIL_LASTEST_RELEASE_VERSION)
+
+  if (value !== undefined) {
+    setNewVersionAvailable(isNewerVersion(value, BASIL_VERSION))
+    return
+  } else {
+    fetch(GITHUB_REPO_RELEASES_URL)
+      .then((res) => {
+        if (!res.ok) {
+          setNewVersionAvailable(false)
+          throw new Error('Unable to read last release from github')
+        } else {
+          return res.json()
+        }
+      })
+      .then((data) => {
+        if (!data || typeof data !== 'object' || !data.tag_name) {
+          throw new Error('`tag_name` not found in GitHub response')
+        }
+        const tag = data.tag_name.replace(/^v/, '') // strip "v" if release is like "v1.9.0"
+        setCookie(COOKIE_BASIL_LASTEST_RELEASE_VERSION, tag, 1) // expires in 1 day
+        setNewVersionAvailable(isNewerVersion(tag, BASIL_VERSION))
+      })
+      .catch((err) => {
+        console.error('ERROR: ' + err.message)
+        setNewVersionAvailable(false)
+      })
+  }
 }
 
 export const logObject = (obj) => {

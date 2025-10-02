@@ -1,0 +1,340 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:basil:library:Example Library",
+      "subject": "spdx:file:basil:library:Example Library",
+      "statement": "{\"name\": \"Example Library\"}",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:basil:api:2",
+      "subject": "spdx:file:basil:api:2",
+      "statement": "{\"id\": 2, \"api\": \"Example Software Component\", \"library\": \"Example Library\", \"library_version\": \"1\", \"raw_specification_url\": \"https://raw.githubusercontent.com/elisa-tech/BASIL/refs/heads/main/README.md\", \"category\": \"example\", \"checksum\": \"\", \"default_view\": null, \"implementation_file\": \"\", \"implementation_file_from_row\": null, \"implementation_file_to_row\": null, \"created_by\": \"one1\", \"edited_by\": \"one1\", \"last_coverage\": \"4.2\", \"tags\": \"example\", \"version\": \"1\", \"srs_coverage\": 125, \"tss_coverage\": 0, \"tcs_coverage\": 0, \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\", \"__tablename__\": \"apis\"}",
+      "creationInfo": "_:creation_info_spdx:file:basil:api:2"
+    },
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:basil:api:reference-document:2",
+      "subject": "spdx:file:basil:api:reference-document:2",
+      "statement": "{\"url\": \"https://raw.githubusercontent.com/elisa-tech/BASIL/refs/heads/main/README.md\", \"content\": \"\"}",
+      "creationInfo": "_:creation_info_spdx:file:basil:api:2"
+    },
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:snippet:api:2:software-requirement:4:relation-id:2",
+      "subject": "spdx:snippet:api:2:1",
+      "statement": "{\"relation_id\": 2, \"section\": \"# BASIL\\n\\nA tool developed to manage software related work items, design their traceability towards specifications and source code and ensure completeness of analysis.\", \"offset\": 94, \"direct\": true, \"coverage\": 50, \"created_by\": \"one1\", \"covered\": 50, \"__tablename__\": \"sw_requirement_mapping_api\", \"gap\": 0, \"version\": \"1.1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\"}",
+      "creationInfo": "_:creation_info_spdx:snippet:api:2:1"
+    },
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:basil:software-requirement:4",
+      "subject": "spdx:file:basil:software-requirement:4",
+      "statement": "{\"id\": 4, \"title\": \"Example Requirement one\", \"description\": \"Description of the example requirement one\", \"status\": \"NEW\", \"created_by\": \"one1\", \"version\": \"1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\", \"__tablename__\": \"sw_requirements\"}",
+      "creationInfo": "_:creation_info_spdx:file:basil:software-requirement:4"
+    },
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:snippet:api:2:software-requirement:5:relation-id:3",
+      "subject": "spdx:snippet:api:2:2",
+      "statement": "{\"relation_id\": 3, \"section\": \"With BASIL you can decompose a Software Component Specification (or source code directly) in snippets and assign to each one a set of desired work items.\", \"offset\": 443, \"direct\": true, \"coverage\": 75, \"created_by\": \"one1\", \"covered\": 75, \"__tablename__\": \"sw_requirement_mapping_api\", \"gap\": 0, \"version\": \"1.1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\"}",
+      "creationInfo": "_:creation_info_spdx:snippet:api:2:2"
+    },
+    {
+      "type": "Annotation",
+      "annotationType": "other",
+      "spdxId": "spdx:annotation:basil:software-requirement:5",
+      "subject": "spdx:file:basil:software-requirement:5",
+      "statement": "{\"id\": 5, \"title\": \"Example Requirement two\", \"description\": \"Description of the example requirement two\", \"status\": \"NEW\", \"created_by\": \"one1\", \"version\": \"1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\", \"__tablename__\": \"sw_requirements\"}",
+      "creationInfo": "_:creation_info_spdx:file:basil:software-requirement:5"
+    },
+    {
+      "@id": "_:sbom_creation_info",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": [
+        "spdx:person:basil:user:2"
+      ],
+      "createdUsing": [
+        "https://github.com/elisa-tech/BASIL"
+      ],
+      "created": "2025-10-02T09:35:55Z"
+    },
+    {
+      "@id": "_:creation_info_spdx:file:basil:api:2",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": [
+        "spdx:person:basil:user:2"
+      ],
+      "createdUsing": [
+        "https://github.com/elisa-tech/BASIL"
+      ],
+      "created": "2025-10-02T09:35:01Z"
+    },
+    {
+      "@id": "_:creation_info_spdx:snippet:api:2:1",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": [
+        "spdx:person:basil:user:2"
+      ],
+      "createdUsing": [
+        "https://github.com/elisa-tech/BASIL"
+      ],
+      "created": "2025-10-02T09:35:30Z"
+    },
+    {
+      "@id": "_:creation_info_spdx:file:basil:software-requirement:4",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": [
+        "spdx:person:basil:user:2"
+      ],
+      "createdUsing": [
+        "https://github.com/elisa-tech/BASIL"
+      ],
+      "created": "2025-10-02T09:35:30Z"
+    },
+    {
+      "@id": "_:creation_info_spdx:snippet:api:2:2",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": [
+        "spdx:person:basil:user:2"
+      ],
+      "createdUsing": [
+        "https://github.com/elisa-tech/BASIL"
+      ],
+      "created": "2025-10-02T09:35:53Z"
+    },
+    {
+      "@id": "_:creation_info_spdx:file:basil:software-requirement:5",
+      "type": "CreationInfo",
+      "specVersion": "3.0.1",
+      "createdBy": [
+        "spdx:person:basil:user:2"
+      ],
+      "createdUsing": [
+        "https://github.com/elisa-tech/BASIL"
+      ],
+      "created": "2025-10-02T09:35:53Z"
+    },
+    {
+      "type": "Person",
+      "spdxId": "spdx:person:basil:user:2",
+      "name": "one1",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "spdx:relationship:1",
+      "from": "spdx:file:basil:api:2",
+      "to": [
+        "spdx:file:basil:api:reference-document:2"
+      ],
+      "relationshipType": "hasDocumentation",
+      "completeness": "incomplete",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "spdx:relationship:2",
+      "from": "spdx:file:basil:api:2",
+      "to": [
+        "spdx:snippet:api:2:1"
+      ],
+      "relationshipType": "contains",
+      "completeness": "incomplete",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "spdx:relationship:3",
+      "from": "spdx:snippet:api:2:1",
+      "to": [
+        "spdx:file:basil:software-requirement:4"
+      ],
+      "relationshipType": "hasRequirement",
+      "completeness": "incomplete",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "spdx:relationship:4",
+      "from": "spdx:file:basil:api:2",
+      "to": [
+        "spdx:snippet:api:2:2"
+      ],
+      "relationshipType": "contains",
+      "completeness": "incomplete",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "spdx:relationship:5",
+      "from": "spdx:snippet:api:2:2",
+      "to": [
+        "spdx:file:basil:software-requirement:5"
+      ],
+      "relationshipType": "hasRequirement",
+      "completeness": "incomplete",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "spdx:relationship:6",
+      "from": "spdx:file:basil:library:Example Library",
+      "to": [
+        "spdx:file:basil:api:2"
+      ],
+      "relationshipType": "contains",
+      "completeness": "incomplete",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "SpdxDocument",
+      "spdxId": "spdx:document:spdx:document:basil:export:Example Library",
+      "dataLicense": "spdx:license:Example Library",
+      "rootElement": [
+        "spdx:file:basil:library:Example Library"
+      ],
+      "name": "BASIL SBOM export for library Example Library",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "Tool",
+      "spdxId": "https://github.com/elisa-tech/BASIL",
+      "name": "BASIL",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "spdx:license:Example Library",
+      "simplelicensing_licenseExpression": "NOASSERTION",
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "software_File",
+      "spdxId": "spdx:file:basil:library:Example Library",
+      "software_copyrightText": "",
+      "software_primaryPurpose": "library",
+      "name": "Library Example Library",
+      "comment": "BASIL Library Example Library",
+      "description": "BASIL Library Example Library",
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "md5",
+          "hashValue": "fc76e2e0edc4aba95cd751892df541b8"
+        }
+      ],
+      "creationInfo": "_:sbom_creation_info"
+    },
+    {
+      "type": "software_File",
+      "spdxId": "spdx:file:basil:api:2",
+      "software_copyrightText": "",
+      "software_primaryPurpose": "module",
+      "name": "Example Software Component",
+      "comment": "BASIL Software Component id 2",
+      "description": "BASIL Software Component id 2",
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "md5",
+          "hashValue": "fc636d1106c248edabbfe7407ecadbb9"
+        }
+      ],
+      "creationInfo": "_:creation_info_spdx:file:basil:api:2"
+    },
+    {
+      "type": "software_File",
+      "spdxId": "spdx:file:basil:api:reference-document:2",
+      "software_copyrightText": "",
+      "software_primaryPurpose": "specification",
+      "name": "https://raw.githubusercontent.com/elisa-tech/BASIL/refs/heads/main/README.md",
+      "comment": "BASIL Reference Document for Software Component Example Software Component",
+      "description": "BASIL Reference Document for Software Component Example Software Component of library Example Library",
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "md5",
+          "hashValue": "427ed7272c66a3305251eced469a4a64"
+        }
+      ],
+      "creationInfo": "_:creation_info_spdx:file:basil:api:2"
+    },
+    {
+      "type": "software_File",
+      "spdxId": "spdx:file:basil:software-requirement:4",
+      "software_copyrightText": "",
+      "software_primaryPurpose": "requirement",
+      "name": "Example Requirement one",
+      "comment": "BASIL Software Requirement ID 4",
+      "description": "Description of the example requirement one",
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "md5",
+          "hashValue": "6db25f81a86bab932810f1badd87dc57"
+        }
+      ],
+      "creationInfo": "_:creation_info_spdx:file:basil:software-requirement:4"
+    },
+    {
+      "type": "software_File",
+      "spdxId": "spdx:file:basil:software-requirement:5",
+      "software_copyrightText": "",
+      "software_primaryPurpose": "requirement",
+      "name": "Example Requirement two",
+      "comment": "BASIL Software Requirement ID 5",
+      "description": "Description of the example requirement two",
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "md5",
+          "hashValue": "0c81b9c619a6ad9ea0a9adc9de908e1d"
+        }
+      ],
+      "creationInfo": "_:creation_info_spdx:file:basil:software-requirement:5"
+    },
+    {
+      "type": "software_Snippet",
+      "spdxId": "spdx:snippet:api:2:1",
+      "name": "https://raw.githubusercontent.com/elisa-tech/BASIL/refs/heads/main/README.md",
+      "comment": "Snippet of api Example Software Component reference document",
+      "description": "",
+      "software_byteRange": {
+        "type": "PositiveIntegerRange",
+        "beginIntegerRange": 1,
+        "endIntegerRange": 261
+      },
+      "software_snippetFromFile": "spdx:file:basil:api:reference-document:2",
+      "creationInfo": "_:creation_info_spdx:snippet:api:2:1"
+    },
+    {
+      "type": "software_Snippet",
+      "spdxId": "spdx:snippet:api:2:2",
+      "name": "https://raw.githubusercontent.com/elisa-tech/BASIL/refs/heads/main/README.md",
+      "comment": "Snippet of api Example Software Component reference document",
+      "description": "",
+      "software_byteRange": {
+        "type": "PositiveIntegerRange",
+        "beginIntegerRange": 1,
+        "endIntegerRange": 597
+      },
+      "software_snippetFromFile": "spdx:file:basil:api:reference-document:2",
+      "creationInfo": "_:creation_info_spdx:snippet:api:2:2"
+    }
+  ]
+}

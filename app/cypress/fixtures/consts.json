@@ -21,6 +21,12 @@
       }
     },
     "sw_requirements": {
+      "basil_spdx": {
+        "file": "../examples/export/spdx.jsonld",
+        "sw_requirement": {
+          "title": "Example Requirement one"
+        }
+      },
       "csv": {
         "file": "../examples/import/reqs/reqs.csv",
         "sw_requirement": {

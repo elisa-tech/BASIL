@@ -27,7 +27,6 @@ const AutoRefresh: React.FunctionComponent<AutoRefreshProps> = ({ loadRows, show
       setFetchDateDiff(moment().diff(lastFetchDateTiime, 'seconds'))
     }
     if (fetchDateDiff >= Constants.REFRESH_INTERVAL) {
-      console.log('here')
       loadRows(true)
       setLastFetchDateTime(moment())
       setTime(0)

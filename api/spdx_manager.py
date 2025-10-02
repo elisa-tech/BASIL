@@ -3,7 +3,6 @@ import hashlib
 import json
 import logging
 import os
-import shutil
 import sys
 from graphviz import Digraph
 from pathlib import Path
@@ -472,6 +471,7 @@ class SPDXManager:
         test_runs_limit: int = 20,
         dbi: DbInterface = None,
     ):
+        self.sbom = []
         self.include_test_runs = include_test_runs
         self.test_runs_limit = test_runs_limit
 
@@ -571,8 +571,6 @@ class SPDXManager:
             ids = [item.spdx_id for item in self.sbom if item.to_dict().get("spdxId", None)]
             if spdx_id not in ids:
                 self.sbom.append(element)
-            else:
-                logging.warning(f"SPDX Element with ID {spdx_id} already exists")
 
     @staticmethod
     def make_spdx_id(identifier: str) -> str:
@@ -1323,6 +1321,15 @@ class SPDXManager:
                         return purpose_colors[cKey]
             return "white"
 
+        # Track added edges
+        added_edges = set()
+
+        # Function to safely add edges
+        def add_edge(src, dst, label):
+            key = (src, dst, label)
+            if key not in added_edges:
+                added_edges.add(key)
+
         # Create a directed graph
         dot = Digraph(format="png")
         dot.attr(rankdir="TB")
@@ -1332,12 +1339,6 @@ class SPDXManager:
         relationships = [item for item in self.sbom if isinstance(item, SPDXRelationship)]
 
         for relationship in relationships:
-            if isinstance(relationship.from_element, SPDXCreationInfo):
-                continue
-            if isinstance(relationship.from_element, SPDXPerson):
-                continue
-            if isinstance(relationship.from_element, SPDXAnnotation):
-                continue
             if not [item for item in relationship.to if isinstance(item, SPDXFile)]:
                 continue
 
@@ -1365,17 +1366,21 @@ class SPDXManager:
                     if from_file_str not in added_nodes:
                         dot.node(from_file_str, style="filled", fillcolor="yellow")
                         added_nodes[from_file_str] = "yellow"
-                    dot.edge(from_file_str, to_node_str, label="contains")
+                    add_edge(from_file_str, to_node_str, "contains")
 
                 if isinstance(from_node, SPDXSnippet):
                     from_file_str = from_node.from_file.spdx_id.replace(":", "_")
                     if from_file_str not in added_nodes:
                         dot.node(from_file_str, style="filled", fillcolor="yellow")
                         added_nodes[from_file_str] = "yellow"
-                    dot.edge(from_file_str, from_node_str, label="contains")
+                    add_edge(from_file_str, from_node_str, "contains")
 
                 # Add edge without special color
-                dot.edge(from_node_str, to_node_str, label=relationship.relationship_type)
+                add_edge(from_node_str, to_node_str, label=relationship.relationship_type)
+
+        # Populate dot edges
+        for edge in sorted(added_edges):
+            dot.edge(edge[0], edge[1], label=edge[2])
 
         # --- Legend Subgraph ---
         legend = Digraph(name="cluster_legend")
@@ -1407,7 +1412,9 @@ class SPDXManager:
 
         dot.subgraph(legend)
 
-        with open("diagraph.dot", "w") as f:
+        dot_filepath = f"{output_file}.dot"
+        logger.info(f"Creating .dot file at {dot_filepath}")
+        with open(dot_filepath, "w") as f:
             f.write(dot.source)
 
         # Save to file
@@ -1429,16 +1436,9 @@ class SPDXManager:
             with open(filepath, "w") as f:
                 json.dump(json_data, f, indent=2)
 
-            latest_jsonld_filepath = Path(filepath).with_name("latest.jsonld")
-            diagraph_filepath = filepath[: -len(".jsonld")]
-            latest_diagraph_filepath = Path(filepath).with_name("latest.png")
+            latest_diagraph_filepath = Path(filepath).with_name("latest")
 
-            with open(latest_jsonld_filepath, "w") as f:
-                json.dump(json_data, f, indent=2)
-
-            self.generate_diagraph(diagraph_filepath)
-            if os.path.exists(f"{diagraph_filepath}.png"):
-                shutil.copy(f"{diagraph_filepath}.png", latest_diagraph_filepath)
+            self.generate_diagraph(latest_diagraph_filepath)
 
         except Exception as e:
             logger.warning(f"Could not write sbom data to {filepath}: {e}")

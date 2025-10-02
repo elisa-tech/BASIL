@@ -23,6 +23,7 @@ It comes also with a REST web api to simplify the integration in other toolchain
    functional_safety
    e2e_testing
    notifications
+   spdx_traceability_export
    test_run
    user_management
    work_items

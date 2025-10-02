@@ -1,7 +1,8 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
+import { useAuth } from '@app/User/AuthProvider'
 import { Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core'
-import { APIExportSPDXModal } from '../Dashboard/Modal/APIExportSPDXModal'
+import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
 import { MappingListingTable } from './MappingListingTable'
 import { MappingSwRequirementModal } from './Modal/MappingSwRequirementModal'
 import { MappingTestSpecificationModal } from './Modal/MappingTestSpecificationModal'
@@ -15,7 +16,6 @@ import { MappingHistoryModal } from './Modal/MappingHistoryModal'
 import { MappingUsageModal } from './Modal/MappingUsageModal'
 import { MappingCommentModal } from './Modal/MappingCommentModal'
 import { TestResultsModal } from './Modal/TestResultsModal'
-import { TestResultDetailsModal } from './Modal/TestResultDetailsModal'
 import { TestRunModal } from './Modal/TestRunModal'
 import { Switch } from '@patternfly/react-core'
 import { MappingViewSelect } from './MappingViewSelect'
@@ -42,6 +42,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   totalCoverage,
   api
 }: MappingPageSectionProps) => {
+  const auth = useAuth()
   const [modalAction, setModalAction] = React.useState('')
   const [modalVerb, setModalVerb] = React.useState('')
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
@@ -57,6 +58,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [modalOffset, setModalOffset] = React.useState('')
 
   const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false)
+  const [SPDXContentLoading, setSPDXContentLoading] = React.useState<boolean>(false)
   const [SPDXContent, setSPDXContent] = React.useState('')
 
   const [srModalShowState, setSrModalShowState] = React.useState<boolean>(false)
@@ -88,16 +90,33 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestSpecifications, setShowIndirectTestSpecifications] = React.useState<boolean>(true)
   const [showIndirectTestCasesOld, setShowIndirectTestCasesOld] = React.useState<boolean>(true)
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
+  const spdxRequestedFilename = React.useRef('')
 
   const exportSPDX = () => {
-    fetch(Constants.API_BASE_URL + '/spdx/apis?id=' + api.id)
+    if (!auth.isLogged()) {
+      return
+    }
+
+    spdxRequestedFilename.current = 'latest.jsonld'
+
+    let query_string = '?api-id=' + api.id
+    query_string += '&user-id=' + auth.userId
+    query_string += '&token=' + auth.token
+    query_string += '&filename=' + spdxRequestedFilename.current
+
+    setSPDXContentLoading(true)
+    fetch(Constants.API_BASE_URL + Constants.API_SPDX_API_EXPORT_ENDPOINT + query_string)
       .then((res) => res.json())
       .then((data) => {
         setSPDXContent(JSON.stringify(data, null, 2))
         setModalSPDXExportShowState(true)
       })
       .catch((err) => {
+        setSPDXContentLoading(false)
         console.log(err.message)
+      })
+      .finally(() => {
+        setSPDXContentLoading(false)
       })
   }
 
@@ -398,11 +417,20 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               </Flex>
               {api?.permissions?.indexOf('w') >= 0 ? (
                 <Flex align={{ default: 'alignRight' }}>
-                  <FlexItem>
-                    <Button id='btn-export-sw-component-to-spdx' variant='secondary' onClick={() => exportSPDX()}>
-                      Export to SPDX
-                    </Button>
-                  </FlexItem>
+                  {auth.isLogged() ? (
+                    <FlexItem>
+                      <Button
+                        id='btn-export-sw-component-to-spdx'
+                        isDisabled={SPDXContentLoading}
+                        variant='secondary'
+                        onClick={() => exportSPDX()}
+                      >
+                        {SPDXContentLoading ? 'Loading ...' : 'Export to SPDX'}
+                      </Button>
+                    </FlexItem>
+                  ) : (
+                    ''
+                  )}
                   <FlexItem>
                     <Button
                       variant='secondary'
@@ -703,7 +731,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         parentType={modalParentType}
       />
       <APIExportSPDXModal
+        api={api}
         SPDXContent={SPDXContent}
+        SPDXFilename={spdxRequestedFilename.current}
         setSPDXContent={setSPDXContent}
         modalShowState={modalSPDXExportShowState}
         setModalShowState={setModalSPDXExportShowState}

@@ -3,6 +3,10 @@
 ## 1.8.x
 
 - PostgreSQL as default database
+- E2E Test for tmt test run plugin
+- Fix SPDX 3.0.1 export
+- SPDX Export validation in CI
+- API Traceability Map
 
 ## 1.7.x
 

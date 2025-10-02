@@ -1,4 +1,4 @@
-from import_manager import SPDXImportSwRequirements
+from import_manager import ImportSwRequirements
 from spdx_manager import SPDXManager
 from notifier import EmailNotifier
 from ai import AIPrompter
@@ -70,7 +70,7 @@ import db.models.init_db as init_db
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="[%(asctime)s] %(levelname)s in %(funcName)s: %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -797,6 +797,7 @@ def get_query_string_args(args):
     permitted_keys = [
         "api-id",
         "artifact",
+        "filename",
         "filter",
         "id",
         "job",
@@ -817,6 +818,7 @@ def get_query_string_args(args):
         "relation-to",
         "search",
         "stage",
+        "test_runs_limit",
         "token",
         "url",
         "user-id",
@@ -1306,69 +1308,102 @@ def check_api_user_write_permission(func):
 tokenManager = Token()
 
 
-class SPDXLibrary(Resource):
-    fields = ["library"]
-
-    def get(self):
-        request_data = request.args
-
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        query = dbi.session.query(ApiModel).filter(ApiModel.library == request_data["library"])
-        apis = query.all()
-        if not apis:
-            return f"Nothing to export, no apis found as part of library {request_data['library']}", 400
-
-        # TODO: Verify permission for all the api
-        spdxManager = SPDXManager(
-            username="",
-            library_name=request_data["library"],
-            apis=apis,
-            dbi=dbi
-        )
-
-        for api in apis:
-            spdxManager.add_api_to_export(dbi, api)
-        dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
-        spdx_filename = f"{request_data['library']}-{dt}"
-        spdx_filepath = os.path.join(spdx_public_path, spdx_filename)
-        if not os.path.exists(spdx_public_path):
-            os.makedirs(spdx_public_path, exist_ok=True)
-
-        spdxManager.export(spdx_filepath)
-
-        return send_file(f"{spdx_filepath}.jsonld")
-
-
 class SPDXApi(Resource):
+    fields = ["filename"]
 
     @check_api_user_read_permission
     def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+
+        args = get_query_string_args(request.args)
+        test_runs_limit = args.get("test_runs_limit", 5)
+
+        if not str(test_runs_limit).isdigit():
+            test_runs_limit = 5
+
+        if not check_fields_in_request(
+                fields=self.fields,
+                request=args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         spdxManager = SPDXManager(
             user=user,
             library_name=api.library,
             apis=[api],
             include_test_runs=True,
-            test_runs_limit=5,
+            test_runs_limit=test_runs_limit,
             dbi=dbi
         )
 
-        dt = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         spdx_public_path = os.path.join(currentdir, "public", "spdx_export")
-        spdx_filename = f"{api.library}-{api.id}-{dt}"
-        spdx_filepath = os.path.join(spdx_public_path, spdx_filename)
         if not os.path.exists(spdx_public_path):
             os.makedirs(spdx_public_path, exist_ok=True)
 
-        spdxManager.export(spdx_filepath)
+        spdx_user_path = os.path.join(spdx_public_path, str(user.id))
+        if not os.path.exists(spdx_user_path):
+            os.makedirs(spdx_user_path, exist_ok=True)
 
-        return send_file(f"{spdx_filepath}.jsonld")
+        spdx_filepath = os.path.join(spdx_user_path, args["filename"])
+        spdxManager.export(spdx_filepath)
+        del spdxManager
+
+        return send_file(spdx_filepath)
+
+
+@app.route('/spdx/apis/export-download')
+@check_api_user_read_permission
+def SPDXApiExportDownload(api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    """Download a file from the user's spdx-export directory"""
+    fields = ["filename"]
+    args = get_query_string_args(request.args)
+
+    # Check required fields
+    if not check_fields_in_request(
+            fields=fields,
+            request=args,
+            allow_empty_string=False,
+            int_fields=[]):
+        return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+    # Construct file path
+    filename = args["filename"]
+    # Prevent directory traversal: only allow basename (no path separators)
+    if os.path.basename(filename) != filename or any(sep in filename for sep in ('/', '\\')):
+        logger.warning(f"SPDXApiExportDownload - Attempted directory traversal with filename: {filename}")
+        return f"{FORBIDDEN_MESSAGE}: Invalid filename", FORBIDDEN_STATUS
+
+    file_path = os.path.join(currentdir, "public", "spdx_export", str(user.id), filename)
+
+    # Security check: ensure the file is within the allowed directory
+    allowed_dir = os.path.join(currentdir, "public", "spdx_export", str(user.id))
+    if not os.path.abspath(file_path).startswith(os.path.abspath(allowed_dir)):
+        logger.warning(f"SPDXApiExportDownload - {file_path} invalid file path")
+        return f"{FORBIDDEN_MESSAGE}: Access denied - Invalid file path", FORBIDDEN_STATUS
+
+    # Check if file exists
+    if not os.path.exists(file_path):
+        logger.warning(f"SPDXApiExportDownload - File {file_path} not found")
+        return f"{NOT_FOUND_MESSAGE}: File not found", NOT_FOUND_STATUS
+
+    # Check if it's a file (not a directory)
+    if not os.path.isfile(file_path):
+        logger.warning(f"SPDXApiExportDownload - {file_path} is not a file")
+        return f"{BAD_REQUEST_MESSAGE}: Invalid file", BAD_REQUEST_STATUS
+
+    name, ext = os.path.splitext(file_path)
+    if ext.lower() == '.jsonld':
+        mimetype = 'application/ld+json'
+    elif ext.lower() == '.dot':
+        mimetype = 'text/vnd.graphviz'
+    elif ext.lower() == '.png':
+        mimetype = 'image/png'
+    else:
+        logger.warning(f"SPDXApiExportDownload - {file_path} is not the correct extension")
+        return f"{BAD_REQUEST_MESSAGE}: Invalid file extension", BAD_REQUEST_STATUS
+
+    dbi.close()
+
+    # Return the file
+    return send_file(file_path, as_attachment=True, download_name=filename, mimetype=mimetype)
 
 
 class Comment(Resource):
@@ -3990,9 +4025,9 @@ class SwRequirementImport(Resource):
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        spdx_importer = SPDXImportSwRequirements()
-        sw_requirements = spdx_importer.extractWorkItems(file_name=request_data["file_name"],
-                                                         file_content=request_data["file_content"])
+        importer = ImportSwRequirements()
+        sw_requirements = importer.extractWorkItems(file_name=request_data["file_name"],
+                                                    file_content=request_data["file_content"])
         return {_SRs: sw_requirements}
 
     def put(self):
@@ -4013,9 +4048,9 @@ class SwRequirementImport(Resource):
         if user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        spdx_importer = SPDXImportSwRequirements()
-        sw_requirements = spdx_importer.getFilteredSwRequirementModels(items=request_data["items"],
-                                                                       user=user)
+        importer = ImportSwRequirements()
+        sw_requirements = importer.getFilteredSwRequirementModels(items=request_data["items"],
+                                                                  user=user)
 
         # Pay attention: we actually doesn't check if the requirement already exists
         # (if already exists a requirement with same content)
@@ -7959,7 +7994,6 @@ api.add_resource(ApiHistory, "/apis/history")
 api.add_resource(ApiSpecification, "/api-specifications")
 api.add_resource(ApiWritePermissionRequest, "/apis/write-permission-request")
 api.add_resource(Library, "/libraries")
-api.add_resource(SPDXLibrary, "/spdx/libraries")
 api.add_resource(SPDXApi, "/spdx/apis")
 api.add_resource(Document, "/documents")
 api.add_resource(RemoteDocument, "/remote-documents")

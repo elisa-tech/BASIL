@@ -29,7 +29,6 @@ export const UserFilesMenuKebab: React.FunctionComponent<UserFilesMenuKebabProps
   }
 
   const editUserFile = (_filename: string) => {
-    console.log('editUserFile - filename: ' + modalFileName.current)
     modalAction.current = 'edit'
     modalFileName.current = _filename
     setModalShowState(true)

@@ -63,4 +63,12 @@ describe('Sw Requirement Import', () => {
       const_data.import.sw_requirements.xlsx.sw_requirement
     )
   })
+
+  it('Import BASIL SPDX jsonld', () => {
+    cy.import_sw_requirement(
+      api_data.first,
+      const_data.import.sw_requirements.basil_spdx.file,
+      const_data.import.sw_requirements.basil_spdx.sw_requirement
+    )
+  })
 })

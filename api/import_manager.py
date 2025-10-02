@@ -13,7 +13,7 @@ from db.models.sw_requirement import SwRequirementModel  # noqa E402
 from db.models.user import UserModel  # noqa E402
 
 
-class SPDXImportBase:
+class ImportBase:
 
     GRAPH_KEY = "@graph"
     MANDATORY_FIELDS = []
@@ -229,7 +229,7 @@ class SPDXImportBase:
         return ret
 
 
-class SPDXImportSwRequirements(SPDXImportBase):
+class ImportSwRequirements(ImportBase):
 
     MANDATORY_FIELDS = ["title", "description"]
     OPTIONAL_FIELDS = ["id"]
@@ -246,7 +246,7 @@ class SPDXImportSwRequirements(SPDXImportBase):
         file_ext = file_name.split(".")[-1]
         work_items = []
         if "json" in file_ext:
-            work_items += self.BasilJsonRequirementsToSelect(file_content)
+            work_items += self.BasilSPDXJsonRequirementsToSelect(file_content)
             work_items += self.JsonToSelect(file_content)
             work_items += self.StrictDocJsonRequirementsToSelect(file_content)
         elif "yaml" in file_ext:
@@ -257,7 +257,7 @@ class SPDXImportSwRequirements(SPDXImportBase):
             work_items += self.XlsxToSelect(file_content)
         return work_items
 
-    def BasilJsonRequirementsToSelect(self, file_content: str) -> List[dict]:
+    def BasilSPDXJsonRequirementsToSelect(self, file_content: str) -> List[dict]:
         """Read a json file exported by a BASIL instance and
         return a list of dictionaries with requirements data
         That list will be used by the user to select which one to import
@@ -279,10 +279,25 @@ class SPDXImportSwRequirements(SPDXImportBase):
         if self.GRAPH_KEY not in json_content.keys():
             return ret
 
-        spdx_files = [_file for _file in json_content[self.GRAPH_KEY] if _file["@type"] == "File"]
-        spdx_sw_requirements = [_file for _file in spdx_files if _file["summary"] == self.DB_MODEL._description]
+        spdx_sw_requirements = [_file for _file in json_content[self.GRAPH_KEY] if
+                                _file.get("type", "") == "software_File" and
+                                _file.get("software_primaryPurpose", "") == "requirement"]
         for spdx_sw_requirement in spdx_sw_requirements:
-            sr_data = json.loads(spdx_sw_requirement["attributionText"])
+            # Find Annotation
+            spdx_annotations = [_ann for _ann in json_content[self.GRAPH_KEY] if
+                                _ann.get("type", "") == "Annotation" and
+                                _ann.get("subject", "") == spdx_sw_requirement.get("spdxId")]
+
+            if not spdx_annotations:
+                continue
+
+            spdx_annotation = spdx_annotations[0]
+
+            try:
+                sr_data = json.loads(spdx_annotation["statement"])
+            except Exception:
+                continue
+
             # Check work item mandatory fields
             valid_data = True
             for data_field in self.MANDATORY_FIELDS:
@@ -293,7 +308,7 @@ class SPDXImportSwRequirements(SPDXImportBase):
             if valid_data:
                 ret.append(
                     {
-                        "id": spdx_sw_requirement["@id"],
+                        "id": sr_data["id"],
                         "title": sr_data["title"],
                         "description": sr_data["description"],
                     }
@@ -324,14 +339,16 @@ class SPDXImportSwRequirements(SPDXImportBase):
         if self.GRAPH_KEY not in json_content.keys():
             return ret
 
-        spdx_snippets = [snippet for snippet in json_content[self.GRAPH_KEY] if snippet["@type"] == "Snippet"]
-        spdx_sw_requirements = [req for req in spdx_snippets if req["name"].startswith(STRICTDOC_REQ_IDENTIFIER)]
+        spdx_snippets = [snippet for snippet in json_content[self.GRAPH_KEY] if
+                         snippet.get("@type", "") == "Snippet"]
+        spdx_sw_requirements = [req for req in spdx_snippets if
+                                req.get("name", "").startswith(STRICTDOC_REQ_IDENTIFIER)]
 
         for spdx_req in spdx_sw_requirements:
             tmp = {
-                "id": spdx_req["@id"],
-                "title": spdx_req["name"].replace(STRICTDOC_REQ_IDENTIFIER, "").replace("'", ""),
-                "description": spdx_req["description"]
+                "id": spdx_req.get("@id", ""),
+                "title": spdx_req.get("name", "").replace(STRICTDOC_REQ_IDENTIFIER, "").replace("'", ""),
+                "description": spdx_req.get("description", "")
             }
             ret.append(tmp)
 

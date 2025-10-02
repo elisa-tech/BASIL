@@ -167,10 +167,10 @@ def get_test_run_model(client_db, utilities, test_run_config, api_id, mapping_to
     )
 
 
-def check_latest_jsonld_file():
+def check_latest_jsonld_file(user_id: int = 0):
     """Helper to check the latest jsonld file"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    jsonld_file = os.path.join(current_dir, "..", "public", "spdx_export", "latest.jsonld")
+    jsonld_file = os.path.join(current_dir, "..", "public", "spdx_export", f"{user_id}", "latest.jsonld")
     logger.info(f"Checking for latest jsonld file: {jsonld_file}")
     if os.path.isfile(jsonld_file):
         logger.info(f"Latest jsonld file found: {jsonld_file}")
@@ -179,9 +179,9 @@ def check_latest_jsonld_file():
 
 
 @pytest.fixture()
-def clear_latest_jsonld_file():
+def clear_latest_jsonld_file(user_authentication):
     """Helper to clear the latest jsonld file"""
-    jsonld_file = check_latest_jsonld_file()
+    jsonld_file = check_latest_jsonld_file(user_id=user_authentication.json['id'])
     if jsonld_file:
         logger.info(f"Clearing latest jsonld file: {jsonld_file}")
         os.remove(jsonld_file)
@@ -426,6 +426,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
             "api-id": api.id,
             "user-id": user_authentication.json["id"],
             "token": user_authentication.json["token"],
+            "filename": "latest.jsonld"
         },
     )
 
@@ -433,7 +434,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     assert response.status_code == HTTPStatus.OK
     assert response.headers.get("Content-Type") == "application/octet-stream"
 
-    assert check_latest_jsonld_file() is not None
+    assert check_latest_jsonld_file(user_id=user_authentication.json["id"]) is not None
 
     # Save the SPDX content to a temporary file for validation
     spdx_content = response.data

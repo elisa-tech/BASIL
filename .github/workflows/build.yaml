@@ -170,6 +170,21 @@ jobs:
             api/user-files
           retention-days: 7
 
+      - name: Collect logs of all running Podman containers
+        if: always()
+        run: |
+             mkdir -p podman-logs
+             for cid in $(sudo podman ps -a -q); do
+               cname=$(sudo podman inspect --format '{{.Name}}' "$cid" | sed 's/^\///')
+               {
+                 echo "=== Container: $cname ==="
+                 sudo podman inspect --format 'Status: {{.State.Status}}, ExitCode: {{.State.ExitCode}}' "$cid"
+                 echo
+                 sudo podman logs "$cid"
+               } > "podman-logs/${cname}.log"
+             done
+             ls -lh podman-logs
+             
       - name: Copy /var/tmp/tmt from basil-api-latest container
         if: failure()
         run: |
@@ -182,16 +197,6 @@ jobs:
         with:
           name: tmt-logs
           path: tmt-logs.tar.gz
-          
-      - name: Collect logs of all running Podman containers
-        if: always()
-        run: |
-             mkdir -p podman-logs
-             for cid in $(sudo podman ps -q); do
-               cname=$(sudo podman inspect --format '{{.Name}}' $cid | sed 's/^\///')
-               sudo podman logs $cid > "podman-logs/${cname}.log"
-             done
-             ls -lh podman-logs
 
       - name: Upload Podman logs
         if: always()

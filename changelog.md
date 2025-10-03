@@ -7,6 +7,7 @@
 - Fix SPDX 3.0.1 export
 - SPDX Export validation in CI
 - API Traceability Map
+- New version available notification
 
 ## 1.7.x
 

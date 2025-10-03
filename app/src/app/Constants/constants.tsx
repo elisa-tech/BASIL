@@ -1,5 +1,5 @@
 export const API_BASE_URL = 'http://localhost:5000'
-export const BASIL_VERSION = '1.8.2'
+export const BASIL_VERSION = '1.8.3'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 

@@ -3,7 +3,7 @@ from db.models.db_base import Base
 from db.models.api import ApiModel
 from db.models.test_run_config import TestRunConfigModel
 from db.models.user import UserModel
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -14,11 +14,9 @@ import uuid
 
 class TestRunModel(Base):
     __tablename__ = "test_runs"
-    __table_args__ = {"sqlite_autoincrement": True}
     _description = 'Test Run'
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     uid: Mapped[str] = mapped_column(String())
     title: Mapped[Optional[str]] = mapped_column(String())
     status: Mapped[str] = mapped_column(String(20))

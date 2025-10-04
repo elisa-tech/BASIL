@@ -29,7 +29,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
-logger.info("Starting BASI Test Run")
+logger.info("Starting BASIL Test Run")
 
 
 class TestRunner:

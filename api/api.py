@@ -1879,8 +1879,9 @@ class Api(Resource):
         # Validate fields constraints
         filed_constraints = ApiModel.get_field_constraints()
         for field, constraint in filed_constraints.items():
-            if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
-                return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+            if "max_length" in constraint:
+                if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
+                    return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
 
         new_api = ApiModel(
             request_data["api"],
@@ -3643,9 +3644,10 @@ class ApiDocumentsMapping(Resource):
             # Validate Document fields constraints
             filed_constraints = DocumentModel.get_field_constraints()
             for field, constraint in filed_constraints.items():
-                if constraint["max_length"] is not None and \
-                   len(request_data["document"][field]) > constraint["max_length"]:
-                    return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+                if "max_length" in constraint:
+                    if constraint["max_length"] is not None and \
+                       len(request_data["document"][field]) > constraint["max_length"]:
+                        return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
 
             doc_title = request_data["document"]["title"]
             doc_description = request_data["document"]["description"]
@@ -5686,8 +5688,9 @@ class UserSignin(Resource):
         # Validate fields constraints
         filed_constraints = UserModel.get_field_constraints()
         for field, constraint in filed_constraints.items():
-            if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
-                return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+            if "max_length" in constraint:
+                if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
+                    return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
 
         user = UserModel(username, email, password, "GUEST")
         dbi.session.add(user)

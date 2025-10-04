@@ -1876,6 +1876,12 @@ class Api(Resource):
         file_from_row = parse_int(request_data.get("implementation-file-from-row", ""))
         file_to_row = parse_int(request_data.get("implementation-file-to-row", ""))
 
+        # Validate fields constraints
+        filed_constraints = ApiModel.get_field_constraints()
+        for field, constraint in filed_constraints.items():
+            if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
+                return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+
         new_api = ApiModel(
             request_data["api"],
             request_data["library"],
@@ -3634,6 +3640,13 @@ class ApiDocumentsMapping(Resource):
             if not check_fields_in_request(self.document_fields, request_data["document"]):
                 return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
+            # Validate Document fields constraints
+            filed_constraints = DocumentModel.get_field_constraints()
+            for field, constraint in filed_constraints.items():
+                if constraint["max_length"] is not None and \
+                   len(request_data["document"][field]) > constraint["max_length"]:
+                    return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+
             doc_title = request_data["document"]["title"]
             doc_description = request_data["document"]["description"]
             doc_type = request_data["document"]["document_type"]
@@ -3642,6 +3655,7 @@ class ApiDocumentsMapping(Resource):
             doc_section = request_data["document"]["section"]
             doc_offset = request_data["document"]["offset"]
             doc_valid = 0  # default 0, it will be evaluated once rendered
+
             new_document = DocumentModel(
                 doc_title,
                 doc_description,
@@ -5668,6 +5682,12 @@ class UserSignin(Resource):
         same_email = dbi.session.query(UserModel).filter(UserModel.email == email).all()
         if len(same_email) > 0:
             return "Email already in use.", BAD_REQUEST_STATUS
+
+        # Validate fields constraints
+        filed_constraints = UserModel.get_field_constraints()
+        for field, constraint in filed_constraints.items():
+            if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
+                return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
 
         user = UserModel(username, email, password, "GUEST")
         dbi.session.add(user)

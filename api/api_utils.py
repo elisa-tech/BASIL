@@ -16,6 +16,39 @@ CONFIGS_FOLDER = "configs"
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
 
 
+def get_safe_str(value, trim=True, encoding='utf-8') -> str:
+    """
+    Safely convert a value to string
+
+    Args:
+        value: The value to convert to string
+        trim: Whether to strip leading/trailing whitespace
+        encoding: Text encoding to use for conversion
+
+    Returns:
+        str: Safe string representation of the input
+    """
+    # Handle None and empty values
+    if value is None:
+        return ""
+
+    # Convert to string safely
+    try:
+        if isinstance(value, bytes):
+            result = value.decode(encoding, errors='replace')
+        else:
+            result = str(value)
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        # Fallback for encoding issues
+        result = str(value).encode(encoding, errors='replace').decode(encoding)
+
+    # Trim whitespace if requested
+    if trim:
+        result = result.strip()
+
+    return result
+
+
 def get_configuration(
         setting_section=None,
         setting_key=None,

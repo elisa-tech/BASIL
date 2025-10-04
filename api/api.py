@@ -60,6 +60,7 @@ from api_utils import (
     async_email_notification,
     get_api_specification,
     get_html_email_body_from_template,
+    get_safe_str,
     is_testing_enabled_by_env,
     load_settings,
     parse_int,
@@ -355,27 +356,32 @@ def get_api_user_permissions(_api, _user, _dbi_session):
     """
     permissions = ""
 
+    read_denials = get_safe_str(_api.read_denials)
+    write_permissions = get_safe_str(_api.write_permissions)
+    manage_permissions = get_safe_str(_api.manage_permissions)
+    edit_permissions = get_safe_str(_api.edit_permissions)
+
     if isinstance(_user, UserModel):
         if _api.created_by_id == _user.id:
             return "rwem"
 
         if _user.role == 'GUEST':
-            if _api.read_denials == '':
+            if read_denials == '':
                 permissions = "r"
             return permissions
         else:
-            if f"[{_user.id}]" not in _api.read_denials:
+            if f"[{_user.id}]" not in read_denials:
                 permissions += "r"
-                if f"[{_user.id}]" in _api.write_permissions:
+                if f"[{_user.id}]" in write_permissions:
                     permissions += "w"
 
-        if f"[{_user.id}]" in _api.manage_permissions:
+        if f"[{_user.id}]" in manage_permissions:
             permissions += "m"
-        if f"[{_user.id}]" in _api.edit_permissions:
+        if f"[{_user.id}]" in edit_permissions:
             permissions += "e"
     else:
         # Guest _user is None
-        if _api.read_denials == '':
+        if read_denials == '':
             permissions = "r"
     return permissions
 
@@ -387,7 +393,8 @@ def get_api_user_requested_write_permissions(_api, _user, _dbi_session):
     """
 
     if isinstance(_user, UserModel):
-        if f"[{_user.id}]" in _api.write_permission_requests and _user.role in USER_ROLES_WRITE_PERMISSIONS:
+        write_permission_requests = get_safe_str(_api.write_permission_requests)
+        if f"[{_user.id}]" in write_permission_requests and _user.role in USER_ROLES_WRITE_PERMISSIONS:
             return True
 
     return False
@@ -1802,8 +1809,9 @@ class Api(Resource):
 
                 # Write permission inbox notification
                 # For owners that have to assign write permission
+                curr_api_write_permission_requests = get_safe_str(apis[iApi].write_permission_requests)
                 api_dict["write_permission_inbox"] = (
-                    1 if apis[iApi].write_permission_requests != "" and "m" in permissions else 0
+                    1 if curr_api_write_permission_requests != "" and "m" in permissions else 0
                 )
 
                 apis_dict.append(api_dict)
@@ -2183,7 +2191,8 @@ class ApiWritePermissionRequest(Resource):
 
             # Email Notification for api owners
             try:
-                ownsers_ids = [int(n) for n in re.findall(r'\[(\d+)\]', api.manage_permissions)]
+                manage_permissions = get_safe_str(api.manage_permissions)
+                ownsers_ids = [int(n) for n in re.findall(r'\[(\d+)\]', manage_permissions)]
                 if ownsers_ids:
                     owners = dbi.session.query(UserModel).filter(UserModel.id.in_(ownsers_ids))
                     recipient_list = [owner.email for owner in owners]
@@ -5888,7 +5897,7 @@ class UserPermissionsApi(Resource):
             tmp = users[i].as_dict()
             tmp["permissions"] = get_api_user_permissions(api, users[i], dbi.session)
             tmp["write_permission_request"] = (
-                1 if f"[{tmp['id']}]" in api.write_permission_requests and
+                1 if f"[{tmp['id']}]" in get_safe_str(api.write_permission_requests) and
                 users[i].role in USER_ROLES_WRITE_PERMISSIONS
                 else 0
             )
@@ -5935,50 +5944,56 @@ class UserPermissionsApi(Resource):
             permission_string = f"[{target_user.id}]"
             user_permission_changed = False
 
+            read_denials = get_safe_str(api.read_denials)
+            write_permissions = get_safe_str(api.write_permissions)
+            write_permission_requests = get_safe_str(api.write_permission_requests)
+            manage_permissions = get_safe_str(api.manage_permissions)
+            edit_permissions = get_safe_str(api.edit_permissions)
+
             # Edit Permission
             if "e" in user_permission["permissions"]:
-                if permission_string not in api.edit_permissions:
+                if permission_string not in edit_permissions:
                     api.edit_permissions += permission_string
                     user_permission_changed = True
             else:
-                if permission_string in api.edit_permissions:
-                    api.edit_permissions = api.edit_permissions.replace(permission_string, "")
+                if permission_string in edit_permissions:
+                    api.edit_permissions = edit_permissions.replace(permission_string, "")
                     user_permission_changed = True
 
             # Manage Permission
             if "m" in user_permission["permissions"]:
-                if permission_string not in api.manage_permissions:
+                if permission_string not in manage_permissions:
                     api.manage_permissions += permission_string
                     user_permission_changed = True
             else:
-                if permission_string in api.manage_permissions:
-                    api.manage_permissions = api.manage_permissions.replace(permission_string, "")
+                if permission_string in manage_permissions:
+                    api.manage_permissions = manage_permissions.replace(permission_string, "")
                     user_permission_changed = True
 
             # Read Permission
             if "r" in user_permission["permissions"]:
-                if permission_string in api.read_denials:
-                    api.read_denials = api.read_denials.replace(permission_string, "")
+                if permission_string in read_denials:
+                    api.read_denials = read_denials.replace(permission_string, "")
                     user_permission_changed = True
                     if api.read_denials == "[0]":
                         api.read_denials = ""
             else:
-                if permission_string not in api.read_denials:
+                if permission_string not in read_denials:
                     api.read_denials += permission_string
-                    if "[0]" not in api.read_denials:
+                    if "[0]" not in read_denials:
                         api.read_denials += "[0]"
 
             # Write Permission
             if "w" in user_permission["permissions"]:
-                if permission_string not in api.write_permissions:
+                if permission_string not in write_permissions:
                     api.write_permissions += permission_string
                     user_permission_changed = True
                     # Remove permission request
-                    if permission_string in api.write_permission_requests:
-                        api.write_permission_requests = api.write_permission_requests.replace(permission_string, "")
+                    if permission_string in write_permission_requests:
+                        api.write_permission_requests = write_permission_requests.replace(permission_string, "")
             else:
-                if permission_string in api.write_permissions:
-                    api.write_permissions = api.write_permissions.replace(permission_string, "")
+                if permission_string in write_permissions:
+                    api.write_permissions = write_permissions.replace(permission_string, "")
                     user_permission_changed = True
 
             # Create a notification only for the user

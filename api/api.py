@@ -3644,7 +3644,7 @@ class ApiDocumentsMapping(Resource):
             # Validate Document fields constraints
             filed_constraints = DocumentModel.get_field_constraints()
             for field, constraint in filed_constraints.items():
-                if "max_length" in constraint:
+                if "max_length" in constraint and field in request_data["document"]:
                     if constraint["max_length"] is not None and \
                        len(request_data["document"][field]) > constraint["max_length"]:
                         return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS

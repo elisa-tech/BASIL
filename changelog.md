@@ -8,6 +8,7 @@
 - SPDX Export validation in CI
 - API Traceability Map
 - New version available notification
+- Fix db models to aling with postgres
 
 ## 1.7.x
 

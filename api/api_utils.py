@@ -144,12 +144,13 @@ def is_testing_enabled_by_env() -> bool:
     return ret
 
 
-def add_html_link_to_email_body(settings, body):
+def add_html_link_to_email_body(settings, body) -> str:
     """Append a link to BASIL instance if the app_url setting is populated"""
     if not settings:
-        if not body:
-            return ""
-        return body
+        return body if body else ""
+
+    if not body:
+        return ""
 
     if "app_url" in settings.keys():
         if str(settings["app_url"]).strip():

@@ -1,3 +1,4 @@
+import copy
 from import_manager import ImportSwRequirements
 from spdx_manager import SPDXManager
 from notifier import EmailNotifier
@@ -46,6 +47,7 @@ import sys
 import subprocess
 import time
 import urllib
+import yaml
 from uuid import uuid4
 
 import gitlab
@@ -218,7 +220,8 @@ def get_updated_settings():
     """Update global variables SETTINGS_CACHE and SETTINGS_LAST_MODIFIED
     and return SETTINGS_CACHE"""
     global SETTINGS_CACHE, SETTINGS_LAST_MODIFIED
-    SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
+    SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(settings_cache=SETTINGS_CACHE,
+                                                           settings_last_modified=SETTINGS_LAST_MODIFIED)
     return SETTINGS_CACHE
 
 
@@ -1313,6 +1316,130 @@ def check_api_user_write_permission(func):
 
 
 tokenManager = Token()
+
+
+class Alert(Resource):
+    response = {
+            "info": [],
+            "danger": [],
+            "warning": [],
+            "success": [],
+        }
+
+    def get_alert_settings(self):
+
+        def populate_alert_type(alert_dict, settings, alert_type):
+            # Avoid duplicate messages
+            if alert_type in settings["alert"]:
+                if isinstance(settings["alert"][alert_type], list):
+                    alert_dict[alert_type] = list(set(settings["alert"][alert_type]))
+                elif isinstance(settings["alert"][alert_type], str):
+                    if settings["alert"][alert_type] not in alert_dict[alert_type]:
+                        alert_dict[alert_type].append(settings["alert"][alert_type])
+            return alert_dict
+
+        response = copy.deepcopy(self.response)
+        settings = get_updated_settings()
+
+        if "alert" in settings:
+            response = populate_alert_type(response, settings, "info")
+            response = populate_alert_type(response, settings, "danger")
+            response = populate_alert_type(response, settings, "warning")
+            response = populate_alert_type(response, settings, "success")
+        return response
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["message", "type"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if request_data["type"] not in self.response.keys():
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        settings = get_updated_settings()
+
+        if not settings:
+            settings = {
+                "alert": self.response
+            }
+        else:
+            if "alert" not in settings.keys():
+                settings["alert"] = self.response
+            else:
+                if request_data["type"] not in settings["alert"].keys():
+                    settings["alert"][request_data["type"]] = []
+                else:
+                    if not isinstance(settings["alert"][request_data["type"]], list):
+                        settings["alert"][request_data["type"]] = []
+
+        settings["alert"][request_data["type"]] = [message for message in
+                                                   settings["alert"][request_data["type"]] if
+                                                   request_data["message"] not in message]
+
+        yaml_settings_str = yaml.dump(settings, sort_keys=True)
+
+        f = open(SETTINGS_FILEPATH, "w")
+        f.write(yaml_settings_str)
+        f.close()
+
+        return self.get_alert_settings()
+
+    def get(self):
+        return self.get_alert_settings()
+
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["message", "type"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        if request_data["type"] not in self.response.keys():
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if user.role not in USER_ROLES_MANAGE_USERS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        settings = get_updated_settings()
+
+        if not settings:
+            settings = {
+                "alert": self.response
+            }
+        else:
+            if "alert" not in settings.keys():
+                settings["alert"] = self.response
+            else:
+                if request_data["type"] not in settings["alert"].keys():
+                    settings["alert"][request_data["type"]] = []
+                else:
+                    if not isinstance(settings["alert"][request_data["type"]], list):
+                        settings["alert"][request_data["type"]] = []
+
+        settings["alert"][request_data["type"]].append(request_data["message"])
+
+        yaml_settings_str = yaml.dump(settings, sort_keys=True)
+
+        f = open(SETTINGS_FILEPATH, "w")
+        f.write(yaml_settings_str)
+        f.close()
+
+        return self.get_alert_settings()
 
 
 class SPDXApi(Resource):
@@ -8101,6 +8228,7 @@ api.add_resource(UserSignin, "/user/signin")
 api.add_resource(UserSshKey, "/user/ssh-key")
 api.add_resource(UserFiles, "/user/files")
 api.add_resource(UserFileContent, "/user/files/content")
+api.add_resource(Alert, "/alert")
 api.add_resource(Testing, "/testing")
 api.add_resource(Version, "/version")
 

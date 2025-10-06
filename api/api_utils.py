@@ -89,6 +89,11 @@ def load_settings(settings_cache=None, settings_last_modified=None):
     is different from the last time we read it
     """
 
+    if not os.path.exists(SETTINGS_FILEPATH):
+        f = open(SETTINGS_FILEPATH, "w")
+        f.write("")
+        f.close()
+
     read_settings_file = False
     last_modified = os.path.getmtime(SETTINGS_FILEPATH)
 

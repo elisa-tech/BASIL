@@ -3,6 +3,8 @@
 # BASIL
 
 A tool developed to manage software related work items, design their traceability towards specifications and source code and ensure completeness of analysis.
+[![Release](https://img.shields.io/badge/release-latest-blue?style=flat&logo=github)](changelog.md) [![Documentation](https://img.shields.io/badge/docs-read-blue?style=flat&logo=readthedocs)](https://basil-the-fusa-spice.readthedocs.io/) [![Discord](https://img.shields.io/badge/discord-join-%235865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/2sCQSTZHTW) [![YouTube](https://img.shields.io/badge/youtube-watch-%23FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/@basil-the-fusa-spice/videos) [![ELISA Tech](https://img.shields.io/badge/ELISA-website-%23000000?style=flat)](https://elisa.tech) [![ELISA Instance](https://img.shields.io/badge/ELISA-BASIL%20Instance-brightgreen?style=flat)](http://elisa-builder-00.iol.unh.edu:9056/)
+
 
 It comes with a web user interface to provide a simplified view of work item relationships and with a REST api to simplify the integration in other toolchains.
 

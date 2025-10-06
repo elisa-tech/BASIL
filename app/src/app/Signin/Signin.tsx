@@ -204,7 +204,14 @@ const Signin: React.FunctionComponent = () => {
                   <FlexItem align={{ default: 'alignLeft' }}>
                     <Form isHorizontal>
                       <FormGroup label='Email' isRequired fieldId='signin-form-email'>
-                        <TextInput isRequired type='email' id='signin-form-email' value={emailValue} onChange={handleEmailChange} />
+                        <TextInput
+                          isRequired
+                          maxLength={255}
+                          type='email'
+                          id='signin-form-email'
+                          value={emailValue}
+                          onChange={handleEmailChange}
+                        />
                         {validateEmailValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>
@@ -218,7 +225,14 @@ const Signin: React.FunctionComponent = () => {
                         )}
                       </FormGroup>
                       <FormGroup label='Username' isRequired fieldId='signin-form-username'>
-                        <TextInput isRequired type='text' id='signin-form-username' value={usernameValue} onChange={handleUsernameChange} />
+                        <TextInput
+                          isRequired
+                          maxLength={100}
+                          type='text'
+                          id='signin-form-username'
+                          value={usernameValue}
+                          onChange={handleUsernameChange}
+                        />
                         {validateUsernameValue !== 'success' && (
                           <FormHelperText>
                             <HelperText>

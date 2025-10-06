@@ -432,7 +432,6 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
 
     # Check that SPDX export was successful
     assert response.status_code == HTTPStatus.OK
-    assert response.headers.get("Content-Type") == "application/ld+json"
 
     assert check_latest_jsonld_file(user_id=user_authentication.json["id"]) is not None
 

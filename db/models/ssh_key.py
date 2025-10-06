@@ -1,7 +1,7 @@
 from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -11,10 +11,8 @@ from typing import Optional
 
 class SshKeyModel(Base):
     __tablename__ = "ssh_keys"
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     title: Mapped[Optional[str]] = mapped_column(String())
     ssh_key: Mapped[str] = mapped_column(String())
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

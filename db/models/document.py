@@ -1,7 +1,7 @@
 from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
@@ -12,11 +12,9 @@ from typing import Optional
 
 class DocumentModel(Base):
     __tablename__ = 'documents'
-    __table_args__ = {"sqlite_autoincrement": True}
     _description = 'Document'
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     title: Mapped[Optional[str]] = mapped_column(String(200))
     description: Mapped[Optional[str]] = mapped_column(String())
     document_type: Mapped[Optional[str]] = mapped_column(String(), default="file")
@@ -139,10 +137,8 @@ def receive_after_insert(mapper, connection, target):
 
 class DocumentHistoryModel(Base):
     __tablename__ = 'documents_history'
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                        primary_key=True)
+    row_id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     id: Mapped[int] = mapped_column(Integer())
     title: Mapped[Optional[str]] = mapped_column(String(200))
     description: Mapped[Optional[str]] = mapped_column(String())

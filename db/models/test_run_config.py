@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.ssh_key import SshKeyModel
 from db.models.user import UserModel
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -12,11 +12,9 @@ from typing import Optional
 
 class TestRunConfigModel(Base):
     __tablename__ = "test_run_configs"
-    __table_args__ = {"sqlite_autoincrement": True}
     _description = 'Test Run Configuration'
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     plugin: Mapped[Optional[str]] = mapped_column(String(20), default='tmt')
     plugin_preset: Mapped[Optional[str]] = mapped_column(String(50), default='')
     plugin_vars: Mapped[Optional[str]] = mapped_column(String(), default='')

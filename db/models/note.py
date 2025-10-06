@@ -1,16 +1,14 @@
 from datetime import datetime
 from db.models.db_base import Base
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
 
 class NoteModel(Base):
     __tablename__ = "notes"
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     parent_table: Mapped[str] = mapped_column(String(100))
     parent_id: Mapped[int] = mapped_column(Integer())
     username: Mapped[str] = mapped_column(String(100))

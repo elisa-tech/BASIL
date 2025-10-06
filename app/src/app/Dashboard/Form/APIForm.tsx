@@ -395,6 +395,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           isRequired
           id={`input-api-${formAction}-api-${formData.id}`}
           value={apiValue || ''}
+          maxLength={100}
           onChange={(_ev, value) => handleApiValueChange(_ev, value)}
           onKeyUp={handleSwComponentNameKeyUp}
         />
@@ -411,6 +412,7 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
           isRequired
           id={`input-api-${formAction}-library-${formData.id}`}
           value={libraryValue || ''}
+          maxLength={100}
           onChange={(_ev, value) => handleLibraryValueChange(_ev, value)}
           onKeyUp={handleSwComponentLibraryKeyUp}
         />

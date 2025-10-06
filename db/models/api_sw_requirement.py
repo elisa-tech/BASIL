@@ -4,7 +4,7 @@ from db.models.db_base import Base
 from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from db.models.comment import CommentModel
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
@@ -14,10 +14,8 @@ from sqlalchemy.orm import mapped_column
 
 class ApiSwRequirementModel(Base):
     __tablename__ = "sw_requirement_mapping_api"
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiSwRequirementModel.api_id")
     sw_requirement_id: Mapped[int] = mapped_column(ForeignKey("sw_requirements.id"))
@@ -226,10 +224,8 @@ def receive_after_insert(mapper, connection, target):
 
 class ApiSwRequirementHistoryModel(Base):
     __tablename__ = 'sw_requirement_mapping_api_history'
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                        primary_key=True)
+    row_id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     id: Mapped[int] = mapped_column(Integer())
     api_id: Mapped[int] = mapped_column(Integer())
     sw_requirement_id: Mapped[int] = mapped_column(Integer())

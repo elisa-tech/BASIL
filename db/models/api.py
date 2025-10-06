@@ -1,7 +1,7 @@
 from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import event, insert, inspect, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
@@ -12,35 +12,33 @@ from typing import Optional
 
 class ApiModel(Base):
     __tablename__ = "apis"
-    __table_args__ = {"sqlite_autoincrement": True}
     _description = "Software Component"
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     api: Mapped[str] = mapped_column(String(100))
     library: Mapped[str] = mapped_column(String(100))
-    category: Mapped[str] = mapped_column(String(100))
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     default_view: Mapped[Optional[str]] = mapped_column(String(30))
     checksum: Mapped[Optional[str]] = mapped_column(String(100))
     library_version: Mapped[str] = mapped_column(String())
-    implementation_file: Mapped[Optional[str]] = mapped_column(String())
-    implementation_file_from_row: Mapped[Optional[int]] = mapped_column(Integer())
-    implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer())
+    implementation_file: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    implementation_file_from_row: Mapped[Optional[int]] = mapped_column(Integer(), nullable=True)
+    implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer(), nullable=True)
     raw_specification_url: Mapped[str] = mapped_column(String())
-    tags: Mapped[str] = mapped_column(String())
-    last_coverage: Mapped[str] = mapped_column(String(10))
+    tags: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    last_coverage: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiModel.created_by_id")
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiModel.edited_by_id")
-    delete_permissions: Mapped[str] = mapped_column(String())
-    edit_permissions: Mapped[str] = mapped_column(String())
-    manage_permissions: Mapped[str] = mapped_column(String())
-    read_denials: Mapped[str] = mapped_column(String())
-    write_permissions: Mapped[str] = mapped_column(String())
-    write_permission_requests: Mapped[str] = mapped_column(String())
+    delete_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    edit_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    manage_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    read_denials: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    write_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    write_permission_requests: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -232,34 +230,32 @@ def receive_after_insert(mapper, connection, target):
 
 class ApiHistoryModel(Base):
     __tablename__ = "apis_history"
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    row_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                        primary_key=True)
+    row_id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     id: Mapped[int] = mapped_column(Integer())
     api: Mapped[str] = mapped_column(String(100))
     library: Mapped[str] = mapped_column(String(100))
-    category: Mapped[str] = mapped_column(String(100))
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     checksum: Mapped[Optional[str]] = mapped_column(String(100))
     default_view: Mapped[Optional[str]] = mapped_column(String(30))
     library_version: Mapped[str] = mapped_column(String())
-    implementation_file: Mapped[Optional[str]] = mapped_column(String())
-    implementation_file_from_row: Mapped[Optional[int]] = mapped_column(Integer())
-    implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer())
+    implementation_file: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    implementation_file_from_row: Mapped[Optional[int]] = mapped_column(Integer(), nullable=True)
+    implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer(), nullable=True)
     raw_specification_url: Mapped[str] = mapped_column(String())
-    tags: Mapped[str] = mapped_column(String())
+    tags: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiHistoryModel.created_by_id")
     edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiHistoryModel.edited_by_id")
-    delete_permissions: Mapped[str] = mapped_column(String())
-    edit_permissions: Mapped[str] = mapped_column(String())
-    manage_permissions: Mapped[str] = mapped_column(String())
-    read_denials: Mapped[str] = mapped_column(String())
-    write_permissions: Mapped[str] = mapped_column(String())
-    write_permission_requests: Mapped[str] = mapped_column(String())
+    delete_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    edit_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    manage_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    read_denials: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    write_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
+    write_permission_requests: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     version: Mapped[int] = mapped_column(Integer())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

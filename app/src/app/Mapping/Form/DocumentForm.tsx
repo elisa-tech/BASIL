@@ -418,6 +418,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           isRequired
           id={`input-document-${formAction}-title-${formData.id}`}
           value={titleValue}
+          maxLength={200}
           onChange={(_ev, value) => handleTitleValueChange(_ev, value)}
         />
         {validatedTitleValue !== 'success' && (

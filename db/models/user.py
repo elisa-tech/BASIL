@@ -1,7 +1,7 @@
 import base64
 from datetime import datetime
 from db.models.db_base import Base
-from sqlalchemy import BigInteger, DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from typing import Optional
@@ -10,15 +10,13 @@ from uuid import uuid4
 
 class UserModel(Base):
     __tablename__ = "users"
-    __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
-    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
-                                    primary_key=True)
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     username: Mapped[Optional[str]] = mapped_column(String(100))
     email: Mapped[str] = mapped_column(String(255))
     pwd: Mapped[str] = mapped_column(String)
-    reset_pwd: Mapped[Optional[str]] = mapped_column(String(100))
-    reset_token: Mapped[Optional[str]] = mapped_column(String(100))
+    reset_pwd: Mapped[Optional[str]] = mapped_column(String(200))
+    reset_token: Mapped[Optional[str]] = mapped_column(String(200))
     enabled: Mapped[int] = mapped_column(Integer)
     role: Mapped[str] = mapped_column(String(100))
     token: Mapped[str] = mapped_column(String(255))

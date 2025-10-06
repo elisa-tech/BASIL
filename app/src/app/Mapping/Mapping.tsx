@@ -5,6 +5,7 @@ import { MappingBreadCrumb } from './MappingBreadCrumb'
 import { MappingPageSection } from './MappingPageSection'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../User/AuthProvider'
+import { AlertBanner } from '@app/Common/Alert/AlertBanner'
 
 const Mapping: React.FunctionComponent = () => {
   const auth = useAuth()
@@ -145,6 +146,7 @@ const Mapping: React.FunctionComponent = () => {
   return (
     <React.Fragment>
       <PageGroup stickyOnBreakpoint={{ default: 'top' }} hasShadowBottom>
+        <AlertBanner />
         <PageSection variant={PageSectionVariants.light}>
           <Flex>
             <FlexItem align={{ default: 'alignLeft' }}>

@@ -14,6 +14,7 @@ import {
 } from '@patternfly/react-core'
 import { APIListingPageSection } from './APIListingPageSection'
 import { useAuth } from '../User/AuthProvider'
+import { AlertBanner } from '@app/Common/Alert/AlertBanner'
 
 const Dashboard: React.FunctionComponent = () => {
   const auth = useAuth()
@@ -160,6 +161,7 @@ const Dashboard: React.FunctionComponent = () => {
   return (
     <React.Fragment>
       <PageGroup stickyOnBreakpoint={{ default: 'top' }} hasShadowBottom>
+        <AlertBanner />
         <PageSection variant={PageSectionVariants.light}>
           <Flex>
             <FlexItem align={{ default: 'alignRight' }}>

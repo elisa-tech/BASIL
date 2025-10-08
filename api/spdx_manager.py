@@ -568,7 +568,8 @@ class SPDXManager:
 
         if element not in self.sbom:
             # check the element id doesn't exists yet
-            ids = [item.spdx_id for item in self.sbom if item.to_dict().get("spdxId", None)]
+            # use the internal spdx_id for all items (covers both spdxId and @id in serialized form)
+            ids = {item.spdx_id for item in self.sbom}
             if spdx_id not in ids:
                 self.sbom.append(element)
 

@@ -415,9 +415,9 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                   <LeavesProgressBar progressValue={totalCoverage} progressId='api-mapping-coverage' />
                 </FlexItem>
               </Flex>
-              {api?.permissions?.indexOf('w') >= 0 ? (
+              {auth.isLogged() ? (
                 <Flex align={{ default: 'alignRight' }}>
-                  {auth.isLogged() ? (
+                  {api?.permissions?.indexOf('r') >= 0 ? (
                     <FlexItem>
                       <Button
                         id='btn-export-sw-component-to-spdx'
@@ -431,56 +431,62 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                   ) : (
                     ''
                   )}
-                  <FlexItem>
-                    <Button
-                      variant='secondary'
-                      id='btn-mapping-new-sw-requirement'
-                      isDisabled={api?.raw_specification == null}
-                      onClick={() => setSrModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
-                    >
-                      Map Software Req.
-                    </Button>
-                  </FlexItem>
-                  <FlexItem>
-                    <Button
-                      variant='secondary'
-                      id='btn-mapping-new-test-specification'
-                      isDisabled={api?.raw_specification == null}
-                      onClick={() => setTsModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
-                    >
-                      Map Test Specification
-                    </Button>
-                  </FlexItem>
-                  <FlexItem>
-                    <Button
-                      variant='secondary'
-                      id='btn-mapping-new-test-case'
-                      isDisabled={api?.raw_specification == null}
-                      onClick={() => setTcModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
-                    >
-                      Map Test Case
-                    </Button>
-                  </FlexItem>
-                  <FlexItem>
-                    <Button
-                      variant='secondary'
-                      id='btn-mapping-new-justification'
-                      isDisabled={api?.raw_specification == null}
-                      onClick={() => setJModalInfo(true, 'add', api, '', 0, [], -1)}
-                    >
-                      Map Justification
-                    </Button>
-                  </FlexItem>
-                  <FlexItem>
-                    <Button
-                      variant='secondary'
-                      id='btn-mapping-new-document'
-                      isDisabled={api?.raw_specification == null}
-                      onClick={() => setDocModalInfo(true, 'add', api, '', 0, [], -1)}
-                    >
-                      Map Document
-                    </Button>
-                  </FlexItem>
+                  {api?.permissions?.indexOf('w') >= 0 ? (
+                    <React.Fragment>
+                      <FlexItem>
+                        <Button
+                          variant='secondary'
+                          id='btn-mapping-new-sw-requirement'
+                          isDisabled={api?.raw_specification == null}
+                          onClick={() => setSrModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
+                        >
+                          Map Software Req.
+                        </Button>
+                      </FlexItem>
+                      <FlexItem>
+                        <Button
+                          variant='secondary'
+                          id='btn-mapping-new-test-specification'
+                          isDisabled={api?.raw_specification == null}
+                          onClick={() => setTsModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
+                        >
+                          Map Test Specification
+                        </Button>
+                      </FlexItem>
+                      <FlexItem>
+                        <Button
+                          variant='secondary'
+                          id='btn-mapping-new-test-case'
+                          isDisabled={api?.raw_specification == null}
+                          onClick={() => setTcModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
+                        >
+                          Map Test Case
+                        </Button>
+                      </FlexItem>
+                      <FlexItem>
+                        <Button
+                          variant='secondary'
+                          id='btn-mapping-new-justification'
+                          isDisabled={api?.raw_specification == null}
+                          onClick={() => setJModalInfo(true, 'add', api, '', 0, [], -1)}
+                        >
+                          Map Justification
+                        </Button>
+                      </FlexItem>
+                      <FlexItem>
+                        <Button
+                          variant='secondary'
+                          id='btn-mapping-new-document'
+                          isDisabled={api?.raw_specification == null}
+                          onClick={() => setDocModalInfo(true, 'add', api, '', 0, [], -1)}
+                        >
+                          Map Document
+                        </Button>
+                      </FlexItem>
+                    </React.Fragment>
+                  ) : (
+                    ''
+                  )}
                 </Flex>
               ) : (
                 ''

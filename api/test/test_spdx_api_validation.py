@@ -269,6 +269,16 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
         95,
         user,
     )
+    # Duplicate mapping against the same section (different SW requirement)
+    # to validate snippet/CreationInfo deduplication
+    api_sr_mapping_auth_dup = ApiSwRequirementModel(
+        ut_api,
+        sw_req_3,
+        "## Section 1: Authentication",
+        _UT_API_SPEC_CONTENT.find("## Section 1: Authentication"),
+        80,
+        user,
+    )
     api_sr_mapping_2 = ApiSwRequirementModel(
         ut_api,
         sw_req_2,
@@ -353,6 +363,7 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
     # Add all mappings to session
     mappings = [
         api_sr_mapping_1,
+        api_sr_mapping_auth_dup,
         api_sr_mapping_2,
         sr_sr_mapping,
         api_ts_mapping_1,

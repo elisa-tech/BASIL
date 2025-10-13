@@ -100,6 +100,13 @@ jobs:
             app/cypress/screenshots
             api/user-files
           retention-days: 7
+
+      - name: Upload apache error log
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: apache-error.log
+          path: /var/log/apache2/error.log
     
   build_and_test:
     runs-on: ubuntu-latest

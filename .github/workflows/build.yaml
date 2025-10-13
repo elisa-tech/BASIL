@@ -42,6 +42,65 @@ jobs:
       - name: Run Prettier
         run: npx prettier --check app/src/app
 
+  apache_deployment:
+    runs-on: ubuntu-latest
+    steps:
+    
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Define global variables
+        id: global_variables
+        run: |
+          echo "BRANCH_NAME=${{ github.head_ref || github.ref_name }}" >> "$GITHUB_OUTPUT"
+          sed -i 's/^BASIL_TESTING=.*/BASIL_TESTING=1/' deploy/apache/.env
+          sed -i 's/^BASIL_API_PORT=.*/BASIL_API_PORT=5005/' deploy/apache/.env
+          sed -i 's/^BASIL_APP_PORT=.*/BASIL_APP_PORT=9056/' deploy/apache/.env
+          sed -i 's/^BASIL_ADMIN_PASSWORD=.*/BASIL_ADMIN_PASSWORD=dummy_password/' deploy/apache/.env
+          sed -i 's/^BASIL_DB_PASSWORD=.*/BASIL_DB_PASSWORD=dbSecret123/' deploy/apache/.env
+          TEMPDIR=$(mktemp -d)
+          sed -i "s/^BASIL_DB_PASSWORD=.*/BASIL_DB_PASSWORD=${TEMPDIR}/" deploy/apache/.env
+
+      - name: Make deploy/apache/run.sh executable
+        run: chmod +x deploy/apache/run.sh
+        
+      - name: Run the deployment
+        run: |
+          cd deploy/apache && sudo run.sh
+
+      - name: Test backend and frontend are up
+        run: |
+          echo "Test Api is running"
+          curl -vf http://localhost:5005/apis
+          curl -vf http://localhost:5005/libraries
+          curl -vf http://localhost:5005/version
+          echo "Test App is running"
+          curl -vf http://localhost:9056
+
+      - name: Install cypress-fail-fast plugin
+        run: npm install --save-dev cypress-fail-fast
+        working-directory: ./app
+
+      - name: Cypress E2E Testing Chrome
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          working-directory: ./app
+          spec: 'cypress/**/*.cy.js'
+          command: npx cypress run --browser chrome --spec cypress/**/login.cy.js --env failFast=true
+        env:
+          LIBGL_ALWAYS_SOFTWARE: 1
+
+      - name: Upload Cypress screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: |
+            app/cypress/screenshots
+            api/user-files
+          retention-days: 7
+    
   build_and_test:
     runs-on: ubuntu-latest
     steps:

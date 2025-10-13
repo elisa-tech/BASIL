@@ -59,7 +59,7 @@ jobs:
           sed -i 's/^BASIL_ADMIN_PASSWORD=.*/BASIL_ADMIN_PASSWORD=dummy_password/' deploy/apache/.env
           sed -i 's/^BASIL_DB_PASSWORD=.*/BASIL_DB_PASSWORD=dbSecret123/' deploy/apache/.env
           TEMPDIR=$(mktemp -d)
-          sed -i "s/^BASIL_DB_PASSWORD=.*/BASIL_DB_PASSWORD=${TEMPDIR}/" deploy/apache/.env
+          sed -i "s|^BASIL_DB_PASSWORD=.*|BASIL_DB_PASSWORD=${TEMPDIR}|" deploy/apache/.env
 
       - name: Make deploy/apache/run.sh executable
         run: chmod +x deploy/apache/run.sh

@@ -8,12 +8,17 @@ DB_USER="basil-admin"
 DB_NAME="basil"
 DB_PASSWORD="${BASIL_DB_PASSWORD=-your_secure_password}"
 RESET_CLUSTERS="${BASIL_RESET_POSTGRES_CLUSTERS=-1}"
+TESTING="${BASIL_TESTING:-0}"
+
+if [ "$TESTING" = "1" ]; then
+    DB_NAME="test"
+fi
 
 set -e
 
 echo
 echo ===================================================================
-echo BASIL Database
+echo BASIL Database initialization: ${DB_NAME}
 echo -------------------------------------------------------------------
 
 # Choose a safe working directory, e.g., /tmp or your home directory

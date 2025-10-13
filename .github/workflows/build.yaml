@@ -66,7 +66,7 @@ jobs:
         
       - name: Run the deployment
         run: |
-          cd deploy/apache && sudo run.sh
+          cd deploy/apache && sudo ./run.sh
 
       - name: Test backend and frontend are up
         run: |

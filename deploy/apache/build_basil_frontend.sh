@@ -187,8 +187,9 @@ sudo systemctl restart apache2
 echo --- show Apache2 ports configuration file: ------------------------$'\n'
 cat /etc/apache2/ports.conf
 
-# Testing APP
+## --- Testing APP
 echo --- Testing APP -------------------------------------------------------------$'\n'
 curl -s -w "%{http_code}" http://${SERVER_NAME}:${APP_PORT}/version | grep -q "200" && echo "Test APP: OK" || echo "Test APP: FAIL"
-
+## --- if test fails, it might   necessry to restart apache:
+sudo apachectl graceful
 echo $'\n'--- END -----------------------------------------------------------$'\n'

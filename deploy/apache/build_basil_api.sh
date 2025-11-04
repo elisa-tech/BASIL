@@ -19,6 +19,7 @@ BASIL_API=/var/www/basil-api
 WSGI_SCRIPT=$BASIL_API/api/wsgi.py
 BASIL_API_CONF=/etc/apache2/sites-available/basil-api.conf
 VIRTUAL_ENV=/opt/virtenv
+APACHE_ENVVARS_FILE=/etc/apache2/envvars
 TEST_RUNS_BASE_DIR="${BASIL_TEST_RUNS_BASE_DIR:-/var/basil/test-runs}"
 REFERENCEDATE01="2025-08-31 14:45:51 +0200"  # Still with sqlite-database
 
@@ -148,7 +149,6 @@ echo
 add_port_to_listen "${API_PORT}"
 
 ## --- Add Environment variables in apache systemd service
-APACHE_ENVVARS_FILE=/etc/apache2/envvars
 # Restore previous backup
 if [ -f "${APACHE_ENVVARS_FILE}.backup" ]; then
     cp "${APACHE_ENVVARS_FILE}.backup" "${APACHE_ENVVARS_FILE}"
@@ -180,5 +180,7 @@ cat $WSGI_SCRIPT
 echo $'\n'
 echo --- Testing API Version endpoint -------------------------------------------------------------$'\n'
 curl -s -w "%{http_code}" -o response.json http://${SERVER_NAME}:${API_PORT}/version | grep -q "200" && jq -e 'has("version")' response.json > /dev/null && echo "Test API Version endpoint: OK" || echo "Test API Version endpoint: FAIL"
+## --- if test fails, it might necessary to restart apache:
+sudo systemctl restart apache2
 echo --- END ----------------------------------------------------------------------------------$'\n'
 cd ~

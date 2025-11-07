@@ -111,14 +111,18 @@ install_package() {
 }
 
 add_port_to_listen() {
-  ## --- Add port to apache configuration
-  NEW_PORT="$1"
-  if ! grep -q "^Listen ${NEW_PORT}\$" /etc/apache2/ports.conf; then
-    echo "Listen ${NEW_PORT}" | sudo tee -a /etc/apache2/ports.conf
-    echo "Added 'Listen ${NEW_PORT}' to /etc/apache2/ports.conf"
-  else
-    echo "'Listen ${NEW_PORT}' already present in /etc/apache2/ports.conf"
-  fi
+    ## --- Add port to apache configuration
+    NEW_PORT="$1"
+    APACHE_PORTS=/etc/apache2/ports.conf
+    ## --- find "Listen XX" (XX = port number), I have tried several variants, this works fine
+    if grep -vE '^[[:space:]]*#' "$APACHE_PORTS" | grep -Eq "^[[:space:]]*Listen\b[[:space:]]+$NEW_PORT\b"; then
+    # if grep -Eq "^[[:space:]]*Listen[[:space:]]+$NEW_PORT([[:space:]]|$)" "$APACHE_PORTS"; then
+	echo "'Listen ${NEW_PORT}' already present in $APACHE_PORTS"
+    else
+	echo "New Port ${NEW_PORT} not specified in '$APACHE_PORTS'!"
+	echo "Listen ${NEW_PORT}" | sudo tee -a /etc/apache2/ports.conf
+	echo "Added 'Listen ${NEW_PORT}' to '$APACHE_PORTS'"
+    fi
 }
 
 rcpdir() {

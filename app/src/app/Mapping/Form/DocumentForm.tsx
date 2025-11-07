@@ -29,9 +29,12 @@ export interface DocumentFormProps {
   handleModalToggle
   loadMappingData
   modalFormSubmitState: string
+  modalIndirect
   modalOffset
   modalSection
   parentData
+  parentRelatedToType
+  parentType
 }
 
 export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
@@ -44,9 +47,12 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   handleModalToggle,
   loadMappingData,
   modalFormSubmitState = 'waiting',
+  modalIndirect,
   modalOffset,
   modalSection,
-  parentData
+  parentData,
+  parentRelatedToType,
+  parentType
 }: DocumentFormProps) => {
   const auth = useAuth()
   const [userFiles, setUserFiles] = React.useState([])
@@ -290,9 +296,9 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       document: {
         title: titleValue,
         description: descriptionValue,
-        document_type: documentTypeValue,
+        'document-type': documentTypeValue,
         url: documentSource == 'url' ? documentUrlValue : documentFileNameValue,
-        spdx_relation: SPDXRelationValue,
+        'spdx-relation': SPDXRelationValue,
         offset: offsetValue,
         section: sectionValue
       },
@@ -303,19 +309,25 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       token: auth.token
     }
 
-    if (formVerb == 'PUT' || formVerb == 'DELETE') {
+    if (modalIndirect == true) {
       data['relation-id'] = parentData.relation_id
-      data['document']['id'] = formData.id
+      data['relation-to'] = parentRelatedToType
+      data['parent-document'] = { id: parentData[Constants._D]['id'] }
+    } else {
+      if (formVerb == 'PUT' || formVerb == 'DELETE') {
+        data[Constants._D]['id'] = formData.id
+        data['relation-id'] = parentData.relation_id
+      }
     }
 
     if (formVerb == 'PUT') {
-      data['document']['status'] = documentStatusValue
+      data[Constants._D]['status'] = documentStatusValue
     }
 
     let status: number = 0
     let status_text: string = ''
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/documents', {
+    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/documents', {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)

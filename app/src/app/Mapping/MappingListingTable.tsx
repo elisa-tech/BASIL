@@ -700,7 +700,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     }
   }
 
-  const getDocuments = (section, offset, mapping) => {
+  const getDocuments = (section, offset, mapping, indirect, parent_type, parent_related_to_type) => {
     if (mapping == undefined) {
       return ''
     }
@@ -721,11 +721,15 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>
                     <DocumentMenuKebab
+                      indirect={indirect}
                       setDocModalInfo={setDocModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
                       setDeleteModalInfo={setDeleteModalInfo}
+                      setForkModalInfo={setForkModalInfo}
+                      mappingParentType={parent_type}
+                      mappingParentRelatedToType={parent_related_to_type}
                       mappingList={mapping}
                       mappingIndex={mIndex}
                       mappingSection={section}
@@ -744,7 +748,18 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       {Constants.percentageStringFormat(mappedItem['coverage'])}% Coverage
                     </Label>
                   </FlexItem>
-                  {auth.isLogged() ? (
+                  {mappedItem['gap'] != 0 ? (
+                    <React.Fragment>
+                      <FlexItem>
+                        <Label color='red' name='label-document-coverage' variant='outline' isCompact>
+                          {Constants.percentageStringFormat(mappedItem['gap'])}% Gap
+                        </Label>
+                      </FlexItem>
+                    </React.Fragment>
+                  ) : (
+                    ''
+                  )}
+                  {indirect == false && auth.isLogged() ? (
                     <FlexItem align={{ default: 'alignRight' }}>
                       <Tooltip content={'Click to read and add comments'}>
                         <Button
@@ -859,6 +874,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                 )}
               </Flex>
             </CardBody>
+            <CardBody>{getDocuments(section, offset, mappedItem[Constants._Ds], true, Constants._D, parent_type)}</CardBody>
           </Card>
           <Divider />
         </React.Fragment>
@@ -1025,7 +1041,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               ''
             )}
             {getJustifications(snippet['section'], snippet['offset'], snippet[Constants._Js])}
-            {getDocuments(snippet['section'], snippet['offset'], snippet[Constants._Ds])}
+            {getDocuments(snippet['section'], snippet['offset'], snippet[Constants._Ds], false, Constants._A, '')}
             {/*getSpecifications*/}
           </Td>
         </Tr>

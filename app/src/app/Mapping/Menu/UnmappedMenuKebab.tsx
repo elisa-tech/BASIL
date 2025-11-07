@@ -68,7 +68,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       //list_item['relation_id'] = mappingList[mappingIndex]['relation_id'];
       //list = [list_item];
       //list = mappingList[mappingIndex]
-      setDocModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)
+      setDocModalInfo(true, false, 'edit', api, mappingSection, mappingOffset, mappingParentType, mappingList, mappingIndex, '')
     } else if (mappingType == Constants._SR) {
       //list_item = mappingList[mappingIndex];
       //list_item['coverage'] = mappingList[mappingIndex]['coverage'];

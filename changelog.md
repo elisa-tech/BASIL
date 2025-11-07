@@ -9,6 +9,8 @@
 - API Traceability Map
 - New version available notification
 - Fix db models to aling with postgres
+- Extend traceability supporting document mapping to document
+- Document fork
 
 ## 1.7.x
 

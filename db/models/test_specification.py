@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -19,10 +19,10 @@ class TestSpecificationModel(Base):
     preconditions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     test_description: Mapped[str] = mapped_column(String())
     expected_behavior: Mapped[str] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestSpecificationModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestSpecificationModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))
@@ -116,6 +116,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(TestSpecificationModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(TestSpecificationHistoryModel).where(TestSpecificationHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class TestSpecificationHistoryModel(Base):
     __tablename__ = 'test_specifications_history'
     extend_existing = True
@@ -125,10 +132,10 @@ class TestSpecificationHistoryModel(Base):
     preconditions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     test_description: Mapped[str] = mapped_column(String())
     expected_behavior: Mapped[str] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestSpecificationHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestSpecificationHistoryModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))

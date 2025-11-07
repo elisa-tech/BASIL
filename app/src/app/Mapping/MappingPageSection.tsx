@@ -246,7 +246,18 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalParentRelatedToType('')
   }
 
-  const setDocModalInfo = (show, action, api, section, offset, parent_list, parent_index) => {
+  const setDocModalInfo = (
+    show,
+    indirect,
+    action,
+    api,
+    section,
+    offset,
+    parent_type,
+    parent_list,
+    parent_index,
+    parent_related_to_type
+  ) => {
     setDocModalShowState(show)
     setModalAction(action)
 
@@ -262,10 +273,10 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalDescription('Work item data and mapping information (section, offset, coverage).')
     setModalSection(section)
     setModalOffset(offset)
-    setModalIndirect(false)
+    setModalIndirect(indirect)
     setModalParentData(parent_list[parent_index])
-    setModalParentType(Constants._A)
-    setModalParentRelatedToType('')
+    setModalParentType(parent_type)
+    setModalParentRelatedToType(parent_related_to_type)
   }
 
   const setDeleteModalInfo = (show, work_item_type, parent_type, parent_related_to_type, list, index) => {
@@ -478,7 +489,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           variant='secondary'
                           id='btn-mapping-new-document'
                           isDisabled={api?.raw_specification == null}
-                          onClick={() => setDocModalInfo(true, 'add', api, '', 0, [], -1)}
+                          onClick={() => setDocModalInfo(true, false, 'add', api, '', 0, Constants._A, [], -1, '')}
                         >
                           Map Document
                         </Button>

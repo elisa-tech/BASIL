@@ -13,7 +13,7 @@ class NotificationModel(Base):
     __tablename__ = "notifications"
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
-    api_id: Mapped[Optional[int]] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[Optional[int]] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped[Optional["ApiModel"]] = relationship("ApiModel", foreign_keys="NotificationModel.api_id")
     category: Mapped[str] = mapped_column(String(20))
     title: Mapped[str] = mapped_column(String())

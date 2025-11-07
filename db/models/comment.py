@@ -15,7 +15,7 @@ class CommentModel(Base):
     parent_table: Mapped[str] = mapped_column(String(100))
     parent_id: Mapped[int] = mapped_column(Integer())
     comment: Mapped[str] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="CommentModel.created_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

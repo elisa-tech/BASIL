@@ -5,7 +5,7 @@ from db.models.db_base import Base
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -18,18 +18,18 @@ class ApiTestSpecificationModel(Base):
     __tablename__ = "test_specification_mapping_api"
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiTestSpecificationModel.api_id")
-    test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id"))
+    test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id", ondelete="CASCADE"))
     test_specification: Mapped["TestSpecificationModel"] = relationship("TestSpecificationModel",
                                                                         foreign_keys=ats_fkey)
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiTestSpecificationModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiTestSpecificationModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -139,6 +139,32 @@ class ApiTestSpecificationModel(Base):
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage
 
+    def fork(self, new_api, db_session):
+        from db.models.test_specification_test_case import TestSpecificationTestCaseModel
+
+        new_api_test_specification = ApiTestSpecificationModel(
+            api=new_api,
+            test_specification=self.test_specification,
+            section=self.section,
+            offset=self.offset,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+
+        tstcs = db_session.query(TestSpecificationTestCaseModel).filter(
+            TestSpecificationTestCaseModel.test_specification_mapping_api_id == self.id
+        ).all()
+        for tstc in tstcs:
+            tstc.fork(
+                new_api_test_specification=new_api_test_specification,
+                new_test_specification_mapping_sw_requirement=None,
+                db_session=db_session
+            )
+
+        db_session.add(new_api_test_specification)
+        db_session.commit()
+        return new_api_test_specification
+
 
 @event.listens_for(ApiTestSpecificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -180,6 +206,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(ApiTestSpecificationModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(ApiTestSpecificationHistoryModel).where(ApiTestSpecificationHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class ApiTestSpecificationHistoryModel(Base):
     __tablename__ = 'test_specification_mapping_api_history'
     extend_existing = True
@@ -190,10 +223,10 @@ class ApiTestSpecificationHistoryModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[str] = mapped_column(String())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiTestSpecificationHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiTestSpecificationHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

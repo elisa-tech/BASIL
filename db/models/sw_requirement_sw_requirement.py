@@ -5,7 +5,7 @@ from db.models.comment import CommentModel
 from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from sqlalchemy import DateTime, Integer
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -18,22 +18,28 @@ class SwRequirementSwRequirementModel(Base):
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     sw_requirement_mapping_api: Mapped[Optional["ApiSwRequirementModel"]] = relationship(
-        "ApiSwRequirementModel", foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_api_id")
-    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+        "ApiSwRequirementModel",
+        passive_deletes=True,
+        foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_api_id")
+    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sw_requirement_mapping_api.id", ondelete="CASCADE"), nullable=True
+    )
     sw_requirement_mapping_sw_requirement: Mapped[Optional["SwRequirementSwRequirementModel"]] = relationship(
         "SwRequirementSwRequirementModel",
-        remote_side=id,
+        passive_deletes=True,
         foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id")
-    sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(ForeignKey(id))
-    sw_requirement_id: Mapped[int] = mapped_column(ForeignKey("sw_requirements.id"))
+    sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sw_requirement_mapping_sw_requirement.id", ondelete="CASCADE"), nullable=True
+    )
+    sw_requirement_id: Mapped[int] = mapped_column(ForeignKey("sw_requirements.id", ondelete="CASCADE"))
     sw_requirement: Mapped["SwRequirementModel"] = relationship(
         "SwRequirementModel",
         foreign_keys="SwRequirementSwRequirementModel.sw_requirement_id")
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="SwRequirementSwRequirementModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementSwRequirementModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -93,7 +99,7 @@ class SwRequirementSwRequirementModel(Base):
                  'created_by': self.created_by.username,
                  '__tablename__': self.__tablename__}
 
-        _dict['gap'] = _dict['coverage'] - _dict['covered']
+        _dict['gap'] = min(max(0, _dict['coverage'] - _dict['covered']), 100)
 
         if self.sw_requirement_mapping_api_id:
             _dict['api'] = {'id': self.sw_requirement_mapping_api.api_id}
@@ -163,6 +169,51 @@ class SwRequirementSwRequirementModel(Base):
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage
 
+    def fork(self, new_sw_requirement_mapping_api, new_sw_requirement_mapping_sw_requirement, db_session):
+        from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+        from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
+
+        new_sw_requirement_sw_requirement = SwRequirementSwRequirementModel(
+            sw_requirement_mapping_api=new_sw_requirement_mapping_api,
+            sw_requirement_mapping_sw_requirement=new_sw_requirement_mapping_sw_requirement,
+            sw_requirement=self.sw_requirement,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+        db_session.add(new_sw_requirement_sw_requirement)
+
+        srsrs = db_session.query(SwRequirementSwRequirementModel).filter(
+            SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id == self.id
+        ).all()
+        for srsr in srsrs:
+            srsr.fork(
+                new_sw_requirement_mapping_api=None,
+                new_sw_requirement_mapping_sw_requirement=new_sw_requirement_sw_requirement,
+                db_session=db_session
+            )
+
+        srtss = db_session.query(SwRequirementTestSpecificationModel).filter(
+            SwRequirementTestSpecificationModel.sw_requirement_mapping_sw_requirement_id == self.id
+        ).all()
+        for srtss in srtss:
+            srtss.fork(
+                new_sw_requirement_mapping_api=None,
+                new_sw_requirement_mapping_sw_requirement=new_sw_requirement_sw_requirement,
+                db_session=db_session
+            )
+
+        srtcs = db_session.query(SwRequirementTestCaseModel).filter(
+            SwRequirementTestCaseModel.sw_requirement_mapping_sw_requirement_id == self.id
+        ).all()
+        for srtc in srtcs:
+            srtc.fork(
+                new_sw_requirement_mapping_api=None,
+                new_sw_requirement_mapping_sw_requirement=new_sw_requirement_sw_requirement,
+                db_session=db_session
+            )
+        db_session.commit()
+        return new_sw_requirement_sw_requirement
+
 
 @event.listens_for(SwRequirementSwRequirementModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -202,6 +253,16 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(SwRequirementSwRequirementModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = (
+        delete(SwRequirementSwRequirementHistoryModel)
+        .where(SwRequirementSwRequirementHistoryModel.id == target.id)
+    )
+    connection.execute(del_stmt)
+
+
 class SwRequirementSwRequirementHistoryModel(Base):
     __tablename__ = 'sw_requirement_mapping_sw_requirement_history'
     extend_existing = True
@@ -211,10 +272,10 @@ class SwRequirementSwRequirementHistoryModel(Base):
     sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(Integer())
     sw_requirement_id: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="SwRequirementSwRequirementHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementSwRequirementHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

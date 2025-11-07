@@ -1,11 +1,11 @@
 from datetime import datetime
-from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.db_base import Base
 from db.models.user import UserModel
-from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
+from db.models.api_sw_requirement import ApiSwRequirementModel
+from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
 from sqlalchemy import DateTime, Integer
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -20,20 +20,23 @@ class SwRequirementTestSpecificationModel(Base):
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     sw_requirement_mapping_api: Mapped[Optional["ApiSwRequirementModel"]] = relationship(
         "ApiSwRequirementModel", foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id")
-    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sw_requirement_mapping_api.id"))
+    sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sw_requirement_mapping_api.id", ondelete="CASCADE"), nullable=True
+    )
     sw_requirement_mapping_sw_requirement: Mapped[Optional["SwRequirementSwRequirementModel"]] = relationship(
         "SwRequirementSwRequirementModel",
         foreign_keys="SwRequirementTestSpecificationModel.sw_requirement_mapping_sw_requirement_id")
     sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("sw_requirement_mapping_sw_requirement.id"))
-    test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id"))
+        ForeignKey("sw_requirement_mapping_sw_requirement.id", ondelete="CASCADE"), nullable=True
+    )
+    test_specification_id: Mapped[int] = mapped_column(ForeignKey("test_specifications.id", ondelete="CASCADE"))
     test_specification: Mapped["TestSpecificationModel"] = relationship(
         "TestSpecificationModel", foreign_keys="SwRequirementTestSpecificationModel.test_specification_id")
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="SwRequirementTestSpecificationModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementTestSpecificationModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -138,6 +141,30 @@ class SwRequirementTestSpecificationModel(Base):
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage
 
+    def fork(self, new_sw_requirement_mapping_api, new_sw_requirement_mapping_sw_requirement, db_session):
+        from db.models.test_specification_test_case import TestSpecificationTestCaseModel
+
+        new_sw_requirement_test_specification = SwRequirementTestSpecificationModel(
+            sw_requirement_mapping_api=new_sw_requirement_mapping_api,
+            sw_requirement_mapping_sw_requirement=new_sw_requirement_mapping_sw_requirement,
+            test_specification=self.test_specification,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+        db_session.add(new_sw_requirement_test_specification)
+        db_session.commit()
+
+        tstcs = db_session.query(TestSpecificationTestCaseModel).filter(
+            TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == self.id
+        ).all()
+        for tstc in tstcs:
+            tstc.fork(
+                new_sw_requirement_test_specification=new_sw_requirement_test_specification,
+                new_test_specification_mapping_sw_requirement=None,
+                db_session=db_session
+            )
+        return new_sw_requirement_test_specification
+
 
 @event.listens_for(SwRequirementTestSpecificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -177,6 +204,16 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(SwRequirementTestSpecificationModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = (
+        delete(SwRequirementTestSpecificationHistoryModel)
+        .where(SwRequirementTestSpecificationHistoryModel.id == target.id)
+    )
+    connection.execute(del_stmt)
+
+
 class SwRequirementTestSpecificationHistoryModel(Base):
     __tablename__ = 'test_specification_mapping_sw_requirement_history'
     extend_existing = True
@@ -186,11 +223,11 @@ class SwRequirementTestSpecificationHistoryModel(Base):
     sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(Integer())
     test_specification_id: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="SwRequirementTestSpecificationHistoryModel"
                                                                 ".created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementTestSpecificationHistoryModel."
                                                                "edited_by_id")

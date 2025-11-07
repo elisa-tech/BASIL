@@ -49,7 +49,7 @@ Example Annotation Structure
     }
 
 Traceability Relationships
--------------------------
+--------------------------
 
 BASIL exports the following types of traceability relationships:
 

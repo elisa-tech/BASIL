@@ -144,8 +144,8 @@ def test_api_document_post_ok(client, user_authentication, unmapped_api_db, docu
         'document': {
             'title': _UT_DOC_TITLE,
             'description': 'ut_doc_description',
-            'document_type': 'ut_doc_document_type',
-            'spdx_relation': 'ut_doc_spdx_relation',
+            'document-type': 'ut_doc_document_type',
+            'spdx-relation': 'ut_doc_spdx_relation',
             'url': document_file.name,
             'section': 'ut_doc_section',
             'offset': 0
@@ -177,6 +177,9 @@ def test_api_document_put_ok(client, user_authentication, mapped_api_db):
     # get the relation ID and document
     relation_id = mapped_sections[0]['documents'][0]['relation_id']
     document = mapped_sections[0]['documents'][0]['document']
+
+    # update document keys replacing _ with -
+    document = {k.replace("_", "-"): v for k, v in document.items()}
 
     # update mapping from _UT_API_SPEC_SECTION_WITH_MAPPING to _UT_API_SPEC_SECTION_TO_BE_MAPPED
     mapping_data = {
@@ -213,6 +216,10 @@ def test_put_update_document(client, user_authentication, mapped_api_db, utiliti
     relation_id, document = _get_mapped_document(mapped_sections[0])
     new_document_title = f'{_UT_DOC_TITLE} #{utilities.generate_random_hex_string8()}'
     document['title'] = new_document_title
+
+    # update document keys replacing _ with -
+    document = {k.replace("_", "-"): v for k, v in document.items()}
+
     mapping_data = {
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token'],

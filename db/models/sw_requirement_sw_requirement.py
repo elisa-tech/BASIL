@@ -27,7 +27,9 @@ class SwRequirementSwRequirementModel(Base):
     sw_requirement_mapping_sw_requirement: Mapped[Optional["SwRequirementSwRequirementModel"]] = relationship(
         "SwRequirementSwRequirementModel",
         passive_deletes=True,
-        foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id")
+        foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id",
+        remote_side=[id]
+    )
     sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("sw_requirement_mapping_sw_requirement.id", ondelete="CASCADE"), nullable=True
     )
@@ -93,7 +95,7 @@ class SwRequirementSwRequirementModel(Base):
     def as_dict(self, full_data=False, db_session=None):
         _dict = {'relation_id': self.id,
                  'sw_requirement_mapping_api_id': self.sw_requirement_mapping_api_id,
-                 'sw_requirement_mapping_sw_requirement_id': self.sw_requirement_mapping_api_id,
+                 'sw_requirement_mapping_sw_requirement_id': self.sw_requirement_mapping_sw_requirement_id,
                  'coverage': self.coverage,
                  'covered': self.get_waterfall_coverage(db_session),
                  'created_by': self.created_by.username,

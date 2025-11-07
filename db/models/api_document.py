@@ -3,7 +3,6 @@ from db.models.api import ApiModel
 from db.models.comment import CommentModel
 from db.models.db_base import Base
 from db.models.document import DocumentModel, DocumentHistoryModel
-from db.models.document_document import DocumentDocumentModel
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import delete, event, insert, select
@@ -122,6 +121,7 @@ class ApiDocumentModel(Base):
         return waterfall_coverage
 
     def fork(self, new_api, db_session):
+        from db.models.document_document import DocumentDocumentModel
         new_api_document = ApiDocumentModel(
             api=new_api,
             document=self.document,

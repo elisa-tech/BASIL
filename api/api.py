@@ -241,7 +241,7 @@ def get_api_from_request(_request, _db_session):
 
 
 def get_api_from_indirect_document_mapping(_mapping, _dbisession):
-    """Return the ApiModel instance from an inderect mapping to
+    """Return the ApiModel instance from an indirect mapping to
     Document
     Possible nested mappings are:
     - DocumentDocumentModel
@@ -262,7 +262,7 @@ def get_api_from_indirect_document_mapping(_mapping, _dbisession):
 
 def get_direct_document_mapping_id(_mapping, _dbisession):
     """Return the ApiDocumentModel.id
-    from an inderect mapping to Document"""
+    from an indirect mapping to Document"""
 
     # Work Items mapped to a Document
     if isinstance(_mapping, DocumentDocumentModel):
@@ -292,7 +292,7 @@ def get_direct_document_mapping_id(_mapping, _dbisession):
 
 
 def get_api_from_indirect_sw_requirement_mapping(_mapping, _dbisession):
-    """Return the ApiModel instance from an inderect mapping to
+    """Return the ApiModel instance from an indirect mapping to
     SwRequirement
     Possible nested mappings are:
     - SwRequirementSwRequirementModel
@@ -314,7 +314,7 @@ def get_api_from_indirect_sw_requirement_mapping(_mapping, _dbisession):
 
 def get_direct_sw_requirement_mapping_id(_mapping, _dbisession):
     """Return the ApiSwRequirementModel.id
-    from an inderect mapping to SwRequirement"""
+    from an indirect mapping to SwRequirement"""
 
     # Work Items mapped to a Sw Requirement
     if (

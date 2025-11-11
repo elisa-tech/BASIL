@@ -21,6 +21,7 @@ from db.models.api_sw_requirement import ApiSwRequirementModel  # noqa E402
 from db.models.api_test_case import ApiTestCaseModel  # noqa E402
 from db.models.api_test_specification import ApiTestSpecificationModel  # noqa E402
 from db.models.document import DocumentModel  # noqa E402
+from db.models.document_document import DocumentDocumentModel  # noqa E402
 from db.models.justification import JustificationModel  # noqa E402
 from db.models.sw_requirement import SwRequirementModel  # noqa E402
 from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel  # noqa E402
@@ -1052,6 +1053,52 @@ class SPDXManager:
         self.add_to_sbom(tr_annotation)
         return tr_file
 
+    def addDocumentsNestedElements(
+        self,
+        api: ApiModel = None,
+        xdoc: Optional[Union[ApiDocumentModel, DocumentDocumentModel]] = None,
+        spdx_doc: SPDXFile = None,  # SPDX object of Document from xdoc.document
+        dbsession=None,
+    ):
+        """In BASIL user can create a complex hierarchy of Documents.
+        Moreover we can assign other work items to each Document in the chain.
+        This method navigate the hierarchy and return all the work items
+
+        :param api: software component where the mapping is defined
+        :param xdoc: Document mapping model instance
+        :param spdx_doc: DocumentSPDX instance
+        :param dbi: Database interface instance
+        :return:
+        """
+        if isinstance(xdoc, ApiDocumentModel):
+            mapping_field = f"{ApiDocumentModel.__tablename__}"
+            mapping_field_id = f"{mapping_field}_id"
+        elif isinstance(xdoc, DocumentDocumentModel):
+            mapping_field = f"{DocumentDocumentModel.__tablename__}"
+            mapping_field_id = f"{mapping_field}_id"
+        else:
+            return
+
+        # DocumentDocumentModel
+        doc_docs = (
+            dbsession.query(DocumentDocumentModel)
+            .filter(getattr(DocumentDocumentModel, mapping_field_id) == xdoc.id)
+            .all()
+        )
+        for doc_doc in doc_docs:
+            spdx_doc_doc = self.addDocument(document=doc_doc.document, dbsession=dbsession)
+            self.addRelationship(
+                from_element=spdx_doc,
+                to=[spdx_doc_doc],
+                relationship_type="hasDocument",
+                completeness_percentage=doc_doc.coverage,
+            )
+
+            # DocumentDocument
+            self.addDocumentsNestedElements(
+                api=api, xdoc=doc_doc, spdx_doc=spdx_doc_doc, dbsession=dbsession
+            )
+
     def addSoftwareRequirementNestedElements(
         self,
         api: ApiModel = None,
@@ -1275,6 +1322,8 @@ class SPDXManager:
                 completeness_percentage=adoc.coverage,
             )
 
+            self.addDocumentsNestedElements(api=api, xdoc=adoc, spdx_doc=spdx_doc, dbsession=dbsession)
+
     def addApiJustifications(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
         # ApiJustifications
         api_justifications = (
@@ -1301,6 +1350,21 @@ class SPDXManager:
         - edges: list of dicts with keys 'from', 'to', and 'type'
         - output_file: output PNG file name
         """
+
+        def allowed_duplicate_node(node):
+            allowed_ids = [
+                "basil:document:",
+                "basil:software-requirement:",
+                "basil:test-specification:",
+                "basil:test-case:",
+                "basil:test-run:",
+                "basil:justification:",
+            ]
+
+            ret = any(allowed_id in node.spdx_id for allowed_id in allowed_ids)
+            if ret:
+                return True
+            return False
 
         def get_file_node_color(node):
             purpose_colors = {
@@ -1339,45 +1403,59 @@ class SPDXManager:
         # Add edges with appropriate colors
         relationships = [item for item in self.sbom if isinstance(item, SPDXRelationship)]
 
+        iRel = 0
         for relationship in relationships:
             if not [item for item in relationship.to if isinstance(item, SPDXFile)]:
                 continue
 
+            iRel += 1
             for to_relationship in relationship.to:
+                # Allow duplicates nodes for
+                # each work items as using the same node can results into a wrong mapping graph
                 from_node = relationship.from_element
-                from_node_str = from_node.spdx_id.replace(":", "_")
+                from_node_label = from_node.spdx_id.replace(":", "_")
+                if allowed_duplicate_node(from_node):
+                    from_node_id = f"{iRel-1}_{from_node_label}"
+                else:
+                    from_node_id = from_node_label
                 from_color = get_file_node_color(from_node)
 
                 to_node = to_relationship
-                to_node_str = to_node.spdx_id.replace(":", "_")
+                to_node_label = to_node.spdx_id.replace(":", "_")
+                if allowed_duplicate_node(to_node):
+                    to_node_id = f"{iRel}_{to_node_label}"
+                else:
+                    to_node_id = to_node_label
                 to_color = get_file_node_color(to_node)
 
                 # Add 'from' node with color based on type
-                if from_node_str not in added_nodes:
-                    dot.node(from_node_str, style="filled", fillcolor=from_color)
-                    added_nodes[from_node_str] = from_color
+                if from_node_id not in added_nodes:
+                    dot.node(from_node_id, label=from_node_label, style="filled", fillcolor=from_color)
+                    added_nodes[from_node_id] = from_color
 
                 # Add 'to' node with color based on type
-                if to_node_str not in added_nodes:
-                    dot.node(to_node_str, style="filled", fillcolor=to_color)
-                    added_nodes[to_node_str] = to_color
+                if to_node_id not in added_nodes:
+                    dot.node(to_node_id, label=to_node_label, style="filled", fillcolor=to_color)
+                    added_nodes[to_node_id] = to_color
 
                 if isinstance(to_node, SPDXSnippet):
-                    from_file_str = to_node.from_file.spdx_id.replace(":", "_")
-                    if from_file_str not in added_nodes:
-                        dot.node(from_file_str, style="filled", fillcolor="yellow")
-                        added_nodes[from_file_str] = "yellow"
-                    add_edge(from_file_str, to_node_str, "contains")
+                    from_file_label = to_node.from_file.spdx_id.replace(":", "_")
+                    from_file_id = from_file_label
+                    if from_file_id not in added_nodes:
+                        dot.node(from_file_id, label=from_file_label, style="filled", fillcolor="yellow")
+                        added_nodes[from_file_id] = "yellow"
+                    add_edge(from_file_id, to_node_id, "contains")
 
                 if isinstance(from_node, SPDXSnippet):
-                    from_file_str = from_node.from_file.spdx_id.replace(":", "_")
-                    if from_file_str not in added_nodes:
-                        dot.node(from_file_str, style="filled", fillcolor="yellow")
-                        added_nodes[from_file_str] = "yellow"
-                    add_edge(from_file_str, from_node_str, "contains")
+                    from_file_label = from_node.from_file.spdx_id.replace(":", "_")
+                    from_file_id = from_file_label
+                    if from_file_id not in added_nodes:
+                        dot.node(from_file_id, label=from_file_label, style="filled", fillcolor="yellow")
+                        added_nodes[from_file_id] = "yellow"
+                    add_edge(from_file_id, from_node_id, "contains")
 
                 # Add edge without special color
-                add_edge(from_node_str, to_node_str, label=relationship.relationship_type)
+                add_edge(from_node_id, to_node_id, label=relationship.relationship_type)
 
         # Populate dot edges
         for edge in sorted(added_edges):

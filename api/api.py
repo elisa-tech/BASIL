@@ -2649,8 +2649,13 @@ class ApiTestSpecificationsMapping(Resource):
         unmapped_sections = [x for x in mapping[_TSs] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
-        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
+        for iMS in range(len(mapped_sections)):
+            for iD in range(len(mapped_sections[iMS][_Ds])):
+                document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+                mapped_sections[iMS][_Ds][iD] = document_children_data
+
+        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
         return ret
 
     def post(self):
@@ -2967,8 +2972,13 @@ class ApiTestCasesMapping(Resource):
         unmapped_sections = [x for x in mapping[_TCs] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
-        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
+        for iMS in range(len(mapped_sections)):
+            for iD in range(len(mapped_sections[iMS][_Ds])):
+                document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+                mapped_sections[iMS][_Ds][iD] = document_children_data
+
+        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
         return ret
 
     def post(self):
@@ -3552,6 +3562,7 @@ class ApiJustificationsMapping(Resource):
 
         mapped_sections = get_split_sections(api_specification, mapping, [_J])
         unmapped_sections = [x for x in mapping[_Js] if not x["match"]]
+
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
         return ret

@@ -112,10 +112,12 @@ class ApiDocumentModel(Base):
             DocumentDocumentModel.document_mapping_api_id == self.id
         ).all()
         if len(docs) > 0:
-            docs_coverage = sum([x.as_dict()['coverage'] for x in docs])
-            waterfall_coverage = (min(max(0, docs_coverage), 100) * self.coverage) / 100.0
-        else:
+            docs_coverage = sum([x.get_waterfall_coverage(db_session) for x in docs])
+
+        if len(docs) == 0:
             waterfall_coverage = self.coverage
+        else:
+            waterfall_coverage = (min(max(0, sum([docs_coverage])), 100.0) * self.coverage) / 100.0
 
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage

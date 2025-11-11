@@ -176,7 +176,9 @@ class ApiSwRequirementModel(Base):
         if len(tcs) == len(tss) == len(srs) == 0:
             waterfall_coverage = self.coverage
         else:
-            waterfall_coverage = (min(max(0, srs_coverage + tss_coverage + tcs_coverage), 100) * self.coverage) / 100.0
+            waterfall_coverage = (
+                min(max(0, sum([srs_coverage, tss_coverage, tcs_coverage])), 100.0) * self.coverage
+            ) / 100.0
 
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage

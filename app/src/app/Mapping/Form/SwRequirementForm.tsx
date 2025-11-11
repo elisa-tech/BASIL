@@ -422,8 +422,8 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
           </FormHelperText>
         )}
       </FormGroup>
-      <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' fieldId={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}>
+      <Grid hasGutter md={4}>
+        <FormGroup label={Constants.FORM_COMPLETION_LABEL} fieldId={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}>
           <TextInput
             id={`${INPUT_BASE_NAME}-${formAction}-coverage-${formData.id}`}
             value={coverageValue || ''}

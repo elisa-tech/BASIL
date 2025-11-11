@@ -605,7 +605,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       ) : (
         ''
       )}
-      <FormGroup label='Unique Coverage:' isRequired fieldId={`input-document-${formAction}-coverage-${formData.id}`}>
+      <FormGroup label={Constants.FORM_COMPLETION_LABEL} isRequired fieldId={`input-document-${formAction}-coverage-${formData.id}`}>
         <TextInput
           isRequired
           id={`input-document-${formAction}-coverage-${formData.id}`}

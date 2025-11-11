@@ -110,7 +110,7 @@ Configuration:
 - Ordered by creation time (most recent first)
 
 CI Validation with spdx3-validate
---------------------------------
+---------------------------------
 
 BASIL includes comprehensive validation of exported SPDX documents:
 
@@ -122,7 +122,7 @@ Validation Process
 3. **CI Integration**: Automated validation in continuous integration
 
 Validation Features
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 - **Schema Compliance**: Validates against SPDX 3.0.1 schema
 - **Relationship Integrity**: Ensures all relationships are valid
@@ -130,7 +130,7 @@ Validation Features
 - **Format Validation**: Ensures proper JSON-LD structure
 
 CI Job Configuration
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 The validation is integrated into the CI pipeline:
 
@@ -169,7 +169,7 @@ All files are stored in user-specific directories:
 ``api/public/spdx_export/<user-id>/<filename>``
 
 Security Considerations
-------------------------
+-----------------------
 
 - **User Isolation**: Each user can only access their own exported files
 - **Path Validation**: Prevents directory traversal attacks
@@ -177,7 +177,7 @@ Security Considerations
 - **File Type Validation**: Only allows specific file extensions
 
 Usage Examples
----------------
+--------------
 
 Export SPDX for an API:
 

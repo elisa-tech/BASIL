@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -17,10 +17,10 @@ class SwRequirementModel(Base):
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String())
     description: Mapped[Optional[str]] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="SwRequirementModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))
@@ -68,6 +68,16 @@ class SwRequirementModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def fork(self, created_by, db_session=None):
+        new_sw_requirement = SwRequirementModel(
+            title=self.title,
+            description=self.description,
+            created_by=created_by
+        )
+        db_session.add(new_sw_requirement)
+        db_session.commit()
+        return new_sw_requirement
+
 
 @event.listens_for(SwRequirementModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -105,6 +115,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(SwRequirementModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(SwRequirementHistoryModel).where(SwRequirementHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class SwRequirementHistoryModel(Base):
     __tablename__ = 'sw_requirements_history'
     extend_existing = True
@@ -112,10 +129,10 @@ class SwRequirementHistoryModel(Base):
     id: Mapped[int] = mapped_column(Integer())
     title: Mapped[str] = mapped_column(String())
     description: Mapped[Optional[str]] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="SwRequirementHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="SwRequirementHistoryModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))

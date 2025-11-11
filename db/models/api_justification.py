@@ -5,7 +5,7 @@ from db.models.db_base import Base
 from db.models.justification import JustificationModel, JustificationHistoryModel
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -16,18 +16,18 @@ class ApiJustificationModel(Base):
     __tablename__ = "justification_mapping_api"
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiJustificationModel.api_id")
-    justification_id: Mapped[int] = mapped_column(ForeignKey("justifications.id"))
+    justification_id: Mapped[int] = mapped_column(ForeignKey("justifications.id", ondelete="CASCADE"))
     justification: Mapped["JustificationModel"] = relationship("JustificationModel",
                                                                foreign_keys="ApiJustificationModel.justification_id")
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiJustificationModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiJustificationModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -97,6 +97,19 @@ class ApiJustificationModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def fork(self, new_api, db_session):
+        new_api_justification = ApiJustificationModel(
+            api=new_api,
+            justification=self.justification,
+            section=self.section,
+            offset=self.offset,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+        db_session.add(new_api_justification)
+        db_session.commit()
+        return new_api_justification
+
 
 @event.listens_for(ApiJustificationModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -148,21 +161,28 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(ApiJustificationModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(ApiJustificationHistoryModel).where(ApiJustificationHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class ApiJustificationHistoryModel(Base):
     __tablename__ = "justification_mapping_api_history"
     __table_args__ = {"sqlite_autoincrement": True}
     extend_existing = True
     row_id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     id: Mapped[int] = mapped_column(Integer())
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
-    justification_id: Mapped[int] = mapped_column(ForeignKey("justifications.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
+    justification_id: Mapped[int] = mapped_column(ForeignKey("justifications.id", ondelete="CASCADE"))
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiJustificationHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiJustificationHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

@@ -41,10 +41,10 @@ Default Fields:
 + url
 + section (only in case of text file)
 + offset (only in case of text file)
-  
+
 Possible Children Work Item Types:
 
-+ None
++ Document
 
 --------------------
 Software Requirement

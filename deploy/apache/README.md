@@ -65,6 +65,7 @@ BASIL_COMMITBEFORE="2025-01-01 00:00:00 +0000"
 ```
 
 Notes:
+
 - Passwords are required: set both `BASIL_ADMIN_PASSWORD` and `BASIL_DB_PASSWORD`.
 - Use quotes for values with special characters.
 
@@ -81,12 +82,14 @@ sudo ./run.sh
 Why sudo? The scripts write under `/var/www`, `/etc/apache2`, manage services, and change ownership to `www-data`.
 
 What `run.sh` does:
+
 - Installs required packages via apt
 - Initializes PostgreSQL (`init_postgresql.sh`)
 - Builds and configures the API for Apache/mod_wsgi (`build_basil_api.sh`)
 - Builds the frontend, configures Apache static vhost with React router rewrite (`build_basil_frontend.sh`)
 
 Artifacts and logs in this folder:
+
 - `init_postgresql.log`
 - `build_basil_api.log`
 - `build_basil_frontend.log`
@@ -108,5 +111,3 @@ Both checks are executed automatically at the end of the respective scripts and 
 - Wrong hostname: update `BASIL_SERVER_NAME` (and optional alias) and re-run.
 - PostgreSQL reset: set `BASIL_RESET_POSTGRES_CLUSTERS=1` only if you understand it will drop existing clusters.
 - Rebuild from a clean checkout: set `BASIL_GITCLONE=1`.
-
-

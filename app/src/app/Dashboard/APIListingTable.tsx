@@ -81,7 +81,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     library_version: 'Version',
     created_by: 'Owner',
     category: 'Category',
-    coverage: 'Last Coverage',
+    coverage: 'Last Completion',
     notifications: 'Notifications',
     actions: 'Actions'
   }

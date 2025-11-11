@@ -4,12 +4,16 @@ import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } f
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 
 export interface DocumentMenuKebabProps {
+  indirect
   setDocModalInfo
   setHistoryModalInfo
   setDetailsModalInfo
+  setForkModalInfo
   setUsageModalInfo
   setDeleteModalInfo
   api
+  mappingParentType
+  mappingParentRelatedToType
   mappingIndex
   mappingList
   mappingSection
@@ -17,12 +21,16 @@ export interface DocumentMenuKebabProps {
 }
 
 export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> = ({
+  indirect,
   setDocModalInfo,
   setHistoryModalInfo,
   setDetailsModalInfo,
+  setForkModalInfo,
   setUsageModalInfo,
   setDeleteModalInfo,
   api,
+  mappingParentType,
+  mappingParentRelatedToType,
   mappingIndex,
   mappingList,
   mappingSection,
@@ -55,20 +63,65 @@ export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> 
           <React.Fragment>
             <DropdownItem
               value={0}
+              id={'btn-menu-document-assign-document-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-document-assign-document'}
+              key='assign document'
+              onClick={(event) => {
+                event.preventDefault
+                setDocModalInfo(
+                  true,
+                  true,
+                  'add',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  Constants._D,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentType
+                )
+              }}
+            >
+              Assign Document
+            </DropdownItem>
+            <DropdownItem
+              value={1}
               id={'btn-menu-document-delete-' + mappingList[mappingIndex].relation_id}
               key='delete'
               className='danger-text'
-              onClick={() => setDeleteModalInfo(true, Constants._D, 'api', '', mappingList, mappingIndex)}
+              onClick={() => setDeleteModalInfo(true, Constants._D, mappingParentType, '', mappingList, mappingIndex)}
             >
               Delete
             </DropdownItem>
             <DropdownItem
-              value={1}
+              value={2}
               id={'btn-menu-document-edit-' + mappingList[mappingIndex].relation_id}
               key='edit'
-              onClick={() => setDocModalInfo(true, 'edit', api, mappingSection, mappingOffset, mappingList, mappingIndex)}
+              onClick={() =>
+                setDocModalInfo(
+                  true,
+                  indirect,
+                  'edit',
+                  api,
+                  mappingSection,
+                  mappingOffset,
+                  mappingParentType,
+                  mappingList,
+                  mappingIndex,
+                  mappingParentRelatedToType
+                )
+              }
             >
               Edit
+            </DropdownItem>
+            <DropdownItem
+              value={3}
+              id={'btn-menu-document-fork-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-document-fork'}
+              key='fork'
+              onClick={() => setForkModalInfo(true, Constants._D, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
+            >
+              Fork
             </DropdownItem>
           </React.Fragment>
         ) : (
@@ -76,15 +129,15 @@ export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> 
         )}
 
         <DropdownItem
-          value={3}
+          value={4}
           id={'btn-menu-document-history-' + mappingList[mappingIndex].relation_id}
           key='history'
-          onClick={() => setHistoryModalInfo(true, Constants._D, Constants._A, mappingList[mappingIndex].relation_id)}
+          onClick={() => setHistoryModalInfo(true, Constants._D, mappingParentType, mappingList[mappingIndex].relation_id)}
         >
           History
         </DropdownItem>
         <DropdownItem
-          value={4}
+          value={5}
           id={'btn-menu-document-details-' + mappingList[mappingIndex].relation_id}
           key='show-details'
           onClick={() => setDetailsModalInfo(true, Constants._D, mappingList[mappingIndex][Constants._D]['id'])}
@@ -92,7 +145,7 @@ export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> 
           Show Details
         </DropdownItem>
         <DropdownItem
-          value={5}
+          value={6}
           id={'btn-menu-document-usage-' + mappingList[mappingIndex].relation_id}
           key='usage'
           onClick={() => setUsageModalInfo(true, Constants._D, mappingList[mappingIndex][Constants._D]['id'])}

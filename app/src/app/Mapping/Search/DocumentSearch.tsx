@@ -25,11 +25,15 @@ export interface DocumentSearchProps {
   formMessage: string
   handleModalToggle
   documents
+  modalIndirect
   modalOffset
   modalSection
   modalShowState
   loadDocuments
   loadMappingData
+  parentData
+  parentType
+  parentRelatedToType
 }
 
 export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
@@ -40,11 +44,15 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
   formMessage = '',
   handleModalToggle,
   documents,
+  modalIndirect,
   modalOffset,
   modalSection,
   modalShowState,
   loadDocuments,
-  loadMappingData
+  loadMappingData,
+  parentData,
+  parentType,
+  parentRelatedToType
 }: DocumentSearchProps) => {
   const auth = useAuth()
   const [searchValue, setSearchValue] = React.useState<string>('')
@@ -160,10 +168,16 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
       return
     }
 
+    if (modalIndirect == true) {
+      data['relation-id'] = parentData.relation_id
+      data['relation-to'] = parentRelatedToType
+      data['parent-document'] = { id: parentData[Constants._D]['id'] }
+    }
+
     let status: number = 0
     let status_text: string = ''
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/documents', {
+    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/documents', {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -245,8 +259,8 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
         {getDocumentsTable(documents)}
       </DataList>
       <br />
-      <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-document-coverage-existing`}>
+      <Grid hasGutter md={4}>
+        <FormGroup label={Constants.FORM_COMPLETION_LABEL} isRequired fieldId={`input-document-coverage-existing`}>
           <TextInput
             isRequired
             id={`input-document-coverage-existing`}

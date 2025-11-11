@@ -100,7 +100,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           key='assign document'
           onClick={(event) => {
             event.preventDefault
-            setDocModalInfo(true, 'add', api, snippetSection, snippetOffset, [], -1)
+            setDocModalInfo(true, false, 'add', api, snippetSection, snippetOffset, Constants._A, [], -1, '')
           }}
         >
           Assign Document
@@ -119,7 +119,7 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
           id={'btn-mapping-section-sw-requirement-' + sectionIndex}
           name='btn-mapping-section-sw-requirement'
           key='assign sw requirement'
-          onClick={() => setSrModalInfo(true, false, 'add', api, snippetSection, snippetOffset, 'api', [], -1, '')}
+          onClick={() => setSrModalInfo(true, false, 'add', api, snippetSection, snippetOffset, Constants._A, [], -1, '')}
         >
           Assign Sw Requirement
         </DropdownItem>

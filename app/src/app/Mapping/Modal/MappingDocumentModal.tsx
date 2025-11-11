@@ -10,6 +10,7 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
   modalShowState = false,
   setModalShowState,
   modalAction = '',
+  modalIndirect,
   modalVerb = '',
   modalTitle = '',
   modalFormData,
@@ -19,6 +20,8 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
   setModalSection,
   modalDescription = '',
   parentData,
+  parentRelatedToType,
+  parentType,
   loadMappingData,
   api
 }: MappingModalProps) => {
@@ -113,11 +116,14 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
                 parentData={parentData}
                 handleModalToggle={handleModalToggle}
                 loadMappingData={loadMappingData}
+                modalIndirect={modalIndirect}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
                 formDefaultButtons={1}
                 formMessage={''}
                 modalFormSubmitState={'waiting'}
+                parentRelatedToType={parentRelatedToType}
+                parentType={parentType}
               />
             </TabContentBody>
           </TabContent>
@@ -141,6 +147,10 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
                 handleModalToggle={handleModalToggle}
                 loadMappingData={loadMappingData}
                 loadDocuments={loadDocuments}
+                modalIndirect={modalIndirect}
+                parentData={parentData}
+                parentType={parentType}
+                parentRelatedToType={parentRelatedToType}
                 modalOffset={modalOffset}
                 modalSection={modalSection}
                 modalShowState={modalShowState}

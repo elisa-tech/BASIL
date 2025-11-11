@@ -273,8 +273,8 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
         {getTestCasesTable(testCases)}
       </DataList>
       <br />
-      <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-case-coverage-existing`}>
+      <Grid hasGutter md={4}>
+        <FormGroup label={Constants.FORM_COMPLETION_LABEL} isRequired fieldId={`input-test-case-coverage-existing`}>
           <TextInput
             isRequired
             id={`input-test-case-coverage-existing`}

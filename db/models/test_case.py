@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -18,10 +18,10 @@ class TestCaseModel(Base):
     relative_path: Mapped[str] = mapped_column(String())
     title: Mapped[str] = mapped_column(String())
     description: Mapped[str] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestCaseModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestCaseModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))
@@ -115,6 +115,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(TestCaseModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(TestCaseHistoryModel).where(TestCaseHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class TestCaseHistoryModel(Base):
     __tablename__ = 'test_cases_history'
     extend_existing = True
@@ -124,10 +131,10 @@ class TestCaseHistoryModel(Base):
     relative_path: Mapped[str] = mapped_column(String())
     title: Mapped[str] = mapped_column(String())
     description: Mapped[str] = mapped_column(String())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestCaseHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestCaseHistoryModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))

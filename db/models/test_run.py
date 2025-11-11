@@ -26,14 +26,14 @@ class TestRunModel(Base):
     fixes: Mapped[Optional[str]] = mapped_column(String())
     notes: Mapped[Optional[str]] = mapped_column(String())
     report: Mapped[Optional[str]] = mapped_column(String(), default='')
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="TestRunModel.api_id")
     mapping_to: Mapped[str] = mapped_column(String())
     mapping_id: Mapped[int] = mapped_column(Integer())
-    test_run_config_id: Mapped[int] = mapped_column(ForeignKey("test_run_configs.id"))
+    test_run_config_id: Mapped[int] = mapped_column(ForeignKey("test_run_configs.id", ondelete="CASCADE"))
     test_run_config: Mapped["UserModel"] = relationship("TestRunConfigModel",
                                                         foreign_keys="TestRunModel.test_run_config_id")
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestRunModel.created_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

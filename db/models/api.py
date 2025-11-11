@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, inspect, select
+from sqlalchemy import delete, event, insert, inspect, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -27,10 +27,10 @@ class ApiModel(Base):
     raw_specification_url: Mapped[str] = mapped_column(String())
     tags: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
     last_coverage: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiModel.edited_by_id")
     delete_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
@@ -228,6 +228,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(ApiModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(ApiHistoryModel).where(ApiHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class ApiHistoryModel(Base):
     __tablename__ = "apis_history"
     extend_existing = True
@@ -244,10 +251,10 @@ class ApiHistoryModel(Base):
     implementation_file_to_row: Mapped[Optional[int]] = mapped_column(Integer(), nullable=True)
     raw_specification_url: Mapped[str] = mapped_column(String())
     tags: Mapped[Optional[str]] = mapped_column(String(), nullable=True)
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiHistoryModel.edited_by_id")
     delete_permissions: Mapped[Optional[str]] = mapped_column(String(), nullable=True)

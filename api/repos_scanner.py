@@ -1,4 +1,5 @@
 import fnmatch
+import yaml
 import logging
 import os
 import re
@@ -29,7 +30,7 @@ class RepoScanner:
     files = []
     user_id = None
 
-    def __init__(self, user_id: str) -> None:
+    def __init__(self, user_id: str, _config: dict = {}) -> None:
         """
         Initialize the scanner.
 
@@ -40,14 +41,22 @@ class RepoScanner:
         self.base_temp_dir = default_root
         self.base_temp_dir.mkdir(parents=True, exist_ok=True)
         self.user_id = user_id
+        self.config = _config
+        if not self.validate_config():
+            logger.error(f"Invalid repository configuration: {self.config}")
+            raise ValueError("Invalid repository configuration")
 
-    def __del__(self) -> None:
+    def validate_config(self) -> bool:
         """
-        Delete the scanner.
+        Validate the configuration.
         """
-        self.clear_user_temp()
+        if not self.config.get("url", None):
+            return False
+        if not self.config.get("branch", None):
+            return False
+        return True
 
-    def clone_to_user_temp(self, repo_url: str, branch: str) -> str:
+    def clone_to_user_temp(self) -> str:
         """
         Clone the repository at repo_url into the user's temporary folder and
         checkout the given branch. After cloning, remove the .git folder.
@@ -57,20 +66,23 @@ class RepoScanner:
         user_root = self._get_user_root()
         user_root.mkdir(parents=True, exist_ok=True)
 
-        target_dir = user_root / self._generate_repo_dir_name(repo_url, branch)
+        url = self.config.get("url", "")
+        branch = self.config.get("branch", "")
+        target_dir = user_root / self._generate_repo_dir_name(url, branch)
         if target_dir.exists():
             # Avoid accidental reuse; create a unique directory instead
             target_dir = user_root / f"{target_dir.name}-{uuid.uuid4().hex[:8]}"
 
         # Perform a shallow clone of the target branch into target_dir
-        self._git_clone(repo_url=repo_url, branch=branch, target_dir=target_dir)
+        self._git_clone(url=url, branch=branch, target_dir=target_dir)
 
         self.git_version = self._git_version(target_dir=target_dir)
 
         # Remove the .git directory to leave a clean working copy
         self._remove_git_dir(target_dir)
 
-        logger.info(f"Cloned repository {repo_url} to {target_dir}")
+        logger.info(f"Cloned repository {url} to {target_dir}")
+        self.target_dir = str(target_dir)
         return str(target_dir)
 
     def clear_user_temp(self) -> None:
@@ -79,12 +91,12 @@ class RepoScanner:
         if user_root.exists():
             shutil.rmtree(user_root)
 
-    def list_all_files(self, root_dir: str, include_hidden: bool = False) -> List[str]:
+    def list_all_files(self, include_hidden: bool = False) -> List[str]:
         """
         Return a list of all file paths (relative to root_dir) contained within root_dir.
         Directories are not included.
         """
-        root_path = Path(root_dir).resolve()
+        root_path = Path(self.target_dir).resolve()
         files: List[str] = []
         for path in root_path.rglob("*"):
             if path.is_file():
@@ -97,13 +109,13 @@ class RepoScanner:
         return files
 
     def list_files(
-        self, root_dir: str, include_hidden: bool = False, filename_pattern: str = "", folder_pattern: str = ""
+        self, include_hidden: bool = False, filename_pattern: str = "", folder_pattern: str = ""
     ) -> List[str]:
         """
         List all files in the given root directory.
         """
         if not self.files:
-            files = self.list_all_files(root_dir, include_hidden)
+            files = self.list_all_files(include_hidden=include_hidden)
         else:
             files = self.files
         if filename_pattern:
@@ -147,7 +159,7 @@ class RepoScanner:
         return safe.strip("-._") or "value"
 
     @staticmethod
-    def _git_clone(repo_url: str, branch: str, target_dir: Path) -> None:
+    def _git_clone(url: str, branch: str, target_dir: Path) -> None:
         """
         Run 'git clone' to clone a single branch shallowly into target_dir.
         """
@@ -159,7 +171,7 @@ class RepoScanner:
             "--branch",
             branch,
             "--single-branch",
-            repo_url,
+            url,
             str(target_dir),
         ]
         RepoScanner._run(cmd, cwd=None)
@@ -218,6 +230,12 @@ class RepoScanner:
                 f"stdout:\n{exc.stdout}\n"
                 f"stderr:\n{exc.stderr}"
             ) from exc
+
+
+class TextScanner:
+
+    def __init__(self, text: str):
+        self.text = text
 
     def _skip_items(self, elements: List[dict], skip_top_items: int = 0, skip_bottom_items: int = 0) -> List[dict]:
         """
@@ -408,6 +426,27 @@ class RepoScanner:
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
         )
+
+    def end__at(self, text: str, end_at: int, elements: List[dict]) -> dict:
+        """
+        Analyze text for sections ending at specific index.
+        """
+
+        for el in elements:
+            if end_at < el.get("index", 0) + len(el.get("text", "")):
+                el["text"] = text[:end_at]
+        return elements
+
+    def end__at_line(self, text: str, end_at_line: int, elements: List[dict]) -> dict:
+        """
+        Analyze text for sections ending at specific line.
+        """
+        logger.info(f"end__at_line: {end_at_line}")
+        for el in elements:
+            if el.get("index", 0) <= end_at_line < el.get("index", 0) + len(el.get("text", "").splitlines()):
+                el["text"] = "\n".join(text.splitlines()[el["index"]: end_at_line + 1])
+        logger.info(f"elements: {elements}")
+        return elements
 
     def end__lines_starting_with(
         self,
@@ -855,9 +894,9 @@ class RepoScanner:
 
 class FilesScanner:
 
-    def __init__(self, files: List[str] = [], repo_folder: str = ""):
+    def __init__(self, files: List[str] = [], tmp_repo_path: str = ""):
         self.files = files
-        self.repo_folder = repo_folder
+        self.tmp_repo_path = tmp_repo_path
 
     def filter_files_by_content(
         self, files: List[str] = [], contains: List[str] = [], not_contains: List[str] = []
@@ -873,7 +912,7 @@ class FilesScanner:
             files = self.files
 
         for curr_file in self.files:
-            curr_file_content = self.get_file_content(filepath=os.path.join(self.repo_folder, curr_file))
+            curr_file_content = self.get_file_content(filepath=os.path.join(self.tmp_repo_path, curr_file))
             if contains:
                 for curr_str_match in contains:
                     if curr_str_match in curr_file_content:
@@ -886,7 +925,8 @@ class FilesScanner:
                         break
         return ret
 
-    def get_file_content(self, filepath: str, encoding: str = "utf-8") -> str:
+    @staticmethod
+    def get_file_content(filepath: str, encoding: str = "utf-8") -> str:
         """
         Read and return the text content
         Raises FileNotFoundError if the file does not exist.
@@ -904,10 +944,62 @@ class ArtifactsScanner:
     scan_config = {}
     user_id = None
 
+    SNIPPET_FIELDS = [{"name": "section", "type": "str"}, {"name": "offset", "type": "int"}]
+
+    JUSTIFICATION_FIELDS = [{"name": "description", "type": "str"}, {"name": "coverage", "type": "int"}]
+
+    SOFTWARE_REQUIREMENT_FIELDS = [
+        {"name": "title", "type": "str"},
+        {"name": "description", "type": "str"},
+        {"name": "coverage", "type": "int"},
+    ]
+
+    TEST_SPECIFICATION_FIELDS = [
+        {"name": "title", "type": "str"},
+        {"name": "preconditions", "type": "str"},
+        {"name": "test_description", "type": "str"},
+        {"name": "expected_behavior", "type": "str"},
+        {"name": "coverage", "type": "int"},
+    ]
+
+    TEST_CASE_FIELDS = [
+        {"name": "title", "type": "str"},
+        {"name": "description", "type": "str"},
+        {"name": "repository", "type": "str"},
+        {"name": "relative_path", "type": "str"},
+        {"name": "coverage", "type": "int"},
+    ]
+
     def __init__(self, user_id: str, api: Optional[dict] = {}, scan_config: Optional[dict] = {}) -> None:
         self.api = api
         self.scan_config = scan_config
         self.user_id = user_id
+
+    def _is_valid_repo_config(self, _config: dict) -> bool:
+        mandatory_configs = ["repository"]
+        for mandatory_config in mandatory_configs:
+            if not _config.get(mandatory_config, None):
+                logger.info(f"Scan configuration error: `{mandatory_config}` is not valid")
+                logger.info(f" -> config: {_config}")
+                return False
+        return True
+
+    def _is_valid_work_item_config(self, _config: dict, field_name: str) -> bool:
+        """
+        Validate the configuration of a work item
+        """
+        if isinstance(_config.get(field_name, {}), str) or isinstance(_config.get(field_name, {}), int):
+            return True
+
+        if isinstance(_config.get(field_name, {}), dict):
+            mandatory_configs = ["start", "end"]
+            for mandatory_config in mandatory_configs:
+                if not _config.get(field_name, {}).get(mandatory_config, None):
+                    logger.info(f"Scan configuration error: `{field_name}` do not have `{mandatory_config}` key")
+                    logger.info(f" -> config: {_config}")
+                    return False
+            return True
+        return False
 
     def scan(self) -> str:
 
@@ -918,95 +1010,738 @@ class ArtifactsScanner:
         apis_config = self.scan_config.get("api", [])
 
         for curr_api_config in apis_config:
-            if not curr_api_config.get("repo", None):
-                return ValueError("Scan configuration error: `api` do not have `repo` key")
 
-            if not curr_api_config.get("ref", None):
-                return ValueError("Scan configuration error: `api` do not have `ref` key")
+            # Create a ReposScanner
+            if not self._is_valid_repo_config(curr_api_config):
+                continue
+
+            api_repository_config = curr_api_config.get("repository", {})
+            api_repo_scanner = RepoScanner(user_id=self.user_id, _config=api_repository_config)
+            api_repo_scanner.clone_to_user_temp()
 
             for idx, curr_api in enumerate(curr_api_config.get("name", [])):
+                logger.info(f"Scan for api: {curr_api}")
                 curr_api_config["api"] = curr_api
-                api_reference_documents = self.search__api_reference_document(api_config=curr_api_config)
+                api_reference_documents = self.search__get_files(
+                    repo_scanner=api_repo_scanner,
+                    _config=api_repository_config,
+                    _templeate_varibales={"__api__": curr_api},
+                )
                 if api_reference_documents:
                     api_reference_document = api_reference_documents[0]
-                    api.append(
-                        {
-                            "api": curr_api,
-                            "library": curr_api_config.get("library", ""),
-                            "library_version": curr_api_config.get("library_version", "").replace(
-                                "__ref__", curr_api_config.get("ref", "")
-                            ),
-                            "api_reference_document": api_reference_document,
-                        }
+                    tmp_api = {
+                        "api": curr_api,
+                        "snippets": [],
+                        "library": curr_api_config.get("library", ""),
+                        "library_version": curr_api_config.get("library_version", "").replace(
+                            "__ref__", curr_api_config.get("ref", "")
+                        ),
+                        "api_reference_document": api_reference_document,
+                    }
+                    reference_document_content = FilesScanner.get_file_content(
+                        filepath=os.path.join(api_repo_scanner.target_dir, api_reference_document)
+                    )
+                    tmp_api["reference_document_content"] = reference_document_content
+                else:
+                    logger.info(f"No api reference document found for api: {curr_api}")
+                    continue
+
+                # ------------------------------------------------------------
+                # Get api reference document Snippets
+                # ------------------------------------------------------------
+                logger.info("Get api reference document Snippets")
+
+                snippets_config = curr_api_config.get("snippets", {})
+                if not snippets_config:
+                    logger.info(f"No snippets configuration found for api: {curr_api}")
+                    continue
+
+                snippet_rules_config = snippets_config.get("rules", [])
+                if not snippet_rules_config:
+                    logger.info(f"No snippet rules configuration found for api: {curr_api}")
+                    continue
+
+                for snippet_rule_config in snippet_rules_config:
+                    snippets = []
+
+                    logger.info(f"Scan for snippet: {snippet_rule_config.get('name', '')}")
+
+                    for snippet_field in self.SNIPPET_FIELDS:
+                        valid_fields_config = True
+                        if not self._is_valid_work_item_config(snippet_rule_config, snippet_field["name"]):
+                            valid_fields_config = False
+                            break
+
+                    if not valid_fields_config:
+                        continue
+
+                    reference_document_snippets = self.search__snippets(
+                        _config=snippet_rule_config, _reference_document_content=reference_document_content
+                    )
+                    if reference_document_snippets:
+                        # reference_document_snippet = reference_document_snippets[0]
+                        snippets += reference_document_snippets
+
+                    # add nested work items keys to each snippet
+                    for snippet in snippets:
+                        snippet["justifications"] = []
+                        snippet["documents"] = []
+                        snippet["software_requirements"] = []
+                        snippet["test_specifications"] = []
+                        snippet["test_cases"] = []
+
+                    # ------------------------------------------------------------
+                    # Justifications
+                    # ------------------------------------------------------------
+                    logger.info("  - Justifications")
+
+                    justifications_config = snippet_rule_config.get("justifications", {})
+                    justifications = self.search__justifications(
+                        _config=justifications_config,
                     )
 
-        logger.info(f"Api: {api}")
+                    if justifications:
+                        for snippet in snippets:
+                            snippet["justifications"] += justifications
 
-    def search__api_reference_document(self, api_config: dict) -> List[str]:
-        """
-        Using the scan_config, search the API reference document for the given api
-        """
+                    logger.info(f"    -> Found: {len(snippet['justifications'])} justifications")
 
-        repo_scanner = RepoScanner(user_id=self.user_id)
-        repo_scanner.clone_to_user_temp(repo_url=api_config.get("repo"), branch=api_config.get("ref"))
+                    # ------------------------------------------------------------
+                    # Software Requirements
+                    # ------------------------------------------------------------
+                    logger.info("  - Software Requirements")
 
-        filename_pattern = api_config.get("filename_pattern", "")
-        filename_pattern = filename_pattern.replace("__api__", api_config.get("api", ""))
-        folder_pattern = api_config.get("folder_pattern", "")
-        folder_pattern = folder_pattern.replace("__api__", api_config.get("api", ""))
+                    software_requirements_config = snippet_rule_config.get("software_requirements", {})
+                    software_requirements = self.search__software_requirements(
+                        _config=software_requirements_config,
+                    )
+                    if software_requirements:
+                        for snippet in snippets:
+                            snippet["software_requirements"] += software_requirements
+
+                    logger.info(f"    -> Found: {len(snippet['software_requirements'])} software requirements")
+
+                    # ------------------------------------------------------------
+                    # Test Specifications
+                    # ------------------------------------------------------------
+                    logger.info("  - Test Specifications")
+
+                    test_specifications_config = snippet_rule_config.get("test_specifications", {})
+                    test_specifications = self.search__test_specifications(
+                        _config=test_specifications_config,
+                    )
+                    if test_specifications:
+                        for snippet in snippets:
+                            snippet["test_specifications"] += test_specifications
+
+                    logger.info(f"    -> Found: {len(snippet['test_specifications'])} test specifications")
+
+                    # ------------------------------------------------------------
+                    # Test Cases
+                    # ------------------------------------------------------------
+                    logger.info("  - Test Cases")
+
+                    test_cases_config = snippet_rule_config.get("test_cases", {})
+                    test_cases = self.search__test_cases(
+                        _config=test_cases_config,
+                    )
+                    if test_cases:
+                        for snippet in snippets:
+                            snippet["test_cases"] += test_cases
+
+                    logger.info(f"    -> Found: {len(snippet['test_cases'])} test cases")
+
+                    if snippets:
+                        tmp_api["snippets"] += snippets
+
+                # ------------------------------------------------------------
+                api.append(tmp_api)
+
+            logger.info("Clear api repository scanner")
+            # api_repo_scanner.clear_user_temp()
+            del api_repo_scanner
+
+        # logger.info(f"Api: {api}")
+
+    def search__get_files(self, repo_scanner: RepoScanner, _config: dict, _templeate_varibales: dict) -> List[str]:
+        # Get api reference document
+
+        filename_pattern = _config.get("filename_pattern", "")
+        folder_pattern = _config.get("folder_pattern", "")
+
+        for tk, tv in _templeate_varibales.items():
+            filename_pattern = filename_pattern.replace(tk, tv)
+            folder_pattern = folder_pattern.replace(tk, tv)
 
         files = repo_scanner.list_files(
-            root_dir=repo_scanner.base_temp_dir,
-            include_hidden=api_config.get("hidden", False),
+            include_hidden=_config.get("hidden", False),
             filename_pattern=filename_pattern,
             folder_pattern=folder_pattern,
         )
 
-        file_scanner = FilesScanner(files=files, repo_folder=repo_scanner.base_temp_dir)
-        logger.info(f"files: {len(files)}")
+        file_scanner = FilesScanner(files=files, tmp_repo_path=repo_scanner.target_dir)
+        logger.info(f"Number of identified files: {len(files)}")
 
-        filter_file_by_content_contains = api_config.get("contains", [])
-        filter_file_by_content_not_contains = api_config.get("not_contains", [])
+        filter_file_by_content_contains = _config.get("file_contains", [])
+        filter_file_by_content_not_contains = _config.get("file_not_contains", [])
         filtered_files = file_scanner.filter_files_by_content(
             files=files, contains=filter_file_by_content_contains, not_contains=filter_file_by_content_not_contains
         )
 
         if filtered_files:
-            logger.info(f"Found {len(filtered_files)} files matching the criteria")
+            logger.info(f"Number of files passing the content filter: {len(filtered_files)}")
         return filtered_files
+
+    def search__extract_sections(self, _config: dict, text: str, elements: List[dict]) -> List[str]:
+        """
+        Extract sections text
+        """
+        mandatory_configs = ["start", "end"]
+        for mandatory_config in mandatory_configs:
+            if not _config.get(mandatory_config, None):
+                logger.info(f"Scan configuration error: `{mandatory_config}` is not valid")
+                return []
+
+        text_scanner = TextScanner(text=text)
+
+        # Extract sections using start definition
+        strip = _config.get("start").get("strip", False)
+        case_sensitive = _config.get("start").get("case_sensitive", False)
+        skip_top_items = _config.get("start").get("skip_top_items", 0)
+        skip_bottom_items = _config.get("start").get("skip_bottom_items", 0)
+
+        if _config.get("start").get("at"):
+            start_at = _config.get("start").get("at")
+            if start_at == "__start__":
+                start_at = 0
+            if isinstance(start_at, int):
+                elements = [{"index": start_at, "text": text[start_at:]}]
+        if not elements and _config.get("start").get("line"):
+            if start_at == "__start__":
+                start_at = 0
+            if isinstance(start_at, int):
+                elements = [{"index": start_at, "text": "\n".join(text.splitlines()[start_at:])}]
+        if not elements:
+            if _config.get("start").get("line_starting_with", None):
+                elements = text_scanner.start__lines_starting_with(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+            if _config.get("start").get("line_ending_with", None):
+                elements = text_scanner.start__lines_ending_with(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+            if _config.get("start").get("line_contains", None):
+                elements = text_scanner.start__lines_containing(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+            if _config.get("start").get("line_not_contains", None):
+                elements = text_scanner.start__lines_not_containing(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+            if _config.get("start").get("line_equal", None):
+                elements = text_scanner.start__lines_equal(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+            if _config.get("start").get("line_regex", None):
+                elements = text_scanner.start__lines_regex(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+            if _config.get("start").get("extend", None):
+                if _config.get("start").get("extend").get("count", None):
+                    if _config.get("start").get("extend").get("direction", None):
+                        extend_direction = _config.get("start").get("extend").get("direction")
+                        extend_count = _config.get("start").get("extend").get("count")
+                        elements = text_scanner.extend_content_of_elements(
+                            direction=extend_direction,
+                            count=extend_count,
+                            text=text,
+                            elements=elements,
+                            strip=strip,
+                            case_sensitive=case_sensitive,
+                            skip_top_items=skip_top_items,
+                            skip_bottom_items=skip_bottom_items,
+                        )
+            if _config.get("start").get("closest", None):
+                if _config.get("start").get("closest").get("line_starting_with", None):
+                    elements = text_scanner.closest__lines_starting_with(
+                        text=text,
+                        elements=elements,
+                        strip=strip,
+                        case_sensitive=case_sensitive,
+                        skip_top_items=skip_top_items,
+                        skip_bottom_items=skip_bottom_items,
+                    )
+                if _config.get("start").get("closest").get("line_ending_with", None):
+                    elements = text_scanner.closest__lines_ending_with(
+                        text=text,
+                        elements=elements,
+                        strip=strip,
+                        case_sensitive=case_sensitive,
+                        skip_top_items=skip_top_items,
+                        skip_bottom_items=skip_bottom_items,
+                    )
+
+        if elements:
+            skip_end = False
+            # Extract sections using end definition
+            if _config.get("end").get("at", None):
+                end_at = _config.get("end").get("at")
+                if end_at == "__end__":
+                    end_at = len(text)
+                if isinstance(end_at, int):
+                    elements = text_scanner.end__at(text=text, end_at=end_at, elements=elements)
+                    skip_end = True
+
+            if not skip_end and _config.get("end").get("line", None):
+                end_line = _config.get("end").get("line")
+                if end_line == "__end__":
+                    end_line = len(text.splitlines())
+                if isinstance(end_line, int):
+                    elements = text_scanner.end__at_line(text=text, end_at_line=end_line, elements=elements)
+                    skip_end = True
+
+            if not skip_end and _config.get("end").get("line_starting_with", None):
+                elements = text_scanner.end__lines_starting_with(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+                skip_end = True
+
+            if not skip_end and _config.get("end").get("line_ending_with", None):
+                elements = text_scanner.end__lines_regex(
+                    text=text,
+                    elements=elements,
+                    strip=strip,
+                    case_sensitive=case_sensitive,
+                    skip_top_items=skip_top_items,
+                    skip_bottom_items=skip_bottom_items,
+                )
+
+        return elements
+
+    def _get_field_value(self, _config: dict, field_name: str, field_type: str, text: str):
+        """
+        Get the value of a field from the configuration
+        """
+        field_value = _config.get(field_name, {})
+        if isinstance(field_value, str):
+            if field_type == "str":
+                return field_value
+            if field_type == "int":
+                if field_value.startswith("__"):
+                    return field_value
+                return int(field_value)
+            return None
+        if isinstance(_config.get(field_name, {}), int):
+            if field_type == "int":
+                if str(field_value).startswith("__"):
+                    return field_value
+                return int(field_value)
+            if field_type == "str":
+                return str(field_value)
+            return None
+        if isinstance(field_value, dict):
+            return self.search__extract_sections(_config=field_value, text=text, elements=[])
+        return None
+
+    @staticmethod
+    def _combine_fields_to_work_items(field_specs: List[dict], values_by_field: dict) -> List[dict]:
+        """
+        Generic combiner for any kind of work item fields.
+        Rules:
+        - If there are no list fields, return a single work item.
+        - If there is exactly one list field, broadcast scalar fields to its length.
+        - If there are multiple list fields, all list lengths must match; otherwise return [].
+        """
+        field_names = [f["name"] for f in field_specs]
+        list_field_names = [n for n in field_names if isinstance(values_by_field.get(n), list)]
+
+        if not list_field_names:
+            return [dict(values_by_field)]
+
+        if len(list_field_names) == 1:
+            list_name = list_field_names[0]
+            n = len(values_by_field.get(list_name, []))
+            items: List[dict] = []
+            for i in range(n):
+                item = {}
+                for name in field_names:
+                    v = values_by_field.get(name)
+                    if isinstance(v, list):
+                        item[name] = v[i] if i < len(v) else None
+                    else:
+                        item[name] = v
+                items.append(item)
+            return items
+
+        lengths = [len(values_by_field.get(n, [])) for n in list_field_names]
+        if len(set(lengths)) != 1:
+            logger.info("Scan configuration error: list fields have different lengths")
+            for n in list_field_names:
+                logger.info(f"found {n}: {len(values_by_field.get(n, []))}")
+            return []
+
+        n = lengths[0]
+        items: List[dict] = []
+        for i in range(n):
+            item = {}
+            for name in field_names:
+                v = values_by_field.get(name)
+                item[name] = v[i] if isinstance(v, list) else v
+            items.append(item)
+        return items
+
+    def search__snippets(self, _config: dict, _reference_document_content: str) -> List[dict]:
+        """
+        Search snippets from api reference document
+        Need to extract sections from files
+        """
+
+        snippets_elements = []
+
+        values_by_field = {}
+        for snippet_field in self.SNIPPET_FIELDS:
+            values_by_field[snippet_field["name"]] = self._get_field_value(
+                _config=_config,
+                field_name=snippet_field["name"],
+                field_type=snippet_field["type"],
+                text=_reference_document_content,
+            )
+        snippets_elements = ArtifactsScanner._combine_fields_to_work_items(
+            field_specs=self.SNIPPET_FIELDS, values_by_field=values_by_field
+        )
+
+        # logger.info(f"Snippet elements: {snippets_elements}")
+        snippets = []
+        for snippet_element in snippets_elements:
+            if isinstance(snippet_element.get("section", {}), dict):
+                snippets.append(
+                    {
+                        "section": snippet_element.get("section", {}).get("text", ""),
+                        "__offset__": snippet_element.get("section", {}).get("index", 99999),
+                        "offset": snippet_element.get("offset", "__offset__"),
+                    }
+                )
+            else:
+                snippets.append(
+                    {
+                        "section": snippet_element.get("section", ""),
+                        "__offset__": _reference_document_content.find(snippet_element.get("section", "")),
+                        "offset": snippet_element.get("offset", "__offset__"),
+                    }
+                )
+
+        # replace template variables in snippets
+        for snippet in snippets:
+            if snippet.get("offset", None):
+                if snippet.get("offset") == "__offset__":
+                    snippet["offset"] = snippet.get("__offset__", 99999)
+
+        logger.info(f"Snippets: {len(snippets)}")
+        return snippets
+
+    def search__justifications(self, _config: dict) -> List[dict]:
+        """
+        Search justifications from api reference document snippet
+        Need to extract sections from files
+        """
+
+        def extract_justification_values(rule_config: dict, file_content: str):
+            justifications_elements = []
+
+            values_by_field = {}
+            for justification_field in self.JUSTIFICATION_FIELDS:
+                values_by_field[justification_field["name"]] = self._get_field_value(
+                    _config=rule_config,
+                    field_name=justification_field["name"],
+                    field_type=justification_field["type"],
+                    text=file_content,
+                )
+            justifications_elements = ArtifactsScanner._combine_fields_to_work_items(
+                field_specs=self.JUSTIFICATION_FIELDS, values_by_field=values_by_field
+            )
+
+            justifications = []
+            for justification_element in justifications_elements:
+                justifications.append(
+                    {
+                        "description": justification_element.get("description", ""),
+                        "coverage": justification_element.get("coverage", 0),
+                    }
+                )
+            return justifications
+
+        # ------------------------------------------------------------
+        ret = []
+        for rule_config in _config.get("rules", []):
+            logger.info(f"  - Justification Rule: {rule_config.get('name', '')}")
+            repository_config = rule_config.get("repository", None)
+
+            if not repository_config:
+                logger.info(f"  - Justification Rule: {rule_config} do not have `repository` key")
+                # extract work item in case of constant values
+                justifications = extract_justification_values(rule_config=rule_config, file_content="")
+                if justifications:
+                    ret += justifications
+                continue
+
+            repo_scanner = RepoScanner(user_id=self.user_id, _config=repository_config)
+            repo_scanner.clone_to_user_temp()
+
+            justification_files = self.search__get_files(
+                repo_scanner=repo_scanner, _config=repository_config, _templeate_varibales={}
+            )
+            if justification_files:
+                for justification_file in justification_files:
+                    justification_file_content = FilesScanner.get_file_content(
+                        filepath=os.path.join(repo_scanner.target_dir, justification_file)
+                    )
+
+                    justifications = extract_justification_values(
+                        rule_config=rule_config, file_content=justification_file_content
+                    )
+
+                    if justifications:
+                        ret += justifications
+        return ret
+
+    def search__software_requirements(self, _config: dict) -> List[dict]:
+        """
+        Search software requirements from api reference document snippet
+        Need to extract sections from files
+        """
+
+        def extract_software_requirements_values(rule_config: dict, file_content: str):
+            software_requirements_elements = []
+
+            values_by_field = {}
+            for software_requirement_field in self.SOFTWARE_REQUIREMENT_FIELDS:
+                values_by_field[software_requirement_field["name"]] = self._get_field_value(
+                    _config=rule_config,
+                    field_name=software_requirement_field["name"],
+                    field_type=software_requirement_field["type"],
+                    text=file_content,
+                )
+            software_requirements_elements = ArtifactsScanner._combine_fields_to_work_items(
+                field_specs=self.SOFTWARE_REQUIREMENT_FIELDS, values_by_field=values_by_field
+            )
+
+            software_requirements = []
+            for software_requirement_element in software_requirements_elements:
+                software_requirements.append(
+                    {
+                        "title": software_requirement_element.get("title", ""),
+                        "description": software_requirement_element.get("description", ""),
+                        "coverage": software_requirement_element.get("coverage", 0),
+                    }
+                )
+            return software_requirements
+
+        # ------------------------------------------------------------
+        ret = []
+        for rule_config in _config.get("rules", []):
+            logger.info(f"  - Software Requirement Rule: {rule_config.get('name', '')}")
+            repository_config = rule_config.get("repository", None)
+
+            if not repository_config:
+                logger.info(f"  - Software Requirement Rule: {rule_config} do not have `repository` key")
+                # extract work item in case of constant values
+                software_requirements = extract_software_requirements_values(rule_config=rule_config, file_content="")
+                if software_requirements:
+                    ret += software_requirements
+                continue
+
+            repo_scanner = RepoScanner(user_id=self.user_id, _config=repository_config)
+            repo_scanner.clone_to_user_temp()
+
+            software_requirements_files = self.search__get_files(
+                repo_scanner=repo_scanner, _config=repository_config, _templeate_varibales={}
+            )
+            if software_requirements_files:
+                for software_requirements_file in software_requirements_files:
+                    software_requirements_file_content = FilesScanner.get_file_content(
+                        filepath=os.path.join(repo_scanner.target_dir, software_requirements_file)
+                    )
+
+                    software_requirements = extract_software_requirements_values(
+                        rule_config=rule_config, file_content=software_requirements_file_content
+                    )
+
+                    if software_requirements:
+                        ret += software_requirements
+        return ret
+
+    def search__test_specifications(self, _config: dict) -> List[dict]:
+        """
+        Search test specifications from api reference document snippet
+        Need to extract sections from files
+        """
+
+        def extract_test_specifications_values(rule_config: dict, file_content: str):
+            test_specifications_elements = []
+
+            values_by_field = {}
+            for test_specification_field in self.TEST_SPECIFICATION_FIELDS:
+                values_by_field[test_specification_field["name"]] = self._get_field_value(
+                    _config=rule_config,
+                    field_name=test_specification_field["name"],
+                    field_type=test_specification_field["type"],
+                    text=file_content,
+                )
+            test_specifications_elements = ArtifactsScanner._combine_fields_to_work_items(
+                field_specs=self.TEST_SPECIFICATION_FIELDS, values_by_field=values_by_field
+            )
+
+            test_specifications = []
+            for test_specification_element in test_specifications_elements:
+                test_specifications.append(
+                    {
+                        "title": test_specification_element.get("title", ""),
+                        "description": test_specification_element.get("description", ""),
+                        "coverage": test_specification_element.get("coverage", 0),
+                    }
+                )
+            return test_specifications
+
+        # ------------------------------------------------------------
+        ret = []
+        for rule_config in _config.get("rules", []):
+            logger.info(f"  - Test Specification Rule: {rule_config.get('name', '')}")
+            repository_config = rule_config.get("repository", None)
+
+            if not repository_config:
+                logger.info(f"  - Test Specification Rule: {rule_config} do not have `repository` key")
+                # extract work item in case of constant values
+                test_specifications = extract_test_specifications_values(rule_config=rule_config, file_content="")
+                if test_specifications:
+                    ret += test_specifications
+                continue
+
+            repo_scanner = RepoScanner(user_id=self.user_id, _config=repository_config)
+            repo_scanner.clone_to_user_temp()
+
+            test_specifications_files = self.search__get_files(
+                repo_scanner=repo_scanner, _config=repository_config, _templeate_varibales={}
+            )
+            if test_specifications_files:
+                for test_specifications_file in test_specifications_files:
+                    test_specifications_file_content = FilesScanner.get_file_content(
+                        filepath=os.path.join(repo_scanner.target_dir, test_specifications_file)
+                    )
+
+                    test_specifications = extract_test_specifications_values(
+                        rule_config=rule_config, file_content=test_specifications_file_content
+                    )
+
+                    if test_specifications:
+                        ret += test_specifications
+        return ret
+
+    def search__test_cases(self, _config: dict) -> List[dict]:
+        """
+        Search test cases from api reference document snippet
+        Need to extract sections from files
+        """
+
+        def extract_test_cases_values(rule_config: dict, file_content: str):
+            test_cases_elements = []
+
+            values_by_field = {}
+            for test_case_field in self.TEST_CASE_FIELDS:
+                values_by_field[test_case_field["name"]] = self._get_field_value(
+                    _config=rule_config,
+                    field_name=test_case_field["name"],
+                    field_type=test_case_field["type"],
+                    text=file_content,
+                )
+            test_cases_elements = ArtifactsScanner._combine_fields_to_work_items(
+                field_specs=self.TEST_CASE_FIELDS, values_by_field=values_by_field
+            )
+
+            test_cases = []
+            for test_case_element in test_cases_elements:
+                test_cases.append(
+                    {
+                        "title": test_case_element.get("title", ""),
+                        "description": test_case_element.get("description", ""),
+                        "coverage": test_case_element.get("coverage", 0),
+                    }
+                )
+            return test_cases
+
+        # ------------------------------------------------------------
+        ret = []
+        for rule_config in _config.get("rules", []):
+            logger.info(f"  - Test Case Rule: {rule_config.get('name', '')}")
+            repository_config = rule_config.get("repository", None)
+
+            if not repository_config:
+                logger.info(f"  - Test Case Rule: {rule_config} do not have `repository` key")
+                # extract work item in case of constant values
+                test_cases = extract_test_cases_values(rule_config=rule_config, file_content="")
+                if test_cases:
+                    ret += test_cases
+                continue
+
+            repo_scanner = RepoScanner(user_id=self.user_id, _config=repository_config)
+            repo_scanner.clone_to_user_temp()
+
+            test_cases_files = self.search__get_files(
+                repo_scanner=repo_scanner, _config=repository_config, _templeate_varibales={}
+            )
+            if test_cases_files:
+                for test_cases_file in test_cases_files:
+                    test_cases_file_content = FilesScanner.get_file_content(
+                        filepath=os.path.join(repo_scanner.target_dir, test_cases_file)
+                    )
+
+                    test_cases = extract_test_cases_values(
+                        rule_config=rule_config, file_content=test_cases_file_content
+                    )
+
+                    if test_cases:
+                        ret += test_cases
+        return ret
 
 
 if __name__ == "__main__":
-    scanner = ArtifactsScanner(
-        user_id="test",
-        api="test",
-        scan_config={
-            "api": [
-                {
-                    "name": ["api1", "api2"],
-                    "library": "library name",
-                    "library_version": "__ref__",
-                    "repo": "https://github.com/elisa-tech/BASIL.git",
-                    "ref": "main",
-                    "filename_pattern": "*.py",
-                    "folder_pattern": "*examples*",
-                    "hidden": False,
-                    "contains": ["api_get_sw_components("],
-                    "not_contains": [],
-                    "snippets": [
-                        {
-                            "name": "api_get_sw_components",
-                            "start": {
-                                "line_contains": [],
-                                "closest": {""},
-                            },
-                            "end": {
-                                "line_not_contains": ["#"],
-                            },
-                        }
-                    ],
-                }
-            ],
-        },
-    )
+    with open("user-config.yaml", "r") as f:
+        scan_config = yaml.safe_load(f)
+
+    scanner = ArtifactsScanner(user_id="test", api="test", scan_config=scan_config)
+
     scanner.scan()

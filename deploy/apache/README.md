@@ -34,7 +34,7 @@ Required/commonly used variables:
 - BASIL_GITCLONE: 1 = force fresh clone to `/tmp/basil`, 0 = reuse if present (default 1)
 - BASIL_GITGOBACK: number of commits to revert from HEAD (default 0)
 - BASIL_COMMITBEFORE: ISO8601 date used only when `BASIL_GITGOBACK < 0` (e.g. `2025-01-01 00:00:00 +0000`)
-- BASIL_RESET_POSTGRES_CLUSTERS: 1 to wipe/recreate all local Postgres clusters (DANGEROUS), -1 to skip (default)
+- BASIL_RESET_POSTGRES_CLUSTERS: 1 to wipe/recreate all local Postgres clusters (DANGEROUS), 0 or -1 to skip (default)
 
 Example `.env` you can copy and adjust:
 

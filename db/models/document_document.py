@@ -124,10 +124,16 @@ class DocumentDocumentModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
-    def get_waterfall_coverage(self, db_session):
+    def get_waterfall_coverage(self, db_session, _visited=None):
         # Return Document-Document waterfall coverage
         if db_session is None:
             return self.coverage
+        # Cycle protection in case of unexpected document cycles
+        if _visited is None:
+            _visited = set()
+        if self.id in _visited:
+            return 0
+        _visited.add(self.id)
 
         docs_coverage = 0
 
@@ -136,7 +142,7 @@ class DocumentDocumentModel(Base):
             DocumentDocumentModel.document_mapping_document_id == self.id
         ).all()
         if len(docs) > 0:
-            docs_coverage = sum([x.get_waterfall_coverage(db_session) for x in docs])
+            docs_coverage = sum([x.get_waterfall_coverage(db_session, _visited) for x in docs])
             waterfall_coverage = (min(max(0, docs_coverage), 100) * self.coverage) / 100.0
         else:
             waterfall_coverage = self.coverage

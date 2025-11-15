@@ -13,9 +13,8 @@ def test_start__lines_starting_with_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_starting_with(text=TEST_TEXT, elements=[], match_string="  b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -27,9 +26,8 @@ def test_start__lines_starting_with_empty_elements_strip_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_starting_with(text=TEST_TEXT, elements=[], match_string="B", strip=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -41,9 +39,8 @@ def test_start__lines_starting_with_empty_elements_case_sensitive_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_starting_with(text=TEST_TEXT, elements=[], match_string="  B", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -56,9 +53,8 @@ def test_start__lines_starting_with_not_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_starting_with(text=TEST_TEXT, elements=elements, match_string="C")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 3,
             "text": "C",
@@ -70,9 +66,8 @@ def test_start__lines_starting_with_empty_elements_defaults_no_match():
     scanner = TextScanner(text="")
     result = scanner.start__lines_starting_with(text=TEST_TEXT, elements=[], match_string="B")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == []
+    assert  isinstance(result, list)
+    assert result == []
 
 
 # ------------------------------------------------------------
@@ -82,9 +77,8 @@ def test_start__lines_ending_with_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_ending_with(text=TEST_TEXT, elements=[], match_string="C")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 3,
             "text": "C",
@@ -96,9 +90,8 @@ def test_start__lines_ending_with_empty_elements_strip_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_ending_with(text=TEST_TEXT, elements=[], match_string="b", strip=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -110,9 +103,8 @@ def test_start__lines_ending_with_empty_elements_case_sensitive_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_ending_with(text=TEST_TEXT, elements=[], match_string="B", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -125,9 +117,8 @@ def test_start__lines_ending_with_not_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_ending_with(text=TEST_TEXT, elements=elements, match_string="B")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -139,9 +130,8 @@ def test_start__lines_ending_with_empty_elements_defaults_no_match():
     scanner = TextScanner(text="")
     result = scanner.start__lines_ending_with(text=TEST_TEXT, elements=[], match_string="Z", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == []
+    assert  isinstance(result, list)
+    assert result == []
 
 
 # ------------------------------------------------------------
@@ -153,9 +143,8 @@ def test_start__lines_containing_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_containing(text=TEST_TEXT, elements=[], match_string="b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -167,9 +156,8 @@ def test_start__lines_containing_empty_elements_case_sensitive_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_containing(text=TEST_TEXT, elements=[], match_string="B", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -182,9 +170,8 @@ def test_start__lines_containing_not_empty_elements():
     scanner = TextScanner(text="")
     result = scanner.start__lines_containing(text=TEST_TEXT, elements=elements, match_string="b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -196,9 +183,8 @@ def test_start__lines_containing_empty_elements_no_match():
     scanner = TextScanner(text="")
     result = scanner.start__lines_containing(text=TEST_TEXT, elements=[], match_string="Z", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == []
+    assert  isinstance(result, list)
+    assert result == []
 
 
 # ------------------------------------------------------------
@@ -210,9 +196,8 @@ def test_start__lines_not_containing_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_not_containing(text=TEST_TEXT, elements=[], match_string="b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 0,
             "text": "A\n\n  B\nC",
@@ -232,13 +217,8 @@ def test_start__lines_not_containing_empty_elements_case_sensitive_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_not_containing(text=TEST_TEXT, elements=[], match_string="B", case_sensitive=True)
 
-    f = open("result.txt", "w")
-    f.write(f"{result}")
-    f.close()
-
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 0,
             "text": "A\n\n  B\nC",
@@ -259,9 +239,8 @@ def test_start__lines_not_containing_not_empty_elements():
     scanner = TextScanner(text="")
     result = scanner.start__lines_not_containing(text=TEST_TEXT, elements=elements, match_string="b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 3,
             "text": "C",
@@ -276,9 +255,8 @@ def test_start__lines_equal_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_equal(text=TEST_TEXT, elements=[], match_string="C")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 3,
             "text": "C",
@@ -290,9 +268,8 @@ def test_start__lines_equal_empty_elements_strip_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_equal(text=TEST_TEXT, elements=[], match_string="b", strip=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -304,9 +281,8 @@ def test_start__lines_equal_empty_elements_case_sensitive_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_equal(text=TEST_TEXT, elements=[], match_string="  B", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -319,9 +295,8 @@ def test_start__lines_equal_not_empty_elements():
     scanner = TextScanner(text="")
     result = scanner.start__lines_equal(text=TEST_TEXT, elements=elements, match_string="  B")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -333,9 +308,8 @@ def test_start__lines_equal_empty_elements_no_match():
     scanner = TextScanner(text="")
     result = scanner.start__lines_equal(text=TEST_TEXT, elements=[], match_string="Z", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == []
+    assert  isinstance(result, list)
+    assert result == []
 
 
 # ------------------------------------------------------------
@@ -372,9 +346,8 @@ def test_closest__lines_starting_with_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.closest__lines_starting_with(text=TEST_TEXT, elements=elements, match_string="a")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 0,
             "text": TEST_TEXT,
@@ -386,12 +359,9 @@ def test_closest__lines_starting_with_empty_elements_defaults_2():
     elements = [{"index": 0, "text": "A\n\n  B\nC"}, {"index": 2, "text": "  B\nC"}, {"index": 3, "text": "C"}]
     scanner = TextScanner(text="")
     result = scanner.closest__lines_starting_with(text=TEST_TEXT, elements=elements, match_string="  b")
-    f = open("closest__lines_starting_with.txt", "a")
-    f.write(f"result: {result}\n")
-    f.close()
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -404,12 +374,9 @@ def test_closest__lines_starting_with_empty_elements_defaults_3():
     elements = [{"index": 2, "text": "A\n  B\nC"}, {"index": 3, "text": "  B"}, {"index": 5, "text": "C"}]
     scanner = TextScanner(text="")
     result = scanner.closest__lines_starting_with(text=text, elements=elements, match_string="a")
-    f = open("closest__lines_starting_with.txt", "a")
-    f.write(f"result: {result}\n")
-    f.close()
-    assert "text" in result and result["text"] == text
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "A\n  B\nB\nC",
@@ -424,9 +391,8 @@ def test_start__lines_regex_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_regex(text=TEST_TEXT, elements=[], match_string=r"^\s*b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -438,9 +404,8 @@ def test_start__lines_regex_empty_elements_case_sensitive_true():
     scanner = TextScanner(text="")
     result = scanner.start__lines_regex(text=TEST_TEXT, elements=[], match_string=r"^\s*B", case_sensitive=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -453,9 +418,8 @@ def test_start__lines_regex_not_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.start__lines_regex(text=TEST_TEXT, elements=elements, match_string=r"^C$")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 3,
             "text": "C",
@@ -467,9 +431,8 @@ def test_start__lines_regex_empty_elements_defaults_no_match():
     scanner = TextScanner(text="")
     result = scanner.start__lines_regex(text=TEST_TEXT, elements=[], match_string=r"^Z$")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == []
+    assert  isinstance(result, list)
+    assert result == []
 
 
 # ------------------------------------------------------------
@@ -479,9 +442,8 @@ def test_end__lines_regex_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.end__lines_regex(text=TEST_TEXT, elements=[], match_string=r"^C$")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 0,
             "text": "A\n\n  B",
@@ -493,9 +455,8 @@ def test_end__lines_regex_empty_elements_strip_true():
     scanner = TextScanner(text="")
     result = scanner.end__lines_regex(text=TEST_TEXT, elements=[], match_string=r"^b$", strip=True)
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 0,
             "text": "A\n",
@@ -508,9 +469,8 @@ def test_end__lines_regex_not_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.end__lines_regex(text=TEST_TEXT, elements=elements, match_string=r"^C$")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B",
@@ -522,9 +482,8 @@ def test_end__lines_regex_empty_elements_defaults_no_match():
     scanner = TextScanner(text="")
     result = scanner.end__lines_regex(text=TEST_TEXT, elements=[], match_string=r"^Z$")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == []
+    assert  isinstance(result, list)
+    assert result == []
 
 
 # ------------------------------------------------------------
@@ -535,9 +494,8 @@ def test_closest__lines_regex_empty_elements_defaults():
     scanner = TextScanner(text="")
     result = scanner.closest__lines_regex(text=TEST_TEXT, elements=elements, match_string=r"^[a]")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 0,
             "text": TEST_TEXT,
@@ -550,9 +508,8 @@ def test_closest__lines_regex_empty_elements_defaults_2():
     scanner = TextScanner(text="")
     result = scanner.closest__lines_regex(text=TEST_TEXT, elements=elements, match_string=r"^\s+b")
 
-    assert "text" in result and result["text"] == TEST_TEXT
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "  B\nC",
@@ -566,9 +523,8 @@ def test_closest__lines_regex_multiple_matches():
     scanner = TextScanner(text="")
     result = scanner.closest__lines_regex(text=text, elements=elements, match_string=r"^[a]")
 
-    assert "text" in result and result["text"] == text
-    assert "elements" in result and isinstance(result["elements"], list)
-    assert result["elements"] == [
+    assert  isinstance(result, list)
+    assert result == [
         {
             "index": 2,
             "text": "A\n  B\nB\nC",

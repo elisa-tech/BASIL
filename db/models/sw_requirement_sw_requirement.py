@@ -128,13 +128,20 @@ class SwRequirementSwRequirementModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
-    def get_waterfall_coverage(self, db_session):
+    def get_waterfall_coverage(self, db_session, _visited=None):
         from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
         from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
         # Return SR-SR waterfall coverage
 
         if db_session is None:
             return self.coverage
+        # cycle protection across SR-SR graph
+        if _visited is None:
+            _visited = set()
+        # If we've already visited this relation in the current path, avoid infinite recursion / double counting
+        if self.id in _visited:
+            return 0
+        _visited.add(self.id)
 
         srs_coverage = 0
         tss_coverage = 0
@@ -145,7 +152,7 @@ class SwRequirementSwRequirementModel(Base):
             SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id == self.id
         ).all()
         if len(srs) > 0:
-            srs_coverage = sum([x.get_waterfall_coverage(db_session) for x in srs])
+            srs_coverage = sum([x.get_waterfall_coverage(db_session, _visited) for x in srs])
 
         # Test Specifications
         ts_query = db_session.query(SwRequirementTestSpecificationModel).filter(

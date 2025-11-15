@@ -201,7 +201,16 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
               Sign In
             </NavItem>
           ) : (
-            ''
+            <NavItem
+              preventDefault
+              id='nav-item-test-run-traceability-scanner'
+              to='#nav-item-test-run-traceability-scanner'
+              onClick={() => redirect('/traceability-scanner')}
+              itemId='ungrouped-item-4'
+              isActive={location.pathname == '/traceability-scanner'}
+            >
+              Traceability Scanner
+            </NavItem>
           )}
 
           {auth.isLogged() && auth.isAdmin() ? (
@@ -211,7 +220,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
                 id='nav-item-user-management'
                 to='#nav-item-user-management'
                 onClick={() => redirect('/admin')}
-                itemId='ungrouped-item-4'
+                itemId='ungrouped-item-5'
                 isActive={location.pathname == '/admin'}
               >
                 User Management
@@ -221,7 +230,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
                 id='nav-item-test-run-plugins-presets'
                 to='#nav-item-test-run-plugins-presets'
                 onClick={() => redirect('/plugins-presets')}
-                itemId='ungrouped-item-5'
+                itemId='ungrouped-item-6'
                 isActive={location.pathname == '/plugins-presets'}
               >
                 Test Run Plugin Presets
@@ -231,7 +240,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
                 id='nav-item-settings'
                 to='#nav-item-settings'
                 onClick={() => redirect('/settings')}
-                itemId='ungrouped-item-6'
+                itemId='ungrouped-item-7'
                 isActive={location.pathname == '/settings'}
               >
                 Settings
@@ -248,7 +257,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
                 id='nav-item-user-ssh-keys'
                 to='#nav-item-user-ssh-keys'
                 onClick={() => redirect('/ssh-keys')}
-                itemId='ungrouped-item-7'
+                itemId='ungrouped-item-8'
                 isActive={location.pathname == '/ssh-keys'}
               >
                 SSH Keys
@@ -258,7 +267,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
                 id='nav-item-user-files'
                 to='#nav-item-user-files'
                 onClick={() => redirect('/user-files')}
-                itemId='ungrouped-item-8'
+                itemId='ungrouped-item-9'
                 isActive={location.pathname == '/user-files'}
               >
                 User Files

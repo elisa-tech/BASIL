@@ -11,6 +11,7 @@ import { Signin } from '@app/Signin/Signin'
 import { SSHKey } from '@app/SSHKey/SSHKey'
 import { UserFiles } from './UserFiles/UserFiles'
 import { useDocumentTitle } from '@app/utils/useDocumentTitle'
+import { TraceabilityScanner } from '@app/Scanner/TraceabilityScanner'
 
 let routeFocusTimer: number
 export interface IAppRoute {
@@ -93,6 +94,13 @@ const routes: AppRouteConfig[] = [
     label: 'User Files',
     path: '/user-files',
     title: 'BASIL | The Fusa Spice | User | Files'
+  },
+  {
+    component: TraceabilityScanner,
+    exact: true,
+    label: 'Traceability Scanner Configuration',
+    path: '/traceability-scanner',
+    title: 'BASIL | The Fusa Spice | Scanner | Configuration'
   }
 ]
 

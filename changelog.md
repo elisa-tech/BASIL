@@ -11,6 +11,7 @@
 - Fix db models to aling with postgres
 - Extend traceability supporting document mapping to document
 - Document fork
+- Traceability scanner
 
 ## 1.7.x
 

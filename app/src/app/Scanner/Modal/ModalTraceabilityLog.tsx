@@ -101,7 +101,9 @@ export const ModalTraceabilityLog: React.FunctionComponent<ModalTraceabilityLogP
           </Button>
         ]}
       >
-        <AutoRefresh loadRows={() => getTraceabilityScanLog(modalLogFilename)} showCountdown={false} />
+        <AutoRefresh loadRows={() => getTraceabilityScanLog(modalLogFilename)} showCountdown={true} />
+        <br />
+        <br />
         <CodeBlock>
           <CodeBlockCode>{modalLogContent}</CodeBlockCode>
         </CodeBlock>

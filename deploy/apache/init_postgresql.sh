@@ -7,7 +7,7 @@ source ./common.sh
 DB_USER="basil-admin"
 DB_NAME="basil"
 DB_PASSWORD="${BASIL_DB_PASSWORD=-your_secure_password}"
-RESET_CLUSTERS="${BASIL_RESET_POSTGRES_CLUSTERS=-1}"
+RESET_CLUSTERS="${BASIL_RESET_POSTGRES_CLUSTERS=-0}"
 TESTING="${BASIL_TESTING:-0}"
 
 if [ "$TESTING" = "1" ]; then
@@ -27,7 +27,7 @@ WORKDIR="/tmp"
 pushd "$WORKDIR" >/dev/null
 
 # Check if postgres is installed
-install_package postgresql 
+install_package postgresql
 install_package postgresql-contrib
 
 # Start and enable PostgreSQL service

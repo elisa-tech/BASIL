@@ -2,6 +2,7 @@ import React from 'react'
 import { Button, CodeBlock, CodeBlockCode, Modal, ModalVariant } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
 import { useAuth } from '@app/User/AuthProvider'
+import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
 
 export interface ModalTraceabilityLogProps {
   modalLogContent
@@ -10,6 +11,7 @@ export interface ModalTraceabilityLogProps {
   listTraceabilityScans
   setModalShowState
   toggleNotificationModal
+  getTraceabilityScanLog
 }
 
 export const ModalTraceabilityLog: React.FunctionComponent<ModalTraceabilityLogProps> = ({
@@ -18,7 +20,8 @@ export const ModalTraceabilityLog: React.FunctionComponent<ModalTraceabilityLogP
   modalShowState = false,
   listTraceabilityScans,
   setModalShowState,
-  toggleNotificationModal
+  toggleNotificationModal,
+  getTraceabilityScanLog
 }: ModalTraceabilityLogProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
 
@@ -98,6 +101,7 @@ export const ModalTraceabilityLog: React.FunctionComponent<ModalTraceabilityLogP
           </Button>
         ]}
       >
+        <AutoRefresh loadRows={() => getTraceabilityScanLog(modalLogFilename)} showCountdown={false} />
         <CodeBlock>
           <CodeBlockCode>{modalLogContent}</CodeBlockCode>
         </CodeBlock>

@@ -273,6 +273,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
         modalShowState={scanLogModalShowState}
         setModalShowState={setScanLogModalShowState}
         toggleNotificationModal={toggleNotificationModal}
+        getTraceabilityScanLog={getTraceabilityScanLog}
       />
       <ModalNotification
         modalShowState={notificationModalShowState}

@@ -132,6 +132,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
         const logfile = data && data['logfile'] ? data['logfile'] : ''
         const msg = logfile ? 'Traceability scan started. Log file: ' + logfile : 'Traceability scan started.'
         toggleNotificationModal('Success', msg)
+        listTraceabilityScans()
       })
       .catch((err) => {
         toggleNotificationModal('Error', err.toString())

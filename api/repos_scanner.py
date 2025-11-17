@@ -567,8 +567,6 @@ class RepoScanner:
 
         Returns the absolute path to the cloned working directory.
         """
-        self.target_dir = "/var/folders/6b/t6rm59dn6q1g3_4p5b2fv__40000gn/T/basil/repos/1/BASIL-main-9a7208"
-        return self.target_dir
         user_root = self._get_user_root()
         user_root.mkdir(parents=True, exist_ok=True)
 
@@ -778,8 +776,8 @@ class TextScanner:
         match_string: str,
         strip: bool,
         case_sensitive: bool,
-        lstrip=False,
-        rstrip=False,
+        lstrip: bool = False,
+        rstrip: bool = False,
     ) -> Callable[[str], bool]:
         """
         Build a predicate that checks a single line against the given condition.
@@ -846,6 +844,7 @@ class TextScanner:
         initial_index: int,
         check_line: Callable[[str], bool],
         output_mode: str,
+        first_only: bool
     ) -> List[dict]:
         """
         Scan provided lines with check_line and build elements.
@@ -863,6 +862,8 @@ class TextScanner:
                             "text": "\n".join(lines[idx:]),
                         }
                     )
+                    if first_only:
+                        return results
                 elif output_mode == "to":
                     results.append(
                         {
@@ -870,6 +871,8 @@ class TextScanner:
                             "text": "\n".join(lines[:idx]),
                         }
                     )
+                    if first_only:
+                        return results
                 else:
                     raise ValueError(f"Unsupported output_mode: {output_mode}")
         return results
@@ -887,6 +890,7 @@ class TextScanner:
         output_mode: str,
         skip_top_items: int,
         skip_bottom_items: int,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Generic scanner to reduce duplication across start__/end__/... helpers.
@@ -914,6 +918,7 @@ class TextScanner:
                 initial_index=0,
                 check_line=check_line,
                 output_mode=output_mode,
+                first_only=first_only,
             )
             return ret
 
@@ -928,6 +933,7 @@ class TextScanner:
                     initial_index=initial_index,
                     check_line=check_line,
                     output_mode=output_mode,
+                    first_only=first_only,
                 )
             )
         ret = self._skip_items(elements=aggregated, skip_top_items=skip_top_items, skip_bottom_items=skip_bottom_items)
@@ -944,6 +950,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections starting at specific lines.
@@ -967,6 +974,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_not_starting_with(
@@ -980,6 +988,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections starting at specific lines.
@@ -1003,6 +1012,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__at(self, text: str, end_at: int, elements: List[dict]) -> List[dict]:
@@ -1043,6 +1053,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Analyze text for sections ending at specific lines.
@@ -1066,6 +1077,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__lines_ending_with(
@@ -1079,6 +1091,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Analyze text for sections ending with specific lines.
@@ -1101,6 +1114,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__lines_contains(
@@ -1114,6 +1128,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Analyze text for sections ending at a line containing match_string.
@@ -1130,6 +1145,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__lines_not_contains(
@@ -1143,6 +1159,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Analyze text for sections ending at a line not containing match_string.
@@ -1159,6 +1176,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__lines_equal(
@@ -1172,6 +1190,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Analyze text for sections ending at a line equal to match_string.
@@ -1188,6 +1207,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__lines_not_equal(
@@ -1201,6 +1221,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = True,
     ) -> List[dict]:
         """
         Analyze text for sections ending at a line not equal to match_string.
@@ -1217,6 +1238,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def closest__lines_starting_with(
@@ -1231,6 +1253,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections starting at specific lines and extend elements to provide a new text
@@ -1263,6 +1286,7 @@ class TextScanner:
                 initial_index=0,
                 check_line=check_line,
                 output_mode="from",
+                first_only=first_only,
             )
 
         ret = []
@@ -1315,6 +1339,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines not starting with match_string for each element.
@@ -1335,6 +1360,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1365,6 +1391,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines ending with match_string for each element.
@@ -1385,6 +1412,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1415,6 +1443,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines not ending with match_string for each element.
@@ -1435,6 +1464,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1465,6 +1495,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines containing match_string for each element.
@@ -1485,6 +1516,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1515,6 +1547,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines not containing match_string for each element.
@@ -1535,6 +1568,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1565,6 +1599,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines equal to match_string for each element.
@@ -1585,6 +1620,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1615,6 +1651,7 @@ class TextScanner:
         direction: str = "",
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Find closest lines not equal to match_string for each element.
@@ -1635,6 +1672,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
         ret = []
         for el in elements:
@@ -1664,6 +1702,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections ending with specific lines.
@@ -1687,6 +1726,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_not_ending_with(
@@ -1700,6 +1740,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections not ending with specific lines.
@@ -1716,6 +1757,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_containing(
@@ -1729,6 +1771,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections containing specific lines.
@@ -1752,6 +1795,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_not_containing(
@@ -1765,6 +1809,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections not containing specific lines.
@@ -1788,6 +1833,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_equal(
@@ -1801,6 +1847,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections equal to specific lines.
@@ -1824,6 +1871,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_not_equal(
@@ -1837,6 +1885,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections not equal to specific lines.
@@ -1853,6 +1902,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def start__lines_regex(
@@ -1866,6 +1916,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections where a line matches the given regular expression and start from that line.
@@ -1883,6 +1934,7 @@ class TextScanner:
             output_mode="from",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def end__lines_regex(
@@ -1896,6 +1948,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections where a line matches the given regular expression and end at that line.
@@ -1913,6 +1966,7 @@ class TextScanner:
             output_mode="to",
             skip_top_items=skip_top_items,
             skip_bottom_items=skip_bottom_items,
+            first_only=first_only,
         )
 
     def closest__lines_regex(
@@ -1926,6 +1980,7 @@ class TextScanner:
         rstrip: bool = False,
         skip_top_items: int = 0,
         skip_bottom_items: int = 0,
+        first_only: bool = False,
     ) -> List[dict]:
         """
         Analyze text for sections where a line matches the given regular expression and extend elements
@@ -1953,6 +2008,7 @@ class TextScanner:
             initial_index=0,
             check_line=check_line,
             output_mode="from",
+            first_only=first_only,
         )
 
         # For each provided element, pick the candidate with closest index
@@ -2273,6 +2329,7 @@ class ArtifactsScanner:
                         curr_api_config.get("library_version", "")
                         .replace("__ref__", api_repository_branch)
                         .replace("__branch__", api_repository_branch)
+                        .replace("__version__", api_repo_scanner.git_version)
                     )
 
                     api_reference_document = api_reference_documents[0]
@@ -2520,18 +2577,26 @@ class ArtifactsScanner:
         text_scanner = TextScanner(text=text)
 
         # Extract sections using start definition
+        start_cfg = _config.get("start") or {}
+
         strip = _normalize_trim_value(_config.get("start").get("strip", False))
         lstrip_flag = _normalize_trim_value(_config.get("start").get("lstrip", False))
         rstrip_flag = _normalize_trim_value(_config.get("start").get("rstrip", False))
         case_sensitive = _config.get("start").get("case_sensitive", False)
-        skip_top_items = _config.get("start").get("skip_top_items", 0)
-        skip_bottom_items = _config.get("start").get("skip_bottom_items", 0)
-        start_cfg = _config.get("start") or {}
-        end_cfg = _config.get("end") or {}
+        start_skip_top_items = _config.get("start").get("skip_top_items", 0)
+        start_skip_bottom_items = _config.get("start").get("skip_bottom_items", 0)
+        start_first_only = _normalize_trim_value(start_cfg.get("first_only", False))
+
         # Defaults for end are inherited from start unless explicitly overridden
+        end_cfg = _config.get("end") or {}
         strip_end = _normalize_trim_value(end_cfg.get("strip", strip))
         lstrip_end = _normalize_trim_value(end_cfg.get("lstrip", lstrip_flag))
         rstrip_end = _normalize_trim_value(end_cfg.get("rstrip", rstrip_flag))
+        end_skip_top_items = end_cfg.get("skip_top_items", start_skip_top_items)
+        end_skip_bottom_items = end_cfg.get("skip_bottom_items", start_skip_bottom_items)
+
+        # By default we keep single output from end
+        end_first_only = _normalize_trim_value(end_cfg.get("first_only", True))
 
         if _config.get("start").get("at", None) is not None:
             start_at = _config.get("start").get("at")
@@ -2555,8 +2620,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_not_starting_with", None):
                 elements = text_scanner.start__lines_not_starting_with(
@@ -2567,8 +2633,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_ending_with", None):
                 elements = text_scanner.start__lines_ending_with(
@@ -2579,8 +2646,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_not_ending_with", None):
                 elements = text_scanner.start__lines_not_ending_with(
@@ -2591,8 +2659,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_contains", None):
                 elements = text_scanner.start__lines_containing(
@@ -2603,8 +2672,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_not_contains", None):
                 elements = text_scanner.start__lines_not_containing(
@@ -2615,8 +2685,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_equal", None):
                 elements = text_scanner.start__lines_equal(
@@ -2627,8 +2698,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_not_equal", None):
                 elements = text_scanner.start__lines_not_equal(
@@ -2639,8 +2711,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("line_regex", None):
                 elements = text_scanner.start__lines_regex(
@@ -2651,8 +2724,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_flag,
                     rstrip=rstrip_flag,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=start_skip_top_items,
+                    skip_bottom_items=start_skip_bottom_items,
+                    first_only=start_first_only,
                 )
             if _config.get("start").get("extend", None) is not None:
                 if _config.get("start").get("extend").get("count", None) is not None:
@@ -2667,6 +2741,7 @@ class ArtifactsScanner:
                         )
             if _config.get("start").get("closest", None) is not None:
                 closest_dir = (start_cfg.get("closest", {}) or {}).get("direction", "")
+                closest_first_only = start_cfg.get("closest", {}).get("first_only", False)
                 if _config.get("start").get("closest").get("line_starting_with", None) is not None:
                     elements = text_scanner.closest__lines_starting_with(
                         text=text,
@@ -2677,8 +2752,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
                 if _config.get("start").get("closest").get("line_not_starting_with", None) is not None:
                     elements = text_scanner.closest__lines_not_starting_with(
@@ -2690,8 +2766,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
                 if _config.get("start").get("closest").get("line_ending_with", None):
                     elements = text_scanner.closest__lines_ending_with(
@@ -2703,8 +2780,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
                 if _config.get("start").get("closest").get("line_not_ending_with", None):
                     elements = text_scanner.closest__lines_not_ending_with(
@@ -2716,8 +2794,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
                 if _config.get("start").get("closest").get("line_contains", None):
                     elements = text_scanner.closest__lines_contains(
@@ -2729,8 +2808,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
                 if _config.get("start").get("closest").get("line_not_contains", None):
                     elements = text_scanner.closest__lines_not_contains(
@@ -2742,8 +2822,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
 
                 if _config.get("start").get("closest").get("line_equal", None):
@@ -2756,8 +2837,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
 
                 if _config.get("start").get("closest").get("line_not_equal", None):
@@ -2770,8 +2852,9 @@ class ArtifactsScanner:
                         rstrip=rstrip_flag,
                         direction=closest_dir,
                         case_sensitive=case_sensitive,
-                        skip_top_items=skip_top_items,
-                        skip_bottom_items=skip_bottom_items,
+                        skip_top_items=start_skip_top_items,
+                        skip_bottom_items=start_skip_bottom_items,
+                        first_only=closest_first_only,
                     )
 
         if elements:
@@ -2802,8 +2885,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2816,8 +2900,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2830,8 +2915,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2844,8 +2930,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2858,8 +2945,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2872,8 +2960,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2886,8 +2975,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2900,8 +2990,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
                 skip_end = True
 
@@ -2914,8 +3005,9 @@ class ArtifactsScanner:
                     lstrip=lstrip_end,
                     rstrip=rstrip_end,
                     case_sensitive=case_sensitive,
-                    skip_top_items=skip_top_items,
-                    skip_bottom_items=skip_bottom_items,
+                    skip_top_items=end_skip_top_items,
+                    skip_bottom_items=end_skip_bottom_items,
+                    first_only=end_first_only,
                 )
 
         # Optionally split resulting elements into multiple sections
@@ -3031,6 +3123,10 @@ class ArtifactsScanner:
 
                 # NOTE: Do not apply magic variables to the extracted text
 
+                # Apply filters (contains / not_contains / regex) BEFORE transforms
+                if isinstance(field_config.get("filter", None), dict):
+                    ret = self._apply_filters_to_elements(elements=ret, filter_cfg=field_config.get("filter", {}))
+
                 # Apply transforms to the extracted text
                 if field_config.get("transform", None) is not None:
                     ret = [self._apply_transforms(r, field_config.get("transform", []), field_type) for r in ret]
@@ -3142,6 +3238,62 @@ class ArtifactsScanner:
             return new_value
         # Other types unchanged
         return value
+
+    @staticmethod
+    def _apply_filters_to_elements(elements: list, filter_cfg: dict) -> list:
+        """
+        Filter a list of elements (strings or dicts with 'text') using:
+          - contains:      list[str] -> keep if any substring is contained
+          - not_contains:  list[str] -> drop if any substring is contained
+          - regex:         list[str] -> keep if any regex matches
+        Optional:
+          - case_sensitive: bool (default False)
+        """
+        if not elements:
+            return elements
+        contains = filter_cfg.get("contains", []) or []
+        not_contains = filter_cfg.get("not_contains", []) or []
+        regex_list = filter_cfg.get("regex", []) or []
+        case_sensitive = bool(filter_cfg.get("case_sensitive", False))
+
+        # Normalize lists
+        contains = [str(x) for x in contains if isinstance(x, (str, int, float))]
+        not_contains = [str(x) for x in not_contains if isinstance(x, (str, int, float))]
+        regex_list = [str(x) for x in regex_list if isinstance(x, (str, int, float))]
+
+        re_flags = 0 if case_sensitive else re.IGNORECASE | re.MULTILINE
+        compiled_regex = []
+        for p in regex_list:
+            try:
+                compiled_regex.append(re.compile(p, flags=re_flags))
+            except re.error:
+                # Skip invalid patterns
+                continue
+
+        def text_of(item) -> str:
+            if isinstance(item, dict):
+                return str(item.get("text", ""))
+            return str(item)
+
+        def ok(txt: str) -> bool:
+            base = txt if case_sensitive else txt.lower()
+            # contains: keep if empty OR any match
+            if contains:
+                pool = contains if case_sensitive else [c.lower() for c in contains]
+                if not any(c in base for c in pool):
+                    return False
+            # not_contains: drop if any match
+            if not_contains:
+                pool = not_contains if case_sensitive else [c.lower() for c in not_contains]
+                if any(c in base for c in pool):
+                    return False
+            # regex: keep if empty OR any match
+            if compiled_regex:
+                if not any(r.search(txt) for r in compiled_regex):
+                    return False
+            return True
+
+        return [el for el in elements if ok(text_of(el))]
 
     @staticmethod
     def _combine_fields_to_work_items(field_specs: List[dict], values_by_field: dict) -> List[dict]:

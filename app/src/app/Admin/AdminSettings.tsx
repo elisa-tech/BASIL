@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import { Button, Divider, Flex, FlexItem, Hint, HintBody, PageSection } from '@patternfly/react-core'
+import { Button, Divider, Flex, FlexItem, Form, FormGroup, Hint, HintBody, PageSection } from '@patternfly/react-core'
 import { Editor } from '@monaco-editor/react'
 import { useAuth } from '../User/AuthProvider'
 export interface AdminSettingsProps {}
@@ -8,8 +8,12 @@ export interface AdminSettingsProps {}
 const AdminSettings: React.FunctionComponent = () => {
   const [settingsContent, setSettingsContent] = React.useState('')
   const [messageValue, setMessageValue] = React.useState('')
+  const [editorFontSize, setEditorFontSize] = React.useState(16)
   const auth = useAuth()
   const ADMIN_SETTINGS_ENDPOINT = '/admin/settings'
+
+  const increaseEditorFont = () => setEditorFontSize((f) => Math.min(f + 2, 40))
+  const decreaseEditorFont = () => setEditorFontSize((f) => Math.max(f - 2, 8))
 
   const onChange = (value) => {
     setSettingsContent(value)
@@ -85,17 +89,35 @@ const AdminSettings: React.FunctionComponent = () => {
         )}
       </div>
 
-      <Editor
-        language={'yaml'}
-        value={settingsContent}
-        onChange={onChange}
-        theme={'vs-dark'}
-        onMount={onEditorDidMount}
-        height='800px'
-        options={{
-          fontSize: 20
-        }}
-      />
+      <Form>
+        <FormGroup label='BASIL ADMIN SETTINGS' fieldId='basil-admin-settings'>
+          <Flex>
+            <FlexItem>
+              <Button onClick={decreaseEditorFont} variant='secondary'>
+                Font −
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button onClick={increaseEditorFont} variant='secondary'>
+                Font +
+              </Button>
+            </FlexItem>
+          </Flex>
+          <br />
+
+          <Editor
+            language={'yaml'}
+            value={settingsContent}
+            onChange={onChange}
+            theme={'vs-dark'}
+            onMount={onEditorDidMount}
+            height='800px'
+            options={{
+              fontSize: editorFontSize
+            }}
+          />
+        </FormGroup>
+      </Form>
 
       <Divider />
       <br />

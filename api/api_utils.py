@@ -269,3 +269,20 @@ def parse_int(value):
     if isinstance(value, str) and value.strip().isdigit():
         return int(value.strip())
     return None  # or raise ValueError if needed
+
+
+def get_user_traceability_scanner_config(user_id):
+    from api import USER_FILES_BASE_DIR
+
+    user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user_id}.config")
+    user_config_path = os.path.join(user_config_dir, "config.yaml")
+    if not os.path.exists(user_config_path):
+        return None
+    try:
+        f = open(user_config_path, "r")
+        fc = f.read()
+        f.close()
+        return fc
+    except Exception:
+        logger.error(f"Unable to read user settings file: {user_config_path}")
+    return None

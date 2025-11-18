@@ -64,6 +64,7 @@ from api_utils import (
     get_api_specification,
     get_html_email_body_from_template,
     get_safe_str,
+    get_user_traceability_scanner_config,
     is_testing_enabled_by_env,
     load_settings,
     parse_int,
@@ -8527,6 +8528,180 @@ class AdminSettings(Resource):
         return ret
 
 
+class TraceabilityScannerSettings(Resource):
+    def get(self):
+        ret = {"content": ""}
+        mandatory_fields = ["token", "user-id"]
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(args, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        config = get_user_traceability_scanner_config(user.id)
+        if not config:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        ret["content"] = config
+        return ret
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        ret = {"content": ""}
+        mandatory_fields = ["content", "user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Validate YAML content
+        try:
+            _ = parse_config(data=request_data["content"])  # noqa: F841
+        except Exception as exc:
+            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_path = os.path.join(user_config_dir, "config.yaml")
+        try:
+            if not os.path.exists(user_config_dir):
+                os.makedirs(user_config_dir, exist_ok=True)
+            f = open(user_config_path, "w")
+            f.write(request_data["content"])
+            f.close()
+            ret["content"] = request_data["content"]
+        except Exception as exc:
+            logger.error(f"Unable to write user settings file {user_config_path}: {exc}")
+            return f"{BAD_REQUEST_MESSAGE} Unable to write configuration", BAD_REQUEST_STATUS
+        return ret
+
+
+class TraceabilityScannerScan(Resource):
+
+    def get(self):
+        request_data = request.args
+        ret = {"content": []}
+        mandatory_fields = ["user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_path = os.path.join(user_config_dir, "config.yaml")
+
+        if os.path.exists(user_config_path):
+            """list of traceability scans log files"""
+            log_files = [f for f in os.listdir(user_config_dir) if f.endswith(".log")]
+            ret["content"] = log_files
+        return ret
+
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_path = os.path.join(user_config_dir, "config.yaml")
+        if not os.path.exists(user_config_path):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        config = get_user_traceability_scanner_config(user.id)
+        if not config:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # call repos_scanner.py with the user id and the name of the logfile
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_path = os.path.join(user_config_dir, f"{timestamp}.log")
+
+        try:
+            log_fh = open(log_file_path, "a")
+            log_fh.write(f"Starting traceability scan for user {user.id} at {timestamp}\n")
+            log_fh.write(f"Configuration: \n{config}\n")
+            log_fh.flush()
+        except Exception as exc:
+            logger.error(f"Unable to open log file {log_file_path}: {exc}")
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # Launch asynchronously without waiting
+        subprocess.Popen(
+            ["python3", "repos_scanner.py", "--userid", str(user.id), "--logfile", f"{timestamp}.log"],
+            cwd=currentdir,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+            close_fds=True,
+        )
+
+        # Return the status and the logfile name
+        return {"status": "success", "logfile": f"{timestamp}.log"}
+
+
+class TraceabilityScannerLogs(Resource):
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["user-id", "token", "scan-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        scan_id = str(request_data.get("scan-id", "")).strip()
+        # basic validation to avoid directories/path traversal
+        if not scan_id or scan_id != os.path.basename(scan_id):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        log_file = os.path.join(user_config_dir, scan_id)
+
+        if os.path.isfile(log_file):
+            os.remove(log_file)
+            return {"status": "success"}
+        return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+    def get(self):
+        request_data = request.args
+        mandatory_fields = ["user-id", "token", "scan-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        scan_id = str(request_data.get("scan-id", "")).strip()
+        if not scan_id or scan_id != os.path.basename(scan_id):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        log_file = os.path.join(user_config_dir, scan_id)
+
+        if os.path.isfile(log_file):
+            with open(log_file, "r") as f:
+                content = f.read()
+            return {"status": "success", "content": content}
+        return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+
 class AIHealthCheck(Resource):
 
     def get(self):
@@ -8648,6 +8823,9 @@ api.add_resource(TestRunArtifacts, "/mapping/api/test-run/artifacts")
 api.add_resource(TestRunPluginPresets, "/mapping/api/test-run-plugins-presets")
 api.add_resource(AdminTestRunPluginsPresets, "/admin/test-run-plugins-presets")
 api.add_resource(AdminSettings, "/admin/settings")
+api.add_resource(TraceabilityScannerSettings, "/traceability-scanner/settings")
+api.add_resource(TraceabilityScannerScan, "/traceability-scanner/scan")
+api.add_resource(TraceabilityScannerLogs, "/traceability-scanner/logs")
 api.add_resource(AdminResetUserPassword, "/admin/reset-user-password")
 
 # - Import

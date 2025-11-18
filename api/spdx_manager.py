@@ -1351,18 +1351,16 @@ class SPDXManager:
         - output_file: output PNG file name
         """
 
-        def allowed_duplicate_node(node):
-            allowed_ids = [
-                "basil:document:",
-                "basil:software-requirement:",
-                "basil:test-specification:",
-                "basil:test-case:",
-                "basil:test-run:",
-                "basil:justification:",
-            ]
-
-            ret = any(allowed_id in node.spdx_id for allowed_id in allowed_ids)
-            if ret:
+        def is_container_node(node):
+            """
+            Nodes treated as global containers (no per-parent duplication).
+            Examples: files, libraries, software components, reference documents.
+            """
+            comment = (getattr(node, "comment", "") or "").lower()
+            sid = (getattr(node, "spdx_id", "") or "").lower()
+            if any(k in comment for k in ["library", "software component", "reference document"]):
+                return True
+            if any(k in sid for k in ["spdx_file_", "reference-document", "library", "software-component"]):
                 return True
             return False
 
@@ -1399,6 +1397,10 @@ class SPDXManager:
         dot = Digraph(format="png")
         dot.attr(rankdir="TB")
         added_nodes = {}
+        # Global ids for container nodes
+        global_node_id_by_label = {}
+        # Remember last contextual id used for a given label to propagate when node becomes a parent
+        last_context_id_by_label = {}
 
         # Add edges with appropriate colors
         relationships = [item for item in self.sbom if isinstance(item, SPDXRelationship)]
@@ -1414,18 +1416,27 @@ class SPDXManager:
                 # each work items as using the same node can results into a wrong mapping graph
                 from_node = relationship.from_element
                 from_node_label = from_node.spdx_id.replace(":", "_")
-                if allowed_duplicate_node(from_node):
-                    from_node_id = f"{iRel-1}_{from_node_label}"
-                else:
-                    from_node_id = from_node_label
+                # Prefer previously assigned contextual id to keep correct branch when this node becomes a parent
+                from_node_id = last_context_id_by_label.get(from_node_label)
+                if not from_node_id:
+                    # Fallback to global id for containers, or label if not yet seen
+                    if is_container_node(from_node):
+                        from_node_id = global_node_id_by_label.get(from_node_label) or from_node_label
+                        global_node_id_by_label[from_node_label] = from_node_id
+                    else:
+                        from_node_id = from_node_label
                 from_color = get_file_node_color(from_node)
 
                 to_node = to_relationship
                 to_node_label = to_node.spdx_id.replace(":", "_")
-                if allowed_duplicate_node(to_node):
-                    to_node_id = f"{iRel}_{to_node_label}"
+                # Child nodes use per-parent contextual id unless they are containers
+                if is_container_node(to_node):
+                    to_node_id = global_node_id_by_label.get(to_node_label) or to_node_label
+                    global_node_id_by_label[to_node_label] = to_node_id
                 else:
-                    to_node_id = to_node_label
+                    to_node_id = f"{from_node_id}__{to_node_label}"
+                # Remember contextual id for when this child becomes a parent
+                last_context_id_by_label[to_node_label] = to_node_id
                 to_color = get_file_node_color(to_node)
 
                 # Add 'from' node with color based on type

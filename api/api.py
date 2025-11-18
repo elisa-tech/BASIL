@@ -8633,6 +8633,7 @@ class TraceabilityScannerScan(Resource):
         try:
             log_fh = open(log_file_path, "a")
             log_fh.write(f"Starting traceability scan for user {user.id} at {timestamp}\n")
+            log_fh.write(f"Configuration: \n{config}\n")
             log_fh.flush()
         except Exception as exc:
             logger.error(f"Unable to open log file {log_file_path}: {exc}")

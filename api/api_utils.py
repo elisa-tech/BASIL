@@ -277,7 +277,17 @@ def get_user_traceability_scanner_config(user_id):
     user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user_id}.config")
     user_config_path = os.path.join(user_config_dir, "config.yaml")
     if not os.path.exists(user_config_path):
-        return None
+        try:
+            initial_config = "api: []\n"
+            if not os.path.exists(user_config_dir):
+                os.makedirs(user_config_dir, exist_ok=True)
+            f = open(user_config_path, "w")
+            f.write(initial_config)
+            f.close()
+            return initial_config
+        except Exception as exc:
+            logger.error(f"Unable to write user settings file {user_config_path}: {exc}")
+            return None
     try:
         f = open(user_config_path, "r")
         fc = f.read()

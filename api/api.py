@@ -8544,7 +8544,7 @@ class TraceabilityScannerSettings(Resource):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         config = get_user_traceability_scanner_config(user.id)
-        if not config:
+        if config is None:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         ret["content"] = config
         return ret

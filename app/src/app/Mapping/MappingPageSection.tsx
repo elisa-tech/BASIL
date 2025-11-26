@@ -63,7 +63,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [SPDXContentLoading, setSPDXContentLoading] = React.useState<boolean>(false)
   const [SPDXContent, setSPDXContent] = React.useState('')
   const [HTMLContentLoading, setHTMLContentLoading] = React.useState<boolean>(false)
-  const [HTMLContent, setHTMLContent] = React.useState<string>("")
+  const [HTMLContent, setHTMLContent] = React.useState<string>('')
 
   const [srModalShowState, setSrModalShowState] = React.useState<boolean>(false)
   const [tsModalShowState, setTsModalShowState] = React.useState<boolean>(false)
@@ -96,7 +96,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
   const exportFilename = React.useRef('')
 
-  const exportToFormat = (format: string = "jsonld") => {
+  const exportToFormat = (format: string = 'jsonld') => {
     if (!auth.isLogged()) {
       return
     }
@@ -109,11 +109,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     query_string += '&filename=' + exportFilename.current
     query_string += '&mapping-view=' + mappingViewSelectValue
 
-    let url;
-    if (format == "jsonld") {
+    let url
+    if (format == 'jsonld') {
       url = Constants.API_BASE_URL + Constants.API_SPDX_API_EXPORT_ENDPOINT
       setSPDXContentLoading(true)
-    } else if (format == "html") {
+    } else if (format == 'html') {
       url = Constants.API_BASE_URL + Constants.API_HTML_API_EXPORT_ENDPOINT
       setHTMLContentLoading(true)
     } else {
@@ -123,11 +123,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     fetch(url + query_string)
       .then((res) => res.json())
       .then((data) => {
-        if (format == "jsonld") {
+        if (format == 'jsonld') {
           setSPDXContent(JSON.stringify(data, null, 2))
           setModalSPDXExportShowState(true)
-        } else if (format == "html") {
-          setHTMLContent(data["data"])
+        } else if (format == 'html') {
+          setHTMLContent(data['data'])
           setModalHTMLExportShowState(true)
         }
       })
@@ -469,10 +469,10 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           variant='secondary'
                           onClick={() => exportToFormat('html')}
                         >
-                        {HTMLContentLoading ? 'Loading ...' : 'Export to HTML'}
-                      </Button>
-                    </FlexItem>
-                  </>
+                          {HTMLContentLoading ? 'Loading ...' : 'Export to HTML'}
+                        </Button>
+                      </FlexItem>
+                    </>
                   ) : (
                     ''
                   )}

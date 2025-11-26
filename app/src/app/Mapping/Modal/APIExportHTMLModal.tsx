@@ -101,8 +101,8 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
         title='HTML Data'
         description='Export of selected library work items and relationships'
         isOpen={isModalOpen}
-        onClose={handleModalToggle}>
-
+        onClose={handleModalToggle}
+      >
         <Flex>
           <FlexItem>
             <Flex>
@@ -125,13 +125,13 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
         <br></br>
 
         <iframe
-          title="export-html"
+          title='export-html'
           style={{ width: '100%', height: '70vh' }}
           srcDoc={HTMLContent}
-          sandbox='allow-scripts allow-same-origin'>
+          sandbox='allow-scripts allow-same-origin'
+        >
           <p>Your browser does not support iframes.</p>
         </iframe>
-
       </Modal>
     </React.Fragment>
   )

@@ -48,6 +48,8 @@ import sys
 import subprocess
 import time
 import urllib
+import urllib.request
+import urllib.error
 import yaml
 from uuid import uuid4
 
@@ -61,14 +63,26 @@ from sqlalchemy.orm.exc import NoResultFound
 from api_utils import (
     add_html_link_to_email_body,
     async_email_notification,
+    document_to_html,
     get_api_specification,
     get_html_email_body_from_template,
     get_safe_str,
+    get_user_config_folder_path,
+    get_user_html_folder_path,
+    get_user_pdf_folder_path,
     get_user_traceability_scanner_config,
     is_testing_enabled_by_env,
     load_settings,
     parse_int,
-    read_file
+    read_file,
+    justification_to_html,
+    string_to_html,
+    sw_requirement_to_html,
+    test_specification_to_html,
+    test_case_to_html,
+    test_run_config_to_html,
+    test_run_to_html,
+    tools_to_html,
 )
 from testrun import TestRunner
 import db.models.init_db as init_db
@@ -100,6 +114,8 @@ EMAIL_MATRIX_FOOTER_MESSAGE = "<p>Join our <a href='" \
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
+
+PANDOC_SERVICE_URL = os.getenv("BASIL_PANDOC_SERVICE_URL", "http://localhost:8282/convert")
 
 SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(None, None)
 
@@ -874,6 +890,7 @@ def get_query_string_args(args):
         "id",
         "job",
         "library",
+        "mapping-view",
         "mapped_to_id",
         "mapped_to_type",
         "mode",
@@ -890,6 +907,7 @@ def get_query_string_args(args):
         "relation-to",
         "search",
         "stage",
+        "test_run_config_id",
         "test_runs_limit",
         "token",
         "url",
@@ -1117,6 +1135,129 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
         for iSR in range(len(mapped_sections[iMS][_SRs])):
             sw_requirement_children_data = get_sw_requirement_children(dbi, mapped_sections[iMS][_SRs][iSR])
             mapped_sections[iMS][_SRs][iSR] = sw_requirement_children_data
+
+    ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
+
+    return ret
+
+
+def get_api_test_specifications_mapping_sections(dbi, api):
+    undesired_keys = ["section", "offset"]
+
+    api_specification = get_api_specification(api.raw_specification_url)
+    if api_specification is None:
+        return []
+
+    ts = (
+        dbi.session.query(ApiTestSpecificationModel)
+        .filter(ApiTestSpecificationModel.api_id == api.id)
+        .order_by(ApiTestSpecificationModel.offset.asc())
+        .all()
+    )
+    ts_mapping = [x.as_dict(db_session=dbi.session) for x in ts]
+
+    documents = (
+        dbi.session.query(ApiDocumentModel)
+        .filter(ApiDocumentModel.api_id == api.id)
+        .order_by(ApiDocumentModel.offset.asc())
+        .all()
+    )
+    documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+
+    justifications = (
+        dbi.session.query(ApiJustificationModel)
+        .filter(ApiJustificationModel.api_id == api.id)
+        .order_by(ApiJustificationModel.offset.asc())
+        .all()
+    )
+    justifications_mapping = [x.as_dict(db_session=dbi.session) for x in justifications]
+
+    mapping = {_A: api.as_dict(), _TSs: ts_mapping, _Js: justifications_mapping, _Ds: documents_mapping}
+
+    for iTS in range(len(mapping[_TSs])):
+        # Indirect Test Cases
+        curr_ats_id = mapping[_TSs][iTS]["relation_id"]
+
+        ind_tc = (
+            dbi.session.query(TestSpecificationTestCaseModel)
+            .filter(TestSpecificationTestCaseModel.test_specification_mapping_api_id == curr_ats_id)
+            .all()
+        )
+        mapping[_TSs][iTS][_TS][_TCs] = [
+            get_dict_without_keys(x.as_dict(db_session=dbi.session), undesired_keys + ["api"]) for x in ind_tc
+        ]
+
+    for iType in [_TSs, _Js, _Ds]:
+        for iMapping in range(len(mapping[iType])):
+            current_offset = mapping[iType][iMapping]["offset"]
+            current_section = mapping[iType][iMapping]["section"]
+            mapping[iType][iMapping]["match"] = (
+                api_specification[current_offset: current_offset + len(current_section)] == current_section
+            )
+
+    mapped_sections = get_split_sections(api_specification, mapping, [_TS, _J, _D])
+    unmapped_sections = [x for x in mapping[_TSs] if not x["match"]]
+    unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
+    unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
+
+    for iMS in range(len(mapped_sections)):
+        for iD in range(len(mapped_sections[iMS][_Ds])):
+            document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+            mapped_sections[iMS][_Ds][iD] = document_children_data
+
+    ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
+
+    return ret
+
+
+def get_api_test_cases_mapping_sections(dbi, api):
+    api_specification = get_api_specification(api.raw_specification_url)
+    if api_specification is None:
+        return []
+
+    tc = (
+        dbi.session.query(ApiTestCaseModel)
+        .filter(ApiTestCaseModel.api_id == api.id)
+        .order_by(ApiTestCaseModel.offset.asc())
+        .all()
+    )
+    tc_mapping = [x.as_dict(db_session=dbi.session) for x in tc]
+
+    documents = (
+        dbi.session.query(ApiDocumentModel)
+        .filter(ApiDocumentModel.api_id == api.id)
+        .order_by(ApiDocumentModel.offset.asc())
+        .all()
+    )
+    documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+
+    justifications = (
+        dbi.session.query(ApiJustificationModel)
+        .filter(ApiJustificationModel.api_id == api.id)
+        .order_by(ApiJustificationModel.offset.asc())
+        .all()
+    )
+    justifications_mapping = [x.as_dict(db_session=dbi.session) for x in justifications]
+
+    mapping = {_A: api.as_dict(), _TCs: tc_mapping, _Js: justifications_mapping, _Ds: documents_mapping}
+
+    for iType in [_TCs, _Js, _Ds]:
+        for iMapping in range(len(mapping[iType])):
+            current_offset = mapping[iType][iMapping]["offset"]
+            current_section = mapping[iType][iMapping]["section"]
+            mapping[iType][iMapping]["match"] = (
+                api_specification[current_offset: current_offset + len(current_section)] == current_section
+            )
+
+    mapped_sections = get_split_sections(api_specification, mapping, [_TC, _J, _D])
+    unmapped_sections = [x for x in mapping[_TCs] if not x["match"]]
+    unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
+    unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
+
+    for iMS in range(len(mapped_sections)):
+        for iD in range(len(mapped_sections[iMS][_Ds])):
+            document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+            mapped_sections[iMS][_Ds][iD] = document_children_data
 
     ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
@@ -1626,6 +1767,364 @@ class SPDXApi(Resource):
         del spdxManager
 
         return send_file(spdx_filepath)
+
+
+class HTMLApi(Resource):
+    fields = ["filename"]
+    div_open_html = "<div style='border-left: 1px solid #DDD; padding-left: 20px; padding-right: 20px;'>"
+    div_close_html = "</div>"
+
+    def get_sw_requirements_html(self, sw_requirements: list = None, dbi: db_orm.DbInterface = None,
+                                 test_run_config_ids: list = None) -> tuple[list, str]:
+        test_run_configs = []
+        html = self.div_open_html
+
+        for sw_requirement in sw_requirements:
+            html += sw_requirement_to_html(sw_requirement[_SR])
+            ts_test_run_configs, ts_html = self.get_test_specifications_html(
+                test_specifications=sw_requirement[_TSs],
+                dbi=dbi,
+                test_run_config_ids=test_run_config_ids
+            )
+            test_run_configs.extend(ts_test_run_configs)
+            html += ts_html
+            tc_test_run_configs, tc_html = self.get_test_cases_html(
+                test_cases=sw_requirement[_TCs],
+                dbi=dbi,
+                test_run_config_ids=test_run_config_ids,
+                mapping_to="test_case_mapping_sw_requirement")
+            test_run_configs.extend(tc_test_run_configs)
+            html += tc_html
+
+            # Nested Sw Requirements
+            if len(sw_requirement[_SRs]):
+                nested_test_run_configs, nested_html = self.get_sw_requirements_html(
+                    sw_requirements=sw_requirement[_SRs],
+                    dbi=dbi,
+                    test_run_config_ids=test_run_config_ids
+                )
+                test_run_configs.extend(nested_test_run_configs)
+                html += nested_html
+
+        html += self.div_close_html
+        return test_run_configs, html
+
+    def get_test_specifications_html(self, test_specifications: list = None, dbi: db_orm.DbInterface = None,
+                                     test_run_config_ids: list = None) -> tuple[list, str]:
+        test_run_configs = []
+        html = self.div_open_html
+
+        for test_specification in test_specifications:
+            html += test_specification_to_html(test_specification[_TS])
+
+            # Test Cases
+            if len(test_specification[_TS][_TCs]):
+                test_run_configs, test_cases_html = self.get_test_cases_html(
+                    test_cases=test_specification[_TS][_TCs],
+                    dbi=dbi,
+                    test_run_config_ids=test_run_config_ids,
+                    mapping_to="test_case_mapping_test_specification")
+                html += test_cases_html
+
+        html += self.div_close_html
+        return test_run_configs, html
+
+    def get_test_cases_html(self, test_cases: list = None, dbi: db_orm.DbInterface = None,
+                            test_run_config_ids: list = None, mapping_to: str = None) -> tuple[list, str]:
+        test_run_configs = []
+        html = self.div_open_html
+
+        for test_case in test_cases:
+            html += test_case_to_html(test_case[_TC])
+
+            # Test Runs
+            test_runs_query = (
+                dbi.session.query(TestRunModel)
+                .filter(TestRunModel.mapping_to == mapping_to)
+                .filter(TestRunModel.mapping_id == test_case["relation_id"])
+
+            )
+            if test_run_config_ids:
+                test_runs_query = test_runs_query.filter(TestRunModel.test_run_config_id.in_(test_run_config_ids))
+            test_runs = (
+                test_runs_query.order_by(TestRunModel.test_run_config_id.desc(), TestRunModel.id.asc()).all()
+            )
+
+            if test_runs:
+                html += self.div_open_html
+                for test_run in test_runs:
+                    test_run_configs.append(test_run.as_dict().get("config", {}))
+                    html += test_run_to_html(test_run.as_dict(full_data=True))
+                html += self.div_close_html
+
+        html += self.div_close_html
+        return test_run_configs, html
+
+    def get_test_run_configs_html(self, test_run_configs: list = None) -> str:
+        if not isinstance(test_run_configs, list):
+            return ""
+
+        if not len(test_run_configs):
+            return ""
+
+        html = "<div id='test-run-configs'>"
+        html += "<h2>Test Run Configurations</h2>"
+
+        for test_run_config in test_run_configs:
+            html += test_run_config_to_html(test_run_config)
+
+        html += self.div_close_html
+        return html
+
+    def get_documents_html(self, documents: list = None) -> str:
+        html = self.div_open_html
+
+        for document in documents:
+            html += document_to_html(document[_D])
+
+            # Nested Documents
+            if len(document[_Ds]):
+                html += self.get_documents_html(document[_Ds])
+
+        html += self.div_close_html
+        return html
+
+    def get_justifications_html(self, justifications: list = None) -> str:
+        html = self.div_open_html
+
+        for justification in justifications:
+            html += justification_to_html(justification[_J])
+
+        html += self.div_close_html
+        return html
+
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+
+        mandatory_fields = ["api-id", "mapping-view"]
+
+        if not check_fields_in_request(
+                fields=mandatory_fields,
+                request=request.args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        args = get_query_string_args(request.args)
+        mapping_view = args.get("mapping-view", "").replace("-", "_")
+
+        test_run_configs = []
+        test_run_config_ids = []
+        test_run_config_id = args.get("test_run_config_id", None)
+        if test_run_config_id:
+            if isinstance(test_run_config_id, int):
+                test_run_config_ids = [test_run_config_id]
+            elif isinstance(test_run_config_id, list):
+                test_run_config_ids = test_run_config_id
+
+        if not check_fields_in_request(
+                fields=self.fields,
+                request=args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        export_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        html = "<html><head><meta charset='utf-8'><style>" \
+               "@page {size: A4; margin: 0 !important;}" \
+               "html, body {margin: 0 !important; padding: 0 !important; width: 100% !important;}" \
+               "body {color:#242424;font-size:13px;line-height:1.6;}" \
+               "body > * {max-width: 100% !important;}" \
+               "h1{font-size:28px;margin:0 0 12px;}" \
+               "h2{font-size:20px;margin:24px 0 8px;border-bottom:1px solid #d2d2d2;padding-bottom:4px;}" \
+               "h3{font-size:16px;margin:16px 0 8px;color:#3c3f42;}" \
+               "table, th, td {vertical-align: top !important;}" \
+               "table{border-collapse:collapse; width:100%;}" \
+               "td{padding:8px 10px;}" \
+               "tr+tr td{border-top:1px solid #e0e0e0;}" \
+               "td:first-child{white-space:nowrap;width:20%;color:#6a6e73;font-weight:600;}" \
+               ".muted{color:#6a6e73;font-size:12px;}" \
+               "*, .pf-c-label, .code-block, " \
+               ".code-block__content{-webkit-print-color-adjust:exact;print-color-adjust:exact;}" \
+               ".code-block{border:1px solid #d2d2d2;border-radius:3px;background:#f5f5f5;margin:8px 0 16px;}" \
+               ".code-block__content{padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas," \
+               "\"Liberation Mono\",\"Courier New\",monospace;font-size:13px;line-height:1.5;color:#151515;" \
+               "overflow:auto;white-space:pre-wrap;word-break:break-word;background:#f5f5f5;}" \
+               ".code-block--nowrap .code-block__content{white-space:pre;word-break:normal;overflow-x:auto;}" \
+               ".pf-c-label{display:inline-flex;align-items:center;gap:6px;border:1px solid #d2d2d2;" \
+               "border-radius:16px;background:#f5f5f5;color:#151515;font-size:12px;line-height:1.5;}" \
+               ".pf-c-label__content{padding:2px 8px;font-weight:600;letter-spacing:.02em;}" \
+               ".uppercase{text-transform:uppercase;}" \
+               "</style></head><body style='font-family: \"Roboto\", \"Helvetica\", \"Arial\", sans-serif;'>"
+        html += api.to_html(exported_on=export_date, exported_by=user.username)
+
+        if mapping_view == "sw_requirements":
+            mapped_sections = get_api_sw_requirements_mapping_sections(dbi, api)
+        elif mapping_view == "test_specifications":
+            mapped_sections = get_api_test_specifications_mapping_sections(dbi, api)
+        elif mapping_view == "test_cases":
+            mapped_sections = get_api_test_cases_mapping_sections(dbi, api)
+        else:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        for i_mapped_section, mapped_section in enumerate(mapped_sections["mapped"]):
+            html += f"<div id='reference_document_snippet-{i_mapped_section+1}'>"
+            html += f"<h2>Reference document snippet {i_mapped_section+1}</h2>"
+            html += "<div class='code-block'>"
+            html += f"<div class='code-block__content'>{string_to_html(mapped_section['section'])}</div></div>"
+            html += "</div>"
+
+            # Sw Requirements
+            sr_test_run_configs, sr_html = self.get_sw_requirements_html(
+                sw_requirements=mapped_section[_SRs],
+                dbi=dbi,
+                test_run_config_ids=test_run_config_ids
+            )
+            test_run_configs.extend(sr_test_run_configs)
+            html += sr_html
+
+            # Test Specifications
+            ts_test_run_configs, ts_html = self.get_test_specifications_html(
+                test_specifications=mapped_section[_TSs],
+                dbi=dbi,
+                test_run_config_ids=test_run_config_ids
+            )
+            test_run_configs.extend(ts_test_run_configs)
+            html += ts_html
+
+            # Test Cases
+            tc_test_run_configs, tc_html = self.get_test_cases_html(
+                test_cases=mapped_section[_TCs],
+                dbi=dbi,
+                test_run_config_ids=test_run_config_ids,
+                mapping_to="test_case_mapping_api")
+            test_run_configs.extend(tc_test_run_configs)
+            html += tc_html
+
+            # Documents
+            html += self.get_documents_html(mapped_section[_Ds])
+
+            # Justifications
+            html += self.get_justifications_html(mapped_section[_Js])
+
+        # Test Run Configs
+        # Remove duplicates
+        unique_test_run_config_ids = [x.get("id", None) for x in test_run_configs if x.get("id", None) is not None]
+        unique_test_run_config_ids = list(set(unique_test_run_config_ids))
+        unique_test_run_configs = (
+            dbi.session.query(TestRunConfigModel)
+            .filter(TestRunConfigModel.id.in_(unique_test_run_config_ids))
+            .all()
+        )
+        unique_test_run_configs = [x.as_dict(full_data=True) for x in unique_test_run_configs]
+        html += self.get_test_run_configs_html(test_run_configs=unique_test_run_configs)
+
+        # Tools
+        html += tools_to_html()
+        html += "</body></html>"
+
+        # Save HTML to file
+        user_html_dir = get_user_html_folder_path(user)
+        html_filepath = os.path.join(user_html_dir, f"{api.id}_{mapping_view}.html")
+        with open(html_filepath, "w") as f:
+            f.write(html)
+
+        return {"data": html}
+
+
+class HTMLExportDownload(Resource):
+    # Return PDF to user
+    def get(self):
+        mandatory_fields = ["api-id", "mapping-view", "filename", "user-id", "token"]
+        request_data = request.args
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        mapping_view = request_data.get("mapping-view", None)
+        api_id = request_data.get("api-id", None)
+        download_filename = request_data.get("filename", None)
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        if mapping_view is None:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        if api_id is None:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        if not download_filename:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # Mapping view is not None, refactor the string
+        mapping_view = mapping_view.replace("-", "_")
+        download_file_basename, download_file_extension = os.path.splitext(download_filename)
+        if download_file_extension not in [".pdf", ".html"]:
+            return BAD_REQUEST_MESSAGE + f": Invalid file extension: {download_file_extension}", BAD_REQUEST_STATUS
+
+        if download_file_extension == ".pdf":
+            user_dir = get_user_pdf_folder_path(user)
+
+            # Read HTML file
+            html_user_dir = get_user_html_folder_path(user)
+            html_filename = f"{api_id}_{mapping_view}.html"
+            html_filepath = os.path.join(html_user_dir, html_filename)
+            if not os.path.exists(html_filepath):
+                return NOT_FOUND_MESSAGE + f": file not found: {html_filepath}", NOT_FOUND_STATUS
+            with open(html_filepath, "r") as f:
+                html_content = f.read()
+
+            # Call Pandoc microservice using urllib
+            # Force zero page margins to avoid extra whitespace in PDF
+            payload = {
+                "html": html_content,
+                "margin_top_mm": 10,
+                "margin_bottom_mm": 20,
+                "margin_left_mm": 0,
+                "margin_right_mm": 0,
+                "page_size": "A4",
+                "footer_center": "Page [page] / [toPage]",
+                "footer_font_size": 8,
+                "footer_spacing_mm": 4,
+                "footer_line": True
+            }
+            req = urllib.request.Request(
+                PANDOC_SERVICE_URL,
+                data=json.dumps(payload).encode("utf-8"),  # bytes
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/pdf"
+                },
+                method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    status_code = resp.getcode()
+                    response_content = resp.read()
+            except urllib.error.HTTPError as e:
+                try:
+                    error_body = e.read().decode("utf-8", errors="ignore")
+                except Exception:
+                    error_body = ""
+                logger.error(f"Pandoc convert HTTPError {e.code}: {error_body[:500]}")
+                return {"error": f"PDF conversion failed ({e.code})"}, 500
+            except urllib.error.URLError as e:
+                logger.error(f"Pandoc convert URLError: {getattr(e, 'reason', e)}")
+                return {"error": "PDF conversion failed (connection error)"}, 500
+            if status_code != 200:
+                logger.error(f"Pandoc convert non-200 status: {status_code}")
+                return {"error": f"PDF conversion failed ({status_code})"}, 500
+
+            # Save PDF to target location
+            pdf_filepath = os.path.join(user_dir, f"{api_id}_{mapping_view}.pdf")
+
+            with open(pdf_filepath, "wb") as f:
+                f.write(response_content)
+        else:
+            user_dir = get_user_html_folder_path(user)
+        export_filename = f"{api_id}_{mapping_view}{download_file_extension}"
+        export_filepath = os.path.join(user_dir, export_filename)
+        if not os.path.exists(export_filepath):
+            return NOT_FOUND_MESSAGE + f": file not found: {export_filepath}", NOT_FOUND_STATUS
+
+        return send_file(export_filepath, as_attachment=True, download_name=export_filename)
 
 
 @app.route('/spdx/apis/export-download')
@@ -2583,112 +3082,21 @@ class ApiSpecification(Resource):
 class ApiTestSpecificationsMapping(Resource):
     fields = ["api-id", "test-specification", "section", "coverage"]
 
-    def get(self):
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        undesired_keys = ["section", "offset"]
-
-        dbi = get_db()
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        user = get_active_user_from_request(args, dbi.session)
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        api_specification = get_api_specification(api.raw_specification_url)
-        if api_specification is None:
-            return []
-
-        ts = (
-            dbi.session.query(ApiTestSpecificationModel)
-            .filter(ApiTestSpecificationModel.api_id == api.id)
-            .order_by(ApiTestSpecificationModel.offset.asc())
-            .all()
-        )
-        ts_mapping = [x.as_dict(db_session=dbi.session) for x in ts]
-
-        documents = (
-            dbi.session.query(ApiDocumentModel)
-            .filter(ApiDocumentModel.api_id == api.id)
-            .order_by(ApiDocumentModel.offset.asc())
-            .all()
-        )
-        documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
-
-        justifications = (
-            dbi.session.query(ApiJustificationModel)
-            .filter(ApiJustificationModel.api_id == api.id)
-            .order_by(ApiJustificationModel.offset.asc())
-            .all()
-        )
-        justifications_mapping = [x.as_dict(db_session=dbi.session) for x in justifications]
-
-        mapping = {_A: api.as_dict(), _TSs: ts_mapping, _Js: justifications_mapping, _Ds: documents_mapping}
-
-        for iTS in range(len(mapping[_TSs])):
-            # Indirect Test Cases
-            curr_ats_id = mapping[_TSs][iTS]["relation_id"]
-
-            ind_tc = (
-                dbi.session.query(TestSpecificationTestCaseModel)
-                .filter(TestSpecificationTestCaseModel.test_specification_mapping_api_id == curr_ats_id)
-                .all()
-            )
-            mapping[_TSs][iTS][_TS][_TCs] = [
-                get_dict_without_keys(x.as_dict(db_session=dbi.session), undesired_keys + ["api"]) for x in ind_tc
-            ]
-
-        for iType in [_TSs, _Js, _Ds]:
-            for iMapping in range(len(mapping[iType])):
-                current_offset = mapping[iType][iMapping]["offset"]
-                current_section = mapping[iType][iMapping]["section"]
-                mapping[iType][iMapping]["match"] = (
-                    api_specification[current_offset: current_offset + len(current_section)] == current_section
-                )
-
-        mapped_sections = get_split_sections(api_specification, mapping, [_TS, _J, _D])
-        unmapped_sections = [x for x in mapping[_TSs] if not x["match"]]
-        unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
-        unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
-
-        for iMS in range(len(mapped_sections)):
-            for iD in range(len(mapped_sections[iMS][_Ds])):
-                document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
-                mapped_sections[iMS][_Ds][iD] = document_children_data
-
-        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
+        ret = get_api_test_specifications_mapping_sections(dbi, api)
         return ret
 
-    def post(self):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -2771,28 +3179,12 @@ class ApiTestSpecificationsMapping(Resource):
         dbi.session.commit()
         return new_test_specification_mapping_api.as_dict()
 
-    def put(self):
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
             test_specification_mapping_api = (
@@ -2853,26 +3245,12 @@ class ApiTestSpecificationsMapping(Resource):
 
         return test_specification_mapping_api.as_dict()
 
-    def delete(self):
+    @check_api_user_write_permission
+    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         try:
@@ -2921,97 +3299,21 @@ class ApiTestSpecificationsMapping(Resource):
 class ApiTestCasesMapping(Resource):
     fields = ["api-id", "test-case", "section", "coverage"]
 
-    def get(self):
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = get_db()
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        user = get_active_user_from_request(args, dbi.session)
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        api_specification = get_api_specification(api.raw_specification_url)
-        if api_specification is None:
-            return []
-
-        tc = (
-            dbi.session.query(ApiTestCaseModel)
-            .filter(ApiTestCaseModel.api_id == api.id)
-            .order_by(ApiTestCaseModel.offset.asc())
-            .all()
-        )
-        tc_mapping = [x.as_dict(db_session=dbi.session) for x in tc]
-
-        documents = (
-            dbi.session.query(ApiDocumentModel)
-            .filter(ApiDocumentModel.api_id == api.id)
-            .order_by(ApiDocumentModel.offset.asc())
-            .all()
-        )
-        documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
-
-        justifications = (
-            dbi.session.query(ApiJustificationModel)
-            .filter(ApiJustificationModel.api_id == api.id)
-            .order_by(ApiJustificationModel.offset.asc())
-            .all()
-        )
-        justifications_mapping = [x.as_dict(db_session=dbi.session) for x in justifications]
-
-        mapping = {_A: api.as_dict(), _TCs: tc_mapping, _Js: justifications_mapping, _Ds: documents_mapping}
-
-        for iType in [_TCs, _Js, _Ds]:
-            for iMapping in range(len(mapping[iType])):
-                current_offset = mapping[iType][iMapping]["offset"]
-                current_section = mapping[iType][iMapping]["section"]
-                mapping[iType][iMapping]["match"] = (
-                    api_specification[current_offset: current_offset + len(current_section)] == current_section
-                )
-
-        mapped_sections = get_split_sections(api_specification, mapping, [_TC, _J, _D])
-        unmapped_sections = [x for x in mapping[_TCs] if not x["match"]]
-        unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
-        unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
-
-        for iMS in range(len(mapped_sections)):
-            for iD in range(len(mapped_sections[iMS][_Ds])):
-                document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
-                mapped_sections[iMS][_Ds][iD] = document_children_data
-
-        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
+        ret = get_api_test_cases_mapping_sections(dbi, api)
         return ret
 
-    def post(self):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -3084,28 +3386,12 @@ class ApiTestCasesMapping(Resource):
         dbi.session.add(notifications)
         return new_test_case_mapping_api.as_dict()
 
-    def put(self):
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         try:
             test_case_mapping_api = (
@@ -3160,28 +3446,12 @@ class ApiTestCasesMapping(Resource):
 
         return test_case_mapping_api.as_dict()
 
-    def delete(self):
+    @check_api_user_write_permission
+    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         try:
@@ -3527,25 +3797,13 @@ class ApiSpecificationsMapping(Resource):
 class ApiJustificationsMapping(Resource):
     fields = ["api-id", "justification", "section", "offset", "coverage"]
 
-    def get(self):
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         args = get_query_string_args(request.args)
         if not check_fields_in_request(["api-id"], args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # undesired_keys = ['section', 'offset']
-
-        dbi = get_db()
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        user = get_active_user_from_request(args, dbi.session)
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
@@ -3576,28 +3834,12 @@ class ApiJustificationsMapping(Resource):
 
         return ret
 
-    def post(self):
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -3666,28 +3908,12 @@ class ApiJustificationsMapping(Resource):
         dbi.session.commit()
         return new_justification_mapping_api.as_dict()
 
-    def put(self):
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields + ["relation-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         try:
@@ -3748,28 +3974,12 @@ class ApiJustificationsMapping(Resource):
         dbi.session.commit()
         return justification_mapping_api.as_dict()
 
-    def delete(self):
+    @check_api_user_write_permission
+    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(["relation-id", "api-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         # check if api ...
         justification_mapping_api = (
@@ -8576,17 +8786,15 @@ class TraceabilityScannerSettings(Resource):
         except Exception as exc:
             return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
 
-        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
-        user_config_path = os.path.join(user_config_dir, "config.yaml")
+        user_config_dir = get_user_config_folder_path(user)
+        user_config_filepath = os.path.join(user_config_dir, "config.yaml")
         try:
-            if not os.path.exists(user_config_dir):
-                os.makedirs(user_config_dir, exist_ok=True)
-            f = open(user_config_path, "w")
+            f = open(user_config_filepath, "w")
             f.write(request_data["content"])
             f.close()
             ret["content"] = request_data["content"]
         except Exception as exc:
-            logger.error(f"Unable to write user settings file {user_config_path}: {exc}")
+            logger.error(f"Unable to write user settings file {user_config_filepath}: {exc}")
             return f"{BAD_REQUEST_MESSAGE} Unable to write configuration", BAD_REQUEST_STATUS
         return ret
 
@@ -8605,10 +8813,10 @@ class TraceabilityScannerScan(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
-        user_config_path = os.path.join(user_config_dir, "config.yaml")
+        user_config_dir = get_user_config_folder_path(user)
+        user_config_filepath = os.path.join(user_config_dir, "config.yaml")
 
-        if os.path.exists(user_config_path):
+        if os.path.exists(user_config_filepath):
             """list of traceability scans log files"""
             log_files = [f for f in os.listdir(user_config_dir) if f.endswith(".log")]
             ret["content"] = log_files
@@ -8625,12 +8833,12 @@ class TraceabilityScannerScan(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
-        user_config_path = os.path.join(user_config_dir, "config.yaml")
-        if not os.path.exists(user_config_path):
+        user_config_dir = get_user_config_folder_path(user)
+        user_config_filepath = os.path.join(user_config_dir, "config.yaml")
+        if not os.path.exists(user_config_filepath):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        config = get_user_traceability_scanner_config(user.id)
+        config = get_user_traceability_scanner_config(user)
         if not config:
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
@@ -8674,7 +8882,7 @@ class TraceabilityScannerLogs(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_dir = get_user_config_folder_path(user)
         scan_id = str(request_data.get("scan-id", "")).strip()
         # basic validation to avoid directories/path traversal
         if not scan_id or scan_id != os.path.basename(scan_id):
@@ -8697,7 +8905,7 @@ class TraceabilityScannerLogs(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_dir = get_user_config_folder_path(user)
         scan_id = str(request_data.get("scan-id", "")).strip()
         if not scan_id or scan_id != os.path.basename(scan_id):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
@@ -8808,6 +9016,8 @@ api.add_resource(ApiSpecification, "/api-specifications")
 api.add_resource(ApiWritePermissionRequest, "/apis/write-permission-request")
 api.add_resource(Library, "/libraries")
 api.add_resource(SPDXApi, "/spdx/apis")
+api.add_resource(HTMLApi, "/html/apis")
+api.add_resource(HTMLExportDownload, "/html/apis/export-download")
 api.add_resource(Document, "/documents")
 api.add_resource(RemoteDocument, "/remote-documents")
 api.add_resource(Justification, "/justifications")

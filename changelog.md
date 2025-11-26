@@ -12,6 +12,7 @@
 - Extend traceability supporting document mapping to document
 - Document fork
 - Traceability scanner
+- HTML/PDF Export
 
 ## 1.7.x
 

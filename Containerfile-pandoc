@@ -1,0 +1,44 @@
+FROM fedora:39 AS base
+
+ARG PANDOC_PORT=8282
+
+# 1. Create a non-root user for running Pandoc
+RUN useradd -m -s /bin/bash pandocsvc
+
+RUN mkdir -p /tmp/workdir \
+    && chown -R pandocsvc:pandocsvc /tmp/workdir
+ENV TMPDIR=/tmp/workdir
+
+RUN dnf -y install \
+        pandoc \
+        wkhtmltopdf \
+        fontconfig \
+        google-roboto-fonts \
+        xorg-x11-fonts-Type1 \
+        xorg-x11-fonts-75dpi \
+        xorg-x11-fonts-100dpi \
+        libXrender \
+        libXext \
+        libX11 \
+        libstdc++ \
+        ca-certificates \
+        python3 \
+        python3-pip \
+    && dnf clean all
+
+WORKDIR /tmp/workdir
+
+# Install Python packages
+COPY requirements_pandoc.txt .
+RUN pip3 install --no-cache-dir -r requirements_pandoc.txt
+
+# Copy service source
+COPY pandoc_server.py .
+
+# Create non-root user
+USER pandocsvc
+
+EXPOSE ${PANDOC_PORT}
+
+# IMPORTANT: start uvicorn server, not python file!
+CMD ["uvicorn", "pandoc_server:app", "--host", "0.0.0.0", "--port", "${PANDOC_PORT}"]

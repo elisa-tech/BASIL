@@ -149,6 +149,17 @@ class ApiModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def to_html(self, exported_on: str = "", exported_by: str = ""):
+        html = f"<div id='api-{self.id}'>"
+        html += f"<h1>{self.library} - {self.api}</h1>"
+        html += f"<p><b>Library version</b>: {self.library_version}</p>"
+        if exported_on:
+            html += f"<p><b>Exported on</b>: {exported_on}</p>"
+        if exported_by:
+            html += f"<p><b>Exported by</b>: {exported_by}</p>"
+        html += f"<p><b>Reference document</b>: {self.raw_specification_url}</p>"
+        html += "</div>"
+        return html
 
 @event.listens_for(ApiModel, "after_update")
 def receive_after_update(mapper, connection, target):

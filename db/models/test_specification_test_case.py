@@ -122,7 +122,7 @@ class TestSpecificationTestCaseModel(Base):
         try:
             tc = db_session.query(TestCaseModel).filter(
                 TestCaseModel.id == self.test_case_id).one()
-            return tc.as_dict(db_session)
+            return tc.as_dict(db_session=db_session)
         except NoResultFound:
             return None
 

@@ -67,7 +67,7 @@ class TestSpecificationModel(Base):
                  'created_by': self.created_by.username,
                  }
 
-        if db_session:
+        if db_session is not None:
             _dict['version'] = self.current_version(db_session)
 
         if full_data:

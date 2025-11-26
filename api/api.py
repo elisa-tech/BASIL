@@ -702,9 +702,17 @@ def split_section(_to_splits, _that_split, _work_item_type):
             idx_set = set(idx)
             idx = sorted(list(idx_set))
             for i in range(1, len(idx)):
+                # Compute boundaries relative to the section being split to avoid negative or zero-length slices
+                base_offset = _to_split["offset"]
+                section_start = base_offset
+                section_end = base_offset + len(_to_split["section"])
+                segment_start = max(idx[i - 1], section_start)
+                segment_end = min(idx[i], section_end)
+                if segment_end <= segment_start:
+                    continue
                 tmp_section = {
-                    "section": _to_split["section"][idx[i - 1] - idx[0]: idx[i] - idx[0]],
-                    "offset": idx[i - 1],
+                    "section": _to_split["section"][segment_start - base_offset: segment_end - base_offset],
+                    "offset": segment_start,
                     "coverage": _to_split["coverage"],
                     "covered": _to_split["covered"],
                     "gap": _to_split["gap"],

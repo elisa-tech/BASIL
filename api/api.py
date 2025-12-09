@@ -84,6 +84,7 @@ from api_utils import (
     test_run_to_html,
     tools_to_html,
 )
+from pandoc import ConvertRequest, convert_to_pdf
 from testrun import TestRunner
 import db.models.init_db as init_db
 
@@ -2071,46 +2072,24 @@ class HTMLExportDownload(Resource):
             with open(html_filepath, "r") as f:
                 html_content = f.read()
 
-            # Call Pandoc microservice using urllib
-            # Force zero page margins to avoid extra whitespace in PDF
-            payload = {
-                "html": html_content,
-                "margin_top_mm": 10,
-                "margin_bottom_mm": 20,
-                "margin_left_mm": 0,
-                "margin_right_mm": 0,
-                "page_size": "A4",
-                "footer_center": "Page [page] / [toPage]",
-                "footer_font_size": 8,
-                "footer_spacing_mm": 4,
-                "footer_line": True
-            }
-            req = urllib.request.Request(
-                PANDOC_SERVICE_URL,
-                data=json.dumps(payload).encode("utf-8"),  # bytes
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/pdf"
-                },
-                method="POST"
-            )
             try:
-                with urllib.request.urlopen(req) as resp:
-                    status_code = resp.getcode()
-                    response_content = resp.read()
-            except urllib.error.HTTPError as e:
-                try:
-                    error_body = e.read().decode("utf-8", errors="ignore")
-                except Exception:
-                    error_body = ""
-                logger.error(f"Pandoc convert HTTPError {e.code}: {error_body[:500]}")
-                return {"error": f"PDF conversion failed ({e.code})"}, 500
-            except urllib.error.URLError as e:
-                logger.error(f"Pandoc convert URLError: {getattr(e, 'reason', e)}")
-                return {"error": "PDF conversion failed (connection error)"}, 500
-            if status_code != 200:
-                logger.error(f"Pandoc convert non-200 status: {status_code}")
-                return {"error": f"PDF conversion failed ({status_code})"}, 500
+                response_content = convert_to_pdf(
+                    ConvertRequest(
+                        html=html_content,
+                        margin_top_mm=10,
+                        margin_bottom_mm=20,
+                        margin_left_mm=0,
+                        margin_right_mm=0,
+                        page_size="A4",
+                        footer_center="Page [page] / [toPage]",
+                        footer_font_size=8,
+                        footer_spacing_mm=4,
+                        footer_line=True
+                    )
+                )
+            except Exception as e:
+                logger.error(f"Pandoc convert error: {e}")
+                return {"error": "PDF conversion failed"}, 500
 
             # Save PDF to target location
             pdf_filepath = os.path.join(user_dir, f"{api_id}_{mapping_view}.pdf")

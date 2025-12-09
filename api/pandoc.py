@@ -1,12 +1,9 @@
-from fastapi import FastAPI
 from pydantic import BaseModel
-from fastapi.responses import Response
 import os
 import tempfile
 import subprocess
 from typing import Optional
 
-app = FastAPI()
 
 # Define request body schema
 class ConvertRequest(BaseModel):
@@ -23,18 +20,22 @@ class ConvertRequest(BaseModel):
     footer_spacing_mm: Optional[int] = None
     footer_line: Optional[bool] = None
 
+
 # Set TMPDIR in Python
-os.environ["TMPDIR"] = "/tmp/workdir"
+PANDOC_TMPDIR = os.environ.get("BASIL_PANDOC_TMPDIR", "/tmp/pandoc/workdir")
+if not os.path.exists(PANDOC_TMPDIR):
+    os.makedirs(PANDOC_TMPDIR, exist_ok=True)
+
 
 # Copy current environment and pass it to subprocess
 env = os.environ.copy()
 
-@app.post("/convert")
-async def convert_to_pdf(req: ConvertRequest):
+
+def convert_to_pdf(req: ConvertRequest):
     html_content = req.html
 
-    html_file = tempfile.NamedTemporaryFile(dir="/tmp/workdir", suffix=".html", delete=False)
-    pdf_file = tempfile.NamedTemporaryFile(dir="/tmp/workdir", suffix=".pdf", delete=False)
+    html_file = tempfile.NamedTemporaryFile(dir=PANDOC_TMPDIR, suffix=".html", delete=False)
+    pdf_file = tempfile.NamedTemporaryFile(dir=PANDOC_TMPDIR, suffix=".pdf", delete=False)
 
     html_path = html_file.name
     pdf_path = pdf_file.name
@@ -68,8 +69,33 @@ async def convert_to_pdf(req: ConvertRequest):
         "--pdf-engine-opt=--page-size", f"--pdf-engine-opt={page_size}",
     ]
 
-    subprocess.run(pandoc_args, check=True, env=env)
+    # Footer options (page numbers etc.)
+    if req.footer_center:
+        pandoc_args.extend(
+            ["--pdf-engine-opt=--footer-center", f"--pdf-engine-opt={req.footer_center}"]
+        )
+    if req.footer_left:
+        pandoc_args.extend(
+            ["--pdf-engine-opt=--footer-left", f"--pdf-engine-opt={req.footer_left}"]
+        )
+    if req.footer_right:
+        pandoc_args.extend(
+            ["--pdf-engine-opt=--footer-right", f"--pdf-engine-opt={req.footer_right}"]
+        )
+    if isinstance(req.footer_font_size, int):
+        pandoc_args.extend(
+            ["--pdf-engine-opt=--footer-font-size",
+             f"--pdf-engine-opt={int(req.footer_font_size)}"]
+        )
+    if isinstance(req.footer_spacing_mm, int):
+        pandoc_args.extend(
+            ["--pdf-engine-opt=--footer-spacing",
+             f"--pdf-engine-opt={int(req.footer_spacing_mm)}mm"]
+        )
+    if req.footer_line:
+        pandoc_args.append("--pdf-engine-opt=--footer-line")
 
+    subprocess.run(pandoc_args, check=True, env=env)
 
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
@@ -77,4 +103,4 @@ async def convert_to_pdf(req: ConvertRequest):
     os.unlink(html_path)
     os.unlink(pdf_path)
 
-    return Response(content=pdf_bytes, media_type="application/pdf")
+    return pdf_bytes

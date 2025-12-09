@@ -161,6 +161,7 @@ class ApiModel(Base):
         html += "</div>"
         return html
 
+
 @event.listens_for(ApiModel, "after_update")
 def receive_after_update(mapper, connection, target):
     # Avoid to update the version if the only change is related to last_coverage

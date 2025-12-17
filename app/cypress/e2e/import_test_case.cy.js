@@ -9,7 +9,7 @@ import { createUniqWorkItems } from '../support/utils.js'
 // Appending to each dictionary of the fixture data a date string to a target field
 let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 
-describe('Test Case Import', () => {
+describe('Test Case Import', { viewportWidth: 1280, viewportHeight: 900, scrollBehavior: 'center' }, () => {
   beforeEach(() => {
     cy.login_admin()
   })
@@ -41,7 +41,7 @@ describe('Test Case Import', () => {
         id = elem
         cy.visit(const_data.app_base_url + '/mapping/' + id)
         cy.wait(const_data.long_wait)
-        cy.get('#btn-mapping-new-test-case').click()
+        cy.get('#btn-mapping-new-test-case').scrollIntoView().should('be.visible').click()
         cy.get('#pf-tab-3-tab-btn-test-case-import').click()
         cy.get('#btn-test-case-import-scan-remote-repository').click()
         cy.get('#input-test-case-import-repository-url')

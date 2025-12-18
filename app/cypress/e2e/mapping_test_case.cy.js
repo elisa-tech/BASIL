@@ -11,7 +11,7 @@ import { createUniqWorkItems } from '../support/utils.js'
 let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
-describe('Test Case Mapping', () => {
+describe('Test Case Mapping', { viewportWidth: 1280, viewportHeight: 900, scrollBehavior: 'center' }, () => {
   beforeEach(() => {
     cy.login_admin()
   })
@@ -48,7 +48,7 @@ describe('Test Case Mapping', () => {
         })
         cy.wait(const_data.long_wait)
         cy.get(const_data.mapping.table_unmatching_id).find('tbody').find('tr').should('have.length', 0)
-        cy.get('#btn-mapping-new-test-case').click()
+        cy.get('#btn-mapping-new-test-case').scrollIntoView().should('be.visible').click()
         cy.fill_form('test-case', 'add', tc_data.first, true, true)
         cy.get('#pf-tab-1-tab-btn-test-case-mapping-section').click()
         cy.get('#btn-section-set-unmatching').click()

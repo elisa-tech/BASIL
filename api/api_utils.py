@@ -305,12 +305,12 @@ def get_user_traceability_scanner_config(user_id):
             logger.error(f"Unable to write user settings file {user_config_path}: {exc}")
             return None
     try:
-        f = open(user_config_filepath, "r")
+        f = open(user_config_path, "r")
         fc = f.read()
         f.close()
         return fc
     except Exception:
-        logger.error(f"Unable to read user settings file: {user_config_filepath}")
+        logger.error(f"Unable to read user settings file: {user_config_path}")
     return None
 
 

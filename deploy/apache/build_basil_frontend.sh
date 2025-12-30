@@ -14,6 +14,7 @@ API_PORT="${BASIL_API_PORT:-5000}"
 APP_PORT="${BASIL_APP_PORT:-9000}"
 
 ## --- constants -----------------------------------------------------------------------------------
+APACHE_PORTCONFIG=/etc/apache2/ports.conf
 BASIL_REPOSITORY=https://github.com/elisa-tech/BASIL.git
 BASIL_BUILD_DIR=/tmp/basil
 BASIL_BUILD_APP=$BASIL_BUILD_DIR/app
@@ -25,13 +26,18 @@ APPCONSTANTS_FILE=$BASIL_BUILD_APP/src/app/Constants/constants.tsx
 
 ### --- general instructions (0 == FALSE, > 0 TRUE ):-----------------------------------------------
 ## --- install mandatory software / toolchain:
-SETUPTOOLCHAIN=1
-UPDATENODEPACKAGES=1
+SETUPTOOLCHAIN=0
+UPDATENODEPACKAGES=0
+
+## --- Eliminate non-pritable chars (e.g. \n or \r) ----------------------------------------------------
+UPDATENODEPACKAGES=${UPDATENODEPACKAGES//[^0-9-]/}
+APP_PORT=${APP_PORT//[^0-9-]/}
+API_ENDPOINT=$(echo "$API_ENDPOINT" | tr -cd '[:print:]')
 
 ### ####################################    main    ################################################
 echo
 echo ===============================================================================================
-echo BASIL Frontend web application
+echo New BASIL Frontend web application
 echo ===============================================================================================$'\n'
 if [ $SETUPTOOLCHAIN -gt 0 ]; then
     ## --- delete previous / current node.js-installation, if it exist:
@@ -41,18 +47,20 @@ if [ $SETUPTOOLCHAIN -gt 0 ]; then
 fi
 
 # --- check if npm is installed: -------------------------------------------------------------------
-if ! command -v npm >/dev/null 2>&1 ;  then
+if command -v npm >/dev/null 2>&1 ;  then
+    echo "   Build Frontend: npm already installed!"
+else
     echo $'\n'"************************************************************************************************"
     echo "***    Install nvm v10.X.Y and node.js v22.X.Y             *************************************"
     echo "***    please refer to: https://nodejs.org/en/download     *************************************"
     echo "************************************************************************************************"$'\n'
-    
+
     # --- be shure old nvm is deleted, before download!
     if [ -d $$HOME/.nvm ]; then
         rm -R $HOME/.nvm
     fi
-    
-    echo ---- download nvm: ---------------------------------------------------------------------$'\n'
+
+    echo ---- download nvm: ----------------------------------------------------------------------$'\n'
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
     echo ---- install nvm inside the root HOME folder: -------------------------------------------$'\n'
     export NVM_DIR="$HOME/.nvm"
@@ -65,40 +73,51 @@ echo "***   Version of npm and node.js: ****************************************
 echo "      - javascript package manager, npm: v"$(npm -v)
 echo "      - node.js:                         "$(node -v)
 echo "-------------------------------------------------------------------------------------------"
-echo "   Please check the the messages displayed during script execution. Things may change ..."
-echo "   if you see nvm related massages you may try the option UPDATENODEPACKAGES=1 (see above)"
+echo "   Please check the the messages displayed during script execution. Things may change ...  "
+echo "   if you see nvm related massages you may try the option UPDATENODEPACKAGES=1 (see above) "
 echo "-------------------------------------------------------------------------------------------"
 
-## --- Clone BASIL repo if needed --------------------------------------------------
-clone_basil_repo_if_needed
+## --- Clone BASIL repo if needed --------------------------------------------------------
+echo "   Build Frontend: Clone BASIL-Repository if needed! "
+
+clone_basil_repo_if_needed "${BASIL_REPOSITORY}" "${BASIL_BUILD_DIR}" ${CLONEBASIL} ${BASIL_GITGOBACK} "${BASIL_COMMITBEFORE}"
+
+## --- Chnge directory -------------------------------------------------------------------------------
+echo "   Build Frontend: Change Directory, go to: \$BASIL_BUILD_APP: ${BASIL_BUILD_APP} --- "
 cd $BASIL_BUILD_APP
 
-if [ $UPDATENODEPACKAGES -gt 0 ]; then
+if (( UPDATENODEPACKAGES > 0 )); then
     ## --- some nmp stuff:
-    echo "***   Repair and update node.js packages:      ********************************************"
+    echo "***   Repair and update node.js packages:      ********************************************"$'\n'
     npm i --package-lock-only
     npm audit fix
     npx update-browserslist-db@latest
     npm update chokidar
     npm update --save
+else
+    echo "***   No Update of node.js packages:      ********************************************"$'\n'
 fi
 
 ## --- Build front end --------------------------------------------------
+echo "   Build Frontend: Compile by means of npm, go to: \$BASIL_BUILD_APP: ${BASIL_BUILD_APP} --- "
 mkdir -p $BASIL_FRONT_END/app
 cd $BASIL_BUILD_APP
 ls -l $BASIL_BUILD_APP
 echo --- Build BASIL Frontend Application ------------------------------
 echo $(pwd)
-echo ---  npm install --------------------------------------------------
+echo "---  command: npm install ----------------------------------------------------------------"
 npm install
-echo ---  fine tune constants ------------------------------------------
+
+echo "---  Build BASIL Frontend: fine tune constants ------------------------------------------"
 if [ -f "$APPCONSTANTS_FILE" ]; then
     echo ---  "$APPCONSTANTS_FILE exists." -----------------------------
     ## --- Check if the variable exists inside this configuration file:
     if ! grep -q "^export const API_BASE_URL" "$APPCONSTANTS_FILE"; then
-        echo "❌ API_BASE_URL not found in $APPCONSTANTS_FILE ❌"
+        echo "API_BASE_URL not found in $APPCONSTANTS_FILE "
         kill -9 $$
     fi
+    # --- DBG:
+    printf 'DBG: $API_ENDPOINT = <%q>\n' "${API_ENDPOINT}"
     ## --- extract current value:
     current_value=$(grep -E "^export const API_BASE_URL" "$APPCONSTANTS_FILE" \
       | sed -E "s/^export const API_BASE_URL = '(.*)'.*/\1/")
@@ -117,19 +136,22 @@ if [ -f "$APPCONSTANTS_FILE" ]; then
     echo "***   End of modification of $APPCONSTANTS_FILE   *******"$'\n'
 else
     echo ===============================================================
-    echo ***  ❌ERROR no $APPCONSTANTS_FILE $'\n'
+    echo ***  ERROR no $APPCONSTANTS_FILE $'\n'
     echo ***  Source code has changed!
     echo ***  Please investigate changes inside the source code of BASIL.
-    echo ***  ❌Script execution terminates
+    echo ***  Script execution terminates
     echo ===============================================================$'\n'
     ## --- Kill the process
     kill -9 $$
 fi
-echo "---  npm run build ------------------------------------------------"'\n'
+
+echo "---  Build BASIL Frontend: npm run build ------------------------------------------------"'\n'
 npm run build
-echo === install and build done ========================================
+echo "---  Build BASIL Frontend: build and install done ---------------------------------------"
+
 
 # --- (re-)establish BASIL front-end folder: ---------------------------
+echo "\$BASIL_FRONT_END: ${BASIL_FRONT_END}"
 if [ -d $BASIL_FRONT_END ]; then
     echo re-establish folder $BASIL_FRONT_END
     rm -R $BASIL_FRONT_END
@@ -144,7 +166,7 @@ chown -R www-data:www-data $BASIL_FRONT_END
 chmod -R 755 $BASIL_FRONT_END
 
 ## --- Add port to Listen
-add_port_to_listen "${APP_PORT}"
+add_port_to_listen "${APACHE_PORTCONFIG}" "${APP_PORT}"
 
 ## --- create Apache2 VirtualHost Configuration file for BASIL FrontEnd:
 printf "<VirtualHost *:${APP_PORT}> \n\
@@ -184,12 +206,17 @@ echo --- restart apache2 via command: sudo apachectl graceful ----------
 sudo systemctl restart apache2
 
 ## --- display some information at the end -----------------------------
-echo --- show Apache2 ports configuration file: ------------------------$'\n'
-cat /etc/apache2/ports.conf
+echo "--- show Apache2 ports configuration file: ${APACHE_PORTCONFIG}  ---"$'\n'
+cat "${APACHE_PORTCONFIG}"
 
 ## --- Testing APP
-echo --- Testing APP -------------------------------------------------------------$'\n'
+# --- DBG:
+# printf 'DBG: $SERVER_NAME: <%q>\n' "$SERVER_NAME"
+# printf 'DBG: $APP_PORT <%q>\n' "$APP_PORT"
+echo "--- Testing APP -------------------------------------------------------------"$'\n'
 curl -s -w "%{http_code}" http://${SERVER_NAME}:${APP_PORT}/version | grep -q "200" && echo "Test APP: OK" || echo "Test APP: FAIL"
 ## --- if test fails, it might   necessry to restart apache:
-sudo apachectl graceful
-echo $'\n'--- END -----------------------------------------------------------$'\n'
+echo "--- Command: apachectl graceful ----------------------------------------------"$'\n'
+apachectl graceful
+echo "=== END ===  Build BASIL Frontend: ==========================================="$'\n'
+

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
 import { ExpandableRowContent, Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { Button, Flex, FlexItem, Icon, Text, TextContent, TextList, TextListItem, TextVariants } from '@patternfly/react-core'
+import { Button, Flex, FlexItem, Icon, Text, TextContent, TextList, TextListItem, TextVariants, Tooltip } from '@patternfly/react-core'
 import { APIForm } from './Form/APIForm'
 import { ApiMenuKebab } from './Menu/ApiMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
@@ -81,7 +81,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     library_version: 'Version',
     created_by: 'Owner',
     category: 'Category',
-    coverage: 'Last Coverage',
+    coverage: 'Last Completion',
     notifications: 'Notifications',
     actions: 'Actions'
   }
@@ -131,7 +131,15 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 {dataRow.api}
               </Button>
             </Td>
-            <Td dataLabel={columnNames.library_version}>{Constants.getLimitedText(dataRow.library_version, 10)}</Td>
+            <Td dataLabel={columnNames.library_version}>
+              {Constants.getLimitedText(dataRow.library_version, 18) != dataRow.library_version ? (
+                <Tooltip content={dataRow.library_version}>
+                  <span>{Constants.getLimitedText(dataRow.library_version, 18)}</span>
+                </Tooltip>
+              ) : (
+                dataRow.library_version
+              )}
+            </Td>
             <Td dataLabel={columnNames.created_by}>{dataRow.created_by}</Td>
             <Td dataLabel={columnNames.category}>{dataRow.category}</Td>
             <Td dataLabel={columnNames.coverage}>

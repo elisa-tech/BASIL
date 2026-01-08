@@ -25,10 +25,10 @@ class TestRunConfigModel(Base):
     provision_type: Mapped[str] = mapped_column(String(20))
     provision_guest: Mapped[Optional[str]] = mapped_column(String(200))
     provision_guest_port: Mapped[Optional[str]] = mapped_column(String(10))
-    ssh_key_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ssh_keys.id"))
+    ssh_key_id: Mapped[Optional[int]] = mapped_column(ForeignKey("ssh_keys.id", ondelete="CASCADE"))
     ssh_key: Mapped[Optional["UserModel"]] = relationship("SshKeyModel",
                                                           foreign_keys="TestRunConfigModel.ssh_key_id")
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestRunConfigModel.created_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

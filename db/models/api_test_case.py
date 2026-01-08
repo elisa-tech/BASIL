@@ -5,7 +5,7 @@ from db.models.test_case import TestCaseModel, TestCaseHistoryModel
 from db.models.comment import CommentModel
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -16,17 +16,17 @@ class ApiTestCaseModel(Base):
     __tablename__ = "test_case_mapping_api"
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiTestCaseModel.api_id")
-    test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id"))
+    test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id", ondelete="CASCADE"))
     test_case: Mapped["TestCaseModel"] = relationship("TestCaseModel", foreign_keys="ApiTestCaseModel.test_case_id")
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiTestCaseModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiTestCaseModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -93,6 +93,19 @@ class ApiTestCaseModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def fork(self, new_api, db_session):
+        new_api_test_case = ApiTestCaseModel(
+            api=new_api,
+            test_case=self.test_case,
+            section=self.section,
+            offset=self.offset,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+        db_session.add(new_api_test_case)
+        db_session.commit()
+        return new_api_test_case
+
 
 @event.listens_for(ApiTestCaseModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -134,6 +147,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(ApiTestCaseModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(ApiTestCaseHistoryModel).where(ApiTestCaseHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class ApiTestCaseHistoryModel(Base):
     __tablename__ = 'test_case_mapping_api_history'
     extend_existing = True
@@ -144,10 +164,10 @@ class ApiTestCaseHistoryModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiTestCaseHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiTestCaseHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

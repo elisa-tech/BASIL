@@ -26,6 +26,7 @@ from db.models.ssh_key import SshKeyModel
 from db.models.notification import NotificationModel
 from db.models.justification import JustificationHistoryModel, JustificationModel
 from db.models.document import DocumentHistoryModel, DocumentModel
+from db.models.document_document import DocumentDocumentModel, DocumentDocumentHistoryModel
 from db.models.comment import CommentModel
 from db.models.api_test_specification import ApiTestSpecificationHistoryModel, ApiTestSpecificationModel
 from db.models.api_test_case import ApiTestCaseHistoryModel, ApiTestCaseModel
@@ -63,6 +64,7 @@ from api_utils import (
     get_api_specification,
     get_html_email_body_from_template,
     get_safe_str,
+    get_user_traceability_scanner_config,
     is_testing_enabled_by_env,
     load_settings,
     parse_int,
@@ -194,6 +196,7 @@ _J = "justification"
 _Js = f"{_J}s"
 _D = "document"
 _Ds = f"{_D}s"
+_ALL_WORK_ITEMS_TYPES = [_SR, _TS, _TC, _J, _D]
 
 
 def get_db_name():
@@ -238,8 +241,59 @@ def get_api_from_request(_request, _db_session):
         return None
 
 
+def get_api_from_indirect_document_mapping(_mapping, _dbisession):
+    """Return the ApiModel instance from an indirect mapping to
+    Document
+    Possible nested mappings are:
+    - DocumentDocumentModel
+    - TODO: DocumentTestCaseModel
+    """
+    doc_mapping_api_id = get_direct_document_mapping_id(_mapping, _dbisession)
+    if not doc_mapping_api_id:
+        return None
+    try:
+        api_mapping = _dbisession.query(ApiDocumentModel).filter(
+            ApiDocumentModel.id == doc_mapping_api_id).one()
+        return api_mapping.api
+    except NoResultFound:
+        return None
+
+    return None
+
+
+def get_direct_document_mapping_id(_mapping, _dbisession):
+    """Return the ApiDocumentModel.id
+    from an indirect mapping to Document"""
+
+    # Work Items mapped to a Document
+    if isinstance(_mapping, DocumentDocumentModel):
+        parent_model = DocumentDocumentModel
+        parent_mapping_field_id = "document_mapping_document_id"
+        parent_mapping_api_field_id = "document_mapping_api_id"
+    else:
+        logger.warning(f"Mapping is instance of {type(_mapping)}")
+        return None
+
+    api_mapping_id = getattr(_mapping, parent_mapping_api_field_id)
+    parent_mapping_id = getattr(_mapping, parent_mapping_field_id)
+
+    # Indirect mapping
+    if not api_mapping_id:
+        try:
+            parent_mapping = _dbisession.query(parent_model).filter(parent_model.id == parent_mapping_id).one()
+            api_mapping_id = get_direct_document_mapping_id(parent_mapping, _dbisession)
+        except NoResultFound:
+            return None
+
+    # Direct mapping
+    if api_mapping_id:
+        return api_mapping_id
+
+    return None
+
+
 def get_api_from_indirect_sw_requirement_mapping(_mapping, _dbisession):
-    """Return the ApiModel instance from an inderect mapping to
+    """Return the ApiModel instance from an indirect mapping to
     SwRequirement
     Possible nested mappings are:
     - SwRequirementSwRequirementModel
@@ -261,7 +315,7 @@ def get_api_from_indirect_sw_requirement_mapping(_mapping, _dbisession):
 
 def get_direct_sw_requirement_mapping_id(_mapping, _dbisession):
     """Return the ApiSwRequirementModel.id
-    from an inderect mapping to SwRequirement"""
+    from an indirect mapping to SwRequirement"""
 
     # Work Items mapped to a Sw Requirement
     if (
@@ -648,9 +702,17 @@ def split_section(_to_splits, _that_split, _work_item_type):
             idx_set = set(idx)
             idx = sorted(list(idx_set))
             for i in range(1, len(idx)):
+                # Compute boundaries relative to the section being split to avoid negative or zero-length slices
+                base_offset = _to_split["offset"]
+                section_start = base_offset
+                section_end = base_offset + len(_to_split["section"])
+                segment_start = max(idx[i - 1], section_start)
+                segment_end = min(idx[i], section_end)
+                if segment_end <= segment_start:
+                    continue
                 tmp_section = {
-                    "section": _to_split["section"][idx[i - 1] - idx[0]: idx[i] - idx[0]],
-                    "offset": idx[i - 1],
+                    "section": _to_split["section"][segment_start - base_offset: segment_end - base_offset],
+                    "offset": segment_start,
                     "coverage": _to_split["coverage"],
                     "covered": _to_split["covered"],
                     "gap": _to_split["gap"],
@@ -858,7 +920,7 @@ def get_query_string_args(args):
 
 
 def get_sw_requirement_children(_dbi, _srm):
-    """ """
+    """Get hierichical mapping of Sw Requirements"""
     undesired_keys = []
 
     mapping_field_id = f"{_srm['__tablename__']}_id"
@@ -920,6 +982,85 @@ def get_sw_requirement_children(_dbi, _srm):
     return tmp
 
 
+def get_indirect_work_items_from_hierichical_mapping(dbi, mapping, work_items_type, _seen_ids=None):
+    """Return all nested work items of the requested type from a hierarchical mapping.
+
+    - mapping: hierarchical mapping dict (as returned by get_*_children)
+    - work_items_type: one of _ALL_WORK_ITEMS_TYPES (case/format-insensitive)
+    - deduplicates by id while preserving order of first encounter
+    """
+
+    work_items_type = work_items_type.lower().replace("-", "_").strip()
+    seen_ids = _seen_ids if _seen_ids is not None else set()
+
+    found_items = []
+
+    # 1) If the current node contains an item of the requested type, collect it
+    current_item = mapping.get(work_items_type, {})
+    if isinstance(current_item, dict):
+        current_id = current_item.get("id")
+        if current_id is not None and current_id not in seen_ids:
+            # Copy to avoid mutating the original mapping when removing keys
+            item_copy = dict(current_item)
+            found_items.append(get_dict_without_keys(item_copy, _ALL_WORK_ITEMS_TYPES))
+            seen_ids.add(current_id)
+
+    # 2) Recurse into all supported nested collections (pluralized keys)
+    for nested_type in _ALL_WORK_ITEMS_TYPES:
+        nested_collection = mapping.get(f"{nested_type}s", [])
+        if not nested_collection:
+            continue
+        for child_mapping in nested_collection:
+            found_items.extend(
+                get_indirect_work_items_from_hierichical_mapping(dbi, child_mapping, work_items_type, seen_ids)
+            )
+
+    # 3) Also recurse into collections nested under ANY singular item present at this node
+    for singular_type in _ALL_WORK_ITEMS_TYPES:
+        singular_item = mapping.get(singular_type)
+        if not isinstance(singular_item, dict):
+            continue
+        for nested_type in _ALL_WORK_ITEMS_TYPES:
+            nested_collection = singular_item.get(f"{nested_type}s", [])
+            if not nested_collection:
+                continue
+            for child_mapping in nested_collection:
+                found_items.extend(
+                    get_indirect_work_items_from_hierichical_mapping(dbi, child_mapping, work_items_type, seen_ids)
+                )
+
+    return found_items
+
+
+def get_document_children(_dbi, _document_mapping):
+    """Get hierichical mapping of Documents"""
+    undesired_keys = []
+
+    mapping_field_id = f"{_document_mapping['__tablename__']}_id"
+
+    tmp = _document_mapping
+
+    # Indirect Documents
+    ind_document_query = _dbi.session.query(DocumentDocumentModel).filter(
+        getattr(DocumentDocumentModel, mapping_field_id) == _document_mapping["relation_id"]
+    )
+    ind_docs = ind_document_query.all()
+
+    tmp[_Ds] = [get_dict_without_keys(x.as_dict(db_session=_dbi.session), undesired_keys + ["api"]) for x in ind_docs]
+
+    for iD in range(len(tmp[_Ds])):
+        if "indirect_document" in tmp[_Ds][iD].keys():
+            tmp[_Ds][iD]["parent_mapping_type"] = "document_mapping_document"
+        else:
+            tmp[_Ds][iD]["parent_mapping_type"] = "document_mapping_api"
+
+    # Recursive updating of nested Documents
+    for iND in range(len(tmp[_Ds])):
+        tmp[_Ds][iND] = get_document_children(_dbi, tmp[_Ds][iND])
+
+    return tmp
+
+
 def get_api_sw_requirements_mapping_sections(dbi, api):
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification is None:
@@ -969,9 +1110,13 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
 
     for iMS in range(len(mapped_sections)):
+        for iD in range(len(mapped_sections[iMS][_Ds])):
+            document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+            mapped_sections[iMS][_Ds][iD] = document_children_data
+
         for iSR in range(len(mapped_sections[iMS][_SRs])):
-            children_data = get_sw_requirement_children(dbi, mapped_sections[iMS][_SRs][iSR])
-            mapped_sections[iMS][_SRs][iSR] = children_data
+            sw_requirement_children_data = get_sw_requirement_children(dbi, mapped_sections[iMS][_SRs][iSR])
+            mapped_sections[iMS][_SRs][iSR] = sw_requirement_children_data
 
     ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
@@ -1728,6 +1873,9 @@ class CheckSpecification(Resource):
 
 
 class Document(Resource):
+    fields = get_model_editable_fields(DocumentModel, False)
+    fields_hashes = [x.replace("_", "-") for x in fields]
+
     def get(self):
         args = get_query_string_args(request.args)
         dbi = get_db()
@@ -2049,45 +2197,21 @@ class Api(Resource):
                 dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == source_api[0].id).all()
             )
             for api_justification in api_justifications:
-                tmp = ApiJustificationModel(
-                    new_api,
-                    api_justification.justification,
-                    api_justification.section,
-                    api_justification.offset,
-                    api_justification.coverage,
-                    user,
-                )
-                dbi.session.add(tmp)
+                api_justification.fork(new_api, dbi.session)
 
             # Clone ApiDocument
             api_documents = (
                 dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == source_api[0].id).all()
             )
             for api_document in api_documents:
-                tmp = ApiDocumentModel(
-                    new_api,
-                    api_document.document,
-                    api_document.section,
-                    api_document.offset,
-                    api_document.coverage,
-                    user,
-                )
-                dbi.session.add(tmp)
+                api_document.fork(new_api, dbi.session)
 
             # Clone ApiSwRequirement
             api_sw_requirements = (
                 dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.api_id == source_api[0].id).all()
             )
             for api_sw_requirement in api_sw_requirements:
-                tmp = ApiSwRequirementModel(
-                    new_api,
-                    api_sw_requirement.sw_requirement,
-                    api_sw_requirement.section,
-                    api_sw_requirement.offset,
-                    api_sw_requirement.coverage,
-                    user,
-                )
-                dbi.session.add(tmp)
+                api_sw_requirement.fork(new_api, dbi.session)
 
             # Clone ApiTestSpecification
             api_test_specifications = (
@@ -2096,30 +2220,14 @@ class Api(Resource):
                 .all()
             )
             for api_test_specification in api_test_specifications:
-                tmp = ApiTestSpecificationModel(
-                    new_api,
-                    api_test_specification.test_specification,
-                    api_test_specification.section,
-                    api_test_specification.offset,
-                    api_test_specification.coverage,
-                    user,
-                )
-                dbi.session.add(tmp)
+                api_test_specification.fork(new_api, dbi.session)
 
             # Clone ApiTestCase
             api_test_cases = (
                 dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == source_api[0].id).all()
             )
             for api_test_case in api_test_cases:
-                tmp = ApiTestCaseModel(
-                    new_api,
-                    api_test_case.test_case,
-                    api_test_case.section,
-                    api_test_case.offset,
-                    api_test_case.coverage,
-                    user,
-                )
-                dbi.session.add(tmp)
+                api_test_case.fork(new_api, dbi.session)
 
         dbi.session.commit()
         return new_api.as_dict()
@@ -2219,41 +2327,12 @@ class Api(Resource):
         if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
             return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
 
-        justifications_mapping_api = (
-            dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).all()
-        )
-
-        sw_requirements_mapping_api = (
-            dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.api_id == api.id).all()
-        )
-
-        test_specifications_mapping_api = (
-            dbi.session.query(ApiTestSpecificationModel).filter(ApiTestSpecificationModel.api_id == api.id).all()
-        )
-
-        test_cases_mapping_api = dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == api.id).all()
-
-        docs_mapping_api = dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).all()
-
-        api_notifications = dbi.session.query(NotificationModel).filter(NotificationModel.api_id == api.id).all()
-
-        for j_mapping in justifications_mapping_api:
-            dbi.session.delete(j_mapping)
-
-        for sr_mapping in sw_requirements_mapping_api:
-            dbi.session.delete(sr_mapping)
-
-        for ts_mapping in test_specifications_mapping_api:
-            dbi.session.delete(ts_mapping)
-
-        for tc_mapping in test_cases_mapping_api:
-            dbi.session.delete(tc_mapping)
-
-        for doc_mapping in docs_mapping_api:
-            dbi.session.delete(doc_mapping)
-
-        for notification in api_notifications:
-            dbi.session.delete(notification)
+        dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).delete()
+        dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.api_id == api.id).delete()
+        dbi.session.query(ApiTestSpecificationModel).filter(ApiTestSpecificationModel.api_id == api.id).delete()
+        dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == api.id).delete()
+        dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.api_id == api.id).delete()
+        dbi.session.query(NotificationModel).filter(NotificationModel.api_id == api.id).delete()
 
         # Add Notifications
         notification = f"{user.username} deleted sw component " f"{api.api} as part of the library {api.library}"
@@ -2579,8 +2658,13 @@ class ApiTestSpecificationsMapping(Resource):
         unmapped_sections = [x for x in mapping[_TSs] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
-        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
+        for iMS in range(len(mapped_sections)):
+            for iD in range(len(mapped_sections[iMS][_Ds])):
+                document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+                mapped_sections[iMS][_Ds][iD] = document_children_data
+
+        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
         return ret
 
     def post(self):
@@ -2897,8 +2981,13 @@ class ApiTestCasesMapping(Resource):
         unmapped_sections = [x for x in mapping[_TCs] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
         unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
-        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
+        for iMS in range(len(mapped_sections)):
+            for iD in range(len(mapped_sections[iMS][_Ds])):
+                document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
+                mapped_sections[iMS][_Ds][iD] = document_children_data
+
+        ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
         return ret
 
     def post(self):
@@ -3204,6 +3293,14 @@ class MappingHistory(Resource):
                 _model_history = TestCaseHistoryModel
             else:
                 return []
+
+        elif args["mapped_to_type"] == "document":
+            if args["work_item_type"] == "document":
+                _model = DocumentModel
+                _model_map = DocumentDocumentModel
+                _model_map_history = DocumentDocumentHistoryModel
+                _model_history = DocumentHistoryModel
+
         else:
             return []
 
@@ -3312,53 +3409,62 @@ class MappingUsage(Resource):
         if "work_item_type" not in args.keys() or "id" not in args.keys():
             return []
 
-        _id = args["id"]
+        wi_type = args["work_item_type"]
+        wi_id = int(args["id"])
+
+        api_ids = []
+
+        # Work items that can be nested under Sw Requirements
+        if wi_type in ["sw-requirement", "test-specification", "test-case"]:
+            api_srs = dbi.session.query(ApiSwRequirementModel).all()
+            for api_sr in api_srs:
+                sr_mapping = get_sw_requirement_children(dbi, api_sr.as_dict(db_session=dbi.session))
+                for work_item in get_indirect_work_items_from_hierichical_mapping(dbi, sr_mapping, wi_type):
+                    if work_item.get("id", None) == wi_id:
+                        api_ids.append(api_sr.api_id)
+
+        # Work items that can be nested under Documents
+        if wi_type in ["document"]:
+            api_docs = dbi.session.query(ApiDocumentModel).all()
+            for api_doc in api_docs:
+                doc_mapping = get_document_children(dbi, api_doc.as_dict(db_session=dbi.session))
+                for work_item in get_indirect_work_items_from_hierichical_mapping(dbi, doc_mapping, wi_type):
+                    if work_item.get("id", None) == wi_id:
+                        api_ids.append(api_doc.api_id)
 
         # Api
         if args["work_item_type"] == "justification":
             model = ApiJustificationModel
-            api_data = dbi.session.query(model).filter(model.justification_id == _id).all()
-            api_ids = [x.api_id for x in api_data]
+            api_data = dbi.session.query(model).filter(model.justification_id == wi_id).all()
+            api_ids += [x.api_id for x in api_data]
         elif args["work_item_type"] == "document":
             model = ApiDocumentModel
-            api_data = dbi.session.query(model).filter(model.document_id == _id).all()
-            api_ids = [x.api_id for x in api_data]
+            api_data = dbi.session.query(model).filter(model.document_id == wi_id).all()
+            api_ids += [x.api_id for x in api_data]
         elif args["work_item_type"] == "sw-requirement":
             model = ApiSwRequirementModel
-            api_data = dbi.session.query(model).filter(model.sw_requirement_id == _id).all()
-            api_ids = [x.api_id for x in api_data]
+            api_data = dbi.session.query(model).filter(model.sw_requirement_id == wi_id).all()
+            api_ids += [x.api_id for x in api_data]
         elif args["work_item_type"] == "test-specification":
             # Direct
             model = ApiTestSpecificationModel
-            api_data = dbi.session.query(model).filter(model.test_specification_id == _id).all()
-            api_ids = [x.api_id for x in api_data]
-
-            # indirect sw requirement mapping api:
-            model = SwRequirementTestSpecificationModel
-            parent_model = ApiSwRequirementModel
-            sr_api_data = dbi.session.query(model).join(parent_model).filter(model.test_specification_id == _id).all()
-            api_ids += [x.sw_requirement_mapping_api.api_id for x in sr_api_data]
+            api_data = dbi.session.query(model).filter(model.test_specification_id == wi_id).all()
+            api_ids += [x.api_id for x in api_data]
         elif args["work_item_type"] == "test-case":
             model = ApiTestCaseModel
-            api_data = dbi.session.query(model).filter(model.test_case_id == _id).all()
-            api_ids = [x.api_id for x in api_data]
+            api_data = dbi.session.query(model).filter(model.test_case_id == wi_id).all()
+            api_ids += [x.api_id for x in api_data]
 
             # indirect test specification mapping api:
             model = TestSpecificationTestCaseModel
             parent_model = ApiTestSpecificationModel
-            ts_api_data = dbi.session.query(model).join(parent_model).filter(model.test_case_id == _id).all()
+            ts_api_data = dbi.session.query(model).join(parent_model).filter(model.test_case_id == wi_id).all()
             api_ids += [x.sw_requirement_mapping_api.api_id for x in ts_api_data]
-
-            # indirect sw requirement mapping api:
-            model = SwRequirementTestCaseModel
-            parent_model = ApiSwRequirementModel
-            sr_api_data = dbi.session.query(model).join(parent_model).filter(model.test_case_id == _id).all()
-            api_ids += [x.sw_requirement_mapping_api.api_id for x in sr_api_data]
 
             # indirect test specification sw requirement:
             model = TestSpecificationTestCaseModel
             parent_model = SwRequirementTestSpecificationModel
-            sr_ts_data = dbi.session.query(model).join(parent_model).filter(model.test_case_id == _id).all()
+            sr_ts_data = dbi.session.query(model).join(parent_model).filter(model.test_case_id == wi_id).all()
             sr_ts_ids = [x.test_specification_mapping_sw_requirement_id for x in sr_ts_data]
             model = SwRequirementTestSpecificationModel
             parent_model = ApiSwRequirementModel
@@ -3409,7 +3515,7 @@ class ApiSpecificationsMapping(Resource):
             return []
 
         mapped_sections = [
-            {"section": api_specification, "offset": 0, "coverage": 0, _TCs: [], _TSs: [], _SRs: [], _Js: []}
+            {"section": api_specification, "offset": 0, "coverage": 0, _Ds: [], _TCs: [], _TSs: [], _SRs: [], _Js: []}
         ]
         unmapped_sections = []
 
@@ -3465,6 +3571,7 @@ class ApiJustificationsMapping(Resource):
 
         mapped_sections = get_split_sections(api_specification, mapping, [_J])
         unmapped_sections = [x for x in mapping[_Js] if not x["match"]]
+
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
         return ret
@@ -3765,7 +3872,8 @@ class ApiDocumentsMapping(Resource):
 
         if "id" not in request_data["document"].keys():
 
-            if not check_fields_in_request(self.document_fields, request_data["document"]):
+            document_fields_app = [x.replace("_", "-") for x in self.document_fields]
+            if not check_fields_in_request(document_fields_app, request_data["document"]):
                 return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             # Validate Document fields constraints
@@ -3778,8 +3886,8 @@ class ApiDocumentsMapping(Resource):
 
             doc_title = request_data["document"]["title"]
             doc_description = request_data["document"]["description"]
-            doc_type = request_data["document"]["document_type"]
-            doc_spdx_relation = request_data["document"]["spdx_relation"]
+            doc_type = request_data["document"]["document-type"]
+            doc_spdx_relation = request_data["document"]["spdx-relation"]
             doc_url = request_data["document"]["url"]
             doc_section = request_data["document"]["section"]
             doc_offset = request_data["document"]["offset"]
@@ -3854,7 +3962,8 @@ class ApiDocumentsMapping(Resource):
         if not check_fields_in_request(self.fields + ["relation-id"], request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        if not check_fields_in_request(document_fields, request_data["document"]):
+        document_fields_app = [x.replace("_", "-") for x in document_fields]
+        if not check_fields_in_request(document_fields_app, request_data["document"]):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # check if api ...
@@ -3871,10 +3980,10 @@ class ApiDocumentsMapping(Resource):
         modified_d = False
         request_document_data = get_dict_with_db_format_keys(request_data["document"])
         for field in document_fields:
-            if field in request_document_data.keys():
-                if getattr(document, field) != request_document_data[field]:
+            if field.replace("_", "-") in request_document_data.keys():
+                if getattr(document, field) != request_document_data[field.replace("_", "-")]:
                     modified_d = True
-                    setattr(document, field, request_document_data[field])
+                    setattr(document, field, request_document_data[field.replace("_", "-")])
                     if field == "url":  # move valid to false
                         setattr(document, "valid", 0)
 
@@ -5629,6 +5738,294 @@ class TestSpecificationTestCasesMapping(Resource):
         return ret
 
 
+class DocumentDocumentMapping(Resource):
+    fields = ["document", "coverage"]
+
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        """ Get the list of nested documents
+        We can have parent document mapped to
+        - an Api Reference Document snippet: relation-to must be 'api'
+        - another Document: relation-to must be 'document'
+        """
+        request_data = get_query_string_args(request.args)
+
+        # user mandatory fields are evaluated as part of the check_api_user_read_permission
+        mandatory_fields = ["api-id", "relation-id", "relation-to"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        query = dbi.session.query(DocumentDocumentModel)
+        if request_data["relation-to"] == "api":
+            query = query.filter(DocumentDocumentModel.document_mapping_api_id
+                                 == request_data["relation-id"])
+        elif request_data["relation-to"] == "document":
+            query = query.filter(DocumentDocumentModel.document_mapping_document_id
+                                 == request_data["relation-id"])
+        else:
+            return f"{BAD_REQUEST_MESSAGE}: relation-to value not valid", BAD_REQUEST_STATUS
+
+        docdocs = [docdoc.as_dict(db_session=dbi.session) for docdoc in query.all()]
+
+        return docdocs
+
+    @check_api_user_write_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+
+        request_data = request.get_json(force=True)
+        api_doc = None
+        doc_doc = None
+
+        # user mandatory fields are evaluated as part of the check_api_user_read_permission
+        mandatory_fields = self.fields + ["api-id", "relation-id", "relation-to", "parent-document"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return f"{BAD_REQUEST_MESSAGE}: missing fields", BAD_REQUEST_STATUS
+
+        if "id" not in request_data["parent-document"].keys():
+            return f"{BAD_REQUEST_MESSAGE}: miss id of parent-document", BAD_REQUEST_STATUS
+
+        relation_id = request_data["relation-id"]
+        relation_to = request_data["relation-to"]
+
+        # Find DocumentDocument
+        if relation_to == "api":
+            relation_to_query = dbi.session.query(ApiDocumentModel).filter(
+                ApiDocumentModel.id == relation_id
+            ).filter(
+                ApiDocumentModel.api_id == api.id
+            )
+            try:
+                api_doc = relation_to_query.one()
+            except NoResultFound:
+                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+
+        elif relation_to == "document":
+            relation_to_query = dbi.session.query(DocumentDocumentModel).filter(
+                DocumentDocumentModel.id == relation_id
+            )
+            try:
+                doc_doc = relation_to_query.one()
+            except NoResultFound:
+                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+
+            mapping_api = get_api_from_indirect_document_mapping(doc_doc, dbi.session)
+            if not mapping_api:
+                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+            if api.id != mapping_api.id:
+                return f"{BAD_REQUEST_MESSAGE}: Mapping is not related to the selected api", BAD_REQUEST_STATUS
+
+        else:
+            return f"{BAD_REQUEST_MESSAGE}: relation-to value not valid", BAD_REQUEST_STATUS
+
+        parent_document_id = request_data["parent-document"]["id"]
+        coverage = request_data["coverage"]
+
+        try:
+            parent_document = (
+                dbi.session.query(DocumentModel).filter(DocumentModel.id == parent_document_id).one()
+            )
+        except NoResultFound:
+            return f"{NOT_FOUND_MESSAGE}: Document", NOT_FOUND_STATUS
+
+        del parent_document  # Just need to check it exists
+
+        if "id" not in request_data["document"].keys():
+            # Create a new one
+            # `status` field should be skipped because a default is assigned in the model
+            for check_field in [x for x in Document.fields if x not in ["status", "valid"]]:
+                if check_field.replace("_", "-") not in request_data["document"].keys():
+                    return f"{BAD_REQUEST_MESSAGE} {check_field} missing", BAD_REQUEST_STATUS
+
+            title = request_data["document"]["title"]
+            description = request_data["document"]["description"]
+            document_type = request_data["document"]["document-type"]
+            spdx_relation = request_data["document"]["spdx-relation"]
+            url = request_data["document"]["url"]
+            section = request_data["document"]["section"]
+            offset = request_data["document"]["offset"]
+
+            # Check for existing Sw Requirements
+            existing_docs = dbi.session.query(DocumentModel).filter(
+                DocumentModel.title == title).filter(
+                    DocumentModel.description == description).filter(
+                        DocumentModel.document_type == document_type).filter(
+                                DocumentModel.url == url).all()
+
+            if len(existing_docs):
+                return f"Document `{existing_docs[0].id}` with same content already exists, " \
+                       f"consider to use the existing one or to change at least one field", CONFLICT_STATUS
+
+            new_document = DocumentModel(
+                title, description, document_type, spdx_relation, url, section, offset, 0, user)
+
+            new_document_mapping_document = DocumentDocumentModel(
+                doc_doc, api_doc, new_document, section, offset, coverage, user
+            )
+
+            dbi.session.add(new_document)
+            dbi.session.add(new_document_mapping_document)
+
+        else:
+            # Map an existing SwRequirement
+            document_id = request_data["document"]["id"]
+
+            # Check for existing mapping
+            existing_docs_mapping = dbi.session.query(DocumentDocumentModel).filter(
+                DocumentDocumentModel.document_mapping_api_id == relation_id).filter(
+                    DocumentDocumentModel.document_id == document_id).all()
+            if existing_docs_mapping:
+                return f"Document `{document_id}` already " \
+                    "associated to the selected Document", CONFLICT_STATUS
+
+            try:
+                document = (
+                    dbi.session.query(DocumentModel).filter(DocumentModel.id == document_id).one()
+                )
+            except NoResultFound:
+                return f"{NOT_FOUND_MESSAGE}: document", NOT_FOUND_STATUS
+
+            section = ""
+            offset = 0
+
+            new_document_mapping_document = DocumentDocumentModel(
+                doc_doc, api_doc, document, section, offset, coverage, user
+            )
+            dbi.session.add(new_document_mapping_document)
+
+        dbi.session.commit()
+
+        # Add Notifications
+        notification = (
+            f"{user.username} added document " f"to {api.api} mapping as part of the library {api.library}"
+        )
+        notifications = NotificationModel(
+            api,
+            NOTIFICATION_CATEGORY_NEW,
+            f"{api.api}, a document has been created",
+            notification,
+            f"[{user.id}]",
+            f"/mapping/{api.id}",
+        )
+        dbi.session.add(notifications)
+        dbi.session.commit()
+        return new_document_mapping_document.as_dict()
+
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = self.fields + ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        try:
+            doc_mapping_doc = (
+                dbi.session.query(DocumentDocumentModel)
+                .filter(DocumentDocumentModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"{NOT_FOUND_MESSAGE}: Document mapping", NOT_FOUND_STATUS
+
+        doc = doc_mapping_doc.document
+
+        # Update only modified fields
+        modified_doc = False
+        for field in Document.fields:
+            if field.replace("_", "-") in request_data["document"].keys():
+                if getattr(doc, field) != request_data["document"][field.replace("_", "-")]:
+                    modified_doc = True
+                    setattr(doc, field, request_data["document"][field.replace("_", "-")])
+
+        if modified_doc:
+            setattr(doc, "edited_by_id", user.id)
+
+        modified_doc_doc = False
+        if doc_mapping_doc.coverage != int(request_data["coverage"]):
+            modified_doc_doc = True
+            doc_mapping_doc.coverage = int(request_data["coverage"])
+            doc_mapping_doc.edited_by_id = user.id
+
+        ret = doc_mapping_doc.as_dict(db_session=dbi.session)
+        dbi.session.commit()
+
+        if modified_doc or modified_doc_doc:
+            # Add Notifications
+            notification = (
+                f"{user.username} modified document "
+                f"from {api.api} mapping as part of the library {api.library}"
+            )
+            notifications = NotificationModel(
+                api,
+                NOTIFICATION_CATEGORY_EDIT,
+                f"{api.api}, a document has been modified",
+                notification,
+                f"[{user.id}]",
+                f"/mapping/{api.id}",
+            )
+            dbi.session.add(notifications)
+            dbi.session.commit()
+        return ret
+
+    @check_api_user_write_permission
+    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        request_data = request.get_json(force=True)
+
+        if not check_fields_in_request(["relation-id"], request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # check sw_requirement_mapping_sw_requirement
+        try:
+            doc_mapping_doc = (
+                dbi.session.query(DocumentDocumentModel)
+                .filter(DocumentDocumentModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"{NOT_FOUND_MESSAGE}: Document mapping", NOT_FOUND_STATUS
+
+        # Check DocumentDocumentModel refers to the same api defined in api-id
+        if doc_mapping_doc.document_mapping_api:
+            try:
+                parent_mapping = dbi.session.query(ApiDocumentModel).filter(
+                    ApiDocumentModel.id == doc_mapping_doc.document_mapping_api_id
+                ).one()
+            except NoResultFound:
+                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+            mapping_api = parent_mapping.api
+        else:
+            mapping_api = get_api_from_indirect_document_mapping(doc_mapping_doc, dbi.session)
+
+        if not mapping_api:
+            return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+
+        if mapping_api.id != api.id:
+            return f"{BAD_REQUEST_MESSAGE}: Wrong api id", BAD_REQUEST_STATUS
+
+        notification_doc_id = doc_mapping_doc.document.id
+        notification_doc_title = doc_mapping_doc.document.title
+        dbi.session.delete(doc_mapping_doc)
+        dbi.session.commit()
+
+        # Add Notifications
+        notification = (
+            f"{user.username} deleted document "
+            f"{notification_doc_id} {notification_doc_title} mapping as part of the library {api.library}"
+        )
+        notifications = NotificationModel(
+            api,
+            NOTIFICATION_CATEGORY_DELETE,
+            f"{api.api}, a document has been deleted",
+            notification,
+            f"[{user.id}]",
+            f"/mapping/{api.id}",
+        )
+        dbi.session.add(notifications)
+        dbi.session.commit()
+        return True
+
+
 class ForkApiSwRequirement(Resource):
     def post(self):
         request_data = request.get_json(force=True)
@@ -5658,14 +6055,50 @@ class ForkApiSwRequirement(Resource):
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        new_sr = SwRequirementModel(asr_mapping.sw_requirement.title, asr_mapping.sw_requirement.description, user)
+        new_sr = asr_mapping.sw_requirement.fork(created_by=user, db_session=dbi.session)
         dbi.session.add(new_sr)
         dbi.session.commit()
 
         asr_mapping.sw_requirement_id = new_sr.id
-
+        dbi.session.add(asr_mapping)
         dbi.session.commit()
         return asr_mapping.as_dict()
+
+
+class ForkApiDocument(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            ad_mapping = (
+                dbi.session.query(ApiDocumentModel)
+                .filter(ApiDocumentModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Document mapping to Api id {request_data['relation-id']}", 400
+
+        # Permissions
+        permissions = get_api_user_permissions(ad_mapping.api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_doc = ad_mapping.document.fork(created_by=user, db_session=dbi.session)
+        ad_mapping.document_id = new_doc.id
+        dbi.session.add(ad_mapping)
+        dbi.session.commit()
+        return ad_mapping.as_dict()
 
 
 class ForkSwRequirementSwRequirement(Resource):
@@ -5701,14 +6134,55 @@ class ForkSwRequirementSwRequirement(Resource):
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        new_sr = SwRequirementModel(sr_sr_mapping.sw_requirement.title, sr_sr_mapping.sw_requirement.description, user)
+        new_sr = sr_sr_mapping.sw_requirement.fork(created_by=user, db_session=dbi.session)
         dbi.session.add(new_sr)
         dbi.session.commit()
 
         sr_sr_mapping.sw_requirement_id = new_sr.id
-
+        dbi.session.add(sr_sr_mapping)
         dbi.session.commit()
         return sr_sr_mapping.as_dict()
+
+
+class ForkDocumentDocument(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            doc_doc_mapping = (
+                dbi.session.query(DocumentDocumentModel)
+                .filter(DocumentDocumentModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Document mapping to Document id {request_data['relation-id']}", 400
+
+        # Permissions
+        api = get_api_from_indirect_document_mapping(doc_doc_mapping, dbi.session)
+        if not isinstance(api, ApiModel):
+            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        permissions = get_api_user_permissions(api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_doc = doc_doc_mapping.document.fork(created_by=user, db_session=dbi.session)
+
+        doc_doc_mapping.document_id = new_doc.id
+        dbi.session.add(doc_doc_mapping)
+        dbi.session.commit()
+        return doc_doc_mapping.as_dict()
 
 
 class TestingSupportInitDb(Resource):
@@ -8062,6 +8536,180 @@ class AdminSettings(Resource):
         return ret
 
 
+class TraceabilityScannerSettings(Resource):
+    def get(self):
+        ret = {"content": ""}
+        mandatory_fields = ["token", "user-id"]
+        args = get_query_string_args(request.args)
+
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(args, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        config = get_user_traceability_scanner_config(user.id)
+        if config is None:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        ret["content"] = config
+        return ret
+
+    def put(self):
+        request_data = request.get_json(force=True)
+        ret = {"content": ""}
+        mandatory_fields = ["content", "user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        # Validate YAML content
+        try:
+            _ = parse_config(data=request_data["content"])  # noqa: F841
+        except Exception as exc:
+            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_path = os.path.join(user_config_dir, "config.yaml")
+        try:
+            if not os.path.exists(user_config_dir):
+                os.makedirs(user_config_dir, exist_ok=True)
+            f = open(user_config_path, "w")
+            f.write(request_data["content"])
+            f.close()
+            ret["content"] = request_data["content"]
+        except Exception as exc:
+            logger.error(f"Unable to write user settings file {user_config_path}: {exc}")
+            return f"{BAD_REQUEST_MESSAGE} Unable to write configuration", BAD_REQUEST_STATUS
+        return ret
+
+
+class TraceabilityScannerScan(Resource):
+
+    def get(self):
+        request_data = request.args
+        ret = {"content": []}
+        mandatory_fields = ["user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_path = os.path.join(user_config_dir, "config.yaml")
+
+        if os.path.exists(user_config_path):
+            """list of traceability scans log files"""
+            log_files = [f for f in os.listdir(user_config_dir) if f.endswith(".log")]
+            ret["content"] = log_files
+        return ret
+
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["user-id", "token"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        user_config_path = os.path.join(user_config_dir, "config.yaml")
+        if not os.path.exists(user_config_path):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        config = get_user_traceability_scanner_config(user.id)
+        if not config:
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # call repos_scanner.py with the user id and the name of the logfile
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_path = os.path.join(user_config_dir, f"{timestamp}.log")
+
+        try:
+            log_fh = open(log_file_path, "a")
+            log_fh.write(f"Starting traceability scan for user {user.id} at {timestamp}\n")
+            log_fh.write(f"Configuration: \n{config}\n")
+            log_fh.flush()
+        except Exception as exc:
+            logger.error(f"Unable to open log file {log_file_path}: {exc}")
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # Launch asynchronously without waiting
+        subprocess.Popen(
+            ["python3", "repos_scanner.py", "--userid", str(user.id), "--logfile", f"{timestamp}.log"],
+            cwd=currentdir,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+            close_fds=True,
+        )
+
+        # Return the status and the logfile name
+        return {"status": "success", "logfile": f"{timestamp}.log"}
+
+
+class TraceabilityScannerLogs(Resource):
+
+    def delete(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["user-id", "token", "scan-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        scan_id = str(request_data.get("scan-id", "")).strip()
+        # basic validation to avoid directories/path traversal
+        if not scan_id or scan_id != os.path.basename(scan_id):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        log_file = os.path.join(user_config_dir, scan_id)
+
+        if os.path.isfile(log_file):
+            os.remove(log_file)
+            return {"status": "success"}
+        return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+    def get(self):
+        request_data = request.args
+        mandatory_fields = ["user-id", "token", "scan-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.config")
+        scan_id = str(request_data.get("scan-id", "")).strip()
+        if not scan_id or scan_id != os.path.basename(scan_id):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        log_file = os.path.join(user_config_dir, scan_id)
+
+        if os.path.isfile(log_file):
+            with open(log_file, "r") as f:
+                content = f.read()
+            return {"status": "success", "content": content}
+        return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+
 class AIHealthCheck(Resource):
 
     def get(self):
@@ -8183,6 +8831,9 @@ api.add_resource(TestRunArtifacts, "/mapping/api/test-run/artifacts")
 api.add_resource(TestRunPluginPresets, "/mapping/api/test-run-plugins-presets")
 api.add_resource(AdminTestRunPluginsPresets, "/admin/test-run-plugins-presets")
 api.add_resource(AdminSettings, "/admin/settings")
+api.add_resource(TraceabilityScannerSettings, "/traceability-scanner/settings")
+api.add_resource(TraceabilityScannerScan, "/traceability-scanner/scan")
+api.add_resource(TraceabilityScannerLogs, "/traceability-scanner/logs")
 api.add_resource(AdminResetUserPassword, "/admin/reset-user-password")
 
 # - Import
@@ -8195,6 +8846,7 @@ api.add_resource(SwRequirementSwRequirementsMapping, "/mapping/sw-requirement/sw
 api.add_resource(SwRequirementTestSpecificationsMapping, "/mapping/sw-requirement/test-specifications")
 api.add_resource(SwRequirementTestCasesMapping, "/mapping/sw-requirement/test-cases")
 api.add_resource(TestSpecificationTestCasesMapping, "/mapping/test-specification/test-cases")
+api.add_resource(DocumentDocumentMapping, "/mapping/document/documents")
 
 # History
 api.add_resource(MappingHistory, "/mapping/history")
@@ -8211,6 +8863,8 @@ api.add_resource(Comment, "/comments")
 # Fork
 api.add_resource(ForkApiSwRequirement, "/fork/api/sw-requirement")
 api.add_resource(ForkSwRequirementSwRequirement, "/fork/sw-requirement/sw-requirement")
+api.add_resource(ForkApiDocument, "/fork/api/document")
+api.add_resource(ForkDocumentDocument, "/fork/document/document")
 # api.add_resource(ForkTestSpecification, '/fork/api/test-specification')
 # api.add_resource(ForkTestCase, '/fork/api/test-case')
 # api.add_resource(ForkJustification, '/fork/api/justification')

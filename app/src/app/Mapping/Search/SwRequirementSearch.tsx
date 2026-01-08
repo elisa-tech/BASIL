@@ -261,8 +261,8 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
         {getSwRequirementsTable(swRequirements)}
       </DataList>
       <br />
-      <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-sw-requirement-coverage-existing`}>
+      <Grid hasGutter md={4}>
+        <FormGroup label={Constants.FORM_COMPLETION_LABEL} isRequired fieldId={`input-sw-requirement-coverage-existing`}>
           <TextInput
             isRequired
             id={`input-sw-requirement-coverage-existing`}

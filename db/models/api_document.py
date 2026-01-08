@@ -5,7 +5,7 @@ from db.models.db_base import Base
 from db.models.document import DocumentModel, DocumentHistoryModel
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -16,18 +16,18 @@ class ApiDocumentModel(Base):
     __tablename__ = "document_mapping_api"
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiDocumentModel.api_id")
-    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
     document: Mapped["DocumentModel"] = relationship("DocumentModel",
                                                      foreign_keys="ApiDocumentModel.document_id")
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiDocumentModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiDocumentModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -77,8 +77,9 @@ class ApiDocumentModel(Base):
                  'section': self.section,
                  'offset': self.offset,
                  'coverage': self.coverage,
-                 'covered': self.coverage,
-                 'created_by': self.created_by.username}
+                 'covered': self.get_waterfall_coverage(db_session),
+                 'created_by': self.created_by.username,
+                 '__tablename__': self.__tablename__}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 
@@ -97,27 +98,68 @@ class ApiDocumentModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def get_waterfall_coverage(self, db_session):
+        from db.models.document_document import DocumentDocumentModel
+        # Return Api-Document waterfall coverage
+
+        if db_session is None:
+            return self.coverage
+
+        docs_coverage = 0
+
+        # Documents
+        docs = db_session.query(DocumentDocumentModel).filter(
+            DocumentDocumentModel.document_mapping_api_id == self.id
+        ).all()
+        if len(docs) > 0:
+            docs_coverage = sum([x.get_waterfall_coverage(db_session) for x in docs])
+
+        if len(docs) == 0:
+            waterfall_coverage = self.coverage
+        else:
+            waterfall_coverage = (min(max(0, sum([docs_coverage])), 100.0) * self.coverage) / 100.0
+
+        waterfall_coverage = min(max(0, waterfall_coverage), 100)
+        return waterfall_coverage
+
+    def fork(self, new_api, db_session):
+        from db.models.document_document import DocumentDocumentModel
+        new_api_document = ApiDocumentModel(
+            api=new_api,
+            document=self.document,
+            section=self.section,
+            offset=self.offset,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+        db_session.add(new_api_document)
+        db_session.commit()
+
+        doc_docs = db_session.query(DocumentDocumentModel).filter(
+            DocumentDocumentModel.document_mapping_api_id == self.id
+        ).all()
+
+        for doc_doc in doc_docs:
+            doc_doc.fork(
+                new_document_mapping_api=new_api_document,
+                new_document_mapping_document=None,
+                db_session=db_session
+            )
+
+        return new_api_document
+
 
 @event.listens_for(ApiDocumentModel, "after_update")
 def receive_after_update(mapper, connection, target):
-    last_query = select(ApiDocumentHistoryModel.version,
-                        ApiDocumentHistoryModel.section,
-                        ApiDocumentHistoryModel.offset,
-                        ApiDocumentHistoryModel.coverage).where(
+    last_query = select(ApiDocumentHistoryModel.version).where(
                    ApiDocumentHistoryModel.id == target.id).order_by(
                    ApiDocumentHistoryModel.version.desc()).limit(1)
     version = -1
-    section = None
-    offset = None
-    coverage = 0
 
     for row in connection.execute(last_query):
         version = row[0]
-        section = row[1]
-        offset = row[2]
-        coverage = row[3]
 
-    if version > -1 and (section != target.section or offset != target.offset or coverage != target.coverage):
+    if version > -1:
         insert_query = insert(ApiDocumentHistoryModel).values(
             id=target.id,
             api_id=target.api_id,
@@ -148,20 +190,27 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(ApiDocumentModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(ApiDocumentHistoryModel).where(ApiDocumentHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class ApiDocumentHistoryModel(Base):
     __tablename__ = "document_mapping_api_history"
     extend_existing = True
     row_id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     id: Mapped[int] = mapped_column(Integer())
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
-    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiDocumentHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiDocumentHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

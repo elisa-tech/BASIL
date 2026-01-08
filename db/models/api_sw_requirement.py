@@ -5,7 +5,7 @@ from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from db.models.comment import CommentModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -16,18 +16,18 @@ class ApiSwRequirementModel(Base):
     __tablename__ = "sw_requirement_mapping_api"
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
-    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id"))
+    api_id: Mapped[int] = mapped_column(ForeignKey("apis.id", ondelete="CASCADE"))
     api: Mapped["ApiModel"] = relationship("ApiModel", foreign_keys="ApiSwRequirementModel.api_id")
-    sw_requirement_id: Mapped[int] = mapped_column(ForeignKey("sw_requirements.id"))
+    sw_requirement_id: Mapped[int] = mapped_column(ForeignKey("sw_requirements.id", ondelete="CASCADE"))
     sw_requirement: Mapped["SwRequirementModel"] = relationship("SwRequirementModel",
                                                                 foreign_keys="ApiSwRequirementModel.sw_requirement_id")
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiSwRequirementModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiSwRequirementModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -176,10 +176,61 @@ class ApiSwRequirementModel(Base):
         if len(tcs) == len(tss) == len(srs) == 0:
             waterfall_coverage = self.coverage
         else:
-            waterfall_coverage = (min(max(0, srs_coverage + tss_coverage + tcs_coverage), 100) * self.coverage) / 100.0
+            waterfall_coverage = (
+                min(max(0, sum([srs_coverage, tss_coverage, tcs_coverage])), 100.0) * self.coverage
+            ) / 100.0
 
         waterfall_coverage = min(max(0, waterfall_coverage), 100)
         return waterfall_coverage
+
+    def fork(self, new_api, db_session):
+        from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
+        from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
+        from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
+
+        new_api_sw_requirement = ApiSwRequirementModel(
+            api=new_api,
+            sw_requirement=self.sw_requirement,
+            section=self.section,
+            offset=self.offset,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+
+        srsrs = db_session.query(SwRequirementSwRequirementModel).filter(
+            SwRequirementSwRequirementModel.sw_requirement_mapping_api_id == self.id
+        ).all()
+        for srsr in srsrs:
+            srsr.fork(
+                new_sw_requirement_mapping_api=None,
+                new_sw_requirement_mapping_sw_requirement=new_api_sw_requirement,
+                db_session=db_session
+            )
+        return new_api_sw_requirement
+
+        srtss = db_session.query(SwRequirementTestSpecificationModel).filter(
+            SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == self.id
+        ).all()
+        for srtss in srtss:
+            srtss.fork(
+                new_sw_requirement_mapping_api=None,
+                new_sw_requirement_mapping_sw_requirement=new_api_sw_requirement,
+                db_session=db_session
+            )
+
+        srtcs = db_session.query(SwRequirementTestCaseModel).filter(
+            SwRequirementTestCaseModel.sw_requirement_mapping_api_id == self.id
+        ).all()
+        for srtc in srtcs:
+            srtc.fork(
+                new_sw_requirement_mapping_api=None,
+                new_sw_requirement_mapping_sw_requirement=new_api_sw_requirement,
+                db_session=db_session
+            )
+
+        db_session.add(new_api_sw_requirement)
+        db_session.commit()
+        return new_api_sw_requirement
 
 
 @event.listens_for(ApiSwRequirementModel, "after_update")
@@ -222,6 +273,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(ApiSwRequirementModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(ApiSwRequirementHistoryModel).where(ApiSwRequirementHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class ApiSwRequirementHistoryModel(Base):
     __tablename__ = 'sw_requirement_mapping_api_history'
     extend_existing = True
@@ -232,10 +290,10 @@ class ApiSwRequirementHistoryModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="ApiSwRequirementHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="ApiSwRequirementHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

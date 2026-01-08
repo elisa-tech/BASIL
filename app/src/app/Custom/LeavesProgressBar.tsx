@@ -58,7 +58,7 @@ const LeavesProgressBar: React.FunctionComponent<LeavesProgressBarProps> = ({
       </div>
       <Tooltip
         id={progressId + '-ref2'}
-        content={<div>Coverage {Constants.percentageStringFormat(limited_progress)}%</div>}
+        content={<div>Completion {Constants.percentageStringFormat(limited_progress)}%</div>}
         triggerRef={() => document.getElementById(progressId) as HTMLElement}
       />
     </React.Fragment>

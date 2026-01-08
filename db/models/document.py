@@ -2,7 +2,7 @@ from datetime import datetime
 from db.models.db_base import Base
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -23,10 +23,10 @@ class DocumentModel(Base):
     section: Mapped[str] = mapped_column(String(), default="")
     offset: Mapped[int] = mapped_column(Integer(), default=-1)
     valid: Mapped[int] = mapped_column(Integer(), default=-1)
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="DocumentModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="DocumentModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))
@@ -85,6 +85,22 @@ class DocumentModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def fork(self, created_by, db_session=None):
+        new_document = DocumentModel(
+            title=self.title,
+            description=self.description,
+            document_type=self.document_type,
+            spdx_relation=self.spdx_relation,
+            url=self.url,
+            section=self.section,
+            offset=self.offset,
+            valid=self.valid,
+            created_by=created_by
+        )
+        db_session.add(new_document)
+        db_session.commit()
+        return new_document
+
 
 @event.listens_for(DocumentModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -135,6 +151,13 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(DocumentModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = delete(DocumentHistoryModel).where(DocumentHistoryModel.id == target.id)
+    connection.execute(del_stmt)
+
+
 class DocumentHistoryModel(Base):
     __tablename__ = 'documents_history'
     extend_existing = True
@@ -148,10 +171,10 @@ class DocumentHistoryModel(Base):
     section: Mapped[str] = mapped_column(String())
     offset: Mapped[int] = mapped_column(Integer())
     valid: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="DocumentHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="DocumentHistoryModel.edited_by_id")
     status: Mapped[str] = mapped_column(String(30))

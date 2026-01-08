@@ -5,7 +5,7 @@ from db.models.sw_requirement_test_specification import SwRequirementTestSpecifi
 from db.models.user import UserModel
 from db.models.db_base import Base
 from sqlalchemy import DateTime, Integer
-from sqlalchemy import event, insert, select
+from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import Mapped
@@ -19,22 +19,22 @@ class TestSpecificationTestCaseModel(Base):
     extend_existing = True
     id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
     test_specification_mapping_api_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_specification_mapping_api.id"))
+        ForeignKey("test_specification_mapping_api.id", ondelete="CASCADE"))
     test_specification_mapping_api: Mapped[Optional["ApiTestSpecificationModel"]] = relationship(
         "ApiTestSpecificationModel", foreign_keys="TestSpecificationTestCaseModel.test_specification_mapping_api_id")
     test_specification_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("test_specification_mapping_sw_requirement.id"))
+        ForeignKey("test_specification_mapping_sw_requirement.id", ondelete="CASCADE"))
     test_specification_mapping_sw_requirement: Mapped[Optional["SwRequirementTestSpecificationModel"]] = relationship(
         "SwRequirementTestSpecificationModel",
         foreign_keys="TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id")
-    test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id"))
+    test_case_id: Mapped[int] = mapped_column(ForeignKey("test_cases.id", ondelete="CASCADE"))
     test_case: Mapped["TestCaseModel"] = relationship(
         "TestCaseModel", foreign_keys="TestSpecificationTestCaseModel.test_case_id")
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestSpecificationTestCaseModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestSpecificationTestCaseModel.edited_by_id")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -126,6 +126,18 @@ class TestSpecificationTestCaseModel(Base):
         except NoResultFound:
             return None
 
+    def fork(self, new_test_specification_mapping_api, new_test_specification_mapping_sw_requirement, db_session):
+        new_test_specification_test_case = TestSpecificationTestCaseModel(
+            test_specification_mapping_api=new_test_specification_mapping_api,
+            test_specification_mapping_sw_requirement=new_test_specification_mapping_sw_requirement,
+            test_case=self.test_case,
+            coverage=self.coverage,
+            created_by=self.created_by
+        )
+        db_session.add(new_test_specification_test_case)
+        db_session.commit()
+        return new_test_specification_test_case
+
 
 @event.listens_for(TestSpecificationTestCaseModel, "after_update")
 def receive_after_update(mapper, connection, target):
@@ -165,6 +177,16 @@ def receive_after_insert(mapper, connection, target):
     connection.execute(insert_query)
 
 
+@event.listens_for(TestSpecificationTestCaseModel, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    # Purge history rows for this mapping id
+    del_stmt = (
+        delete(TestSpecificationTestCaseHistoryModel)
+        .where(TestSpecificationTestCaseHistoryModel.id == target.id)
+    )
+    connection.execute(del_stmt)
+
+
 class TestSpecificationTestCaseHistoryModel(Base):
     __tablename__ = 'test_case_mapping_test_specification_history'
     extend_existing = True
@@ -174,10 +196,10 @@ class TestSpecificationTestCaseHistoryModel(Base):
     test_specification_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(Integer())
     test_case_id: Mapped[int] = mapped_column(Integer())
     coverage: Mapped[int] = mapped_column(Integer())
-    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     created_by: Mapped["UserModel"] = relationship("UserModel",
                                                    foreign_keys="TestSpecificationTestCaseHistoryModel.created_by_id")
-    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    edited_by_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     edited_by: Mapped["UserModel"] = relationship("UserModel",
                                                   foreign_keys="TestSpecificationTestCaseHistoryModel.edited_by_id")
     version: Mapped[int] = mapped_column(Integer())

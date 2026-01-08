@@ -246,8 +246,8 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         {getJustificationsTable(justifications)}
       </DataList>
       <br />
-      <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-justification-coverage-existing`}>
+      <Grid hasGutter md={4}>
+        <FormGroup label={Constants.FORM_COMPLETION_LABEL} isRequired fieldId={`input-justification-coverage-existing`}>
           <TextInput
             isRequired
             id={`input-justification-coverage-existing`}

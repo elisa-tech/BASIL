@@ -1,5 +1,5 @@
 export const API_BASE_URL = 'http://localhost:5000'
-export const BASIL_VERSION = '1.8.4'
+export const BASIL_VERSION = '1.8.6'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
@@ -57,6 +57,8 @@ export const API_AI_SUGGEST_TEST_CASE_METADATA_ENDPOINT = '/ai/suggest/test-case
 export const API_AI_SUGGEST_TEST_SPEC_METADATA_ENDPOINT = '/ai/suggest/test-specification/metadata'
 export const API_SPDX_API_EXPORT_ENDPOINT = '/spdx/apis'
 export const API_SPDX_API_EXPORT_DOWNLOAD_ENDPOINT = '/spdx/apis/export-download'
+
+export const FORM_COMPLETION_LABEL = 'Completion (how much of the parent is covered by this work item) [0-100]:'
 
 export const JSON_HEADER = {
   Accept: 'application/json',

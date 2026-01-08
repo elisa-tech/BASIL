@@ -261,8 +261,8 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         {getTestSpecificationsTable(testSpecifications)}
       </DataList>
       <br />
-      <Grid hasGutter md={3}>
-        <FormGroup label='Unique Coverage:' isRequired fieldId={`input-test-specification-coverage-existing`}>
+      <Grid hasGutter md={4}>
+        <FormGroup label={Constants.FORM_COMPLETION_LABEL} isRequired fieldId={`input-test-specification-coverage-existing`}>
           <TextInput
             isRequired
             id={`input-test-specification-coverage-existing`}

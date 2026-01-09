@@ -66,11 +66,11 @@ describe('Test Case Import', { viewportWidth: 1280, viewportHeight: 900, scrollB
         // Import from json - select first option that ends with .json
         cy.get('#select-test-case-import-from-user-files').find('option').should('have.length.greaterThan', 0)
         cy.get('#select-test-case-import-from-user-files')
-          .find('option')
-          .filter((index, option) => option.value.endsWith('.json'))
+          .find('option[value$=".json"]')
           .first()
-          .then((firstJsonOption) => {
-            cy.get('#select-test-case-import-from-user-files').select(firstJsonOption.val())
+          .invoke('val')
+          .then((firstJsonValue) => {
+            cy.get('#select-test-case-import-from-user-files').select(firstJsonValue)
           })
 
         cy.get('#btn-test-case-import-select-from-user-files-submit').click()

@@ -89,13 +89,22 @@ echo $(pwd)
 echo create wsgi-pythonscript $WSGI_SCRIPT
 
 ## --- create wsgi-pythonscript $WSGI_SCRIPT ----------------------------
-printf "import sys \n\
-import os \n\
-sys.path.insert(0, '$BASIL_API/api') \n\
-import api \n\
-application = api.app \n\
+printf "import sys\n\
+import os\n\
+sys.path.insert(0, '/var/www/basil-api/api')\n\
+import api\n\
+application = api.app\n\
 import logging\n\
-logging.basicConfig(stream=sys.stderr)"  > $WSGI_SCRIPT
+logging.basicConfig(stream=sys.stderr)\n\
+from datetime import datetime\n\
+debug_file = '/tmp/mylogs/BASIL_env_debug.log'\n\
+with open(debug_file, 'w') as f:\n\
+    f.write(f"Environment Variables - {datetime.now()}\n")\n\
+    f.write("="*50 + "\n")\n\
+    \n\
+    for key, value in sorted(os.environ.items()):\n\
+        f.write(f"{key}: {value}\n")\n\
+print(f"Debug: Environment variables written to {debug_file}", file=sys.stderr)"  > $WSGI_SCRIPT
 
 ## --- create virtual python environment:
 if [ -d $VIRTUAL_ENV ]; then

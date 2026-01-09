@@ -2,7 +2,7 @@ import os
 import smtplib
 import ssl
 import sys
-import traceback
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -11,8 +11,32 @@ sys.path.insert(1, os.path.dirname(currentdir))
 
 from api_utils import (
     get_configuration,
-    load_settings
+    load_settings,
+    parse_int
 )
+
+# Configure logger to write to both stdout and file with timestamp and level
+logger = logging.getLogger("email_notifier")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+stream_handler_exists = any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
+if not stream_handler_exists:
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(log_formatter)
+    logger.addHandler(stream_handler)
+
+# Simple per-process file logging (one file per PID)
+log_file_path = os.path.join(currentdir, f"email_notifier.{os.getpid()}.log")
+file_handler_exists = any(
+    isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == log_file_path
+    for h in logger.handlers
+)
+if not file_handler_exists:
+    file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+    file_handler.setFormatter(log_formatter)
+    logger.addHandler(file_handler)
 
 
 class EmailNotifier():
@@ -85,7 +109,7 @@ class EmailNotifier():
             settings_last_modified=self.settings_last_modified
         )
 
-        self._port = get_configuration(
+        config_port = get_configuration(
             setting_section=self.SETTINGS_SMTP_SECTION,
             setting_key=self.SETTINGS_SMPT_FIELD_PORT,
             env_key=self.ENV_SMPT_PORT,
@@ -93,6 +117,8 @@ class EmailNotifier():
             settings=self.settings,
             settings_last_modified=self.settings_last_modified
         )
+        # Try to parse the port as int; leave it as None if not valid.
+        self._port = parse_int(config_port)
 
         self._reply_to = get_configuration(
             setting_section=self.SETTINGS_SMTP_SECTION,
@@ -125,36 +151,35 @@ class EmailNotifier():
         """Validate mandatory settings"""
 
         if not self._from:
-            print("Error: `from` field is not configured")
+            logger.error("`from` field is not configured")
             return False
 
         if not self._host:
-            print("Error: `host` field is not configured")
+            logger.error("`host` field is not configured")
             return False
 
         if not self._password:
-            print("Error: `password` field is not configured")
+            logger.error("`password` field is not configured")
             return False
 
         if not self._port:
-            print("Error: `port` field is not configured")
+            logger.error("`port` field is not configured")
             return False
 
         if not self._user:
-            print("Error: `user` field is not configured")
+            logger.error("`user` field is not configured")
             return False
 
         return True
 
-    def send_email(self, recipient, subject, body, is_html=False, dry_mode=False):
+    def send_email(self, recipient, subject, body, is_html=False):
 
         if not self.validate_settings():
-            print("Settings not valid")
+            logger.info("Settings are not valid")
             return False
-        else:
-            print("Settings is valid")
 
         try:
+            logger.info(f"Preparing email to {recipient} with subject '{subject}'")
             msg = MIMEMultipart()
             msg['From'] = self._from
             msg['To'] = recipient
@@ -181,10 +206,13 @@ class EmailNotifier():
                     server.login(self._user, self._password)
                     if not self._dry_mode:
                         server.sendmail(msg['From'], msg['To'], msg.as_string())
+            if self._dry_mode:
+                logger.info(f"[DRY MODE] Email to {recipient} with subject '{subject}' not sent")
+            else:
+                logger.info(f"Email sent to {recipient} with subject '{subject}'")
             return True
         except Exception as e:
-            print(f"Error on send_email: {e}")
-            print(traceback.format_exc())
+            logger.exception(f"Error on send_email: {e}")
             return False
 
 
@@ -195,7 +223,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) < EXPECTED_ARGV_COUNT:
         # Use less (<) as logical operator as we can call this script also with ending &
-        print(
+        logger.info(
             "Usage: python3 notifier.py <config_filepath> <recipient> <title> <body> <is_html> <dry mode [true|false]>"
         )
         sys.exit(1)
@@ -205,9 +233,13 @@ if __name__ == "__main__":
     email_subject = sys.argv[3]
     email_body = sys.argv[4]
     email_is_html = True if sys.argv[5] in [1, "1", "true", "True", True] else False
-    dry_mode = True if sys.argv[5] in [1, "1", "true", "True", True] else False
+    dry_mode = True if sys.argv[6] in [1, "1", "true", "True", True] else False
 
     settings, settings_last_modified = load_settings(None, None)
 
     notifier = EmailNotifier(settings=settings, settings_last_modified=settings_last_modified, dry_mode=dry_mode)
-    notifier.send_email(email_recipient, email_subject, email_body, email_is_html)
+    sent = notifier.send_email(email_recipient, email_subject, email_body, email_is_html)
+    if sent:
+        logger.info(f"Email '{email_subject}' sent to {email_recipient}")
+    # Ensure all logs are flushed to disk before the process exits
+    logging.shutdown()

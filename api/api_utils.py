@@ -188,24 +188,21 @@ def async_email_notification(setting_path, template_path, recipient_list, subjec
             if not body:
                 return False
 
-        with open("email_notifier.log", "a") as log_file:
-            with open("email_notifier.err", "a") as err_file:
+        for recipient in recipient_list:
+            cmd = ["python3",
+                   "notifier.py",
+                   f"{setting_path}",
+                   f"{recipient}",
+                   f"{subject}",
+                   f"{body}",
+                   f"{is_html}",
+                   "false",  # dry mode
+                   "&"]
 
-                for recipient in recipient_list:
-                    cmd = ["python3",
-                           "notifier.py",
-                           f"{setting_path}",
-                           f"{recipient}",
-                           f"{subject}",
-                           f"{body}",
-                           f"{is_html}",
-                           "false",  # dry mode
-                           "&"]
-
-                    subprocess.Popen(cmd,
-                                     stdin=subprocess.PIPE,
-                                     stdout=log_file,
-                                     stderr=err_file)
+            subprocess.Popen(cmd,
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
         return True
     return False
 

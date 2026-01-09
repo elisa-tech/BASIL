@@ -2,7 +2,7 @@ import os
 import smtplib
 import ssl
 import sys
-import traceback
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -14,6 +14,21 @@ from api_utils import (
     load_settings,
     parse_int
 )
+
+# Configure logger to write to both stdout and file with timestamp and level
+logger = logging.getLogger("email_notifier")
+if not logger.handlers:
+    logger.setLevel(logging.INFO)
+    log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(log_formatter)
+    logger.addHandler(stream_handler)
+
+    log_file_path = os.path.join(currentdir, "email_notifier.log")
+    file_handler = logging.FileHandler(log_file_path)
+    file_handler.setFormatter(log_formatter)
+    logger.addHandler(file_handler)
 
 
 class EmailNotifier():
@@ -128,23 +143,23 @@ class EmailNotifier():
         """Validate mandatory settings"""
 
         if not self._from:
-            print("Error: `from` field is not configured")
+            logger.error("`from` field is not configured")
             return False
 
         if not self._host:
-            print("Error: `host` field is not configured")
+            logger.error("`host` field is not configured")
             return False
 
         if not self._password:
-            print("Error: `password` field is not configured")
+            logger.error("`password` field is not configured")
             return False
 
         if not self._port:
-            print("Error: `port` field is not configured")
+            logger.error("`port` field is not configured")
             return False
 
         if not self._user:
-            print("Error: `user` field is not configured")
+            logger.error("`user` field is not configured")
             return False
 
         return True
@@ -152,7 +167,7 @@ class EmailNotifier():
     def send_email(self, recipient, subject, body, is_html=False):
 
         if not self.validate_settings():
-            print("Settings are not valid")
+            logger.info("Settings are not valid")
             return False
 
         try:
@@ -184,8 +199,7 @@ class EmailNotifier():
                         server.sendmail(msg['From'], msg['To'], msg.as_string())
             return True
         except Exception as e:
-            print(f"Error on send_email: {e}")
-            print(traceback.format_exc())
+            logger.exception(f"Error on send_email: {e}")
             return False
 
 
@@ -196,7 +210,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) < EXPECTED_ARGV_COUNT:
         # Use less (<) as logical operator as we can call this script also with ending &
-        print(
+        logger.info(
             "Usage: python3 notifier.py <config_filepath> <recipient> <title> <body> <is_html> <dry mode [true|false]>"
         )
         sys.exit(1)

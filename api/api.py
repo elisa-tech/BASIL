@@ -94,9 +94,9 @@ SSH_KEYS_PATH = os.path.join(currentdir, "ssh_keys")
 TESTRUN_PRESET_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "testrun_plugin_presets.yaml")
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
 EMAIL_TEMPLATE_PATH = os.path.join(currentdir, CONFIGS_FOLDER, "email_template.html")
-EMAIL_MATRIX_FOOTER_MESSAGE = "<p>Join our <a href='" \
-    "https://matrix.to/#/!RoPWKbVtTKUKNouZCV:matrix.org?via=matrix.org" \
-    "'>BASIL Matrix chat room</a> to discuss about the tool usage and development!</p>"
+EMAIL_DISCORD_FOOTER_MESSAGE = "<p>Join our <a href='" \
+    "https://discord.gg/2sCQSTZHTW" \
+    "'>BASIL Discord channel</a> to discuss about the tool usage and development!</p>"
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
@@ -2412,7 +2412,7 @@ class ApiWritePermissionRequest(Resource):
 
                     if recipient_list:
                         email_subject = f"BASIL - {notification_title}"
-                        email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
+                        email_footer = EMAIL_DISCORD_FOOTER_MESSAGE
                         email_body = notification_message
 
                         async_email_notification(SETTINGS_FILEPATH,
@@ -6318,7 +6318,7 @@ class UserSignin(Resource):
         # Send email notifications to admins
         email_subject = "BASIL - New User"
         email_body = f"{username} joined us on BASIL!"
-        email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
+        email_footer = EMAIL_DISCORD_FOOTER_MESSAGE
 
         admins = dbi.session.query(UserModel).filter(
             UserModel.role == "ADMIN").filter(
@@ -6797,7 +6797,7 @@ class UserResetPassword(Resource):
 
         # Notification
         email_subject = "BASIL - Confirm password reset"
-        email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
+        email_footer = EMAIL_DISCORD_FOOTER_MESSAGE
         email_body = "<p>Your password has been reset</p>"
         email_body = add_html_link_to_email_body(settings=settings, body=email_body)
         email_body = get_html_email_body_from_template(EMAIL_TEMPLATE_PATH,
@@ -6840,7 +6840,7 @@ class UserResetPassword(Resource):
 
         # generate reset_token and reset_pwd
         email_subject = "BASIL - Password reset"
-        email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
+        email_footer = EMAIL_DISCORD_FOOTER_MESSAGE
 
         reset_pwd = secrets.token_urlsafe(10)
         encoded_reset_pwd = base64.b64encode(reset_pwd.encode("utf-8")).decode("utf-8")
@@ -6954,7 +6954,7 @@ class UserRole(Resource):
         # Notification
         settings = get_updated_settings()
         email_subject = "BASIL user role changed"
-        email_footer = EMAIL_MATRIX_FOOTER_MESSAGE
+        email_footer = EMAIL_DISCORD_FOOTER_MESSAGE
         email_body = f"<p>Your BASIL user role changed to <b>{target_user.role}</b></p>"
         email_body += "<p>See the <a href='" \
                       "https://basil-the-fusa-spice.readthedocs.io/en/latest/user_management.html#roles" \

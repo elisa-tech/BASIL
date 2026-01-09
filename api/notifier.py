@@ -225,4 +225,6 @@ if __name__ == "__main__":
     settings, settings_last_modified = load_settings(None, None)
 
     notifier = EmailNotifier(settings=settings, settings_last_modified=settings_last_modified, dry_mode=dry_mode)
-    notifier.send_email(email_recipient, email_subject, email_body, email_is_html)
+    sent = notifier.send_email(email_recipient, email_subject, email_body, email_is_html)
+    if sent:
+        logger.info(f"Email '{email_subject}' sent to {email_recipient}")

@@ -77,6 +77,14 @@ jobs:
           echo "Test App is running"
           curl -vf http://localhost:9056
 
+      - name: Upload Apache backend environment variables
+        uses: actions/upload-artifact@v4
+        with:
+          name: wsgi-debug-env
+          path: |
+            /tmp/mylogs/BASIL_env_debug.log
+          retention-days: 7
+          
       - name: Install cypress-fail-fast plugin
         run: npm install --save-dev cypress-fail-fast
         working-directory: ./app

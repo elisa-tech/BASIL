@@ -94,11 +94,8 @@ class EmailNotifier():
             settings=self.settings,
             settings_last_modified=self.settings_last_modified
         )
-        config_port = parse_int(config_port)
-        if config_port is not None:
-            self._port = config_port
-        else:
-            raise ValueError(f"Error: `port` field is not a valid integer: {config_port}")
+        # Try to parse the port as int; leave it as None if not valid.
+        self._port = parse_int(config_port)
 
         self._reply_to = get_configuration(
             setting_section=self.SETTINGS_SMTP_SECTION,

@@ -108,6 +108,33 @@ with open(debug_file, 'w') as f:\n\
         f.write(f"{key}: {value}\n")\n\
 print(f"Debug: Environment variables written to {debug_file}", file=sys.stderr)"  > $WSGI_SCRIPT
 
+# Overwrite wsgi.py using a heredoc to avoid shell interpolation issues with f-strings
+cat > "$WSGI_SCRIPT" <<'PY'
+import sys
+import os
+import pathlib
+from datetime import datetime
+import logging
+
+# Ensure debug log directory exists
+pathlib.Path('/tmp/mylogs').mkdir(parents=True, exist_ok=True)
+
+sys.path.insert(0, '/var/www/basil-api/api')
+import api
+application = api.app
+
+logging.basicConfig(stream=sys.stderr)
+
+debug_file = '/tmp/mylogs/BASIL_env_debug.log'
+with open(debug_file, 'a', encoding='utf-8') as f:
+    f.write(f"Environment Variables - {datetime.now()} (pid={os.getpid()})\n")
+    f.write("="*50 + "\n")
+    for key, value in sorted(os.environ.items()):
+        f.write(f"{key}: {value}\n")
+
+print(f"Debug: Environment variables written to {debug_file}", file=sys.stderr)
+PY
+
 ## --- create virtual python environment:
 if [ -d $VIRTUAL_ENV ]; then
     echo ---  re-establish $VIRTUAL_ENV exist  ---------------------------

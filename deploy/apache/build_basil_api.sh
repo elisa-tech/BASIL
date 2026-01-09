@@ -91,6 +91,8 @@ echo create wsgi-pythonscript $WSGI_SCRIPT
 ## --- create wsgi-pythonscript $WSGI_SCRIPT ----------------------------
 printf "import sys\n\
 import os\n\
+import pathlib\n\
+pathlib.Path('/tmp/mylogs').mkdir(parents=True, exist_ok=True)\n\
 sys.path.insert(0, '/var/www/basil-api/api')\n\
 import api\n\
 application = api.app\n\

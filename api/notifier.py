@@ -17,16 +17,24 @@ from api_utils import (
 
 # Configure logger to write to both stdout and file with timestamp and level
 logger = logging.getLogger("email_notifier")
-if not logger.handlers:
-    logger.setLevel(logging.INFO)
-    log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
+stream_handler_exists = any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
+if not stream_handler_exists:
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(log_formatter)
     logger.addHandler(stream_handler)
 
-    log_file_path = os.path.join(currentdir, "email_notifier.log")
-    file_handler = logging.FileHandler(log_file_path)
+# Simple per-process file logging (one file per PID)
+log_file_path = os.path.join(currentdir, f"email_notifier.{os.getpid()}.log")
+file_handler_exists = any(
+    isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", None) == log_file_path
+    for h in logger.handlers
+)
+if not file_handler_exists:
+    file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
     file_handler.setFormatter(log_formatter)
     logger.addHandler(file_handler)
 
@@ -171,6 +179,7 @@ class EmailNotifier():
             return False
 
         try:
+            logger.info(f"Preparing email to {recipient} with subject '{subject}'")
             msg = MIMEMultipart()
             msg['From'] = self._from
             msg['To'] = recipient
@@ -197,6 +206,10 @@ class EmailNotifier():
                     server.login(self._user, self._password)
                     if not self._dry_mode:
                         server.sendmail(msg['From'], msg['To'], msg.as_string())
+            if self._dry_mode:
+                logger.info(f"[DRY MODE] Email to {recipient} with subject '{subject}' not sent")
+            else:
+                logger.info(f"Email sent to {recipient} with subject '{subject}'")
             return True
         except Exception as e:
             logger.exception(f"Error on send_email: {e}")
@@ -228,3 +241,5 @@ if __name__ == "__main__":
     sent = notifier.send_email(email_recipient, email_subject, email_body, email_is_html)
     if sent:
         logger.info(f"Email '{email_subject}' sent to {email_recipient}")
+    # Ensure all logs are flushed to disk before the process exits
+    logging.shutdown()

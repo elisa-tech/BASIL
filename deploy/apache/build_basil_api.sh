@@ -162,6 +162,8 @@ printf "<VirtualHost *:${API_PORT}> \n\
     # --- WSGI - stuff:
     WSGIProcessGroup basil-api \n\
     WSGIDaemonProcess basil-api python-home=$VIRTUAL_ENV python-path=$BASIL_API user=www-data group=www-data \n\
+    # Preload the app so wsgi.py executes at startup (creates env debug log immediately)
+    WSGIImportScript $WSGI_SCRIPT process-group=basil-api application-group=%{GLOBAL} \n\
     WSGIScriptAlias / $WSGI_SCRIPT \n\
     # ---
     <Directory \"$BASIL_API\"> \n\

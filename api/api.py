@@ -6804,7 +6804,11 @@ class UserResetPassword(Resource):
                                                        email_subject,
                                                        email_body,
                                                        email_footer)
-        email_notifier = EmailNotifier(settings=settings)
+        email_notifier = EmailNotifier(
+            settings=settings,
+            settings_last_modified=SETTINGS_LAST_MODIFIED,
+            dry_mode=False
+        )
         ret = email_notifier.send_email(email, email_subject, email_body, True)
         if ret:
             if "redirect" in request_data.keys():
@@ -6864,7 +6868,11 @@ class UserResetPassword(Resource):
                                                        email_subject,
                                                        email_body,
                                                        email_footer)
-        email_notifier = EmailNotifier(settings=settings)
+        email_notifier = EmailNotifier(
+            settings=settings,
+            settings_last_modified=SETTINGS_LAST_MODIFIED,
+            dry_mode=False
+        )
         ret = email_notifier.send_email(email, email_subject, email_body, True)
         if ret:
             return {"result": "success", "message": "An email has been sent to reset your password"}

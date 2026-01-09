@@ -11,7 +11,8 @@ sys.path.insert(1, os.path.dirname(currentdir))
 
 from api_utils import (
     get_configuration,
-    load_settings
+    load_settings,
+    parse_int
 )
 
 
@@ -85,7 +86,7 @@ class EmailNotifier():
             settings_last_modified=self.settings_last_modified
         )
 
-        self._port = get_configuration(
+        config_port = get_configuration(
             setting_section=self.SETTINGS_SMTP_SECTION,
             setting_key=self.SETTINGS_SMPT_FIELD_PORT,
             env_key=self.ENV_SMPT_PORT,
@@ -93,6 +94,11 @@ class EmailNotifier():
             settings=self.settings,
             settings_last_modified=self.settings_last_modified
         )
+        config_port = parse_int(config_port)
+        if config_port is not None:
+            self._port = config_port
+        else:
+            raise ValueError(f"Error: `port` field is not a valid integer: {config_port}")
 
         self._reply_to = get_configuration(
             setting_section=self.SETTINGS_SMTP_SECTION,
@@ -146,13 +152,11 @@ class EmailNotifier():
 
         return True
 
-    def send_email(self, recipient, subject, body, is_html=False, dry_mode=False):
+    def send_email(self, recipient, subject, body, is_html=False):
 
         if not self.validate_settings():
-            print("Settings not valid")
+            print("Settings are not valid")
             return False
-        else:
-            print("Settings is valid")
 
         try:
             msg = MIMEMultipart()
@@ -205,7 +209,7 @@ if __name__ == "__main__":
     email_subject = sys.argv[3]
     email_body = sys.argv[4]
     email_is_html = True if sys.argv[5] in [1, "1", "true", "True", True] else False
-    dry_mode = True if sys.argv[5] in [1, "1", "true", "True", True] else False
+    dry_mode = True if sys.argv[6] in [1, "1", "true", "True", True] else False
 
     settings, settings_last_modified = load_settings(None, None)
 

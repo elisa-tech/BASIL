@@ -74,6 +74,7 @@ jobs:
           curl -vf http://localhost:5005/apis
           curl -vf http://localhost:5005/libraries
           curl -vf http://localhost:5005/version
+          curl -vf http://localhost:5005/debug/env-vars
           echo "Test App is running"
           curl -vf http://localhost:9056
 

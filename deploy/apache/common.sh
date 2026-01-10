@@ -20,7 +20,7 @@ clone_basil_repo_if_needed() {
     local _COMMITBEFORE="${5}"
     echo "DBG: --- Function: clone_basil_repo_if_needed() --- \$_CLONEBASIL:  ${_CLONEBASIL} ----"
     # --- check if BASIL repository should be cloned ---------------------------------------------------
-    if (( _CLONEBASIL = 0 )); then
+    if (( _CLONEBASIL == 0 )); then
         echo "DBG: --- Function: clone_basil_repo_if_needed()  if [ $_CLONEBASIL -eq 0 ]; then ----"
         # rm -R $_BASIL_BUILD_DIR
         if ! [ -d $_BASIL_BUILD_DIR ]; then

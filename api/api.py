@@ -8821,7 +8821,7 @@ class DebugEnvironmentVariables(Resource):
             for key, value in sorted(os.environ.items()):
                 f.write(f"{key}: {value}\n")
         return {
-            "env": os.environ,
+            "env": dict(os.environ),
             "uid": os.getuid(),
             "gid": os.getgid(),
             "cwd": os.getcwd(),

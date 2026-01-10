@@ -26,6 +26,12 @@ clone_basil_repo_if_needed() {
         if ! [ -d $_BASIL_BUILD_DIR ]; then
             echo "---  BASIL repository not found! Repository will be cloned!  ---"
             git clone $_BASIL_REPOSITORY $_BASIL_BUILD_DIR
+            # Optionally check out the CI branch if provided
+            if [ -n "${BASIL_GITBRANCH}" ]; then
+                echo "---  Checking out branch: ${BASIL_GITBRANCH}  ---"
+                git -C "$_BASIL_BUILD_DIR" fetch origin "${BASIL_GITBRANCH}:${BASIL_GITBRANCH}" || true
+                git -C "$_BASIL_BUILD_DIR" checkout "${BASIL_GITBRANCH}" || echo "Warning: Unable to checkout ${BASIL_GITBRANCH}, using default branch"
+            fi
         else
             echo "---  Keep current version of BASIL.  --------------------------------------------"$'\n'
         fi
@@ -38,6 +44,12 @@ clone_basil_repo_if_needed() {
         mkdir -p $_BASIL_BUILD_DIR
         ## --- clone git repository --------------------------------------------
         git clone $_BASIL_REPOSITORY $_BASIL_BUILD_DIR
+        # Optionally check out the CI branch if provided
+        if [ -n "${BASIL_GITBRANCH}" ]; then
+            echo "---  Checking out branch: ${BASIL_GITBRANCH}  ---"
+            git -C "$_BASIL_BUILD_DIR" fetch origin "${BASIL_GITBRANCH}:${BASIL_GITBRANCH}" || true
+            git -C "$_BASIL_BUILD_DIR" checkout "${BASIL_GITBRANCH}" || echo "Warning: Unable to checkout ${BASIL_GITBRANCH}, using default branch"
+        fi
         echo $'\n'"--- END git clone -------------------------------------------------------------"$'\n'
     fi
 

@@ -155,26 +155,28 @@ echo $(pwd)
 
 ## --- write BASIL-API apache2-config file:
 echo --- write BASIL-API apache2-config file:
-printf "<VirtualHost *:${API_PORT}> \n\
-    ServerName $SERVER_NAME \n\
-    ServerAlias $SERVER_ALIAS \n\
-    ServerAdmin $SERVER_ADMIN \n\
+cat > "$BASIL_API_CONF" <<CONF
+<VirtualHost *:${API_PORT}>
+    ServerName $SERVER_NAME
+    ServerAlias $SERVER_ALIAS
+    ServerAdmin $SERVER_ADMIN
     # --- WSGI - stuff:
-    WSGIProcessGroup basil-api \n\
-    WSGIDaemonProcess basil-api python-home=$VIRTUAL_ENV python-path=$BASIL_API user=www-data group=www-data \n\
+    WSGIProcessGroup basil-api
+    WSGIDaemonProcess basil-api python-home=$VIRTUAL_ENV python-path=$BASIL_API user=www-data group=www-data
     # Preload the app so wsgi.py executes at startup (creates env debug log immediately)
-    WSGIImportScript $WSGI_SCRIPT process-group=basil-api application-group=%{GLOBAL} \n\
-    WSGIScriptAlias / $WSGI_SCRIPT \n\
+    WSGIImportScript $WSGI_SCRIPT process-group=basil-api application-group=%{GLOBAL}
+    WSGIScriptAlias / $WSGI_SCRIPT
     # ---
-    <Directory \"$BASIL_API\"> \n\
-        Options Indexes FollowSymLinks \n\
-        AllowOverride All \n\
-        Require all granted \n\
-    </Directory> \n\
+    <Directory "$BASIL_API">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
     # --- Logging ---
-    ErrorLog \${APACHE_LOG_DIR}/error.log \n\
-    CustomLog \${APACHE_LOG_DIR}/access.log combined \n\
-</VirtualHost>" > $BASIL_API_CONF
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+CONF
 
 ## --- Add port to apache configuration
 echo "---  Build Backend API: Add API port '${API_PORT}' if not yet specified in: '${APACHE_PORTCONFIG}' ---"

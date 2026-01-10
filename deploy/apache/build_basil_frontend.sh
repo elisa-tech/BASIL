@@ -169,30 +169,32 @@ chmod -R 755 $BASIL_FRONT_END
 add_port_to_listen "${APACHE_PORTCONFIG}" "${APP_PORT}"
 
 ## --- create Apache2 VirtualHost Configuration file for BASIL FrontEnd:
-printf "<VirtualHost *:${APP_PORT}> \n\
-    ServerName $SERVER_NAME \n\
-    ServerAlias $SERVER_ALIAS \n\
-    ServerAdmin $SERVER_ADMIN \n\
-    # --- \n\
-    DocumentRoot $BASIL_FRONT_END \n\
+cat > "$BASIL_FRONT_END_CONF" <<CONF
+<VirtualHost *:${APP_PORT}>
+    ServerName $SERVER_NAME
+    ServerAlias $SERVER_ALIAS
+    ServerAdmin $SERVER_ADMIN
     # ---
-    <Directory \"$BASIL_FRONT_END\"> \n\
-        Options Indexes FollowSymLinks \n\
-        AllowOverride None \n\
-        Require all granted \n\
-        # allows React Router to take over routing from index.html \n\
-        RewriteEngine On \n\
-        RewriteBase / \n\
-        RewriteRule ^index\.html - [L] \n\
-        RewriteCond %%{REQUEST_FILENAME} !-f \n\
-        RewriteCond %%{REQUEST_FILENAME} !-d \n\
-        RewriteCond %%{REQUEST_URI} !\.[a-zA-Z0-9]{2,5}$ \n\
-        RewriteRule . /index.html [L] \n\
-    </Directory> \n\
+    DocumentRoot $BASIL_FRONT_END
+    # ---
+    <Directory "$BASIL_FRONT_END">
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+        # allows React Router to take over routing from index.html
+        RewriteEngine On
+        RewriteBase /
+        RewriteRule ^index\.html - [L]
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteCond %{REQUEST_URI} !\.[a-zA-Z0-9]{2,5}$
+        RewriteRule . /index.html [L]
+    </Directory>
     # --- Logging ---
-    ErrorLog \${APACHE_LOG_DIR}/error.log \n\
-    CustomLog \${APACHE_LOG_DIR}/access.log combined \n\
-</VirtualHost>" > $BASIL_FRONT_END_CONF
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+CONF
 echo  --- Apache2 BASIL conf-file written to: $BASIL_FRONT_END_CONF ---
 
 ## --- activate BASIL-API apache2-config file and restart apache2 server

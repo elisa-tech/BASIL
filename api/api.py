@@ -8810,6 +8810,19 @@ class Version(Resource):
         return {"version": API_VERSION}
 
 
+class DebugEnvironmentVariables(Resource):
+    def get(self):
+        # Save environment variables to file /tmp/mylogs/BASIL_env_debug.log
+        # Check if /tmp/mylogs exists
+        if not os.path.exists("/tmp/mylogs"):
+            os.makedirs("/tmp/mylogs")
+
+        with open("/tmp/mylogs/BASIL_env_debug.log", "w") as f:
+            for key, value in sorted(os.environ.items()):
+                f.write(f"{key}: {value}\n")
+        return {"status": "success"}
+
+
 api.add_resource(Api, "/apis")
 api.add_resource(ApiHistory, "/apis/history")
 api.add_resource(ApiSpecification, "/api-specifications")
@@ -8900,6 +8913,9 @@ api.add_resource(AISuggestTestCaseMetadata, "/ai/suggest/test-case/metadata")
 api.add_resource(AISuggestTestCaseImplementation, "/ai/suggest/test-case/implementation")
 api.add_resource(AISuggestTestSpecificationMetadata, "/ai/suggest/test-specification/metadata")
 api.add_resource(AISuggestSoftwareRequirementMetadata, "/ai/suggest/sw-requirement/metadata")
+
+# Debug
+api.add_resource(DebugEnvironmentVariables, "/debug/env-vars")
 
 if __name__ == "__main__":
     import argparse

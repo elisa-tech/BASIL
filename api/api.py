@@ -8812,7 +8812,7 @@ class Version(Resource):
 
 class DebugEnvironmentVariables(Resource):
     def get(self):
-        # Save environment variables to file /tmp/mylogs/BASIL_env_debug.log
+        # Save environment variables to file /var/tmp/logs/BASIL_env_debug.log
         # Check if /var/tmp/logs exists
         if not os.path.exists("/var/tmp/logs"):
             os.makedirs("/var/tmp/logs")
@@ -8820,7 +8820,14 @@ class DebugEnvironmentVariables(Resource):
         with open("/var/tmp/logs/BASIL_env_debug.log", "w") as f:
             for key, value in sorted(os.environ.items()):
                 f.write(f"{key}: {value}\n")
-        return {"status": "success"}
+        return {
+            "env": os.environ,
+            "uid": os.getuid(),
+            "gid": os.getgid(),
+            "cwd": os.getcwd(),
+            "tmp_logs_exists": os.path.exists("/var/tmp/logs"),
+            "tmp_logs_list": os.listdir("/var/tmp/logs"),
+        }
 
 
 api.add_resource(Api, "/apis")

@@ -94,27 +94,13 @@ echo create wsgi-pythonscript $WSGI_SCRIPT
 cat > "$WSGI_SCRIPT" <<'PY'
 import sys
 import os
-import pathlib
-from datetime import datetime
 import logging
-
-# Ensure debug log directory exists
-pathlib.Path('/var/tmp/logs').mkdir(parents=True, exist_ok=True)
 
 sys.path.insert(0, '/var/www/basil-api/api')
 import api
 application = api.app
 
-logging.basicConfig(stream=sys.stderr)
-
-debug_file = '/var/tmp/logs/BASIL_env_debug.log'
-with open(debug_file, 'a', encoding='utf-8') as f:
-    f.write(f"Environment Variables - {datetime.now()} (pid={os.getpid()})\n")
-    f.write("="*50 + "\n")
-    for key, value in sorted(os.environ.items()):
-        f.write(f"{key}: {value}\n")
-
-print(f"Debug: Environment variables written to {debug_file}", file=sys.stderr)
+logging.warning("ENV: %s", dict(os.environ))
 PY
 
 ## --- create virtual python environment:

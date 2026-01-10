@@ -78,13 +78,15 @@ clone_basil_repo_if_needed() {
         exit 1;
     fi
 
-    # --- Check if it is a "merge commit" --------------------------------------------------------------
-    if ! git revert --no-commit HEAD~$_GITGOBACK..HEAD 2>/dev/null; then
-        echo $'\n'"=========================================================================="$'\n'
-        echo "---   Error: git revert failed likely due to merge commits or other issues."
-        echo "---   Specify another commit! --- Maybe Refresh local copy of repository. "
-        echo "---   Specified or determined _GITGOBACK is $_GITGOBACK. --- Execution terminates now! ---"
-        echo $'\n'"=========================================================================="$'\n'
+    # --- Check if it is a "merge commit" (only when reverting > 0 commits) ----------------------------
+    if (( _GITGOBACK > 0 )); then
+        if ! git revert --no-commit HEAD~$_GITGOBACK..HEAD 2>/dev/null; then
+            echo $'\n'"=========================================================================="$'\n'
+            echo "---   Error: git revert failed likely due to merge commits or other issues."
+            echo "---   Specify another commit! --- Maybe Refresh local copy of repository. "
+            echo "---   Specified or determined _GITGOBACK is $_GITGOBACK. --- Execution terminates now! ---"
+            echo $'\n'"=========================================================================="$'\n'
+        fi
     fi
 
     # --- open with specified or determined HEAD=$_GITGOBACK --------------------------------------------

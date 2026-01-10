@@ -165,6 +165,8 @@ cat > "$BASIL_API_CONF" <<CONF
     WSGIDaemonProcess basil-api python-home=$VIRTUAL_ENV python-path=$BASIL_API user=www-data group=www-data
     # Preload the app so wsgi.py executes at startup (creates env debug log immediately)
     WSGIImportScript $WSGI_SCRIPT process-group=basil-api application-group=%{GLOBAL}
+    # Force main interpreter to avoid PyO3/pydantic_core subinterpreter import error
+    WSGIApplicationGroup %{GLOBAL}
     WSGIScriptAlias / $WSGI_SCRIPT
     # ---
     <Directory "$BASIL_API">

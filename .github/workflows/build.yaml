@@ -72,6 +72,7 @@ jobs:
       - name: Make env log readable
         if: always()
         run: |
+          mkdir -p /var/tmp/mylogs
           sudo chmod -R a+rX /var/tmp/mylogs || true
           sudo chown -R "$USER":"$USER" /var/tmp/mylogs || true
 
@@ -81,6 +82,7 @@ jobs:
           curl -vf http://localhost:5005/apis
           curl -vf http://localhost:5005/libraries
           curl -vf http://localhost:5005/version
+          curl -vf http://localhost:5005/debug/env-vars
           echo "Test App is running"
           curl -vf http://localhost:9056
 
@@ -90,7 +92,7 @@ jobs:
         with:
           name: wsgi-debug-env
           path: |
-            /tmp/mylogs/BASIL_env_debug.log
+            /var/tmp/mylogs/BASIL_env_debug.log
           retention-days: 7
           
       - name: Install cypress-fail-fast plugin

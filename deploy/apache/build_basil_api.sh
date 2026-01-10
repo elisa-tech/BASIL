@@ -99,7 +99,7 @@ from datetime import datetime
 import logging
 
 # Ensure debug log directory exists
-pathlib.Path('/var/tmp/mylogs').mkdir(parents=True, exist_ok=True)
+pathlib.Path('/var/tmp/logs').mkdir(parents=True, exist_ok=True)
 
 sys.path.insert(0, '/var/www/basil-api/api')
 import api
@@ -107,7 +107,7 @@ application = api.app
 
 logging.basicConfig(stream=sys.stderr)
 
-debug_file = '/var/tmp/mylogs/BASIL_env_debug.log'
+debug_file = '/var/tmp/logs/BASIL_env_debug.log'
 with open(debug_file, 'a', encoding='utf-8') as f:
     f.write(f"Environment Variables - {datetime.now()} (pid={os.getpid()})\n")
     f.write("="*50 + "\n")

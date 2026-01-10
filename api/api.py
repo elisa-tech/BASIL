@@ -8813,11 +8813,11 @@ class Version(Resource):
 class DebugEnvironmentVariables(Resource):
     def get(self):
         # Save environment variables to file /tmp/mylogs/BASIL_env_debug.log
-        # Check if /var/tmp/mylogs exists
-        if not os.path.exists("/var/tmp/mylogs"):
-            os.makedirs("/var/tmp/mylogs")
+        # Check if /var/tmp/logs exists
+        if not os.path.exists("/var/tmp/logs"):
+            os.makedirs("/var/tmp/logs")
 
-        with open("/var/tmp/mylogs/BASIL_env_debug.log", "w") as f:
+        with open("/var/tmp/logs/BASIL_env_debug.log", "w") as f:
             for key, value in sorted(os.environ.items()):
                 f.write(f"{key}: {value}\n")
         return {"status": "success"}

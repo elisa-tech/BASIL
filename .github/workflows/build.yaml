@@ -72,9 +72,9 @@ jobs:
       - name: Make env log readable
         if: always()
         run: |
-          mkdir -p /var/tmp/mylogs
-          sudo chmod -R a+rX /var/tmp/mylogs || true
-          sudo chown -R "$USER":"$USER" /var/tmp/mylogs || true
+          mkdir -p /var/tmp/logs
+          sudo chmod -R a+rX /var/tmp/logs || true
+          sudo chown -R "$USER":"$USER" /var/tmp/logs || true
 
       - name: Test backend and frontend are up
         run: |
@@ -92,7 +92,7 @@ jobs:
         with:
           name: wsgi-debug-env
           path: |
-            /var/tmp/mylogs/BASIL_env_debug.log
+            /var/tmp/logs/BASIL_env_debug.log
           retention-days: 7
           
       - name: Install cypress-fail-fast plugin

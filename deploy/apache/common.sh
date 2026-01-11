@@ -1,5 +1,8 @@
 #! /bin/bash -e
 
+# normalize .env to remove unwanted ending CR (\r)
+sed -i 's/\r$//' .env
+
 source .env
 
 ## --- If $CLONEBASIL == 1, perform a fresh clone.

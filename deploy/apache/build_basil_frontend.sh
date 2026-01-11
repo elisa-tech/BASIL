@@ -3,6 +3,9 @@
 ## Initial Author: Stefan Pofahl
 ## #################################################################################################
 
+# normalize .env to remove unwanted ending CR (\r)
+sed -i 's/\r$//' .env
+
 source .env
 source ./common.sh
 

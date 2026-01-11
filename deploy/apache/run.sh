@@ -13,6 +13,10 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 #: --- Proceed.
+
+# normalize .env to remove unwanted ending CR (\r)
+sed -i 's/\r$//' .env
+
 source .env
 source ./common.sh
 

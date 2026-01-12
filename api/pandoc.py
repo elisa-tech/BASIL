@@ -60,7 +60,6 @@ def convert_to_pdf(req: ConvertRequest):
         "-o", pdf_path,
         "--pdf-engine=wkhtmltopdf",
         "--pdf-engine-opt=--enable-local-file-access",
-        "--pdf-engine-opt=--print-media-type",
         "--pdf-engine-opt=--background",
         "--pdf-engine-opt=--margin-top", f"--pdf-engine-opt={margin_top}",
         "--pdf-engine-opt=--margin-bottom", f"--pdf-engine-opt={margin_bottom}",
@@ -90,7 +89,7 @@ def convert_to_pdf(req: ConvertRequest):
     if isinstance(req.footer_spacing_mm, int):
         pandoc_args.extend(
             ["--pdf-engine-opt=--footer-spacing",
-             f"--pdf-engine-opt={int(req.footer_spacing_mm)}mm"]
+             f"--pdf-engine-opt={int(req.footer_spacing_mm)}"]
         )
     if req.footer_line:
         pandoc_args.append("--pdf-engine-opt=--footer-line")

@@ -324,13 +324,13 @@ def sw_requirement_to_html(sw_requirement: dict) -> str:
     html += f"<h3>Sw Requirement {sw_requirement['id']}</h3>"
     html += f"<div id='sw_requirement-details-{sw_requirement['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
-    html += tr("<b>Title</b>:", string_to_html(sw_requirement['title']))
-    html += tr("<b>Description</b>:", string_to_html(sw_requirement['description']))
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
     html += f"<b>Version</b>: {sw_requirement['version']} &nbsp; • &nbsp;"
     html += f"<b>Status</b>: {sw_requirement['status']} &nbsp; • &nbsp; "
     html += f"<b>Created by</b>: {sw_requirement['created_by']}"
     html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(sw_requirement['title']))
+    html += tr("<b>Description</b>:", string_to_html(sw_requirement['description']))
     html += "</table>"
     html += "</div></div>"
     return html
@@ -341,15 +341,15 @@ def test_specification_to_html(test_specification: dict) -> str:
     html += f"<h3>Test Specification {test_specification['id']}</h3>"
     html += f"<div id='test_specification-details-{test_specification['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
-    html += tr("<b>Title</b>:", string_to_html(test_specification['title']))
-    html += tr("<b>Preconditions</b>:", string_to_html(test_specification['preconditions']))
-    html += tr("<b>Test Description</b>:", string_to_html(test_specification['test_description']))
-    html += tr("<b>Expected behavior</b>:", string_to_html(test_specification['expected_behavior']))
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
     html += f"<b>Version</b>: {test_specification['version']} &nbsp; • &nbsp;"
     html += f"<b>Status</b>: {test_specification['status']} &nbsp; • &nbsp; "
     html += f"<b>Created by</b>: {test_specification['created_by']}"
     html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(test_specification['title']))
+    html += tr("<b>Preconditions</b>:", string_to_html(test_specification['preconditions']))
+    html += tr("<b>Test Description</b>:", string_to_html(test_specification['test_description']))
+    html += tr("<b>Expected behavior</b>:", string_to_html(test_specification['expected_behavior']))
     html += "</table>"
     html += "</div></div>"
     return html
@@ -360,15 +360,15 @@ def test_case_to_html(test_case: dict) -> str:
     html += f"<h3>Test Case {test_case['id']}</h3>"
     html += f"<div id='test_case-details-{test_case['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
-    html += tr("<b>Title</b>:", string_to_html(test_case['title']))
-    html += tr("<b>Description</b>:", string_to_html(test_case['description']))
-    html += tr("<b>Repository</b>:", string_to_html(test_case['repository']))
-    html += tr("<b>Relative Path</b>:", string_to_html(test_case['relative_path']))
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
     html += f"<b>Version</b>: {test_case['version']} &nbsp; • &nbsp;"
     html += f"<b>Status</b>: {test_case['status']} &nbsp; • &nbsp; "
     html += f"<b>Created by</b>: {test_case['created_by']}"
     html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(test_case['title']))
+    html += tr("<b>Description</b>:", string_to_html(test_case['description']))
+    html += tr("<b>Repository</b>:", string_to_html(test_case['repository']))
+    html += tr("<b>Relative Path</b>:", string_to_html(test_case['relative_path']))
     html += "</table>"
     html += "</div></div>"
     return html
@@ -424,6 +424,11 @@ def document_to_html(document: dict) -> str:
     html += f"<h3>Document {document['id']}</h3>"
     html += f"<div id='document-details-{document['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Version</b>: {document['version']} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {document['status']} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {document['created_by']}"
+    html += "</td></tr>"
     html += tr("<b>Title</b>:", string_to_html(document['title']))
     html += tr("<b>Description</b>:", string_to_html(document['description']))
     html += tr("<b>Url</b>:", string_to_html(document['url']))
@@ -432,11 +437,6 @@ def document_to_html(document: dict) -> str:
     if document['document_type'] == 'text':
         html += tr("<b>Section</b>:", string_to_html(document['section']))
         html += tr("<b>Offset</b>:", string_to_html(str(document['offset'])))
-    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
-    html += f"<b>Version</b>: {document['version']} &nbsp; • &nbsp;"
-    html += f"<b>Status</b>: {document['status']} &nbsp; • &nbsp; "
-    html += f"<b>Created by</b>: {document['created_by']}"
-    html += "</td></tr>"
     html += "</table>"
     html += "</div></div>"
     return html
@@ -447,12 +447,12 @@ def justification_to_html(justification: dict) -> str:
     html += f"<h3>Justification {justification['id']}</h3>"
     html += f"<div id='justification-details-{justification['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
-    html += tr("<b>Title</b>:", string_to_html(justification['description']))
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
     html += f"<b>Version</b>: {justification['version']} &nbsp; • &nbsp;"
     html += f"<b>Status</b>: {justification['status']} &nbsp; • &nbsp; "
     html += f"<b>Created by</b>: {justification['created_by']}"
     html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(justification['description']))
     html += "</table>"
     html += "</div></div>"
     return html

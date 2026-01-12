@@ -469,7 +469,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           variant='secondary'
                           onClick={() => exportToFormat('html')}
                         >
-                          {HTMLContentLoading ? 'Loading ...' : 'Export to HTML'}
+                          {HTMLContentLoading ? 'Loading ...' : 'Export to HTML/PDF'}
                         </Button>
                       </FlexItem>
                     </>

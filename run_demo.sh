@@ -7,7 +7,6 @@ api_distro=fedora
 api_containerfile=Containerfile-api-fedora
 api_port=5000
 app_port=9000
-pandoc_port=8282
 admin_pw=1234
 db_name=basil
 db_port=5432
@@ -83,7 +82,6 @@ usage()
         -f APP_PORT         App (frontend) port, default is 9000
         -p ADMIN_PASSWRORD  Admin user password (username: admin) - Only if testing is off
                             use single quote around your password
-        -o PANDOC_PORT      Pandoc server port, default is 8282
         -t TESTING          1 to enable Testing
         -u URL              Full base url
                             - http://localhost if you want to evaluate it on your machine
@@ -120,9 +118,6 @@ while getopts ${OPTSTRING} opt; do
         f)
         app_port=${OPTARG}
         ;;
-        o)
-        pandoc_port=${OPTARG}
-        ;;
         p)
         admin_pw=${OPTARG}
         ;;
@@ -144,7 +139,6 @@ done
 SANITIZED_TAG_FOR_CONTAINER_NAME=$(sanitize_git_tag_for_container_name ${TAG})
 BASIL_API_CONTAINER=basil-api-${SANITIZED_TAG_FOR_CONTAINER_NAME}
 BASIL_APP_CONTAINER=basil-app-${SANITIZED_TAG_FOR_CONTAINER_NAME}
-BASIL_PANDOC_CONTAINER=basil-pandoc-${SANITIZED_TAG_FOR_CONTAINER_NAME}
 BASIL_DB_CONTAINER=basil-db-${SANITIZED_TAG_FOR_CONTAINER_NAME}
 
 if [ "$testing" -eq 1 ]; then
@@ -168,7 +162,6 @@ echo -e " - api_server_url = ${api_server_url}"
 echo -e " - api distro = ${api_distro}"
 echo -e " - api port = ${api_port}"
 echo -e " - app port = ${app_port}"
-echo -e " - pandoc port = ${pandoc_port}"
 echo -e " - admin pw = ${admin_pw}"
 echo -e " - environment file = ${environment_file:=''}"
 echo -e " - tag = ${TAG}"
@@ -212,8 +205,7 @@ podman pod create \
   --network ${BASIL_NETWORK} \
   --publish ${db_port}:${db_port} \
   --publish ${api_port}:${api_port} \
-  --publish ${app_port}:${app_port} \
-  --publish ${pandoc_port}:${pandoc_port}
+  --publish ${app_port}:${app_port}
 
 
 # ---------------------------------------
@@ -238,16 +230,6 @@ podman build \
     --build-arg="APP_PORT=${app_port}" \
     -f Containerfile-app \
     -t basil-app-image:${TAG} .
-
-
-# ---------------------------------------
-echoSectionTitle "Building PANDOC container"
-
-echo -e "\n${BODY_COLOR_STR}"
-podman build \
-    --build-arg="PANDOC_PORT=${pandoc_port}" \
-    -f Containerfile-pandoc \
-    -t basil-pandoc-image:${TAG} .
 
 
 # ---------------------------------------
@@ -337,17 +319,6 @@ podman run \
     --detach \
     --pod=${BASIL_POD} \
     basil-app-image:${TAG}
-
-
-# ---------------------------------------
-echoSectionTitle "Start PANDOC container"
-
-echo -e "\n${BODY_COLOR_STR}"
-podman run \
-    --name ${BASIL_PANDOC_CONTAINER} \
-    --detach \
-    --pod=${BASIL_POD} \
-    basil-pandoc-image:${TAG}
 
 
 # ---------------------------------------

@@ -116,7 +116,6 @@ TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
 
-PANDOC_SERVICE_URL = os.getenv("BASIL_PANDOC_SERVICE_URL", "http://localhost:8282/convert")
 
 SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(None, None)
 

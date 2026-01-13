@@ -107,12 +107,12 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
           <FlexItem>
             <Flex>
               <FlexItem>
-                <Button variant='link' onClick={() => downloadFile('html')}>
+                <Button variant='link' onClick={() => downloadFile('html')} id='btn-download-html-file'>
                   Download HTML
                 </Button>
               </FlexItem>
               <FlexItem>
-                <Button variant='link' onClick={() => downloadFile('pdf')}>
+                <Button variant='link' onClick={() => downloadFile('pdf')} id='btn-download-pdf-file'>
                   Download PDF
                 </Button>
               </FlexItem>
@@ -126,6 +126,7 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
 
         <iframe
           title='export-html'
+          id='iframe-export-html'
           style={{ width: '100%', height: '70vh' }}
           srcDoc={HTMLContent}
           sandbox='allow-scripts allow-same-origin'

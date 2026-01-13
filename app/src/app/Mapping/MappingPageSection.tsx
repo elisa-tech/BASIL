@@ -464,7 +464,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                       </FlexItem>
                       <FlexItem>
                         <Button
-                          id='btn-export-sw-component-to-spdx'
+                          id='btn-export-sw-component-to-html'
                           isDisabled={HTMLContentLoading}
                           variant='secondary'
                           onClick={() => exportToFormat('html')}

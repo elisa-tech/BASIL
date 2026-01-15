@@ -1,3 +1,5 @@
+import datetime
+import tarfile
 import logging
 import os
 import re
@@ -10,10 +12,24 @@ from urllib.error import HTTPError, URLError
 currentdir = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(__name__)
 
+from db.models.user import UserModel  # noqa: E402
+
 LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
 
 CONFIGS_FOLDER = "configs"
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
+
+ROW_LABEL_TD_STYLE = "padding:10px; white-space: nowrap; width: 1%;"
+ROW_VALUE_TD_STYLE = (
+    "padding:10px; width: 99%; word-break: break-word; overflow-wrap: anywhere;"
+)
+
+
+def tr(label_html: str, value_html: str) -> str:
+    return (
+        f"<tr><td style='{ROW_LABEL_TD_STYLE}'>{label_html}</td>"
+        f"<td style='{ROW_VALUE_TD_STYLE}'>{value_html}</td></tr>"
+    )
 
 
 def get_safe_str(value, trim=True, encoding='utf-8') -> str:
@@ -293,3 +309,229 @@ def get_user_traceability_scanner_config(user_id):
     except Exception:
         logger.error(f"Unable to read user settings file: {user_config_path}")
     return None
+
+
+def string_to_html(text: str) -> str:
+    text = get_safe_str(text)
+    return text.replace("\n", "<br/>")
+
+
+def sw_requirement_to_html(sw_requirement: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='sw_requirement-{sw_requirement['id']}'>"
+    html += f"<h3>Sw Requirement {sw_requirement['id']}</h3>"
+    html += f"<div id='sw_requirement-details-{sw_requirement['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Version</b>: {sw_requirement['version']} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {sw_requirement['status']} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {sw_requirement['created_by']}"
+    html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(sw_requirement['title']))
+    html += tr("<b>Description</b>:", string_to_html(sw_requirement['description']))
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def test_specification_to_html(test_specification: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='test_specification-{test_specification['id']}'>"
+    html += f"<h3>Test Specification {test_specification['id']}</h3>"
+    html += f"<div id='test_specification-details-{test_specification['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Version</b>: {test_specification['version']} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {test_specification['status']} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {test_specification['created_by']}"
+    html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(test_specification['title']))
+    html += tr("<b>Preconditions</b>:", string_to_html(test_specification['preconditions']))
+    html += tr("<b>Test Description</b>:", string_to_html(test_specification['test_description']))
+    html += tr("<b>Expected behavior</b>:", string_to_html(test_specification['expected_behavior']))
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def test_case_to_html(test_case: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='test_case-{test_case['id']}'>"
+    html += f"<h3>Test Case {test_case['id']}</h3>"
+    html += f"<div id='test_case-details-{test_case['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Version</b>: {test_case['version']} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {test_case['status']} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {test_case['created_by']}"
+    html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(test_case['title']))
+    html += tr("<b>Description</b>:", string_to_html(test_case['description']))
+    html += tr("<b>Repository</b>:", string_to_html(test_case['repository']))
+    html += tr("<b>Relative Path</b>:", string_to_html(test_case['relative_path']))
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def test_run_to_html(test_run: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='test_run-{test_run['id']}'>"
+    html += f"<h3>Test Run {test_run['id']}</h3>"
+    html += f"<div id='test_run-details-{test_run['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += tr("<b>Test Run Config ID</b>:", string_to_html(test_run['config']['id']))
+    html += tr(
+        "<b>Result</b>:",
+        "<span class='pf-c-label'><span class='pf-c-label__content uppercase'>"
+        f"{string_to_html(str(test_run['result']).upper())}</span></span>"
+    )
+    html += tr("<b>Notes</b>:", string_to_html(test_run['notes']))
+    html += tr("<b>Bugs</b>:", string_to_html(test_run['bugs']))
+    html += tr("<b>Fixes</b>:", string_to_html(test_run['fixes']))
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Created by</b>: {test_run['created_by']} &nbsp; • &nbsp;"
+    html += f"<b>Created at</b>: {test_run['created_at']}"
+    html += "</td></tr>"
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def test_run_config_to_html(test_run_config: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='test_run_config-{test_run_config['id']}'>"
+    html += f"<h3>Test Run Config {test_run_config['id']}</h3>"
+    html += f"<div id='test_run_config-details-{test_run_config['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += tr("<b>Title</b>:", string_to_html(test_run_config['title']))
+    html += tr("<b>Plugin</b>:", string_to_html(test_run_config['plugin']))
+    html += tr("<b>Plugin Preset</b>:", string_to_html(test_run_config['plugin_preset']))
+    html += tr("<b>Plugin Vars</b>:", string_to_html(test_run_config['plugin_vars']))
+    html += tr("<b>Git Repo Ref</b>:", string_to_html(test_run_config['git_repo_ref']))
+    html += tr("<b>Context Vars</b>:", string_to_html(test_run_config['context_vars']))
+    html += tr("<b>Environment Vars</b>:", string_to_html(test_run_config['environment_vars']))
+    html += tr("<b>Provision Type</b>:", string_to_html(test_run_config['provision_type']))
+    html += tr("<b>Provision Guest</b>:", string_to_html(test_run_config['provision_guest']))
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Created by</b>: {test_run_config['created_by']} &nbsp; • &nbsp;"
+    html += "</td></tr>"
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def document_to_html(document: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='document-{document['id']}'>"
+    html += f"<h3>Document {document['id']}</h3>"
+    html += f"<div id='document-details-{document['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Version</b>: {document['version']} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {document['status']} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {document['created_by']}"
+    html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(document['title']))
+    html += tr("<b>Description</b>:", string_to_html(document['description']))
+    html += tr("<b>Url</b>:", string_to_html(document['url']))
+    html += tr("<b>Type</b>:", string_to_html(document['document_type']))
+    html += tr("<b>SPDX Relationship</b>:", string_to_html(document['spdx_relation']))
+    if document['document_type'] == 'text':
+        html += tr("<b>Section</b>:", string_to_html(document['section']))
+        html += tr("<b>Offset</b>:", string_to_html(str(document['offset'])))
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def justification_to_html(justification: dict) -> str:
+    html = f"<div style='border-bottom:1px solid #CCC;' id='justification-{justification['id']}'>"
+    html += f"<h3>Justification {justification['id']}</h3>"
+    html += f"<div id='justification-details-{justification['id']}'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
+    html += f"<b>Version</b>: {justification['version']} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {justification['status']} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {justification['created_by']}"
+    html += "</td></tr>"
+    html += tr("<b>Title</b>:", string_to_html(justification['description']))
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def test_runs_tarball(user: UserModel, test_runs: list) -> str:
+    from api import USER_FILES_BASE_DIR, TEST_RUNS_BASE_DIR
+
+    now_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    artifacts_dir = os.path.join(USER_FILES_BASE_DIR, f"{user.id}.artifacts")
+    if not os.path.exists(artifacts_dir):
+        os.makedirs(artifacts_dir, exist_ok=True)
+
+    # Collect artifcats of test runs into a tarball and return the path to the tarball
+    tarball_path = os.path.join(artifacts_dir, f"test_runs_{now_str}.tar.gz")
+    with tarfile.open(tarball_path, "w:gz") as tar:
+        for test_run in test_runs:
+            # Add the test run folder to the tarball
+            tar.add(os.path.join(TEST_RUNS_BASE_DIR, test_run['uid']), arcname=test_run['uid'])
+    return tarball_path
+
+
+def get_tmt_version() -> str:
+    try:
+        return subprocess.check_output(["tmt", "--version"]).decode("utf-8").strip()
+    except Exception:
+        return None
+
+
+def get_python_version() -> str:
+    try:
+        return subprocess.check_output(["python", "--version"]).decode("utf-8").strip()
+    except Exception:
+        return None
+
+
+def tools_to_html() -> str:
+    from api import API_VERSION
+
+    tmt_version = get_tmt_version()
+    if tmt_version:
+        tmt_version = tr("<b>tmt</b>:", string_to_html(tmt_version))
+    else:
+        tmt_version = ""
+
+    python_version = get_python_version()
+    if python_version:
+        python_version = tr("<b>Python</b>:", string_to_html(python_version))
+    else:
+        python_version = ""
+
+    html = "<div style='border-bottom:1px solid #CCC;' id='tools'>"
+    html += "<h2>Tools</h2>"
+    html += "<div id='tools-details'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    html += tr("<b>BASIL</b>:", string_to_html(API_VERSION))
+    html += tmt_version
+    html += python_version
+    html += "</table>"
+    html += "</div></div>"
+    return html
+
+
+def get_user_folder_path(user: UserModel, folder_name: str) -> str:
+    from api import USER_FILES_BASE_DIR
+    user_path = os.path.join(USER_FILES_BASE_DIR, f"{user.id}", folder_name)
+    if not os.path.exists(user_path):
+        os.makedirs(user_path, exist_ok=True)
+    return user_path
+
+
+def get_user_config_folder_path(user: UserModel) -> str:
+    return get_user_folder_path(user, ".config")
+
+
+def get_user_html_folder_path(user: UserModel) -> str:
+    return get_user_folder_path(user, ".html")
+
+
+def get_user_pdf_folder_path(user: UserModel) -> str:
+    return get_user_folder_path(user, ".pdf")
+
+
+def get_user_tarball_folder_path(user: UserModel) -> str:
+    return get_user_folder_path(user, ".tarball")

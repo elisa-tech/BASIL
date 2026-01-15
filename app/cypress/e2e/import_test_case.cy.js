@@ -9,7 +9,7 @@ import { createUniqWorkItems } from '../support/utils.js'
 // Appending to each dictionary of the fixture data a date string to a target field
 let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 
-describe('Test Case Import', () => {
+describe('Test Case Import', { viewportWidth: 1280, viewportHeight: 900, scrollBehavior: 'center' }, () => {
   beforeEach(() => {
     cy.login_admin()
   })
@@ -41,7 +41,7 @@ describe('Test Case Import', () => {
         id = elem
         cy.visit(const_data.app_base_url + '/mapping/' + id)
         cy.wait(const_data.long_wait)
-        cy.get('#btn-mapping-new-test-case').click()
+        cy.get('#btn-mapping-new-test-case').scrollIntoView().should('be.visible').click()
         cy.get('#pf-tab-3-tab-btn-test-case-import').click()
         cy.get('#btn-test-case-import-scan-remote-repository').click()
         cy.get('#input-test-case-import-repository-url')
@@ -66,11 +66,11 @@ describe('Test Case Import', () => {
         // Import from json - select first option that ends with .json
         cy.get('#select-test-case-import-from-user-files').find('option').should('have.length.greaterThan', 0)
         cy.get('#select-test-case-import-from-user-files')
-          .find('option')
-          .filter((index, option) => option.value.endsWith('.json'))
+          .find('option[value$=".json"]')
           .first()
-          .then((firstJsonOption) => {
-            cy.get('#select-test-case-import-from-user-files').select(firstJsonOption.val())
+          .invoke('val')
+          .then((firstJsonValue) => {
+            cy.get('#select-test-case-import-from-user-files').select(firstJsonValue)
           })
 
         cy.get('#btn-test-case-import-select-from-user-files-submit').click()

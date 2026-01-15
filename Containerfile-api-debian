@@ -3,10 +3,28 @@ USER root
 RUN mkdir BASIL-API
 WORKDIR /BASIL-API
 
+ARG PANDOC_TMPDIR=/tmp/pandoc/workdir
+
 RUN apt update && apt install --assume-yes \
     curl git graphviz jq patch podman \
     python3 python3-pip python3-virtualenv \
     rsync
+
+# Install Pandoc dependencies
+RUN mkdir -p ${PANDOC_TMPDIR} \
+    && chmod a+rw ${PANDOC_TMPDIR}
+
+RUN apt install --assume-yes \
+    pandoc \
+    wkhtmltopdf \
+    fontconfig \
+    fonts-roboto \
+    libxrender1 \
+    libxext6 \
+    libx11-6 \
+    libstdc++6 \
+    ca-certificates \\
+    && apt clean
 
 COPY . .
 
@@ -25,7 +43,8 @@ ENV BASIL_ADMIN_PASSWORD=${ADMIN_PASSWORD} \
     BASIL_API_PORT=${API_PORT} \
     BASIL_TESTING=${TESTING} \
     BASIL_DB_PORT=${DB_PORT} \
-    BASIL_DB_PASSWORD=${DB_PASSWORD}
+    BASIL_DB_PASSWORD=${DB_PASSWORD} \
+    BASIL_PANDOC_TMPDIR=${PANDOC_TMPDIR}
 
 # Create directories
 RUN mkdir -p /var/tmp && \

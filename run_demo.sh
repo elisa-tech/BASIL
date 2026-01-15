@@ -74,12 +74,12 @@ usage()
         BASIL Deployment script
 
         usage: ${0##*/} [ -b API_PORT ] [ -u URL ] [ -f APP_PORT ] [ -p ADMIN_PASSWRORD ]
-        -b API_PORT         Api (backend) port
+        -b API_PORT         Api (backend) port, default is 5000
         -d API_DISTRO       Distro used to deploy the api 'fedora' or 'debian', default is 'fedora'
                             That will be also the default distro used in BASIL test infrastructure when
                             user select Container as target test environment
         -e ENV_FILE         Filepath of an environment file you want to inject into the API Container
-        -f APP_PORT         App (frontend) port
+        -f APP_PORT         App (frontend) port, default is 9000
         -p ADMIN_PASSWRORD  Admin user password (username: admin) - Only if testing is off
                             use single quote around your password
         -t TESTING          1 to enable Testing

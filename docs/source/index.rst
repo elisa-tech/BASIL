@@ -24,7 +24,7 @@ It comes also with a REST web api to simplify the integration in other toolchain
    e2e_testing
    notifications
    repos_scanner
-   spdx_traceability_export
+   traceability_export
    test_run
    user_management
    work_items

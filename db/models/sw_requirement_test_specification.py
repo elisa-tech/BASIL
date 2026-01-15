@@ -111,7 +111,7 @@ class SwRequirementTestSpecificationModel(Base):
         try:
             ts = db_session.query(TestSpecificationModel).filter(
                 TestSpecificationModel.id == self.test_specification_id).one()
-            return ts.as_dict()
+            return ts.as_dict(db_session=db_session)
         except NoResultFound:
             return None
 

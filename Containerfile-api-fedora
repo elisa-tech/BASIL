@@ -3,12 +3,35 @@ USER root
 RUN mkdir BASIL-API
 WORKDIR /BASIL-API
 
+ARG PANDOC_TMPDIR=/tmp/pandoc/workdir
+
 # Install dependencies
-RUN dnf install -y curl git graphviz jq patch python3 python3-pip podman rsync
+RUN dnf install -y curl git graphviz jq patch python3 python3-pip python3-virtualenv podman rsync
+
+# Install Pandoc dependencies
+RUN mkdir -p ${PANDOC_TMPDIR} \
+    && chmod a+rw ${PANDOC_TMPDIR}
+
+RUN dnf -y install \
+    pandoc \
+    wkhtmltopdf \
+    fontconfig \
+    google-roboto-fonts \
+    xorg-x11-fonts-Type1 \
+    xorg-x11-fonts-75dpi \
+    xorg-x11-fonts-100dpi \
+    libXrender \
+    libXext \
+    libX11 \
+    libstdc++ \
+    ca-certificates \
+    && dnf clean all
 
 COPY . .
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN virtualenv penv && \
+    . penv/bin/activate && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 # Set the public ip in the api/api_url.py
 ARG API_PORT=5000
@@ -21,7 +44,8 @@ ENV BASIL_ADMIN_PASSWORD=${ADMIN_PASSWORD} \
     BASIL_API_PORT=${API_PORT} \
     BASIL_TESTING=${TESTING} \
     BASIL_DB_PORT=${DB_PORT} \
-    BASIL_DB_PASSWORD=${DB_PASSWORD}
+    BASIL_DB_PASSWORD=${DB_PASSWORD} \
+    BASIL_PANDOC_TMPDIR=${PANDOC_TMPDIR}
 
 # Create directories
 RUN mkdir -p /var/tmp && \
@@ -32,14 +56,16 @@ RUN mkdir -p /var/tmp && \
 RUN chmod a+rw /BASIL-API/db
 
 # Apply patches
-RUN patch -u /usr/local/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
-    tmt init
+RUN patch -u /BASIL-API/penv/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
+    . /BASIL-API/penv/bin/activate && tmt init
 
 EXPOSE ${BASIL_API_PORT}
-CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && cd api && \
-                        BASIL_TESTING=${BASIL_TESTING} gunicorn \
-                        --timeout 120 \
-                        --workers 4 \
-                        --access-logfile - \
-                        --error-logfile - \
-                        --bind 0.0.0.0:${BASIL_API_PORT} api:app
+CMD echo "BASIL_API_PORT: ${BASIL_API_PORT}" && \
+    . /BASIL-API/penv/bin/activate && \
+    cd api && \
+    BASIL_TESTING=${BASIL_TESTING} gunicorn \
+    --timeout 120 \
+    --workers 4 \
+    --access-logfile - \
+    --error-logfile - \
+    --bind 0.0.0.0:${BASIL_API_PORT} api:app

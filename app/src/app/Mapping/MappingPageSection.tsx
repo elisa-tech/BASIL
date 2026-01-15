@@ -3,6 +3,7 @@ import * as Constants from '../Constants/constants'
 import { useAuth } from '@app/User/AuthProvider'
 import { Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core'
 import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
+import { APIExportHTMLModal } from './Modal/APIExportHTMLModal'
 import { MappingListingTable } from './MappingListingTable'
 import { MappingSwRequirementModal } from './Modal/MappingSwRequirementModal'
 import { MappingTestSpecificationModal } from './Modal/MappingTestSpecificationModal'
@@ -58,8 +59,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [modalOffset, setModalOffset] = React.useState('')
 
   const [modalSPDXExportShowState, setModalSPDXExportShowState] = React.useState(false)
+  const [modalHTMLExportShowState, setModalHTMLExportShowState] = React.useState(false)
   const [SPDXContentLoading, setSPDXContentLoading] = React.useState<boolean>(false)
   const [SPDXContent, setSPDXContent] = React.useState('')
+  const [HTMLContentLoading, setHTMLContentLoading] = React.useState<boolean>(false)
+  const [HTMLContent, setHTMLContent] = React.useState<string>('')
 
   const [srModalShowState, setSrModalShowState] = React.useState<boolean>(false)
   const [tsModalShowState, setTsModalShowState] = React.useState<boolean>(false)
@@ -90,33 +94,51 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestSpecifications, setShowIndirectTestSpecifications] = React.useState<boolean>(true)
   const [showIndirectTestCasesOld, setShowIndirectTestCasesOld] = React.useState<boolean>(true)
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
-  const spdxRequestedFilename = React.useRef('')
+  const exportFilename = React.useRef('')
 
-  const exportSPDX = () => {
+  const exportToFormat = (format: string = 'jsonld') => {
     if (!auth.isLogged()) {
       return
     }
 
-    spdxRequestedFilename.current = 'latest.jsonld'
+    exportFilename.current = 'latest.' + format
 
     let query_string = '?api-id=' + api.id
     query_string += '&user-id=' + auth.userId
     query_string += '&token=' + auth.token
-    query_string += '&filename=' + spdxRequestedFilename.current
+    query_string += '&filename=' + exportFilename.current
+    query_string += '&mapping-view=' + mappingViewSelectValue
 
-    setSPDXContentLoading(true)
-    fetch(Constants.API_BASE_URL + Constants.API_SPDX_API_EXPORT_ENDPOINT + query_string)
+    let url
+    if (format == 'jsonld') {
+      url = Constants.API_BASE_URL + Constants.API_SPDX_API_EXPORT_ENDPOINT
+      setSPDXContentLoading(true)
+    } else if (format == 'html') {
+      url = Constants.API_BASE_URL + Constants.API_HTML_API_EXPORT_ENDPOINT
+      setHTMLContentLoading(true)
+    } else {
+      return
+    }
+
+    fetch(url + query_string)
       .then((res) => res.json())
       .then((data) => {
-        setSPDXContent(JSON.stringify(data, null, 2))
-        setModalSPDXExportShowState(true)
+        if (format == 'jsonld') {
+          setSPDXContent(JSON.stringify(data, null, 2))
+          setModalSPDXExportShowState(true)
+        } else if (format == 'html') {
+          setHTMLContent(data['data'])
+          setModalHTMLExportShowState(true)
+        }
       })
       .catch((err) => {
         setSPDXContentLoading(false)
+        setHTMLContentLoading(false)
         console.log(err.message)
       })
       .finally(() => {
         setSPDXContentLoading(false)
+        setHTMLContentLoading(false)
       })
   }
 
@@ -429,16 +451,28 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               {auth.isLogged() ? (
                 <Flex align={{ default: 'alignRight' }}>
                   {api?.permissions?.indexOf('r') >= 0 ? (
-                    <FlexItem>
-                      <Button
-                        id='btn-export-sw-component-to-spdx'
-                        isDisabled={SPDXContentLoading}
-                        variant='secondary'
-                        onClick={() => exportSPDX()}
-                      >
-                        {SPDXContentLoading ? 'Loading ...' : 'Export to SPDX'}
-                      </Button>
-                    </FlexItem>
+                    <>
+                      <FlexItem>
+                        <Button
+                          id='btn-export-sw-component-to-spdx'
+                          isDisabled={SPDXContentLoading}
+                          variant='secondary'
+                          onClick={() => exportToFormat('jsonld')}
+                        >
+                          {SPDXContentLoading ? 'Loading ...' : 'Export to SPDX'}
+                        </Button>
+                      </FlexItem>
+                      <FlexItem>
+                        <Button
+                          id='btn-export-sw-component-to-html'
+                          isDisabled={HTMLContentLoading}
+                          variant='secondary'
+                          onClick={() => exportToFormat('html')}
+                        >
+                          {HTMLContentLoading ? 'Loading ...' : 'Export to HTML/PDF'}
+                        </Button>
+                      </FlexItem>
+                    </>
                   ) : (
                     ''
                   )}
@@ -750,10 +784,19 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       <APIExportSPDXModal
         api={api}
         SPDXContent={SPDXContent}
-        SPDXFilename={spdxRequestedFilename.current}
+        SPDXFilename={exportFilename.current}
         setSPDXContent={setSPDXContent}
         modalShowState={modalSPDXExportShowState}
         setModalShowState={setModalSPDXExportShowState}
+      />
+      <APIExportHTMLModal
+        api={api}
+        mappingView={mappingViewSelectValue}
+        HTMLContent={HTMLContent}
+        HTMLFilename={exportFilename.current}
+        setHTMLContent={setHTMLContent}
+        modalShowState={modalHTMLExportShowState}
+        setModalShowState={setModalHTMLExportShowState}
       />
     </React.Fragment>
   )

@@ -23,7 +23,10 @@ echo BASIL Apache Deployment
 echo -------------------------------------------------------------------
 
 sudo apt update
-packages="curl gnupg postgresql postgresql-contrib libapache2-mod-wsgi-py3 rsync git jq python3 python3-pip python3-venv"
+packages="python3 python3-pip python3-venv"
+packages="$packages curl gnupg libapache2-mod-wsgi-py3 rsync git jq"
+packages="$packages postgresql postgresql-contrib"
+packages="$packages pandoc wkhtmltopdf fontconfig fonts-roboto libxrender1 libxext6 libx11-6 libstdc++6 ca-certificates"
 for package in $packages; do
     install_package $package
 done

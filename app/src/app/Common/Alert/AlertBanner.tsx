@@ -2,10 +2,11 @@ import React from 'react'
 import * as Constants from '../../Constants/constants'
 import { Alert } from '@patternfly/react-core'
 import { AutoRefresh } from '../AutoRefresh/AutoRefresh'
+import { useAuth } from '@app/User/AuthProvider'
 
 export const AlertBanner: React.FunctionComponent = () => {
   const [alert, setAlert] = React.useState<{ info: string[]; warning: string[]; danger: string[]; success: string[] } | null>(null)
-
+  const auth = useAuth()
   const loadAlertMessages = () => {
     fetch(Constants.API_BASE_URL + '/alert')
       .then((res) => res.json())
@@ -21,6 +22,17 @@ export const AlertBanner: React.FunctionComponent = () => {
   return (
     <>
       <AutoRefresh loadRows={loadAlertMessages} showCountdown={false} />
+      {auth.isLogged() && auth.userRole == 'GUEST' ? (
+        <Alert
+          key={'warning-guest'}
+          variant='warning'
+          isInline
+          title={
+            'You user role is GUEST and due to that you cannot create or edit any content. An ADMIN should promote you to USER role to start working here.'
+          }
+          ouiaId='WarningAlert'
+        />
+      ) : null}
       {(alert?.danger ?? []).map((alert_message, index) => (
         <Alert key={'danger-' + index} variant='danger' isInline title={alert_message} ouiaId='DangerAlert' />
       ))}

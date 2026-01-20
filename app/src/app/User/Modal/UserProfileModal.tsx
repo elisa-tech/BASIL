@@ -271,6 +271,10 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 )}
               </FormGroup>
               <br></br>
+              <FormGroup label='Role' fieldId={`input-user-profile-role`}>
+                <TextInput id={`input-user-profile-role`} isDisabled={true} readOnlyVariant={'default'} value={auth.userRole} />
+              </FormGroup>
+              <br></br>
               <FormGroup label='Eamil' fieldId={`input-user-profile-email`}>
                 <TextInput id={`input-user-profile-email`} readOnlyVariant={'default'} value={auth.userEmail} />
               </FormGroup>

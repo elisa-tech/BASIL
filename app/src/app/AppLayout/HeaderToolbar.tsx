@@ -198,6 +198,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
                   icon={<Avatar src={imgAvatar} alt='' />}
                 >
                   {auth.isLogged() ? auth.userEmail : 'Guest'}
+                  {auth.isLogged() && auth.userRole == 'GUEST' ? ' (Guest)' : ''}
                 </MenuToggle>
               )}
             >

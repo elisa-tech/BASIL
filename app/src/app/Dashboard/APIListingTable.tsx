@@ -77,7 +77,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
 
   const columnNames = {
     id: 'ID',
-    api: 'API',
+    api: 'Name',
     library_version: 'Version',
     created_by: 'Owner',
     category: 'Category',

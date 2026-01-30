@@ -148,7 +148,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
           <Flex>
             <Flex>
               <FlexItem>
-                <Title headingLevel='h1'>API Listing for {currentLibrary}</Title>
+                <Title headingLevel='h1'>Listing Software Components for {currentLibrary}</Title>
               </FlexItem>
               <FlexItem>
                 <Label color='green' isCompact>

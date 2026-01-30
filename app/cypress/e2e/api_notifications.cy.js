@@ -10,7 +10,7 @@ let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 describe('Api Notifications', () => {
   const table_id_api = 'table-api-listing'
   const data_label_actions = 'Actions'
-  const data_label_api = 'API'
+  const data_label_name = 'Name'
   const data_label_notifications = 'Notifications'
   const btn_text_enable = 'Enable notifications'
   const btn_text_disable = 'Disable notifications'
@@ -32,7 +32,7 @@ describe('Api Notifications', () => {
     // Enable
     cy.get('#' + table_id_api)
       .find('tr') // find all rows
-      .contains('td[data-label="' + data_label_api + '"]', api_data.first.api)
+      .contains('td[data-label="' + data_label_name + '"]', api_data.first.api)
       .parents('tr') // go up to the row
       .within(() => {
         // now scoped to the correct row
@@ -59,7 +59,7 @@ describe('Api Notifications', () => {
     // Disable
     cy.get('#' + table_id_api)
       .find('tr') // find all rows
-      .contains('td[data-label="' + data_label_api + '"]', api_data.first.api)
+      .contains('td[data-label="' + data_label_name + '"]', api_data.first.api)
       .parents('tr') // go up to the row
       .within(() => {
         // now scoped to the correct row

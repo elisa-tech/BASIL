@@ -737,6 +737,17 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                                     </FlexItem>
                                   </Flex>
                                 </Button>
+                              </>
+                            )
+                          } else {
+                            return ''
+                          }
+                        })()}
+
+                        {(() => {
+                          if (api?.permissions.indexOf('r') >= 0) {
+                            return (
+                              <>
                                 <Button
                                   variant='plain'
                                   aria-label='Action'

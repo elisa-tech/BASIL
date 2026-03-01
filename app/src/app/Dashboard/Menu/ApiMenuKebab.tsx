@@ -3,6 +3,7 @@ import * as Constants from '../../Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import { useAuth } from '../../User/AuthProvider'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
+import { ActionButtons } from '../../Common/Actions/ActionButtons'
 
 export interface ApiMenuKebabProps {
   setModalInfo
@@ -201,6 +202,8 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
         ) : (
           ''
         )}
+
+        <ActionButtons workItemType={Constants._A} />
       </DropdownList>
     </Dropdown>
   )

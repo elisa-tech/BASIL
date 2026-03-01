@@ -13,3 +13,10 @@ ai:
   model: ""
   temperature: 0
   token: ""
+actions:
+  api:
+  sw_requirement:
+  test_specification:
+  test_case:
+  justification:
+  document:

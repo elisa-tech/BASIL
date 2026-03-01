@@ -535,3 +535,16 @@ def get_user_pdf_folder_path(user: UserModel) -> str:
 
 def get_user_tarball_folder_path(user: UserModel) -> str:
     return get_user_folder_path(user, ".tarball")
+
+
+def get_custom_actions(user: UserModel) -> list:
+    """ Combine together settings from user config and from admin settings """
+    from api import SETTINGS_CACHE
+    actions = {}
+    user_config_path = get_user_config_folder_path(user)
+    user_config = parse_config(path=user_config_path)
+    user_actions = user_config.get("actions", {})
+    actions.update(user_actions)
+    admin_settings = SETTINGS_CACHE.get("actions", {})
+    actions.update(admin_settings)
+    return actions

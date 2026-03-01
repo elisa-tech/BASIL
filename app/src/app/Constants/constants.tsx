@@ -59,6 +59,7 @@ export const API_SPDX_API_EXPORT_ENDPOINT = '/spdx/apis'
 export const API_HTML_API_EXPORT_ENDPOINT = '/html/apis'
 export const API_SPDX_API_EXPORT_DOWNLOAD_ENDPOINT = '/spdx/apis/export-download'
 export const API_HTML_API_EXPORT_DOWNLOAD_ENDPOINT = '/html/apis/export-download'
+export const API_CUSTOM_ACTIONS_ENDPOINT = '/custom-actions'
 
 export const FORM_COMPLETION_LABEL = 'Completion (how much of the parent is covered by this work item) [0-100]:'
 

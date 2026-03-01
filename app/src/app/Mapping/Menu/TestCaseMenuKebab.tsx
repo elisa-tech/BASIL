@@ -2,6 +2,7 @@ import React from 'react'
 import * as Constants from '../../Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
+import { ActionButtons } from '@app/Common/Actions/ActionButtons'
 
 export interface TestCaseMenuKebabProps {
   indirect
@@ -166,6 +167,8 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         >
           Usage
         </DropdownItem>
+
+        <ActionButtons workItemType={Constants._TC_} />
       </DropdownList>
     </Dropdown>
   )

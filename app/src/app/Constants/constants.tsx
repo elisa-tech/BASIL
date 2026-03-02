@@ -526,3 +526,13 @@ export const logObject = (obj) => {
   }
   console.log('---------------------------->')
 }
+
+export const navigateToTestCaseSource = (repository: string, relative_path: string) => {
+  // If repository is a local path, redirect to User Files page with filename in query so the modal opens with file content
+  if (repository.startsWith('/')) {
+    const userFilesUrl = window.location.origin + '/user-files?filename=' + encodeURIComponent(relative_path)
+    window.open(userFilesUrl, '_blank')
+  } else {
+    window.open(repository, '_blank')
+  }
+}

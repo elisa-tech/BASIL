@@ -157,7 +157,6 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
         ) : (
           ''
         )}
-
         <DropdownItem
           value={7}
           key='usage'
@@ -165,6 +164,19 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           onClick={() => setUsageModalInfo(true, Constants._TC, mappingList[mappingIndex][Constants._TC_]['id'])}
         >
           Usage
+        </DropdownItem>
+        <DropdownItem
+          value={8}
+          key='source'
+          id={'btn-menu-test-case-source-' + mappingList[mappingIndex].relation_id}
+          onClick={() =>
+            Constants.navigateToTestCaseSource(
+              mappingList[mappingIndex][Constants._TC_]['repository'],
+              mappingList[mappingIndex][Constants._TC_]['relative_path']
+            )
+          }
+        >
+          Go to Source
         </DropdownItem>
       </DropdownList>
     </Dropdown>

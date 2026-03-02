@@ -11,13 +11,30 @@ const UserFiles: React.FunctionComponent = () => {
   const modal_action = React.useRef('add')
   const modal_filename = React.useRef('') // to be used for edit form
 
-  const [userFiles, setUserFiles] = React.useState([])
+  const [userFiles, setUserFiles] = React.useState<{ filename: string; updated_at: string }[]>([])
   const [modalShowState, setModalShowState] = React.useState(false)
+
+  const search = window.location.search
+  const params = new URLSearchParams(search)
+  const queryFilename = params.get('filename')
+
+  const queryFilenameInUserFiles = queryFilename && userFiles.some((f) => f.filename === queryFilename)
+
+  const hasAutoOpenedModal = React.useRef(false)
 
   React.useEffect(() => {
     Constants.loadUserFiles(auth, setUserFiles)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  React.useEffect(() => {
+    if (!queryFilenameInUserFiles || hasAutoOpenedModal.current) return
+    hasAutoOpenedModal.current = true
+    modal_action.current = 'edit'
+    modal_filename.current = queryFilename
+    setModalShowState(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryFilenameInUserFiles, queryFilename])
 
   const addFile = () => {
     modal_action.current = 'add'

@@ -28,7 +28,25 @@ import { TestRunBugForm } from '../Form/TestRunBugForm'
 import { useAuth } from '../../User/AuthProvider'
 import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
 
-const ARTIFACT_VIEWABLE_EXTENSIONS = ['log', 'txt', 'csv', 'yaml', 'yml', 'json', 'md', 'rst', 'info', 'fmf', 'sh', 'c', 'py']
+const ARTIFACT_VIEWABLE_EXTENSIONS = [
+  'c',
+  'cc',
+  'cpp',
+  'csv',
+  'fmf',
+  'gcov',
+  'info',
+  'json',
+  'log',
+  'md',
+  'pl',
+  'py',
+  'rst',
+  'sh',
+  'txt',
+  'yaml',
+  'yml'
+]
 
 const isArtifactViewable = (filename: string): boolean => {
   if (!filename || !filename.trim()) return false

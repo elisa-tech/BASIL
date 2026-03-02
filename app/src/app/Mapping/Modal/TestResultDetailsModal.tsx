@@ -5,8 +5,6 @@ import {
   CodeBlock,
   CodeBlockCode,
   Divider,
-  Gallery,
-  GalleryItem,
   Hint,
   HintBody,
   Label,
@@ -21,12 +19,24 @@ import {
   TextContent,
   TextVariants
 } from '@patternfly/react-core'
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
+import { Editor } from '@monaco-editor/react'
 import CheckCircleIcon from '@patternfly/react-icons/dist/esm/icons/check-circle-icon'
 import InfoCircleIcon from '@patternfly/react-icons/dist/esm/icons/info-circle-icon'
 import ExclamationCircleIcon from '@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon'
 import { TestRunBugForm } from '../Form/TestRunBugForm'
 import { useAuth } from '../../User/AuthProvider'
 import { AutoRefresh } from '@app/Common/AutoRefresh/AutoRefresh'
+
+const ARTIFACT_VIEWABLE_EXTENSIONS = ['log', 'txt', 'csv', 'yaml', 'yml', 'json', 'md', 'rst', 'info', 'fmf', 'sh', 'c', 'py']
+
+const isArtifactViewable = (filename: string): boolean => {
+  if (!filename || !filename.trim()) return false
+  const lastDot = filename.lastIndexOf('.')
+  if (lastDot === -1) return true // no extension, e.g. Makefile
+  const ext = filename.slice(lastDot + 1).toLowerCase()
+  return ARTIFACT_VIEWABLE_EXTENSIONS.includes(ext)
+}
 
 export interface TestResultDetailsModalProps {
   api
@@ -62,6 +72,10 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   const [selectedTestResultReport, setSelectedTestResultReport] = React.useState(null)
   const [messageValue, setMessageValue] = React.useState('')
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
+  const [artifactViewing, setArtifactViewing] = React.useState<string | null>(null)
+  const [artifactContent, setArtifactContent] = React.useState<string>('')
+  const [artifactContentLoading, setArtifactContentLoading] = React.useState(false)
+  const [artifactContentError, setArtifactContentError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     loadCurrentTestRunLog()
@@ -98,7 +112,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
     if (api == null) {
       return
     }
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run/log'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_LOG_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     url += '&api-id=' + api.id
@@ -125,13 +139,55 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   }
 
   const getArtifactUrl = (artifact) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run/artifacts'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_ARTIFACTS_ENDPOINT
     url += '?api-id=' + api.id
     url += '&user-id=' + auth.userId
     url += '&token=' + auth.token
     url += '&id=' + currentTestResult.id
     url += '&artifact=' + artifact
     return url
+  }
+
+  const getArtifactContentUrl = () => {
+    if (!artifactViewing) return ''
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_ARTIFACT_CONTENT_ENDPOINT
+    url += '?api-id=' + api.id
+    url += '&user-id=' + auth.userId
+    url += '&token=' + auth.token
+    url += '&id=' + currentTestResult.id
+    url += '&artifact=' + encodeURIComponent(artifactViewing)
+    return url
+  }
+
+  const loadArtifactContent = () => {
+    if (!artifactViewing || api?.permissions.indexOf('r') < 0) return
+    setArtifactContentLoading(true)
+    setArtifactContentError(null)
+    fetch(getArtifactContentUrl())
+      .then((res) => res.json())
+      .then((data) => {
+        setArtifactContent(data.content != null ? data.content : '')
+        if (data.error) setArtifactContentError(data.error)
+      })
+      .catch((err) => {
+        setArtifactContentError(err.message)
+        setArtifactContent('')
+      })
+      .finally(() => setArtifactContentLoading(false))
+  }
+
+  React.useEffect(() => {
+    if (artifactViewing) {
+      loadArtifactContent()
+    } else {
+      setArtifactContent('')
+      setArtifactContentError(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artifactViewing])
+
+  const backToArtifactsList = () => {
+    setArtifactViewing(null)
   }
 
   const backToTheList = () => {
@@ -410,8 +466,17 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
             <br />
             <CodeBlock>
               <CodeBlockCode id='code-block-test-run-details-log'>
-                {selectedTestResultLog}
-                {currentTestResult.status == 'running' ? '\n------------------------------\n' + selectedTestResultLogExec : ''}
+                {(() => {
+                  const hasLog = Constants.isNotEmptyString(selectedTestResultLog)
+                  const hasExec = Constants.isNotEmptyString(selectedTestResultLogExec)
+                  if (hasLog) {
+                    if (currentTestResult.status == 'running' && hasExec) {
+                      return selectedTestResultLog + '\n------------------------------\n' + selectedTestResultLogExec
+                    }
+                    return selectedTestResultLog
+                  }
+                  return selectedTestResultLogExec
+                })()}
               </CodeBlockCode>
             </CodeBlock>
           </TabContentBody>
@@ -423,16 +488,78 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
         </TabContent>
         <TabContent eventKey={3} id='tabContentTestResultArtifacts' ref={testRunArtifactsRef} hidden={3 !== activeTabKey}>
           <TabContentBody hasPadding>
-            {selectedTestResultArtifacts ? (
-              <Gallery hasGutter minWidths={{ default: '100px', md: '200px' }}>
-                {selectedTestResultArtifacts.map((artifact, index) => (
-                  <GalleryItem key={'artifact-' + index}>
-                    <Text component={TextVariants.a} href={getArtifactUrl(artifact)}>
-                      {artifact}
-                    </Text>
-                  </GalleryItem>
-                ))}
-              </Gallery>
+            {selectedTestResultArtifacts && selectedTestResultArtifacts.length > 0 ? (
+              artifactViewing ? (
+                <>
+                  <Button variant='link' onClick={backToArtifactsList} style={{ paddingLeft: 0 }}>
+                    Back to artifacts list
+                  </Button>
+                  <br />
+                  {artifactContentError && (
+                    <>
+                      <Hint>
+                        <HintBody>{artifactContentError}</HintBody>
+                      </Hint>
+                      <br />
+                    </>
+                  )}
+                  {artifactContentLoading ? (
+                    <TextContent>
+                      <Text component={TextVariants.p}>Loading…</Text>
+                    </TextContent>
+                  ) : (
+                    <Editor
+                      height='400px'
+                      theme='vs-dark'
+                      value={artifactContent}
+                      language='plaintext'
+                      options={{
+                        readOnly: true,
+                        domReadOnly: true,
+                        minimap: { enabled: false }
+                      }}
+                    />
+                  )}
+                </>
+              ) : (
+                <Table aria-label='Artifacts table' variant='compact'>
+                  <Thead>
+                    <Tr>
+                      <Th>Name</Th>
+                      <Th>Created at</Th>
+                      <Th>Actions</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {selectedTestResultArtifacts.map((artifact, index) => (
+                      <Tr key={'artifact-' + index}>
+                        <Td dataLabel='Name'>{artifact}</Td>
+                        <Td dataLabel='Created at'>—</Td>
+                        <Td dataLabel='Actions'>
+                          {isArtifactViewable(artifact) && (
+                            <>
+                              <Button variant='link' isInline onClick={() => setArtifactViewing(artifact)}>
+                                View
+                              </Button>
+                              {' · '}
+                            </>
+                          )}
+                          <Button
+                            variant='link'
+                            isInline
+                            component='a'
+                            href={getArtifactUrl(artifact)}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                          >
+                            Download
+                          </Button>
+                        </Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              )
             ) : (
               <TextContent>
                 <Text component={TextVariants.p}>empty</Text>

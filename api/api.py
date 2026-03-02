@@ -8139,6 +8139,42 @@ class TestRunArtifacts(Resource):
         return send_from_directory(artifacts_path, args["artifact"])
 
 
+class TestRunArtifactContent(Resource):
+    """Return artifact file content as text for viewing in the UI."""
+
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = ["api-id", "artifact", "id"]
+        args = get_query_string_args(request.args)
+        if not check_fields_in_request(mandatory_fields, args):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        try:
+            run = (
+                dbi.session.query(TestRunModel)
+                .filter(
+                    TestRunModel.api_id == api.id,
+                    TestRunModel.id == args["id"],
+                )
+                .one()
+            )
+        except NoResultFound:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data")
+        artifacts = os.listdir(artifacts_path)
+        if args["artifact"] not in artifacts:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        file_path = os.path.join(artifacts_path, args["artifact"])
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+            return {"content": content}
+        except OSError as e:
+            return {"content": None, "error": str(e)}, 500
+
+
 class TestRunPluginPresets(Resource):
 
     def get(self):
@@ -9024,6 +9060,7 @@ api.add_resource(TestRun, "/mapping/api/test-runs")
 api.add_resource(ExternalTestRuns, "/mapping/api/test-runs/external")
 api.add_resource(TestRunLog, "/mapping/api/test-run/log")
 api.add_resource(TestRunArtifacts, "/mapping/api/test-run/artifacts")
+api.add_resource(TestRunArtifactContent, "/mapping/api/test-run/artifact-content")
 api.add_resource(TestRunPluginPresets, "/mapping/api/test-run-plugins-presets")
 api.add_resource(AdminTestRunPluginsPresets, "/admin/test-run-plugins-presets")
 api.add_resource(AdminSettings, "/admin/settings")

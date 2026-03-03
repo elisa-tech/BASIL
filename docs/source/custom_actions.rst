@@ -35,6 +35,12 @@ actions:
   document:
       ...
 
+Where in case of method GET:
+- blank: true || undefined  means that the action will be opened in a new tab
+- blank: false means that the action will be created in the current tab and the response will be displayed into an alert dialog
+
+In case of method POST, PUT, DELETE, PATCH the request will be sent to the URL and the response will be displayed into an alert dialog
+
 .. toctree::
    :maxdepth: 1
    :caption: Contents:

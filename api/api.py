@@ -8992,7 +8992,7 @@ class AISuggestSoftwareRequirementMetadata(Resource):
 
 class CustomActions(Resource):
     def get(self):
-        request_data = request.get_json(force=True)
+        request_data = request.args
 
         dbi = get_db()
 
@@ -9000,7 +9000,7 @@ class CustomActions(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        return get_custom_actions(user=request_data["user"])
+        return get_custom_actions(user=user)
 
 
 class Version(Resource):

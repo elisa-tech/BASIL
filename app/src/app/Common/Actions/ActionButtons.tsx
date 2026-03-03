@@ -8,6 +8,7 @@ type HttpHeaders = Record<string, string>
 type ActionConfig = {
   url?: string
   method?: string
+  blank?: boolean
   headers?: string[] | HttpHeaders
   body?: unknown
 }
@@ -112,7 +113,7 @@ export const ActionButtons: React.FunctionComponent<ActionButtonsProps> = ({ wor
     }
 
     // For simple GET without body, open in new tab (friendlier UX for external web services)
-    if (method === 'GET' && body === undefined) {
+    if (method === 'GET' && (cfg.blank === undefined || cfg.blank === true)) {
       window.open(url, '_blank', 'noopener,noreferrer')
       return
     }

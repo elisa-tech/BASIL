@@ -62,6 +62,7 @@ export interface MappingListingTableProps {
   setDetailsModalInfo
   setForkModalInfo
   setHistoryModalInfo
+  setImplementationModalInfo
   setTestResultsModalInfo
   setTestRunModalInfo
   setUsageModalInfo
@@ -94,6 +95,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   setDetailsModalInfo,
   setForkModalInfo,
   setHistoryModalInfo,
+  setImplementationModalInfo,
   setTestResultsModalInfo,
   setTestRunModalInfo,
   setUsageModalInfo,
@@ -320,6 +322,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       indirect={indirect}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
+                      setImplementationModalInfo={setImplementationModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
                       setTcModalInfo={setTcModalInfo}
                       setDeleteModalInfo={setDeleteModalInfo}

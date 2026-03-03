@@ -12,8 +12,9 @@ db_name=basil
 db_port=5432
 db_password=default_db_password
 testing=0
+tmt_test_runs_base_dir="/var/test-runs"
 
-OPTSTRING=":b:d:e:f:p:t:u:w:h"
+OPTSTRING=":b:d:e:f:p:t:u:w:h:T"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -88,6 +89,7 @@ usage()
                             - http://<ip address> if you want to use a centralized machine
                             in the local network (e.g.: http://192.168.1.15)
         -w DB_PASSWPRD      password of the basil-admin user of the postgreSQL database
+        -T TMT_TEST_RUNS_BASE_DIR  Base directory for tmt test runs, default is "/var/test-runs"
 
         example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
         example for testing: ${0##*/} -t 1 -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
@@ -129,6 +131,9 @@ while getopts ${OPTSTRING} opt; do
         ;;
         w)
         db_password=${OPTARG}
+        ;;
+        T)
+        tmt_test_runs_base_dir=${OPTARG}
         ;;
         h)
         usage
@@ -217,6 +222,7 @@ podman build \
     --build-arg="DB_PORT=${db_port}" \
     --build-arg="TESTING=${testing}" \
     --build-arg="DB_PASSWORD=${db_password}" \
+    --env="TEST_RUNS_BASE_DIR=${tmt_test_runs_base_dir}" \
     -f ${api_containerfile} \
     -t basil-api-image:${TAG} .
 
@@ -304,7 +310,7 @@ podman_cmd="$podman_cmd --detach --privileged --pod=${BASIL_POD}"
 podman_cmd="$podman_cmd -v basil-configs-vol:/BASIL-API/api/configs"
 podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
 podman_cmd="$podman_cmd -v basil-user-files-vol:/BASIL-API/api/user-files"
-podman_cmd="$podman_cmd -v basil-tmt-logs-vol:/var/tmp/tmt"
+podman_cmd="$podman_cmd -v basil-tmt-logs-vol:${tmt_test_runs_base_dir}"
 podman_cmd="$podman_cmd basil-api-image:${TAG}"
 
 $podman_cmd

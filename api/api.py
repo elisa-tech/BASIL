@@ -65,6 +65,7 @@ from api_utils import (
     async_email_notification,
     document_to_html,
     get_api_specification,
+    get_custom_actions,
     get_html_email_body_from_template,
     get_safe_str,
     get_user_config_folder_path,
@@ -8987,6 +8988,19 @@ class AISuggestSoftwareRequirementMetadata(Resource):
         )
 
 
+class CustomActions(Resource):
+    def get(self):
+        request_data = request.args
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        return get_custom_actions(user=user)
+
+
 class Version(Resource):
 
     def get(self):
@@ -9087,6 +9101,9 @@ api.add_resource(AISuggestTestCaseMetadata, "/ai/suggest/test-case/metadata")
 api.add_resource(AISuggestTestCaseImplementation, "/ai/suggest/test-case/implementation")
 api.add_resource(AISuggestTestSpecificationMetadata, "/ai/suggest/test-specification/metadata")
 api.add_resource(AISuggestSoftwareRequirementMetadata, "/ai/suggest/sw-requirement/metadata")
+
+# Custom Actions
+api.add_resource(CustomActions, "/custom-actions")
 
 if __name__ == "__main__":
     import argparse

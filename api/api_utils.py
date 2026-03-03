@@ -535,3 +535,18 @@ def get_user_pdf_folder_path(user: UserModel) -> str:
 
 def get_user_tarball_folder_path(user: UserModel) -> str:
     return get_user_folder_path(user, ".tarball")
+
+
+def get_custom_actions(user: UserModel) -> list:
+    """ Return Custom actions from admin settings """
+    from api import SETTINGS_CACHE, SETTINGS_LAST_MODIFIED
+    actions = {}
+
+    # Load admin settings
+    settings, settings_last_modified = load_settings(
+        settings_cache=SETTINGS_CACHE, settings_last_modified=SETTINGS_LAST_MODIFIED
+    )
+    if settings:
+        admin_settings = settings.get("actions", {})
+        actions.update(admin_settings)
+    return actions

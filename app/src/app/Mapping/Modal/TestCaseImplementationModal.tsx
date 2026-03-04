@@ -25,6 +25,10 @@ export const TestCaseImplementationModal: React.FunctionComponent<TestCaseImplem
   const [content, setContent] = React.useState<string>('')
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [editorFontSize, setEditorFontSize] = React.useState(16)
+
+  const increaseEditorFont = () => setEditorFontSize((f) => Math.min(f + 2, 40))
+  const decreaseEditorFont = () => setEditorFontSize((f) => Math.max(f - 2, 8))
 
   const loadContent = React.useCallback(() => {
     if (!api?.id || !testCase?.id || !relationTo || relationId == null) {
@@ -105,17 +109,34 @@ export const TestCaseImplementationModal: React.FunctionComponent<TestCaseImplem
           <Text component={TextVariants.p}>Loading…</Text>
         </TextContent>
       ) : (
-        <Editor
-          height='500px'
-          theme='vs-dark'
-          value={content}
-          language='plaintext'
-          options={{
-            readOnly: true,
-            domReadOnly: true,
-            minimap: { enabled: false }
-          }}
-        />
+        <>
+          <Flex>
+            <FlexItem>
+              <Button onClick={decreaseEditorFont} variant='secondary'>
+                Font −
+              </Button>
+            </FlexItem>
+            <FlexItem>
+              <Button onClick={increaseEditorFont} variant='secondary'>
+                Font +
+              </Button>
+            </FlexItem>
+          </Flex>
+          <br />
+
+          <Editor
+            height='500px'
+            theme='vs-dark'
+            value={content}
+            language='plaintext'
+            options={{
+              readOnly: true,
+              domReadOnly: true,
+              fontSize: editorFontSize,
+              minimap: { enabled: false }
+            }}
+          />
+        </>
       )}
     </Modal>
   )

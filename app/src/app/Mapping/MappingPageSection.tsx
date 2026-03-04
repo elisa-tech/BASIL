@@ -16,6 +16,7 @@ import { MappingForkModal } from './Modal/MappingForkModal'
 import { MappingHistoryModal } from './Modal/MappingHistoryModal'
 import { MappingUsageModal } from './Modal/MappingUsageModal'
 import { MappingCommentModal } from './Modal/MappingCommentModal'
+import { TestCaseImplementationModal } from './Modal/TestCaseImplementationModal'
 import { TestResultsModal } from './Modal/TestResultsModal'
 import { TestRunModal } from './Modal/TestRunModal'
 import { Switch } from '@patternfly/react-core'
@@ -79,6 +80,12 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [testResultsModalShowState, setTestResultsModalShowState] = React.useState<boolean>(false)
   const [testResultDetailsModalShowState, setTestResultDetailsModalShowState] = React.useState<boolean>(false)
   const [testRunModalShowState, setTestRunModalShowState] = React.useState<boolean>(false)
+  const [implementationModalShowState, setImplementationModalShowState] = React.useState<boolean>(false)
+  const [implementationModalData, setImplementationModalData] = React.useState<{
+    testCase: { id: number }
+    relationTo: string
+    relationId: number
+  } | null>(null)
 
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   const [currentTestResult, setCurrentTestResult] = React.useState<any>({})
@@ -403,6 +410,13 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
       })
   }
 
+  const setImplementationModalInfo = (show: boolean, testCase?: { id: number }, relationTo?: string, relationId?: number) => {
+    setImplementationModalShowState(show)
+    if (show && testCase != null && relationTo != null && relationId != null) {
+      setImplementationModalData({ testCase, relationTo, relationId })
+    }
+  }
+
   const setUsageModalInfo = (show, work_item_type, work_item_id) => {
     const url = Constants.API_BASE_URL + '/mapping/usage?work_item_type=' + work_item_type + '&id=' + work_item_id
     fetch(url)
@@ -600,6 +614,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         setDetailsModalInfo={setDetailsModalInfo}
         setForkModalInfo={setForkModalInfo}
         setHistoryModalInfo={setHistoryModalInfo}
+        setImplementationModalInfo={setImplementationModalInfo}
         setUsageModalInfo={setUsageModalInfo}
         mappingViewSelectValue={mappingViewSelectValue}
         showIndirectTestCases={showIndirectTestCases}
@@ -781,6 +796,16 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         modalRelationData={modalRelationData}
         parentType={modalParentType}
       />
+      {implementationModalData && (
+        <TestCaseImplementationModal
+          isOpen={implementationModalShowState}
+          onClose={() => setImplementationModalShowState(false)}
+          api={api}
+          testCase={implementationModalData.testCase}
+          relationTo={implementationModalData.relationTo}
+          relationId={implementationModalData.relationId}
+        />
+      )}
       <APIExportSPDXModal
         api={api}
         SPDXContent={SPDXContent}

@@ -54,7 +54,7 @@ import yaml
 from uuid import uuid4
 
 import gitlab
-from flask import Flask, g, redirect, request, send_file, send_from_directory
+from flask import Flask, g, redirect, request, Response, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
@@ -72,6 +72,7 @@ from api_utils import (
     get_user_html_folder_path,
     get_user_pdf_folder_path,
     get_user_traceability_scanner_config,
+    is_safe_local_user_file_path,
     is_testing_enabled_by_env,
     load_settings,
     parse_int,
@@ -3320,6 +3321,12 @@ class ApiTestCasesMapping(Resource):
                 return f"Test Case {existing_tcs[0].id} has same content, " \
                        f"consider to use the exsting one or to edit at least one field", CONFLICT_STATUS
 
+            test_case_path = os.path.join(repository, relative_path)
+            # In case of local file
+            if test_case_path.startswith(os.path.sep):
+                if not is_safe_local_user_file_path(test_case_path):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
             new_test_case_mapping_api = ApiTestCaseModel(api, new_test_case, section, offset, coverage, user)
@@ -3389,6 +3396,14 @@ class ApiTestCasesMapping(Resource):
                     setattr(test_case, field, request_data["test-case"][field.replace("_", "-")])
 
         if modified_tc:
+            test_case_path = os.path.join(
+                request_data["test-case"]["repository"], request_data["test-case"]["relative-path"]
+            )
+            # In case of local file
+            if test_case_path.startswith(os.path.sep):
+                if not is_safe_local_user_file_path(test_case_path):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
             setattr(test_case, "edited_by_id", user.id)
 
         modified_tca = False
@@ -4751,6 +4766,131 @@ class TestCase(Resource):
         return tcs
 
 
+class TestCaseLocalFileImplementation(Resource):
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        request_data = request.args
+        mandatory_fields = ["test-case-id", "relation-to", "relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        relation_id = request_data["relation-id"]
+        relation_to = request_data["relation-to"]
+        test_case_id = request_data["test-case-id"]
+
+        # Check the test case is mapped to the selected api
+        if relation_to == "api":
+            try:
+                test_case_mapping = (
+                    dbi.session.query(ApiTestCaseModel)
+                    .filter(ApiTestCaseModel.id == relation_id)
+                    .filter(ApiTestCaseModel.test_case_id == test_case_id)
+                    .filter(ApiTestCaseModel.api_id == api.id)
+                    .one()
+                )
+            except NoResultFound:
+                logger.info(
+                    "Unable to find ApiTestCaseModel entry with "
+                    f"id: {relation_id} and test case id: {test_case_id}"
+                )
+                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        elif relation_to == "sw-requirement":
+            try:
+                test_case_mapping = (
+                    dbi.session.query(SwRequirementTestCaseModel)
+                    .filter(SwRequirementTestCaseModel.id == relation_id)
+                    .filter(SwRequirementTestCaseModel.test_case_id == test_case_id)
+                    .one()
+                )
+            except NoResultFound:
+                logger.info(
+                    "Unable to find SwRequirementTestCaseModel entry with "
+                    f"id: {relation_id} and test case id: {test_case_id}"
+                )
+                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+            # check the parent api is the expected one
+            parent_api = get_api_from_indirect_sw_requirement_mapping(test_case_mapping, dbi.session)
+            if not isinstance(parent_api, ApiModel):
+                logger.info("Unable to find the Software Requirement parent Api")
+                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            if parent_api.id != api.id:
+                logger.info("The Software Requirement parent Api is different from the requested one")
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        elif relation_to == "test-specification":
+            try:
+                test_case_mapping = (
+                    dbi.session.query(TestSpecificationTestCaseModel)
+                    .filter(TestSpecificationTestCaseModel.id == relation_id)
+                    .filter(TestSpecificationTestCaseModel.test_case_id == test_case_id)
+                    .one()
+                )
+            except NoResultFound:
+                logger.info(
+                    "Unable to find TestSpecificationTestCaseModel entry with "
+                    f"id: {relation_id} and test case id: {test_case_id}"
+                )
+                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+            # check the parent api is the expected one
+            # if the test-specification is mapped to an api, check the parent api is the expected one
+            if test_case_mapping.test_specification_mapping_api_id:
+                try:
+                    parent_api = (
+                        dbi.session.query(ApiTestSpecificationModel)
+                        .filter(ApiTestSpecificationModel.id == test_case_mapping.test_specification_mapping_api_id)
+                        .one()
+                    )
+                except NoResultFound:
+                    logger.info("Unable to find the corresponding api from ApiTestSpecificationModel")
+                    return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                if parent_api.id != api.id:
+                    logger.info("The retrieved ApiTestSpecificationModel is referring to a different api")
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            # if the test-specification is mapped to a sw-requirement, check the parent api is the expected one
+            elif test_case_mapping.test_specification_mapping_sw_requirement_id:
+                try:
+                    mapping_id = test_case_mapping.test_specification_mapping_sw_requirement_id
+                    ts_sr_mapping = (
+                        dbi.session.query(SwRequirementTestSpecificationModel)
+                        .filter(SwRequirementTestSpecificationModel.id == mapping_id)
+                        .one()
+                    )
+                except NoResultFound:
+                    logger.info("Unable to find the corresponding SwRequirementTestSpecificationModel")
+                    return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+                parent_api = get_api_from_indirect_sw_requirement_mapping(ts_sr_mapping, dbi.session)
+                if not isinstance(parent_api, ApiModel):
+                    logger.info("Unable to find the Software Requirement parent Api")
+                    return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                if parent_api.id != api.id:
+                    logger.info("The Software Requirement parent Api is different from the requested one")
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        # if repository is a local path, return the file content
+        if test_case_mapping.test_case.repository.startswith("/"):
+            test_case_path = os.path.join(
+                test_case_mapping.test_case.repository, test_case_mapping.test_case.relative_path
+            )
+
+            if not is_safe_local_user_file_path(test_case_path):
+                logger.info("Local path is not valid, possible attempt of traversal")
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+            file_content = read_file(test_case_path)
+            if not file_content:
+                logger.info(f"The local file {test_case_path} doesn't exists")
+                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return Response(file_content, mimetype="text/plain; charset=utf-8")
+
+        # in case the file is remote, it is not possible to read it based on repository and releative path
+        # in a way that applies to any web services
+        logger.info("Unable to retrieve test case content for a remote file using repository and relative path")
+        return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+
 class SwRequirementSwRequirementsMapping(Resource):
     fields = ["sw-requirement", "coverage"]
 
@@ -5419,6 +5559,12 @@ class SwRequirementTestCasesMapping(Resource):
                 return f"Test Case `{existing_tcs[0].id}` has same content, " \
                        "consider to use the existing one or to edit at least one field", CONFLICT_STATUS
 
+            test_case_path = os.path.join(repository, relative_path)
+            # In case of local file
+            if test_case_path.startswith(os.path.sep):
+                if not is_safe_local_user_file_path(test_case_path):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
             new_test_case_mapping_sw_requirement = SwRequirementTestCaseModel(
@@ -5510,6 +5656,13 @@ class SwRequirementTestCasesMapping(Resource):
                     setattr(test_case, field, request_data["test-case"][field.replace("_", "-")])
 
         if modified_tc:
+            test_case_path = os.path.join(
+                request_data["test-case"]["repository"], request_data["test-case"]["relative-path"]
+            )
+            # In case of local file
+            if test_case_path.startswith(os.path.sep):
+                if not is_safe_local_user_file_path(test_case_path):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
             setattr(test_case, "edited_by_id", user.id)
 
         modified_srtc = False
@@ -5713,6 +5866,12 @@ class TestSpecificationTestCasesMapping(Resource):
                 return f"Test Case `{existing_tcs[0].id}` has same content, " \
                        "consider to use the existing one or to edit at least one field", CONFLICT_STATUS
 
+            test_case_path = os.path.join(repository, relative_path)
+            # In case of local file
+            if test_case_path.startswith(os.path.sep):
+                if not is_safe_local_user_file_path(test_case_path):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
             new_test_case_mapping_test_specification = TestSpecificationTestCaseModel(
@@ -5820,6 +5979,13 @@ class TestSpecificationTestCasesMapping(Resource):
                     setattr(test_case, field, request_data["test-case"][field.replace("_", "-")])
 
         if modified_tc:
+            test_case_path = os.path.join(
+                request_data["test-case"]["repository"], request_data["test-case"]["relative-path"]
+            )
+            # In case of local file
+            if test_case_path.startswith(os.path.sep):
+                if not is_safe_local_user_file_path(test_case_path):
+                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
             setattr(test_case, "edited_by_id", user.id)
 
         modified_tstc = False
@@ -9022,6 +9188,8 @@ api.add_resource(Justification, "/justifications")
 api.add_resource(SwRequirement, "/sw-requirements")
 api.add_resource(TestSpecification, "/test-specifications")
 api.add_resource(TestCase, "/test-cases")
+api.add_resource(TestCaseLocalFileImplementation, "/test-cases/local-file-implementation")
+
 # Mapping
 # - Direct
 api.add_resource(ApiSpecificationsMapping, "/mapping/api/specifications")

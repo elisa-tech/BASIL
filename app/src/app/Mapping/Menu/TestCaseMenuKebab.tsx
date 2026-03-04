@@ -8,6 +8,7 @@ export interface TestCaseMenuKebabProps {
   indirect
   setHistoryModalInfo
   setDetailsModalInfo
+  setImplementationModalInfo
   setUsageModalInfo
   setTcModalInfo
   setDeleteModalInfo
@@ -26,6 +27,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
   indirect,
   setHistoryModalInfo,
   setDetailsModalInfo,
+  setImplementationModalInfo,
   setUsageModalInfo,
   setTcModalInfo,
   setDeleteModalInfo,
@@ -142,6 +144,22 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           onClick={() => setDetailsModalInfo(true, Constants._TC, mappingList[mappingIndex][Constants._TC_]['id'])}
         >
           Show Details
+        </DropdownItem>
+
+        <DropdownItem
+          value={8}
+          key='view-implementation'
+          id={'btn-menu-test-case-implementation-' + mappingList[mappingIndex].relation_id}
+          onClick={() =>
+            setImplementationModalInfo(
+              true,
+              { id: mappingList[mappingIndex][Constants._TC_]['id'] },
+              mappingParentType?.replace('_', '-') ?? 'api',
+              mappingList[mappingIndex].relation_id
+            )
+          }
+        >
+          View implementation
         </DropdownItem>
 
         {api?.permissions.indexOf('r') >= 0 ? (

@@ -550,3 +550,8 @@ def get_custom_actions(user: UserModel) -> list:
         admin_settings = settings.get("actions", {})
         actions.update(admin_settings)
     return actions
+
+
+def is_safe_local_user_file_path(path: str) -> bool:
+    from api import USER_FILES_BASE_DIR
+    return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)

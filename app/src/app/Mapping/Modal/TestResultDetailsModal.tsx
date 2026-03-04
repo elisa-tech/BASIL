@@ -111,6 +111,13 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
 
   React.useEffect(() => {
     setIsModalOpen(modalShowState)
+    if (!modalShowState) {
+      setActiveTabKey(0)
+      setArtifactContent('')
+      setArtifactContentError(null)
+      setArtifactContentLoading(false)
+      setArtifactViewing(null)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState])
 

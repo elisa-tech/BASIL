@@ -63,6 +63,7 @@ export const API_CUSTOM_ACTIONS_ENDPOINT = '/custom-actions'
 export const API_TEST_RUN_LOG_ENDPOINT = '/mapping/api/test-run/log'
 export const API_TEST_RUN_ARTIFACTS_ENDPOINT = '/mapping/api/test-run/artifacts'
 export const API_TEST_RUN_ARTIFACT_CONTENT_ENDPOINT = '/mapping/api/test-run/artifact-content'
+export const API_TEST_CASE_LOCAL_FILE_IMPLEMENTATION_ENDPOINT = '/test-cases/local-file-implementation'
 
 export const FORM_COMPLETION_LABEL = 'Completion (how much of the parent is covered by this work item) [0-100]:'
 

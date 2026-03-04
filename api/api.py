@@ -54,7 +54,7 @@ import yaml
 from uuid import uuid4
 
 import gitlab
-from flask import Flask, g, redirect, request, send_file, send_from_directory
+from flask import Flask, g, redirect, request, Response, send_file, send_from_directory
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
@@ -4770,74 +4770,103 @@ class TestCaseLocalFileImplementation(Resource):
     @check_api_user_read_permission
     def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.args
-        mandatory_fields = ["test-case", "relation-to", "relation-id"]
+        mandatory_fields = ["test-case-id", "relation-to", "relation-id"]
         if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        test_case_id = request_data["test-case"].get("id", None)
-        if not test_case_id:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        relation_id = request_data["relation-id"]
+        relation_to = request_data["relation-to"]
+        test_case_id = request_data["test-case-id"]
 
         # Check the test case is mapped to the selected api
-        if request_data["relation_to"] == "api":
+        if relation_to == "api":
             try:
                 test_case_mapping = (
                     dbi.session.query(ApiTestCaseModel)
-                    .filter(ApiTestCaseModel.id == request_data["relation-id"])
+                    .filter(ApiTestCaseModel.id == relation_id)
                     .filter(ApiTestCaseModel.test_case_id == test_case_id)
                     .filter(ApiTestCaseModel.api_id == api.id)
                     .one()
                 )
             except NoResultFound:
+                logger.info(
+                    "Unable to find ApiTestCaseModel entry with "
+                    f"id: {relation_id} and test case id: {test_case_id}"
+                )
                 return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-        elif request_data["relation_to"] == "sw-requirement":
+        elif relation_to == "sw-requirement":
             try:
                 test_case_mapping = (
                     dbi.session.query(SwRequirementTestCaseModel)
-                    .filter(SwRequirementTestCaseModel.id == request_data["relation-id"])
+                    .filter(SwRequirementTestCaseModel.id == relation_id)
                     .filter(SwRequirementTestCaseModel.test_case_id == test_case_id)
                     .one()
                 )
             except NoResultFound:
+                logger.info(
+                    "Unable to find SwRequirementTestCaseModel entry with "
+                    f"id: {relation_id} and test case id: {test_case_id}"
+                )
                 return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
             # check the parent api is the expected one
             parent_api = get_api_from_indirect_sw_requirement_mapping(test_case_mapping, dbi.session)
             if not isinstance(parent_api, ApiModel):
+                logger.info("Unable to find the Software Requirement parent Api")
                 return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
             if parent_api.id != api.id:
+                logger.info("The Software Requirement parent Api is different from the requested one")
                 return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        elif request_data["relation_to"] == "test-specification":
+        elif relation_to == "test-specification":
             try:
                 test_case_mapping = (
                     dbi.session.query(TestSpecificationTestCaseModel)
-                    .filter(TestSpecificationTestCaseModel.id == request_data["relation-id"])
+                    .filter(TestSpecificationTestCaseModel.id == relation_id)
                     .filter(TestSpecificationTestCaseModel.test_case_id == test_case_id)
-                    .filter(TestSpecificationTestCaseModel.test_specification_mapping_api_id == request_data["api-id"])
                     .one()
                 )
             except NoResultFound:
+                logger.info(
+                    "Unable to find TestSpecificationTestCaseModel entry with "
+                    f"id: {relation_id} and test case id: {test_case_id}"
+                )
                 return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
             # check the parent api is the expected one
             # if the test-specification is mapped to an api, check the parent api is the expected one
             if test_case_mapping.test_specification_mapping_api_id:
-                parent_api = (
-                    dbi.session.query(ApiTestSpecificationModel)
-                    .filter(ApiTestSpecificationModel.id == test_case_mapping.test_specification_mapping_api_id)
-                    .one()
-                )
-                if not isinstance(parent_api, ApiModel):
+                try:
+                    parent_api = (
+                        dbi.session.query(ApiTestSpecificationModel)
+                        .filter(ApiTestSpecificationModel.id == test_case_mapping.test_specification_mapping_api_id)
+                        .one()
+                    )
+                except NoResultFound:
+                    logger.info("Unable to find the corresponding api from ApiTestSpecificationModel")
                     return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
                 if parent_api.id != api.id:
+                    logger.info("The retrieved ApiTestSpecificationModel is referring to a different api")
                     return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
             # if the test-specification is mapped to a sw-requirement, check the parent api is the expected one
             elif test_case_mapping.test_specification_mapping_sw_requirement_id:
-                parent_api = get_api_from_indirect_sw_requirement_mapping(test_case_mapping, dbi.session)
+                try:
+                    mapping_id = test_case_mapping.test_specification_mapping_sw_requirement_id
+                    ts_sr_mapping = (
+                        dbi.session.query(SwRequirementTestSpecificationModel)
+                        .filter(SwRequirementTestSpecificationModel.id == mapping_id)
+                        .one()
+                    )
+                except NoResultFound:
+                    logger.info("Unable to find the corresponding SwRequirementTestSpecificationModel")
+                    return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+                parent_api = get_api_from_indirect_sw_requirement_mapping(ts_sr_mapping, dbi.session)
                 if not isinstance(parent_api, ApiModel):
+                    logger.info("Unable to find the Software Requirement parent Api")
                     return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
                 if parent_api.id != api.id:
+                    logger.info("The Software Requirement parent Api is different from the requested one")
                     return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # if repository is a local path, return the file content
@@ -4847,15 +4876,18 @@ class TestCaseLocalFileImplementation(Resource):
             )
 
             if not is_safe_local_user_file_path(test_case_path):
+                logger.info("Local path is not valid, possible attempt of traversal")
                 return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
             file_content = read_file(test_case_path)
             if not file_content:
+                logger.info(f"The local file {test_case_path} doesn't exists")
                 return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-            return file_content
+            return Response(file_content, mimetype="text/plain; charset=utf-8")
 
         # in case the file is remote, it is not possible to read it based on repository and releative path
         # in a way that applies to any web services
+        logger.info("Unable to retrieve test case content for a remote file using repository and relative path")
         return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
 

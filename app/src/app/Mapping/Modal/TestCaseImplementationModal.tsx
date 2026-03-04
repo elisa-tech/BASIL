@@ -41,7 +41,7 @@ export const TestCaseImplementationModal: React.FunctionComponent<TestCaseImplem
     params.append('api-id', String(api.id))
     params.append('relation-id', String(relationId))
     params.append('relation-to', relationTo)
-    params.append('test-case', JSON.stringify({ id: testCase.id }))
+    params.append('test-case-id', String(testCase.id))
     const url = Constants.API_BASE_URL + Constants.API_TEST_CASE_LOCAL_FILE_IMPLEMENTATION_ENDPOINT + '?' + params.toString()
     fetch(url)
       .then((res) => {
@@ -54,7 +54,12 @@ export const TestCaseImplementationModal: React.FunctionComponent<TestCaseImplem
         return res.text()
       })
       .then((text) => {
-        setContent(text)
+        // If the server sent JSON-encoded text (e.g. "\n" as literal), normalize to real newlines
+        const normalized =
+          typeof text === 'string' && /\\n/.test(text) && !/\n/.test(text)
+            ? text.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t')
+            : text
+        setContent(normalized)
       })
       .catch((err) => {
         setError(err?.message || 'Failed to load implementation.')

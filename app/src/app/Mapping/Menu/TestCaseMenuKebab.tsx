@@ -146,21 +146,25 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           Show Details
         </DropdownItem>
 
-        <DropdownItem
-          value={8}
-          key='view-implementation'
-          id={'btn-menu-test-case-implementation-' + mappingList[mappingIndex].relation_id}
-          onClick={() =>
-            setImplementationModalInfo(
-              true,
-              { id: mappingList[mappingIndex][Constants._TC_]['id'] },
-              mappingParentType?.replace('_', '-') ?? 'api',
-              mappingList[mappingIndex].relation_id
-            )
-          }
-        >
-          View implementation
-        </DropdownItem>
+        {api?.permissions.indexOf('r') >= 0 && mappingList[mappingIndex].relative_path.startsWith('/') ? (
+          <DropdownItem
+            value={8}
+            key='view-implementation'
+            id={'btn-menu-test-case-implementation-' + mappingList[mappingIndex].relation_id}
+            onClick={() =>
+              setImplementationModalInfo(
+                true,
+                { id: mappingList[mappingIndex][Constants._TC_]['id'] },
+                mappingParentType?.replace('_', '-') ?? 'api',
+                mappingList[mappingIndex].relation_id
+              )
+            }
+          >
+            View implementation
+          </DropdownItem>
+        ) : (
+          ''
+        )}
 
         {api?.permissions.indexOf('r') >= 0 ? (
           <>

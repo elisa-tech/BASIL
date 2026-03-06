@@ -212,21 +212,12 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
 
   React.useEffect(() => {
     setMessageValue('')
-    let isValid = true
-    if (repositoryUrl.trim() == '') {
+    const trimmed = repositoryUrl.trim()
+    if (trimmed === '') {
       setValidatedRepositoryUrl('error')
-      isValid = false
+    } else if (!trimmed.startsWith('http') || !trimmed.endsWith('.git')) {
+      setValidatedRepositoryUrl('error')
     } else {
-      if (!repositoryUrl.startsWith('http')) {
-        setValidatedRepositoryUrl('error')
-        isValid = false
-      }
-      if (!repositoryUrl.endsWith('.git')) {
-        setValidatedRepositoryUrl('error')
-        isValid = false
-      }
-    }
-    if (isValid) {
       setValidatedRepositoryUrl('success')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -441,7 +432,15 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
               {validatedRepositoryUrl !== 'success' && (
                 <FormHelperText>
                   <HelperText>
-                    <HelperTextItem variant='error'>{validatedRepositoryUrl === 'error' ? 'This field is mandatory' : ''}</HelperTextItem>
+                    <HelperTextItem variant='error'>
+                      {(() => {
+                        const trimmed = repositoryUrl.trim()
+                        if (trimmed === '') return 'This field is mandatory'
+                        if (!trimmed.startsWith('http')) return 'URL must start with http(s)'
+                        if (!trimmed.endsWith('.git')) return 'URL must end with .git'
+                        return ''
+                      })()}
+                    </HelperTextItem>
                   </HelperText>
                 </FormHelperText>
               )}

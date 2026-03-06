@@ -6,7 +6,7 @@ import { ActionButtons } from '@app/Common/Actions/ActionButtons'
 
 export interface SwRequirementMenuKebabProps {
   indirect
-  //srModalShowState;
+  setCommentModalInfo
   setDetailsModalInfo
   setHistoryModalInfo
   setUsageModalInfo
@@ -26,6 +26,7 @@ export interface SwRequirementMenuKebabProps {
 
 export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKebabProps> = ({
   indirect,
+  setCommentModalInfo,
   setDetailsModalInfo,
   setHistoryModalInfo,
   setUsageModalInfo,

@@ -1,5 +1,6 @@
 from datetime import datetime
 from db.models.db_base import Base
+from db.models.comment import CommentModel
 from db.models.user import UserModel
 from db.models.test_specification import TestSpecificationModel, TestSpecificationHistoryModel
 from db.models.api_sw_requirement import ApiSwRequirementModel
@@ -99,6 +100,12 @@ class SwRequirementTestSpecificationModel(Base):
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
             _dict['test_specification'] = self.test_specification_as_dict(db_session)
+            # Comments
+            _dict['test_specification']['comment_count'] = len(db_session.query(CommentModel).filter(
+                CommentModel.parent_table == self.__tablename__
+            ).filter(
+                CommentModel.parent_id == self.id
+            ).all())
         else:
             _dict['test_specification'] = {'id': self.test_specification_id}
 

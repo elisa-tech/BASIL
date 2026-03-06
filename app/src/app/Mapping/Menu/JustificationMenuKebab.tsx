@@ -6,6 +6,7 @@ import { ActionButtons } from '@app/Common/Actions/ActionButtons'
 
 export interface JustificationMenuKebabProps {
   setJModalInfo
+  setCommentModalInfo
   setHistoryModalInfo
   setDetailsModalInfo
   setUsageModalInfo
@@ -19,6 +20,7 @@ export interface JustificationMenuKebabProps {
 
 export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKebabProps> = ({
   setJModalInfo,
+  setCommentModalInfo,
   setHistoryModalInfo,
   setDetailsModalInfo,
   setUsageModalInfo,
@@ -97,6 +99,14 @@ export const JustificationMenuKebab: React.FunctionComponent<JustificationMenuKe
         </DropdownItem>
         <DropdownItem
           value={5}
+          id={'btn-menu-justification-comments-' + mappingList[mappingIndex].relation_id}
+          key='comments'
+          onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mappingList, mappingIndex)}
+        >
+          Comments
+        </DropdownItem>
+        <DropdownItem
+          value={6}
           id={'btn-menu-justification-usage-' + mappingList[mappingIndex].relation_id}
           key='usage'
           onClick={() => setUsageModalInfo(true, Constants._J, mappingList[mappingIndex][Constants._J]['id'])}

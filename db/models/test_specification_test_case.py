@@ -4,6 +4,7 @@ from db.models.api_test_specification import ApiTestSpecificationModel
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
 from db.models.user import UserModel
 from db.models.db_base import Base
+from db.models.comment import CommentModel
 from sqlalchemy import DateTime, Integer
 from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
@@ -98,6 +99,12 @@ class TestSpecificationTestCaseModel(Base):
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
             _dict['test_case'] = self.test_case_as_dict(db_session)
+            # Comments
+            _dict['test_case']['comment_count'] = len(db_session.query(CommentModel).filter(
+                CommentModel.parent_table == self.__tablename__
+            ).filter(
+                CommentModel.parent_id == self.id
+            ).all())
         else:
             _dict['test_case'] = {'id': self.test_case_id}
 

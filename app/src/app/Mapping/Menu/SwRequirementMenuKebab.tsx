@@ -202,6 +202,14 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
         </DropdownItem>
         <DropdownItem
           value={8}
+          id={'btn-menu-sw-requirement-comments-' + mappingList[mappingIndex].relation_id}
+          key='comments'
+          onClick={() => setCommentModalInfo(true, Constants._SR, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
+        >
+          Comments
+        </DropdownItem>
+        <DropdownItem
+          value={9}
           id={'btn-menu-sw-requirement-details-' + mappingList[mappingIndex].relation_id}
           name={'btn-menu-sw-requirement-details'}
           key='usage'

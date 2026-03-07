@@ -154,9 +154,11 @@ export function registerCommands() {
   Cypress.Commands.add('check_work_item', (_index, _type, _obj) => {
     let i = 0
     let card
+    // Use longer timeout so slower backend (e.g. failing test case) has time to refresh the table
+    const tableOptions = { timeout: 15000 }
 
     //Type Check
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id, tableOptions).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.each(($el, index, $list) => {
       if (index == _index) {
@@ -168,7 +170,7 @@ export function registerCommands() {
     })
 
     //Title Check
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id, tableOptions).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.each(($el, index, $list) => {
       if (index == _index) {
@@ -184,7 +186,7 @@ export function registerCommands() {
     })
 
     //Description Check
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id, tableOptions).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.each(($el, index, $list) => {
       if (index == _index) {
@@ -209,7 +211,7 @@ export function registerCommands() {
     let card
 
     //Click Toggle Menu
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.find('button[class*="pf-v5-c-menu-toggle"]').each(($el, index, $list) => {
       // $el is a wrapped jQuery element
@@ -222,7 +224,7 @@ export function registerCommands() {
     })
 
     //Click Delete Button
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.each(($el, index, $list) => {
       // $el is a wrapped jQuery element
@@ -245,7 +247,7 @@ export function registerCommands() {
 
     if (_parent_index > -1) {
       //Click Toggle Menu
-      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
       card.find('button[class*="pf-v5-c-menu-toggle"]').each(($el, index, $list) => {
         // $el is a wrapped jQuery element
@@ -257,7 +259,7 @@ export function registerCommands() {
       })
 
       //Click Assign Button
-      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
       card.each(($el, index, $list) => {
         // $el is a wrapped jQuery element
@@ -339,7 +341,7 @@ export function registerCommands() {
 
     if (_parent_index > -1) {
       //Click Toggle Menu
-      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
       card.find('button[class*="pf-v5-c-menu-toggle"]').each(($el, index, $list) => {
         // $el is a wrapped jQuery element
@@ -351,7 +353,7 @@ export function registerCommands() {
       })
 
       //Click Assign Button
-      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+      card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
       card.each(($el, index, $list) => {
         // $el is a wrapped jQuery element
@@ -380,13 +382,23 @@ export function registerCommands() {
     cy.wait(2000)
   })
 
+  Cypress.Commands.add('add_test_case_to_user_files', (import_file) => {
+    cy.get('#nav-item-user-files').click()
+    cy.wait(const_data.long_wait)
+    cy.get('#btn-add-user-file').click()
+    cy.wait(const_data.long_wait)
+    cy.get('#user-file-upload-browse-button').selectFile(import_file, { action: 'drag-drop' })
+    cy.get('#btn-user-file-add-confirm').click()
+    cy.wait(const_data.long_wait)
+  })
+
   Cypress.Commands.add('edit_work_item', (_index, _type, _obj) => {
     // Index 0 based
     let i = 0
     let card
 
     //Click Toggle Menu
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.find('button[class*="pf-v5-c-menu-toggle"]').each(($el, index, $list) => {
       // $el is a wrapped jQuery element
@@ -398,7 +410,7 @@ export function registerCommands() {
     })
 
     //Click Edit Button
-    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('[class=pf-v5-c-card]')
+    card = cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(1).find('.pf-v5-c-card')
 
     card.each(($el, index, $list) => {
       // $el is a wrapped jQuery element

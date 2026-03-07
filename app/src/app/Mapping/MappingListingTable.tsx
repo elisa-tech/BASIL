@@ -320,6 +320,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <TestCaseMenuKebab
                       indirect={indirect}
+                      setCommentModalInfo={setCommentModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setImplementationModalInfo={setImplementationModalInfo}
@@ -350,13 +351,15 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <CompletionLabel mappedItem={test_case} />
                   </FlexItem>
                   <FlexItem>
-                    {indirect == false && auth.isLogged() ? (
+                    {auth.isLogged() ? (
                       <React.Fragment>
                         <Tooltip content={'Click to read and add comments'}>
                           <Button
                             variant='plain'
                             icon={<OutlinedCommentsIcon />}
-                            onClick={() => setCommentModalInfo(true, Constants._TC, Constants._A, '', test_cases, cIndex)}
+                            onClick={() =>
+                              setCommentModalInfo(true, Constants._TC, parent_type, parent_related_to_type, test_cases, cIndex)
+                            }
                           ></Button>
                         </Tooltip>
                         <Badge key={3} screenReaderText='Comments'>
@@ -419,6 +422,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <TestSpecificationMenuKebab
                       indirect={indirect}
+                      setCommentModalInfo={setCommentModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
@@ -449,13 +453,15 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <CompletionLabel mappedItem={test_spec} />
                   </FlexItem>
                   <FlexItem>
-                    {indirect == false && auth.isLogged() ? (
+                    {auth.isLogged() ? (
                       <React.Fragment>
                         <Tooltip content={'Click to read and add comments'}>
                           <Button
                             variant='plain'
                             icon={<OutlinedCommentsIcon />}
-                            onClick={() => setCommentModalInfo(true, 'test-specification', Constants._A, '', test_specs, cIndex)}
+                            onClick={() =>
+                              setCommentModalInfo(true, 'test-specification', parent_type, parent_related_to_type, test_specs, cIndex)
+                            }
                           ></Button>
                         </Tooltip>
                         <Badge key={3} screenReaderText='Comments'>
@@ -522,6 +528,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>
                     <SwRequirementMenuKebab
+                      setCommentModalInfo={setCommentModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
@@ -554,13 +561,13 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <CompletionLabel mappedItem={mappedItem} />
                   </FlexItem>
                   <FlexItem>
-                    {indirect == false && auth.isLogged() ? (
+                    {auth.isLogged() ? (
                       <React.Fragment>
                         <Tooltip content={'Click to read and add comments'}>
                           <Button
                             variant='plain'
                             icon={<OutlinedCommentsIcon />}
-                            onClick={() => setCommentModalInfo(true, Constants._SR, Constants._A, '', mapping, mIndex)}
+                            onClick={() => setCommentModalInfo(true, Constants._SR, parent_type, parent_related_to_type, mapping, mIndex)}
                           ></Button>
                         </Tooltip>
                         <Badge key={3} screenReaderText='Comments'>
@@ -617,6 +624,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>
                     <JustificationMenuKebab
+                      setCommentModalInfo={setCommentModalInfo}
                       setJModalInfo={setJModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
@@ -696,6 +704,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <DocumentMenuKebab
                       indirect={indirect}
+                      setCommentModalInfo={setCommentModalInfo}
                       setDocModalInfo={setDocModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
@@ -720,13 +729,13 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   <FlexItem>
                     <CompletionLabel mappedItem={mappedItem} />
                   </FlexItem>
-                  {indirect == false && auth.isLogged() ? (
+                  {auth.isLogged() ? (
                     <FlexItem align={{ default: 'alignRight' }}>
                       <Tooltip content={'Click to read and add comments'}>
                         <Button
                           variant='plain'
                           icon={<OutlinedCommentsIcon />}
-                          onClick={() => setCommentModalInfo(true, Constants._D, Constants._A, '', mapping, mIndex)}
+                          onClick={() => setCommentModalInfo(true, Constants._D, parent_type, parent_related_to_type, mapping, mIndex)}
                         ></Button>
                       </Tooltip>
                       <Badge key={3} screenReaderText='Comments'>

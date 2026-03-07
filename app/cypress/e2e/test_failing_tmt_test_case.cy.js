@@ -1,15 +1,19 @@
 /// <reference types="cypress" />
 
 /**
- * Test Run Creation and Verification E2E Test
+ * Test Run (Local test file) Creation and Verification E2E Test
+ *
+ *  NOTE: This test is configured to be run on API deployed as a container
+ *        due to that the base path is /BASIL-API/
  *
  * This test suite validates the complete test run workflow:
  * 1. Create a software component and test case
- * 2. Create a test run via the test case kebab menu "Run" option
- * 3. Verify the test run appears in the test results table
- * 4. Verify the test run failed
- * 5. Verify test run details are accessible and properly displayed
- * 6. Clean up test data (test runs and test cases)
+ * 2. Add test case to user files
+ * 3. Create a test run via the test case kebab menu "Run" option
+ * 4. Verify the test run appears in the test results table
+ * 5. Verify the test run failed
+ * 6. Verify test run details are accessible and properly displayed
+ * 7. Clean up test data (test runs and test cases)
  *
  * The test covers the end-to-end user experience of creating and managing test runs
  * in the BASIL test management system, ensuring proper integration between the frontend
@@ -39,11 +43,15 @@ let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
 //Test Case data
+const basil_root_path = Cypress.config('projectRoot').replace('/app', '/')
+const test_case_file = basil_root_path + 'examples/tmt/local/tmt-dummy-failing-test.fmf'
+const deployment_base_path = '/BASIL-API'
+
 const test_case_data = {
   title: 'Failing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy failing TMT test',
-  repository: const_data.api_base_path,
-  relative_path: 'examples/tmt/local/tmt-dummy-failing-test.fmf'
+  repository: deployment_base_path,
+  relative_path: '/api/user-files/1/tmt-dummy-failing-test.fmf',
 }
 
 // Test run data
@@ -95,6 +103,10 @@ describe('Test Run Creation and Verification', () => {
       })
   })
 
+  it('Add Test Case to user files', () => {
+    cy.add_test_case_to_user_files(test_case_file)
+  })
+
   it('Create Test Run via Test Case Menu', () => {
     // Navigate to mapping page with existing test case
     cy.visit(const_data.app_base_url + '/mapping/' + apiId)
@@ -108,6 +120,10 @@ describe('Test Run Creation and Verification', () => {
 
     cy.assign_work_item(-1, 0, '', 'test-case', test_case_data)
     cy.wait(const_data.mid_wait)
+
+    // Wait for the new test case card to appear (failing test case path can be slower)
+    cy.get('.pf-v5-c-card').contains('h5', test_case_data.title).should('be.visible')
+    cy.wait(const_data.fast_wait)
 
     // Create test run for test
     cy.get('h5').contains(test_case_data.title).parents('.pf-v5-c-card__body').find('button[class*="menu-toggle"]').click()
@@ -230,7 +246,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 
@@ -291,7 +307,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 

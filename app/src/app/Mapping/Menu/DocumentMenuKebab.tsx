@@ -6,6 +6,7 @@ import { ActionButtons } from '@app/Common/Actions/ActionButtons'
 
 export interface DocumentMenuKebabProps {
   indirect
+  setCommentModalInfo
   setDocModalInfo
   setHistoryModalInfo
   setDetailsModalInfo
@@ -23,6 +24,7 @@ export interface DocumentMenuKebabProps {
 
 export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> = ({
   indirect,
+  setCommentModalInfo,
   setDocModalInfo,
   setHistoryModalInfo,
   setDetailsModalInfo,
@@ -147,6 +149,14 @@ export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> 
         </DropdownItem>
         <DropdownItem
           value={6}
+          id={'btn-menu-document-comments-' + mappingList[mappingIndex].relation_id}
+          key='comments'
+          onClick={() => setCommentModalInfo(true, Constants._D, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)}
+        >
+          Comments
+        </DropdownItem>
+        <DropdownItem
+          value={7}
           id={'btn-menu-document-usage-' + mappingList[mappingIndex].relation_id}
           key='usage'
           onClick={() => setUsageModalInfo(true, Constants._D, mappingList[mappingIndex][Constants._D]['id'])}

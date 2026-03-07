@@ -42,8 +42,8 @@ let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 const test_case_data = {
   title: 'Passing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy passing TMT test',
-  repository: const_data.api_base_path,
-  relative_path: 'examples/tmt/local/tmt-dummy-test.fmf'
+  repository: 'https://github.com/elisa-tech/BASIL.git',
+  relative_path: 'examples/tmt/local/tmt-dummy-test.fmf',
 }
 
 // Test run data
@@ -55,8 +55,7 @@ const test_run_data = {
 const test_run_config_data = {
   title: 'E2E Test Run Config ' + new Date().getTime(),
   plugin: 'tmt',
-  provision_type: 'container',
-  context_vars: 'plan_type=local'
+  provision_type: 'container'
 }
 
 describe('Test Run Creation and Verification', () => {
@@ -133,8 +132,6 @@ describe('Test Run Creation and Verification', () => {
     cy.get('[id*="select-test-run-config-plugin-"]').select(test_run_config_data.plugin)
 
     cy.get('[id*="select-test-run-config-provision-type-"]').select(test_run_config_data.provision_type)
-
-    cy.get('[id*="input-test-run-config-context-vars-"]').clear().type(test_run_config_data.context_vars)
 
     // Submit passing test run
     cy.get(const_data.test_run.form_submit_button_id).click()
@@ -230,7 +227,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 
@@ -291,7 +288,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 

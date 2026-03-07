@@ -1,15 +1,19 @@
 /// <reference types="cypress" />
 
 /**
- * Test Run Creation and Verification E2E Test
+ * Test Run (Local test file) Creation and Verification E2E Test
+ *
+ *  NOTE: This test is configured to be run on API deployed as a container
+ *        due to that the base path is /BASIL-API/
  *
  * This test suite validates the complete test run workflow:
  * 1. Create a software component and test case
- * 2. Create a test run via the test case kebab menu "Run" option
- * 3. Verify the test run appears in the test results table
- * 4. Verify the test run failed
- * 5. Verify test run details are accessible and properly displayed
- * 6. Clean up test data (test runs and test cases)
+ * 2. Add test case to user files
+ * 3. Create a test run via the test case kebab menu "Run" option
+ * 4. Verify the test run appears in the test results table
+ * 5. Verify the test run failed
+ * 6. Verify test run details are accessible and properly displayed
+ * 7. Clean up test data (test runs and test cases)
  *
  * The test covers the end-to-end user experience of creating and managing test runs
  * in the BASIL test management system, ensuring proper integration between the frontend
@@ -41,11 +45,12 @@ let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 //Test Case data
 const basil_root_path = Cypress.config('projectRoot').replace('/app', '/')
 const test_case_file = basil_root_path + 'examples/tmt/local/tmt-dummy-failing-test.fmf'
+const deployment_base_path = '/BASIL-API'
 
 const test_case_data = {
   title: 'Failing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy failing TMT test',
-  repository: basil_root_path,
+  repository: deployment_base_path,
   relative_path: '/api/user-files/1/tmt-dummy-failing-test.fmf',
 }
 

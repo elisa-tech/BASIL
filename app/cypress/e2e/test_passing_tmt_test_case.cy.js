@@ -56,7 +56,7 @@ const test_run_config_data = {
   title: 'E2E Test Run Config ' + new Date().getTime(),
   plugin: 'tmt',
   provision_type: 'container',
-  context_vars: 'plan_type=local'
+  context_vars: ''
 }
 
 describe('Test Run Creation and Verification', () => {

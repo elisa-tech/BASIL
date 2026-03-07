@@ -382,6 +382,14 @@ export function registerCommands() {
     cy.wait(2000)
   })
 
+  Cypress.Commands.add('add_test_case_to_user_files', (import_file) => {
+    cy.get('#btn-mapping-new-test-case').click()
+    cy.get('#pf-tab-3-tab-btn-test-case-import').click()
+    cy.get('#test-case-file-upload-filename').selectFile(import_file, { action: 'drag-drop' })
+    cy.get('#btn-test-case-import-submit').click()
+    cy.wait(const_data.long_wait)
+  })
+
   Cypress.Commands.add('edit_work_item', (_index, _type, _obj) => {
     // Index 0 based
     let i = 0

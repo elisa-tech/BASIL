@@ -39,11 +39,13 @@ let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
 //Test Case data
+const test_case_file = const_data.api_base_path + '/examples/tmt/local/tmt-dummy-failing-test.fmf'
+
 const test_case_data = {
   title: 'Failing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy failing TMT test',
   repository: const_data.api_base_path,
-  relative_path: 'examples/tmt/local/tmt-dummy-failing-test.fmf'
+  relative_path: 'api/user-files/1/tmt-dummy-failing-test.fmf'
 }
 
 // Test run data
@@ -93,6 +95,10 @@ describe('Test Run Creation and Verification', () => {
         cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
         cy.wait(const_data.long_wait)
       })
+  })
+
+  it('Add Test Case to user files', () => {
+    cy.add_test_case_to_user_files(test_case_file)
   })
 
   it('Create Test Run via Test Case Menu', () => {

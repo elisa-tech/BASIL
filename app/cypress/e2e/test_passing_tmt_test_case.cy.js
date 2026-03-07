@@ -55,8 +55,7 @@ const test_run_data = {
 const test_run_config_data = {
   title: 'E2E Test Run Config ' + new Date().getTime(),
   plugin: 'tmt',
-  provision_type: 'container',
-  context_vars: ''
+  provision_type: 'container'
 }
 
 describe('Test Run Creation and Verification', () => {
@@ -133,8 +132,6 @@ describe('Test Run Creation and Verification', () => {
     cy.get('[id*="select-test-run-config-plugin-"]').select(test_run_config_data.plugin)
 
     cy.get('[id*="select-test-run-config-provision-type-"]').select(test_run_config_data.provision_type)
-
-    cy.get('[id*="input-test-run-config-context-vars-"]').clear().type(test_run_config_data.context_vars)
 
     // Submit passing test run
     cy.get(const_data.test_run.form_submit_button_id).click()

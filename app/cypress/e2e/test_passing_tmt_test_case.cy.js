@@ -230,7 +230,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 
@@ -291,7 +291,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 

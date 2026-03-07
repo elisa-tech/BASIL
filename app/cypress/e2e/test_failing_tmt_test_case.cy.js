@@ -109,6 +109,10 @@ describe('Test Run Creation and Verification', () => {
     cy.assign_work_item(-1, 0, '', 'test-case', test_case_data)
     cy.wait(const_data.mid_wait)
 
+    // Wait for the new test case card to appear (failing test case path can be slower)
+    cy.get('.pf-v5-c-card').contains('h5', test_case_data.title).should('be.visible')
+    cy.wait(const_data.fast_wait)
+
     // Create test run for test
     cy.get('h5').contains(test_case_data.title).parents('.pf-v5-c-card__body').find('button[class*="menu-toggle"]').click()
 
@@ -230,7 +234,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 
@@ -291,7 +295,7 @@ describe('Test Run Creation and Verification', () => {
       .eq(0)
       .find('td')
       .eq(1)
-      .find('[class=pf-v5-c-card]')
+      .find('.pf-v5-c-card')
       .find('button[class*="pf-v5-c-menu-toggle"]')
       .click()
 

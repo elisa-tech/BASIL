@@ -39,13 +39,14 @@ let api_data = createUniqWorkItems(api_data_fixture, ['api'])
 let tc_data = createUniqWorkItems(tc_data_fixture, ['title'])
 
 //Test Case data
-const test_case_file = const_data.api_base_path + '/examples/tmt/local/tmt-dummy-failing-test.fmf'
+const basil_root_path = Cypress.config('projectRoot').replace('/app', '/')
+const test_case_file = basil_root_path + 'examples/tmt/local/tmt-dummy-failing-test.fmf'
 
 const test_case_data = {
   title: 'Failing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy failing TMT test',
-  repository: const_data.api_base_path,
-  relative_path: 'api/user-files/1/tmt-dummy-failing-test.fmf'
+  repository: basil_root_path,
+  relative_path: '/api/user-files/1/tmt-dummy-failing-test.fmf',
 }
 
 // Test run data

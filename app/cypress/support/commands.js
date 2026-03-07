@@ -383,10 +383,12 @@ export function registerCommands() {
   })
 
   Cypress.Commands.add('add_test_case_to_user_files', (import_file) => {
-    cy.get('#btn-mapping-new-test-case').click()
-    cy.get('#pf-tab-3-tab-btn-test-case-import').click()
-    cy.get('#test-case-file-upload-filename').selectFile(import_file, { action: 'drag-drop' })
-    cy.get('#btn-test-case-import-submit').click()
+    cy.get('#nav-item-user-files').click()
+    cy.wait(const_data.long_wait)
+    cy.get('#btn-add-user-file').click()
+    cy.wait(const_data.long_wait)
+    cy.get('#user-file-upload-browse-button').selectFile(import_file, { action: 'drag-drop' })
+    cy.get('#btn-user-file-add-confirm').click()
     cy.wait(const_data.long_wait)
   })
 

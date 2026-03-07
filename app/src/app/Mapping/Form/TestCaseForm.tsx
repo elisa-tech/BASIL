@@ -602,11 +602,11 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
         fieldId={`${INPUT_BASE_NAME}-${formAction}-repository-${formData.id}`}
         labelIcon={
           implementationSource == 'url' ? (
-            <Button variant='link' onClick={() => setImplementationSource('user-files')}>
+            <Button id='btn-mapping-test-case-from-user-files' variant='link' onClick={() => setImplementationSource('user-files')}>
               From user files
             </Button>
           ) : (
-            <Button variant='link' onClick={() => setImplementationSource('url')}>
+            <Button id='btn-mapping-test-case-from-url' variant='link' onClick={() => setImplementationSource('url')}>
               From url
             </Button>
           )

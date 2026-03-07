@@ -3293,7 +3293,8 @@ class ApiTestCasesMapping(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            logger.error("Bad request: missing mandatory fields")
+            return f"{BAD_REQUEST_MESSAGE} - Missing mandatory fields", BAD_REQUEST_STATUS
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -3304,10 +3305,11 @@ class ApiTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    logger.error("Bad request: missing field in test case payload")
+                    return f"{BAD_REQUEST_MESSAGE} - Missing field in test case payload", BAD_REQUEST_STATUS
 
             repository = request_data["test-case"]["repository"]
-            relative_path = request_data["test-case"]["relative-path"]
+            relative_path = request_data["test-case"]["relative-path"].lstrip(os.path.sep)
             title = request_data["test-case"]["title"]
             description = request_data["test-case"]["description"]
 
@@ -3325,7 +3327,8 @@ class ApiTestCasesMapping(Resource):
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    logger.error(f"Test Case {title} has an invalid path: {test_case_path}")
+                    return f"{BAD_REQUEST_MESSAGE} - Invalid path", BAD_REQUEST_STATUS
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -3397,7 +3400,8 @@ class ApiTestCasesMapping(Resource):
 
         if modified_tc:
             test_case_path = os.path.join(
-                request_data["test-case"]["repository"], request_data["test-case"]["relative-path"]
+                request_data["test-case"]["repository"],
+                request_data["test-case"]["relative-path"].lstrip(os.path.sep)
             )
             # In case of local file
             if test_case_path.startswith(os.path.sep):
@@ -7600,7 +7604,8 @@ class UserFiles(Resource):
         request_data = request.get_json(force=True)
 
         if not check_fields_in_request(fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            logger.error("Bad request: missing mandatory fields in user file payload")
+            return f"{BAD_REQUEST_MESSAGE} - Missing mandatory fields in user file payload", BAD_REQUEST_STATUS
 
         dbi = get_db()
 
@@ -7619,8 +7624,10 @@ class UserFiles(Resource):
         filecontent = request_data["filecontent"]
         filepath = os.path.join(user_files_path, filename)
 
-        if filename == "" or filecontent == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        if filename == "":
+            return f"{BAD_REQUEST_MESSAGE} - Missing filename value", BAD_REQUEST_STATUS
+        if filecontent == "":
+            return f"{BAD_REQUEST_MESSAGE} - Missing filecontent value", BAD_REQUEST_STATUS
 
         if os.path.exists(filepath):
             return CONFLICT_MESSAGE, CONFLICT_STATUS

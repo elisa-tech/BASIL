@@ -30,7 +30,12 @@ def save_settings(settings=None):
     AIPrompter.SETTINGS_AI_FIELD_MODEL])
 def test_wrong_settings(mandatory_field, monkeypatch):
     # Ensure env vars don't provide fallback (e.g. from test_wrong_settings_but_env)
-    for key in (AIPrompter.ENV_AI_HOST, AIPrompter.ENV_AI_PORT, AIPrompter.ENV_AI_MODEL, AIPrompter.ENV_AI_API_VERSION):
+    ai_props = [
+        AIPrompter.ENV_AI_HOST,
+        AIPrompter.ENV_AI_PORT,
+        AIPrompter.ENV_AI_API_VERSION,
+        AIPrompter.ENV_AI_MODEL]
+    for key in ai_props:
         monkeypatch.delenv(key, raising=False)
 
     # In case the api/configs/settings.yaml doesn't have a correct ai definition

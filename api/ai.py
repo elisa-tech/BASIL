@@ -167,15 +167,19 @@ class AIPrompter():
     def validate_settings(self) -> bool:
         """Validate mandatory fields"""
 
-        if not self._host:
+        if self._host is None:
             logger.warning("Error. `AI host` is not configured")
             return False
 
-        if not self._port:
+        if self._port is None:
             logger.warning("Error. `AI port` is not configured")
             return False
 
-        if not self._model:
+        if self._api_version is None:
+            logger.warning("Error. `AI api version` is not configured")
+            return False
+
+        if self._model is None:
             logger.warning("Error. `AI model` is not configured")
             return False
 

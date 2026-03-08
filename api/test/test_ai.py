@@ -26,8 +26,13 @@ def save_settings(settings=None):
 @pytest.mark.parametrize('mandatory_field', [
     AIPrompter.SETTINGS_AI_FIELD_HOST,
     AIPrompter.SETTINGS_AI_FIELD_PORT,
+    AIPrompter.SETTINGS_AI_FIELD_API_VERSION,
     AIPrompter.SETTINGS_AI_FIELD_MODEL])
-def test_wrong_settings(mandatory_field):
+def test_wrong_settings(mandatory_field, monkeypatch):
+    # Ensure env vars don't provide fallback (e.g. from test_wrong_settings_but_env)
+    for key in (AIPrompter.ENV_AI_HOST, AIPrompter.ENV_AI_PORT, AIPrompter.ENV_AI_MODEL, AIPrompter.ENV_AI_API_VERSION):
+        monkeypatch.delenv(key, raising=False)
+
     # In case the api/configs/settings.yaml doesn't have a correct ai definition
     ai_prompter = AIPrompter(settings=None, settings_last_modified=None)
     assert not ai_prompter.validate_settings()
@@ -42,6 +47,7 @@ def test_wrong_settings(mandatory_field):
 @pytest.mark.parametrize('mandatory_field', [
     AIPrompter.SETTINGS_AI_FIELD_HOST,
     AIPrompter.SETTINGS_AI_FIELD_PORT,
+    AIPrompter.SETTINGS_AI_FIELD_API_VERSION,
     AIPrompter.SETTINGS_AI_FIELD_MODEL])
 def test_wrong_settings_but_env(mandatory_field):
     """settings are not providing a field but it is defined in the env variables"""
@@ -51,6 +57,7 @@ def test_wrong_settings_but_env(mandatory_field):
     # populate env variables
     os.environ[AIPrompter.ENV_AI_HOST] = 'host'
     os.environ[AIPrompter.ENV_AI_PORT] = '1234'
+    os.environ[AIPrompter.ENV_AI_API_VERSION] = 'v1'
     os.environ[AIPrompter.ENV_AI_MODEL] = 'phi3.5'
     ai_prompter = AIPrompter(settings=settings, settings_last_modified=settings_last_modified)
     assert ai_prompter.validate_settings()

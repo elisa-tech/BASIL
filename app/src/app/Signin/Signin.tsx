@@ -188,7 +188,7 @@ const Signin: React.FunctionComponent = () => {
         <Bullseye>
           <Panel variant='raised'>
             <PanelHeader>
-              <Title headingLevel='h1'>Sign In</Title>
+              <Title headingLevel='h1'>Register an account</Title>
               {alertMessage !== '' && (
                 <FormHelperText>
                   <HelperText>

@@ -106,7 +106,7 @@ const Login: React.FunctionComponent = () => {
 
   const signUpForAccountMessage = (
     <LoginMainFooterBandItem>
-      Need an account? <a href='/signin'>Sign up.</a>
+      Need an account? <a href='/signin'>Register an account.</a>
     </LoginMainFooterBandItem>
   )
 

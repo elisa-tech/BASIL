@@ -92,6 +92,9 @@ def get_configuration(
     if not ret:
         return None
 
+    if not isinstance(ret, str):
+        return ret
+
     if ret.lower() == "true":
         return True
     if ret.lower() == "false":

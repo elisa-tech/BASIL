@@ -6556,7 +6556,7 @@ class UserLogin(Resource):
                 return f"Wrong credentials for user {request_data['email']}", 400
 
         except NoResultFound:
-            return "Email not assigned to any user, consider to sign in", UNAUTHORIZED_STATUS
+            return "Email not assigned to any user, consider to register an account", UNAUTHORIZED_STATUS
 
         # Login success, clear login attempt cache for that ip
         if cache_key in login_attempt_cache.keys():

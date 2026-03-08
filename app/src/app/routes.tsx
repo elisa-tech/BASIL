@@ -56,9 +56,9 @@ const routes: AppRouteConfig[] = [
   {
     component: Signin,
     exact: true,
-    label: 'Sign In',
+    label: 'Register an account',
     path: '/signin',
-    title: 'BASIL | The Fusa Spice | Sign In'
+    title: 'BASIL | The Fusa Spice | Register an account'
   },
   {
     component: Admin,

@@ -309,7 +309,7 @@ export const SwRequirementForm: React.FunctionComponent<SwRequirementFormProps> 
 
     const data = {
       'api-id': api.id,
-      spec: spec,
+      spec: spec ? spec : '',
       'user-id': auth.userId,
       token: auth.token
     }

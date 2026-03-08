@@ -10,6 +10,7 @@ def get_valid_settings(ssl=None):
     ai_section = AIPrompter.SETTINGS_AI_SECTION
     settings[ai_section] = {}
     settings[ai_section][AIPrompter.SETTINGS_AI_FIELD_HOST] = "host"
+    settings[ai_section][AIPrompter.SETTINGS_AI_FIELD_API_VERSION] = "v1"
     settings[ai_section][AIPrompter.SETTINGS_AI_FIELD_PORT] = "1234"
     settings[ai_section][AIPrompter.SETTINGS_AI_FIELD_MODEL] = "phi3.5"
     settings[ai_section][AIPrompter.SETTINGS_AI_FIELD_TOKEN] = "token"
@@ -64,8 +65,10 @@ def test_valid_settings():
     settings, settings_last_modified = load_settings(None, None)
     settings["ai"] = {"host": "http://localhost",
                       "port": 8808,
+                      "api_version": "v1",
                       "model": "deepseek-r1:1.5b",
                       "temperature": 0.3,
+                      "max_tokens": 4096,
                       "token": ""}
 
     save_settings(settings)

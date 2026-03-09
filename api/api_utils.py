@@ -555,3 +555,25 @@ def get_custom_actions(user: UserModel) -> list:
 def is_safe_local_user_file_path(path: str) -> bool:
     from api import USER_FILES_BASE_DIR
     return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)
+
+
+def extend_unmapped_sections_for_auto_fix(unmapped_sections: list, api_specification: str) -> list:
+    """ Extend unmapped sections for auto-fix by adding the offset of the section in the api_specification
+    if the section exists in the api_specification, otherwise assign -1
+    """
+    for iUS in range(len(unmapped_sections)):
+        current_section = unmapped_sections[iUS]["section"]
+        if current_section in api_specification:
+            unmapped_sections[iUS]["auto-fix-offset"] = api_specification.index(current_section)
+        else:
+            unmapped_sections[iUS]["auto-fix-offset"] = -1
+    return unmapped_sections
+
+
+def get_missing_mandatory_fields(mandatory_fields: list, request_data: dict) -> list:
+    """ Return the missing mandatory fields from the request data """
+    missing_fields = []
+    for field in mandatory_fields:
+        if field not in request_data.keys():
+            missing_fields.append(field)
+    return missing_fields

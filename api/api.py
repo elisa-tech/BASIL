@@ -64,9 +64,11 @@ from api_utils import (
     add_html_link_to_email_body,
     async_email_notification,
     document_to_html,
+    extend_unmapped_sections_for_auto_fix,
     get_api_specification,
     get_custom_actions,
     get_html_email_body_from_template,
+    get_missing_mandatory_fields,
     get_safe_str,
     get_user_config_folder_path,
     get_user_html_folder_path,
@@ -1129,6 +1131,8 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
     unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
 
+    unmapped_sections = extend_unmapped_sections_for_auto_fix(unmapped_sections, api_specification)
+
     for iMS in range(len(mapped_sections)):
         for iD in range(len(mapped_sections[iMS][_Ds])):
             document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
@@ -1202,6 +1206,8 @@ def get_api_test_specifications_mapping_sections(dbi, api):
     unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
     unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
 
+    unmapped_sections = extend_unmapped_sections_for_auto_fix(unmapped_sections, api_specification)
+
     for iMS in range(len(mapped_sections)):
         for iD in range(len(mapped_sections[iMS][_Ds])):
             document_children_data = get_document_children(dbi, mapped_sections[iMS][_Ds][iD])
@@ -1255,6 +1261,8 @@ def get_api_test_cases_mapping_sections(dbi, api):
     unmapped_sections = [x for x in mapping[_TCs] if not x["match"]]
     unmapped_sections += [x for x in mapping[_Js] if not x["match"]]
     unmapped_sections += [x for x in mapping[_Ds] if not x["match"]]
+
+    unmapped_sections = extend_unmapped_sections_for_auto_fix(unmapped_sections, api_specification)
 
     for iMS in range(len(mapped_sections)):
         for iD in range(len(mapped_sections[iMS][_Ds])):
@@ -3161,9 +3169,11 @@ class ApiTestSpecificationsMapping(Resource):
 
     @check_api_user_write_permission
     def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = self.fields + ["relation-id"]
+
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data):
+        if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:
@@ -3377,9 +3387,10 @@ class ApiTestCasesMapping(Resource):
 
     @check_api_user_write_permission
     def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = self.fields + ["relation-id"]
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data):
+        if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:
@@ -3828,6 +3839,8 @@ class ApiJustificationsMapping(Resource):
         mapped_sections = get_split_sections(api_specification, mapping, [_J])
         unmapped_sections = [x for x in mapping[_Js] if not x["match"]]
 
+        unmapped_sections = extend_unmapped_sections_for_auto_fix(unmapped_sections, api_specification)
+
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
         return ret
@@ -3908,9 +3921,10 @@ class ApiJustificationsMapping(Resource):
 
     @check_api_user_write_permission
     def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = self.fields + ["relation-id"]
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields + ["relation-id"], request_data):
+        if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         # check if api ...
@@ -4063,6 +4077,9 @@ class ApiDocumentsMapping(Resource):
 
         mapped_sections = get_split_sections(api_specification, mapping, [_D])
         unmapped_sections = [x for x in mapping[_Ds] if not x["match"]]
+
+        unmapped_sections = extend_unmapped_sections_for_auto_fix(unmapped_sections, api_specification)
+
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
         return ret
@@ -4164,15 +4181,18 @@ class ApiDocumentsMapping(Resource):
 
     @check_api_user_write_permission
     def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = self.fields + ["relation-id"]
         request_data = request.get_json(force=True)
         document_fields = self.document_fields + ["status"]
 
-        if not check_fields_in_request(self.fields + ["relation-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        if not check_fields_in_request(mandatory_fields, request_data):
+            missing_fields = get_missing_mandatory_fields(mandatory_fields, request_data)
+            return f"{BAD_REQUEST_MESSAGE} - missing mandatory fields: {missing_fields}", BAD_REQUEST_STATUS
 
         document_fields_app = [x.replace("_", "-") for x in document_fields]
         if not check_fields_in_request(document_fields_app, request_data["document"]):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            missing_fields = get_missing_mandatory_fields(document_fields_app, request_data["document"])
+            return f"{BAD_REQUEST_MESSAGE} - missing document fields: {missing_fields}", BAD_REQUEST_STATUS
 
         # check if api ...
         try:
@@ -4374,9 +4394,10 @@ class ApiSwRequirementsMapping(Resource):
 
     @check_api_user_write_permission
     def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        mandatory_fields = self.fields + ["relation-id"]
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data):
+        if not check_fields_in_request(mandatory_fields, request_data):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         try:

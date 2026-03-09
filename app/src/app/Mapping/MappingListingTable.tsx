@@ -69,6 +69,7 @@ export interface MappingListingTableProps {
   mappingViewSelectValue
   showIndirectTestCases
   showIndirectTestSpecifications
+  setModalNotificationInfo
 }
 
 const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = ({
@@ -101,7 +102,8 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
   setUsageModalInfo,
   mappingViewSelectValue,
   showIndirectTestCases,
-  showIndirectTestSpecifications
+  showIndirectTestSpecifications,
+  setModalNotificationInfo
 }: MappingListingTableProps) => {
   const auth = useAuth()
 
@@ -870,7 +872,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
       work_item_description = snippet[Constants._SR_]['title']
       work_item_id = snippet[Constants._SR_]['id']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'test_specification')) {
-      work_item_type = 'test-specification'
+      work_item_type = Constants._TS
       work_item_description = snippet[Constants._TS_]['title']
       work_item_id = snippet[Constants._TS_]['id']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'test_case')) {
@@ -914,6 +916,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   mappingList={[snippet]}
                   mappingSection={snippet['section']}
                   mappingOffset={snippet['offset']}
+                  setModalNotificationInfo={setModalNotificationInfo}
                   //jModalShowState={jModalShowState}
                   //tcModalShowState={tcModalShowState}
                   //tsModalShowState={tsModalShowState}

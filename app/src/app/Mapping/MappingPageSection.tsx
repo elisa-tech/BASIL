@@ -32,6 +32,9 @@ export interface MappingPageSectionProps {
   setMappingViewSelectValueOld
   totalCoverage
   api
+  setModalNotificationShowState
+  setModalNotificationTitle
+  setModalNotificationMessage
 }
 
 const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
@@ -42,7 +45,10 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   setMappingViewSelectValue,
   setMappingViewSelectValueOld,
   totalCoverage,
-  api
+  api,
+  setModalNotificationShowState,
+  setModalNotificationTitle,
+  setModalNotificationMessage
 }: MappingPageSectionProps) => {
   const auth = useAuth()
   const [modalAction, setModalAction] = React.useState('')
@@ -273,6 +279,12 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalParentData(parent_list[parent_index])
     setModalParentType(Constants._A)
     setModalParentRelatedToType('')
+  }
+
+  const setModalNotificationInfo = (title, message, show) => {
+    setModalNotificationShowState(show)
+    setModalNotificationTitle(title)
+    setModalNotificationMessage(message)
   }
 
   const setDocModalInfo = (
@@ -619,6 +631,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         mappingViewSelectValue={mappingViewSelectValue}
         showIndirectTestCases={showIndirectTestCases}
         showIndirectTestSpecifications={showIndirectTestSpecifications}
+        setModalNotificationInfo={setModalNotificationInfo}
       />
       <MappingSwRequirementModal
         api={api}

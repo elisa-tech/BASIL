@@ -348,7 +348,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
     if (modalIndirect == true || formVerb == 'PUT') {
       if (parentType == Constants._SR) {
-        spec = parentData.sw_requirement.description
+        spec = JSON.stringify(parentData.sw_requirement)
       } else {
         spec = parentData.section
       }
@@ -361,7 +361,7 @@ export const TestSpecificationForm: React.FunctionComponent<TestSpecificationFor
 
     const data = {
       'api-id': api.id,
-      spec: spec,
+      spec: spec ? spec : '',
       'user-id': auth.userId,
       token: auth.token
     }

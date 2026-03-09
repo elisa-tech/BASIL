@@ -405,9 +405,9 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     if (modalIndirect == true || formVerb == 'PUT') {
       if (parentType == Constants._SR) {
-        spec = parentData.sw_requirement.description
-      } else {
-        spec = parentData.section
+        spec = JSON.stringify(parentData.sw_requirement)
+      } else if (parentType == Constants._TS) {
+        spec = JSON.stringify(parentData.test_specification)
       }
     } else {
       spec = modalSection
@@ -418,7 +418,7 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     const data = {
       'api-id': api.id,
-      spec: spec,
+      spec: spec ? spec : '',
       'user-id': auth.userId,
       token: auth.token
     }

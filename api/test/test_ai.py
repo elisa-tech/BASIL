@@ -22,19 +22,28 @@ def save_settings(settings=None):
             yaml.dump(settings, f, default_flow_style=False)
 
 
-@pytest.mark.parametrize('mandatory_field', [
-    AIPrompter.SETTINGS_AI_FIELD_HOST,
-    AIPrompter.SETTINGS_AI_FIELD_PORT,
-    AIPrompter.SETTINGS_AI_FIELD_MODEL])
-def test_wrong_settings(mandatory_field):
-    # In case the api/configs/settings.yaml doesn't have a correct ai definition
-    ai_prompter = AIPrompter(settings=None, settings_last_modified=None)
-    assert not ai_prompter.validate_settings()
+def delete_env_variables():
+    env_props = [
+        AIPrompter.ENV_AI_HOST,
+        AIPrompter.ENV_AI_PORT,
+        AIPrompter.ENV_AI_API_VERSION,
+        AIPrompter.ENV_AI_MODEL,
+        AIPrompter.ENV_AI_TEMPERATURE,
+        AIPrompter.ENV_AI_TOKEN,
+        AIPrompter.ENV_AI_MAX_TOKENS]
+    for key in env_props:
+        if key in os.environ:
+            del os.environ[key]
 
-    # remove a mandatory field from valid setting
-    settings, settings_last_modified = get_valid_settings()
-    del settings[AIPrompter.SETTINGS_AI_SECTION][mandatory_field]
-    ai_prompter = AIPrompter(settings=settings, settings_last_modified=settings_last_modified)
+
+def test_wrong_settings():
+    # In case the api/configs/settings.yaml doesn't have a correct ai definition
+    delete_env_variables()
+
+    settings = {AIPrompter.SETTINGS_AI_SECTION: {}}
+    save_settings(settings)
+
+    ai_prompter = AIPrompter(settings=None, settings_last_modified=None)
     assert not ai_prompter.validate_settings()
 
 

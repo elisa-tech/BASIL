@@ -1512,104 +1512,110 @@ def add_test_run_config(dbi, request_data, user):
     return test_config, CREATED_STATUS
 
 
-def check_api_user_read_permission(func):
-    def wrapper(*args, **kwargs):
-        """
-        Check Api user read permission
-        Retrieve the api using the api-id field that must be part of the request
-        Retrieve the user data reading data from the request, username and token
+def check_api_user_permission(
+    required_permissions,
+    required_roles=None,
+    permission_name=None,
+):
+    """
+    Factory that returns a decorator to check API user permissions.
 
-        Request data is supposed to be under request.args
-        """
-        if request.is_json:
-            request_data = request.get_json(force=True)
-        else:
-            request_data = request.args
+    Args:
+        required_permissions: List of permission chars (e.g. ["r"], ["r", "w"])
+            All must be present in user_permissions; checked in order (write implies read).
+        required_roles: Optional list of allowed roles (e.g. USER_ROLES_EDIT_PERMISSIONS).
+        permission_name: Used in error message (e.g. "read", "write", "edit", "manage").
 
-        mandatory_fields = ["api-id"]
-        if not check_fields_in_request(
-                fields=[],
-                request=request_data,
-                allow_empty_string=False,
-                int_fields=mandatory_fields):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    Returns:
+        Decorator that injects api, dbi, user into the wrapped function.
+    """
+    perm_label = permission_name or required_permissions[-1]
 
-        dbi = get_db()
-
-        user = get_active_user_from_request(request_data, dbi.session)
-
-        # api
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
-        except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Api", NOT_FOUND_STATUS
-
-        # check requester user api permission
-        user_permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in user_permissions:
-            if isinstance(user, UserModel):
-                return f"{UNAUTHORIZED_MESSAGE}: {user.username}, need read permission.", UNAUTHORIZED_STATUS
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            if request.is_json:
+                request_data = request.get_json(force=True)
             else:
-                return f"{UNAUTHORIZED_MESSAGE}: GUEST user cannot access this content.", UNAUTHORIZED_STATUS
+                request_data = request.args
 
-        # Now, call the original function with the same arguments
-        result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
+            if not check_fields_in_request(
+                    fields=[],
+                    request=request_data,
+                    allow_empty_string=False,
+                    int_fields=["api-id"]):
+                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi.close()
+            dbi = get_db()
+            user = get_active_user_from_request(request_data, dbi.session)
 
-        return result
-    return wrapper
+            try:
+                api = dbi.session.query(ApiModel).filter(
+                    ApiModel.id == request_data["api-id"]
+                ).one()
+            except NoResultFound:
+                return f"{NOT_FOUND_MESSAGE}: Api", NOT_FOUND_STATUS
+            except Exception as e:
+                return f"{SERVER_ERROR_MESSAGE}: {e}", SERVER_ERROR_STATUS
+
+            user_permissions = get_api_user_permissions(api, user, dbi.session)
+
+            for perm in required_permissions:
+                if perm not in user_permissions:
+                    if isinstance(user, UserModel):
+                        return (
+                            f"{UNAUTHORIZED_MESSAGE}: {user.username}, "
+                            f"need {perm_label} permission.",
+                            UNAUTHORIZED_STATUS,
+                        )
+                    return (
+                        f"{UNAUTHORIZED_MESSAGE}: GUEST user cannot access this content.",
+                        UNAUTHORIZED_STATUS,
+                    )
+
+            if required_roles is not None and user.role not in required_roles:
+                if isinstance(user, UserModel):
+                    return (
+                        f"{UNAUTHORIZED_MESSAGE}: {user.username}, "
+                        f"need {perm_label} permission.",
+                        UNAUTHORIZED_STATUS,
+                    )
+                return (
+                    f"{UNAUTHORIZED_MESSAGE}: GUEST user cannot access this content.",
+                    UNAUTHORIZED_STATUS,
+                )
+
+            try:
+                result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
+            finally:
+                dbi.close()
+            return result
+
+        return wrapper
+    return decorator
 
 
-def check_api_user_write_permission(func):
-    def wrapper(*args, **kwargs):
-        """
-        Check Api user write permission
-        Retrieve the api using the api-id field that must be part of the request
-        Retrieve the user data reading data from the request, username and token
-
-        Request data is supposed to be under request.json
-        """
-        if request.is_json:
-            request_data = request.get_json(force=True)
-        else:
-            request_data = request.args
-
-        mandatory_fields = ["api-id"]
-        if not check_fields_in_request(
-                fields=[],
-                request=request_data,
-                allow_empty_string=False,
-                int_fields=mandatory_fields):
-            return f"{BAD_REQUEST_MESSAGE} - api-id missing", BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        user = get_active_user_from_request(request_data, dbi.session)
-
-        # api
-        try:
-            api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
-        except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Api", NOT_FOUND_STATUS
-        except Exception as e:
-            return f"{SERVER_ERROR_MESSAGE}: {e}", SERVER_ERROR_STATUS
-
-        # check requester user api permission
-        user_permissions = get_api_user_permissions(api, user, dbi.session)
-
-        if "w" not in user_permissions:
-            if isinstance(user, UserModel):
-                return f"{UNAUTHORIZED_MESSAGE}: {user.username}, need write permission.", UNAUTHORIZED_STATUS
-            else:
-                return f"{UNAUTHORIZED_MESSAGE}: GUEST user cannot access this content.", UNAUTHORIZED_STATUS
-
-        # Now, call the original function with the same arguments
-        result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
-        dbi.close()
-
-        return result
-    return wrapper
+# Permission decorators using the common factory
+# (write implies read, edit implies write, manage implies edit)
+check_api_user_read_permission = check_api_user_permission(
+    required_permissions=["r"],
+    required_roles=None,
+    permission_name="read",
+)
+check_api_user_write_permission = check_api_user_permission(
+    required_permissions=["r", "w"],
+    required_roles=USER_ROLES_WRITE_PERMISSIONS,
+    permission_name="write",
+)
+check_api_user_edit_permission = check_api_user_permission(
+    required_permissions=["e"],
+    required_roles=USER_ROLES_EDIT_PERMISSIONS,
+    permission_name="edit",
+)
+check_api_user_manage_permission = check_api_user_permission(
+    required_permissions=["m"],
+    required_roles=USER_ROLES_MANAGE_PERMISSIONS,
+    permission_name="manage",
+)
 
 
 tokenManager = Token()

@@ -7604,6 +7604,11 @@ class UserFiles(Resource):
 
         i = 0
         for user_file in os.listdir(user_files_path):
+
+            # Skip hidden files
+            if user_file.startswith("."):
+                continue
+
             tmp = {
                 "index": i,
                 "filepath": os.path.join(user_files_path, user_file),
@@ -7627,6 +7632,9 @@ class UserFiles(Resource):
         if not check_fields_in_request(fields, request_data):
             logger.error("Bad request: missing mandatory fields in user file payload")
             return f"{BAD_REQUEST_MESSAGE} - Missing mandatory fields in user file payload", BAD_REQUEST_STATUS
+
+        if request_data["filename"].startswith("."):
+            return f"{BAD_REQUEST_MESSAGE} - Filename cannot start with a dot", BAD_REQUEST_STATUS
 
         dbi = get_db()
 
@@ -8940,7 +8948,7 @@ class TraceabilityScannerSettings(Resource):
         if not isinstance(user, UserModel):
             return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
-        config = get_user_traceability_scanner_config(user.id)
+        config = get_user_traceability_scanner_config(user)
         if config is None:
             return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
         ret["content"] = config

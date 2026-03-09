@@ -68,6 +68,7 @@ from api_utils import (
     get_api_specification,
     get_custom_actions,
     get_html_email_body_from_template,
+    get_mapping_comments,
     get_missing_mandatory_fields,
     get_safe_str,
     get_user_config_folder_path,
@@ -1786,11 +1787,26 @@ class HTMLApi(Resource):
 
     def get_sw_requirements_html(self, sw_requirements: list = None, dbi: db_orm.DbInterface = None,
                                  test_run_config_ids: list = None) -> tuple[list, str]:
+        if not isinstance(sw_requirements, list):
+            return [], ""
+
+        if not len(sw_requirements):
+            return [], ""
+
         test_run_configs = []
         html = self.div_open_html
 
         for sw_requirement in sw_requirements:
-            html += sw_requirement_to_html(sw_requirement[_SR])
+            comments = get_mapping_comments(
+                dbi=dbi,
+                relation_id=sw_requirement.get("relation_id", None),
+                tablename=sw_requirement.get("__tablename__", None)
+            )
+
+            html += sw_requirement_to_html(
+                sw_requirement=sw_requirement[_SR],
+                comments=comments
+            )
             ts_test_run_configs, ts_html = self.get_test_specifications_html(
                 test_specifications=sw_requirement[_TSs],
                 dbi=dbi,
@@ -1821,11 +1837,26 @@ class HTMLApi(Resource):
 
     def get_test_specifications_html(self, test_specifications: list = None, dbi: db_orm.DbInterface = None,
                                      test_run_config_ids: list = None) -> tuple[list, str]:
+        if not isinstance(test_specifications, list):
+            return [], ""
+
+        if not len(test_specifications):
+            return [], ""
+
         test_run_configs = []
         html = self.div_open_html
 
         for test_specification in test_specifications:
-            html += test_specification_to_html(test_specification[_TS])
+            comments = get_mapping_comments(
+                dbi=dbi,
+                relation_id=test_specification.get("relation_id", None),
+                tablename=test_specification.get("__tablename__", None)
+            )
+
+            html += test_specification_to_html(
+                test_specification=test_specification[_TS],
+                comments=comments
+            )
 
             # Test Cases
             if len(test_specification[_TS][_TCs]):
@@ -1841,11 +1872,26 @@ class HTMLApi(Resource):
 
     def get_test_cases_html(self, test_cases: list = None, dbi: db_orm.DbInterface = None,
                             test_run_config_ids: list = None, mapping_to: str = None) -> tuple[list, str]:
+        if not isinstance(test_cases, list):
+            return [], ""
+
+        if not len(test_cases):
+            return [], ""
+
         test_run_configs = []
         html = self.div_open_html
 
         for test_case in test_cases:
-            html += test_case_to_html(test_case[_TC])
+            comments = get_mapping_comments(
+                dbi=dbi,
+                relation_id=test_case.get("relation_id", None),
+                tablename=test_case.get("__tablename__", None)
+            )
+
+            html += test_case_to_html(
+                test_case=test_case[_TC],
+                comments=comments
+            )
 
             # Test Runs
             test_runs_query = (
@@ -1886,24 +1932,57 @@ class HTMLApi(Resource):
         html += self.div_close_html
         return html
 
-    def get_documents_html(self, documents: list = None) -> str:
+    def get_documents_html(self, documents: list = None, dbi: db_orm.DbInterface = None) -> str:
+        if not isinstance(documents, list):
+            return ""
+
+        if not len(documents):
+            return ""
+
         html = self.div_open_html
 
         for document in documents:
-            html += document_to_html(document[_D])
+            comments = get_mapping_comments(
+                dbi=dbi,
+                relation_id=document.get("relation_id", None),
+                tablename=document.get("__tablename__", None)
+            )
+
+            html += document_to_html(
+                document=document[_D],
+                comments=comments
+            )
 
             # Nested Documents
             if len(document[_Ds]):
-                html += self.get_documents_html(document[_Ds])
+                html += self.get_documents_html(
+                    documents=document[_Ds],
+                    dbi=dbi
+                )
 
         html += self.div_close_html
         return html
 
-    def get_justifications_html(self, justifications: list = None) -> str:
+    def get_justifications_html(self, justifications: list = None, dbi: db_orm.DbInterface = None) -> str:
+        if not isinstance(justifications, list):
+            return ""
+
+        if not len(justifications):
+            return ""
+
         html = self.div_open_html
 
         for justification in justifications:
-            html += justification_to_html(justification[_J])
+            comments = get_mapping_comments(
+                dbi=dbi,
+                relation_id=justification.get("relation_id", None),
+                tablename=justification.get("__tablename__", None)
+            )
+
+            html += justification_to_html(
+                justification=justification[_J],
+                comments=comments
+            )
 
         html += self.div_close_html
         return html
@@ -2009,10 +2088,16 @@ class HTMLApi(Resource):
             html += tc_html
 
             # Documents
-            html += self.get_documents_html(mapped_section[_Ds])
+            html += self.get_documents_html(
+                documents=mapped_section[_Ds],
+                dbi=dbi
+            )
 
             # Justifications
-            html += self.get_justifications_html(mapped_section[_Js])
+            html += self.get_justifications_html(
+                justifications=mapped_section[_Js],
+                dbi=dbi
+            )
 
         # Test Run Configs
         # Remove duplicates
@@ -2813,6 +2898,27 @@ class Api(Resource):
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
             return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+
+        # Delete history tables first (bulk delete does not trigger before_delete events,
+        # so history rows would block api deletion due to FK constraints)
+        dbi.session.query(ApiJustificationHistoryModel).filter(
+            ApiJustificationHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiSwRequirementHistoryModel).filter(
+            ApiSwRequirementHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiTestSpecificationHistoryModel).filter(
+            ApiTestSpecificationHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiTestCaseHistoryModel).filter(
+            ApiTestCaseHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiDocumentHistoryModel).filter(
+            ApiDocumentHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiHistoryModel).filter(ApiHistoryModel.id == api.id).delete(
+            synchronize_session=False
+        )
 
         dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).delete()
         dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.api_id == api.id).delete()

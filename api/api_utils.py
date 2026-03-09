@@ -12,6 +12,9 @@ from urllib.error import HTTPError, URLError
 currentdir = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(__name__)
 
+from db.db_orm import DbInterface  # noqa: E402
+from db.models.comment import CommentModel  # noqa: E402
+from db.models.db_base import Base  # noqa: E402
 from db.models.user import UserModel  # noqa: E402
 
 LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
@@ -319,7 +322,7 @@ def string_to_html(text: str) -> str:
     return text.replace("\n", "<br/>")
 
 
-def sw_requirement_to_html(sw_requirement: dict) -> str:
+def sw_requirement_to_html(sw_requirement: dict, comments: list[dict]) -> str:
     html = f"<div style='border-bottom:1px solid #CCC;' id='sw_requirement-{sw_requirement['id']}'>"
     html += f"<h3>Sw Requirement {sw_requirement['id']}</h3>"
     html += f"<div id='sw_requirement-details-{sw_requirement['id']}'>"
@@ -332,11 +335,16 @@ def sw_requirement_to_html(sw_requirement: dict) -> str:
     html += tr("<b>Title</b>:", string_to_html(sw_requirement['title']))
     html += tr("<b>Description</b>:", string_to_html(sw_requirement['description']))
     html += "</table>"
-    html += "</div></div>"
+    html += "</div>"
+
+    if comments:
+        html += comments_to_html(comments)
+
+    html += "</div>"
     return html
 
 
-def test_specification_to_html(test_specification: dict) -> str:
+def test_specification_to_html(test_specification: dict, comments: list[dict]) -> str:
     html = f"<div style='border-bottom:1px solid #CCC;' id='test_specification-{test_specification['id']}'>"
     html += f"<h3>Test Specification {test_specification['id']}</h3>"
     html += f"<div id='test_specification-details-{test_specification['id']}'>"
@@ -351,11 +359,16 @@ def test_specification_to_html(test_specification: dict) -> str:
     html += tr("<b>Test Description</b>:", string_to_html(test_specification['test_description']))
     html += tr("<b>Expected behavior</b>:", string_to_html(test_specification['expected_behavior']))
     html += "</table>"
-    html += "</div></div>"
+    html += "</div>"
+
+    if comments:
+        html += comments_to_html(comments)
+
+    html += "</div>"
     return html
 
 
-def test_case_to_html(test_case: dict) -> str:
+def test_case_to_html(test_case: dict, comments: list[dict]) -> str:
     html = f"<div style='border-bottom:1px solid #CCC;' id='test_case-{test_case['id']}'>"
     html += f"<h3>Test Case {test_case['id']}</h3>"
     html += f"<div id='test_case-details-{test_case['id']}'>"
@@ -370,7 +383,12 @@ def test_case_to_html(test_case: dict) -> str:
     html += tr("<b>Repository</b>:", string_to_html(test_case['repository']))
     html += tr("<b>Relative Path</b>:", string_to_html(test_case['relative_path']))
     html += "</table>"
-    html += "</div></div>"
+    html += "</div>"
+
+    if comments:
+        html += comments_to_html(comments)
+
+    html += "</div>"
     return html
 
 
@@ -419,7 +437,7 @@ def test_run_config_to_html(test_run_config: dict) -> str:
     return html
 
 
-def document_to_html(document: dict) -> str:
+def document_to_html(document: dict, comments: list[dict]) -> str:
     html = f"<div style='border-bottom:1px solid #CCC;' id='document-{document['id']}'>"
     html += f"<h3>Document {document['id']}</h3>"
     html += f"<div id='document-details-{document['id']}'>"
@@ -438,11 +456,16 @@ def document_to_html(document: dict) -> str:
         html += tr("<b>Section</b>:", string_to_html(document['section']))
         html += tr("<b>Offset</b>:", string_to_html(str(document['offset'])))
     html += "</table>"
-    html += "</div></div>"
+    html += "</div>"
+
+    if comments:
+        html += comments_to_html(comments)
+
+    html += "</div>"
     return html
 
 
-def justification_to_html(justification: dict) -> str:
+def justification_to_html(justification: dict, comments: list[dict]) -> str:
     html = f"<div style='border-bottom:1px solid #CCC;' id='justification-{justification['id']}'>"
     html += f"<h3>Justification {justification['id']}</h3>"
     html += f"<div id='justification-details-{justification['id']}'>"
@@ -453,6 +476,26 @@ def justification_to_html(justification: dict) -> str:
     html += f"<b>Created by</b>: {justification['created_by']}"
     html += "</td></tr>"
     html += tr("<b>Title</b>:", string_to_html(justification['description']))
+    html += "</table>"
+    html += "</div>"
+
+    if comments:
+        html += comments_to_html(comments)
+
+    html += "</div>"
+    return html
+
+
+def comments_to_html(comments: list[dict]) -> str:
+    html = "<div style='border-bottom:1px solid #CCC;' id='comments'>"
+    html += "<h3>Comments</h3>"
+    html += "<div id='comments-details'>"
+    html += "<table style='table-layout: auto; width: 100%;'>"
+    for comment in comments:
+        html += f"""<tr>
+        <td width='30%'>{comment['created_by_username']}<br><small>{comment['updated_at']}</small></td>
+        <td width='70%'>{comment['comment']}</td>
+        </tr>"""
     html += "</table>"
     html += "</div></div>"
     return html
@@ -580,3 +623,34 @@ def get_missing_mandatory_fields(mandatory_fields: list, request_data: dict) -> 
         if field not in request_data.keys():
             missing_fields.append(field)
     return missing_fields
+
+
+def get_mapping_comments(dbi: DbInterface, relation_id: int, tablename: str) -> list:
+    if not relation_id or not tablename or not dbi:
+        return []
+
+    comments = (
+        dbi.session.query(
+            CommentModel.id,
+            CommentModel.comment,
+            CommentModel.updated_at,
+            UserModel.email,
+            UserModel.username
+        )
+        .filter(CommentModel.parent_table == tablename)
+        .filter(CommentModel.parent_id == relation_id)
+        .join(UserModel, CommentModel.created_by_id == UserModel.id)
+        .order_by(CommentModel.created_at.asc())
+        .all()
+    )
+
+    return [
+        {
+            "id": c.id,
+            "comment": c.comment,
+            "updated_at": c.updated_at.strftime(Base.dt_short_format_str),
+            "created_by_email": c.email,
+            "created_by_username": c.username
+        }
+        for c in comments
+    ]

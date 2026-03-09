@@ -99,7 +99,8 @@ class ApiTestSpecificationModel(Base):
                  'offset': self.offset,
                  'coverage': self.coverage,
                  'covered': self.get_waterfall_coverage(db_session),
-                 'created_by': self.created_by.username}
+                 'created_by': self.created_by.username,
+                 '__tablename__': self.__tablename__}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 

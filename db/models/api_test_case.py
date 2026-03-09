@@ -74,7 +74,8 @@ class ApiTestCaseModel(Base):
                  'offset': self.offset,
                  'coverage': self.coverage,
                  'covered': self.coverage,
-                 'created_by': self.created_by.username}
+                 'created_by': self.created_by.username,
+                 '__tablename__': self.__tablename__}
 
         _dict['gap'] = _dict['coverage'] - _dict['covered']
 

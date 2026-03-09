@@ -148,24 +148,18 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     }
   }, [referenceUrl, referenceFileName])
 
+  const validateImplementationFileRow = (val: unknown): Constants.validate => {
+    const s = String(val ?? '').trim()
+    if (s === '' || /^\d+$/.test(s)) return 'success'
+    return 'error'
+  }
+
   React.useEffect(() => {
-    if (implementationFileFromRowValue === '') {
-      setValidatedImplementationFileFromRowValue('default')
-    } else if (/^\d+$/.test(implementationFileFromRowValue)) {
-      setValidatedImplementationFileFromRowValue('success')
-    } else {
-      setValidatedImplementationFileFromRowValue('error')
-    }
+    setValidatedImplementationFileFromRowValue(validateImplementationFileRow(implementationFileFromRowValue))
   }, [implementationFileFromRowValue])
 
   React.useEffect(() => {
-    if (implementationFileToRowValue === '') {
-      setValidatedImplementationFileToRowValue('default')
-    } else if (/^\d+$/.test(implementationFileToRowValue)) {
-      setValidatedImplementationFileToRowValue('success')
-    } else {
-      setValidatedImplementationFileToRowValue('error')
-    }
+    setValidatedImplementationFileToRowValue(validateImplementationFileRow(implementationFileToRowValue))
   }, [implementationFileToRowValue])
 
   React.useEffect(() => {
@@ -250,11 +244,17 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     setImplementationFileToRowValue(formData.implementation_file_to_row)
   }
 
+  const resetSubmitStatus = () => {
+    setStatusValue('waiting')
+  }
+
   const handleSubmit = () => {
     if (!auth.isLogged()) {
       setMessageValue('Session expired, please login.')
       return
     }
+
+    setMessageValue('')
 
     if (formVerb == 'POST') {
       {
@@ -266,26 +266,37 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     }
 
     if (validatedApiValue != 'success') {
+      //console.log("validatedApiValue: " + validatedApiValue)
       setMessageValue('Software Component Name is mandatory.')
+      resetSubmitStatus()
       return
     } else if (validatedLibraryValue != 'success') {
+      //console.log("validatedLibraryValue: " + validatedLibraryValue)
       setMessageValue('Software Component Library is mandatory.')
+      resetSubmitStatus()
       return
     } else if (validatedLibraryVersionValue != 'success') {
+      //console.log("validatedLibraryVersionValue: " + validatedLibraryVersionValue)
       setMessageValue('Software Component Library Version is mandatory.')
+      resetSubmitStatus()
       return
     } else if (validatedReferenceValue != 'success') {
+      //console.log("validatedReferenceValue: " + validatedReferenceValue)
       setMessageValue('Software Component Specification Url/Path is mandatory.')
+      resetSubmitStatus()
       return
-    } else if (validatedImplementationFileFromRowValue == 'error') {
+    } else if (validatedImplementationFileFromRowValue != 'success') {
+      //console.log("validatedImplementationFileFromRowValue: " + validatedImplementationFileFromRowValue)
       setMessageValue('Wrong value for Implementation File From Row.')
+      resetSubmitStatus()
       return
-    } else if (validatedImplementationFileToRowValue == 'error') {
+    } else if (validatedImplementationFileToRowValue != 'success') {
+      //console.log("validatedImplementationFileToRowValue: " + validatedImplementationFileToRowValue)
       setMessageValue('Wrong value for Implementation File To Row.')
+      resetSubmitStatus()
       return
     }
 
-    setMessageValue('')
     const data = {
       action: formAction,
       'api-id': formData.id,
@@ -295,8 +306,8 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       category: categoryValue,
       tags: tagsValue,
       'implementation-file': implementationSource == 'url' ? implementationUrl : implementationFileName,
-      'implementation-file-from-row': implementationFileFromRowValue,
-      'implementation-file-to-row': implementationFileToRowValue,
+      'implementation-file-from-row': implementationFileFromRowValue != '' ? implementationFileFromRowValue : null,
+      'implementation-file-to-row': implementationFileToRowValue != '' ? implementationFileToRowValue : null,
       'raw-specification-url': referenceSource == 'url' ? referenceUrl : referenceFileName,
       'user-id': auth.userId,
       token: auth.token

@@ -2899,6 +2899,27 @@ class Api(Resource):
         if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
             return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
 
+        # Delete history tables first (bulk delete does not trigger before_delete events,
+        # so history rows would block api deletion due to FK constraints)
+        dbi.session.query(ApiJustificationHistoryModel).filter(
+            ApiJustificationHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiSwRequirementHistoryModel).filter(
+            ApiSwRequirementHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiTestSpecificationHistoryModel).filter(
+            ApiTestSpecificationHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiTestCaseHistoryModel).filter(
+            ApiTestCaseHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiDocumentHistoryModel).filter(
+            ApiDocumentHistoryModel.api_id == api.id
+        ).delete(synchronize_session=False)
+        dbi.session.query(ApiHistoryModel).filter(ApiHistoryModel.id == api.id).delete(
+            synchronize_session=False
+        )
+
         dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.api_id == api.id).delete()
         dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.api_id == api.id).delete()
         dbi.session.query(ApiTestSpecificationModel).filter(ApiTestSpecificationModel.api_id == api.id).delete()

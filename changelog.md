@@ -13,6 +13,20 @@
 - Document fork
 - Traceability scanner
 - HTML/PDF Export
+- Fix Software Component edit form (#247)
+- AI Suggestions - enable Gemini (#245)
+- Support auto-fix in mapping view (#246)
+- Rename sign in to Register an account (#244)
+- Extend comment support to indirect work items (#243)
+- Test Case source preview for local files (#241)
+- Custom actions (#240)
+- Add extensions to supported artifact preview file type (#239)
+- Implemented TestSpecificationTestCasesMapping get(). Added permission decorators to TestSpecificationTestCasesMapping methods (#237)
+- Test Run visible for users with read permissions. Show artifacts in a table, allow preview for text based files like .txt, .log, .yaml ... (#238)
+- Replace data label 'API' with 'Name' in tests (#233)
+- Rename API listing section and column titles (#232)
+- Fix typo: 'Eamil' → 'Email' in UserProfileModal (#226)
+- Show user role in the user profile modal
 
 ## 1.7.x
 

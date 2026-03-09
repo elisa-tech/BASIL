@@ -528,3 +528,12 @@ export const logObject = (obj) => {
   }
   console.log('---------------------------->')
 }
+
+export const normalizeKeys = (obj: any) => {
+  /* Normalize object keys by replacing _ with - */
+  const normalizedObj = {}
+  for (const key in obj) {
+    normalizedObj[key.replace('_', '-')] = obj[key]
+  }
+  return normalizedObj
+}

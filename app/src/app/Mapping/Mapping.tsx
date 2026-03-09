@@ -6,6 +6,7 @@ import { MappingPageSection } from './MappingPageSection'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../User/AuthProvider'
 import { AlertBanner } from '@app/Common/Alert/AlertBanner'
+import { ModalNotification } from '@app/Common/Modal/ModalNotification'
 
 const Mapping: React.FunctionComponent = () => {
   const auth = useAuth()
@@ -17,6 +18,10 @@ const Mapping: React.FunctionComponent = () => {
   const [unmappingData, setUnmappingData] = React.useState([])
   const [totalCoverage, setTotalCoverage] = React.useState(-1)
   const { api_id } = useParams<{ api_id: string }>()
+
+  const [modalNotificationShowState, setModalNotificationShowState] = React.useState(false)
+  const [modalNotificationTitle, setModalNotificationTitle] = React.useState('')
+  const [modalNotificationMessage, setModalNotificationMessage] = React.useState('')
 
   //view
   //const search = window.location.search
@@ -155,6 +160,12 @@ const Mapping: React.FunctionComponent = () => {
             <FlexItem align={{ default: 'alignRight' }}></FlexItem>
           </Flex>
         </PageSection>
+        <ModalNotification
+          modalShowState={modalNotificationShowState}
+          setModalShowState={setModalNotificationShowState}
+          modalTitle={modalNotificationTitle}
+          modalMessage={modalNotificationMessage}
+        />
         <MappingPageSection
           mappingData={mappingData}
           unmappingData={unmappingData}
@@ -164,6 +175,9 @@ const Mapping: React.FunctionComponent = () => {
           setMappingViewSelectValueOld={setMappingViewSelectValueOld}
           totalCoverage={totalCoverage}
           api={apiData}
+          setModalNotificationShowState={setModalNotificationShowState}
+          setModalNotificationTitle={setModalNotificationTitle}
+          setModalNotificationMessage={setModalNotificationMessage}
         />
       </PageGroup>
     </React.Fragment>

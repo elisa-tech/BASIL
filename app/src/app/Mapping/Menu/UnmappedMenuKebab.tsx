@@ -1,5 +1,6 @@
 import React from 'react'
-import * as Constants from '../../Constants/constants'
+import { useAuth } from '@app/User/AuthProvider'
+import * as Constants from '@app/Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 
@@ -21,6 +22,7 @@ export interface UnmappedMenuKebabProps {
   mappingList
   mappingSection
   mappingOffset
+  setModalNotificationInfo
 }
 
 export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> = ({
@@ -36,9 +38,11 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
   mappingIndex,
   mappingList,
   mappingSection,
-  mappingOffset
+  mappingOffset,
+  setModalNotificationInfo
 }: UnmappedMenuKebabProps) => {
   const [isOpen, setIsOpen] = React.useState(false)
+  const auth = useAuth()
 
   const onToggleClick = () => {
     setIsOpen(!isOpen)
@@ -50,6 +54,61 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
 
   const handleDelete = () => {
     setDeleteModalInfo(true, mappingType, mappingParentType, '', mappingList, mappingIndex)
+  }
+
+  const handleAutoFix = () => {
+    // Mapping endpoint based on mappingType
+    const mappingEndpoint = Constants.API_BASE_URL + '/mapping/api/' + mappingType.toLowerCase().replace('_', '-') + 's'
+
+    const data = {
+      'api-id': api.id,
+      'relation-id': mappingList[mappingIndex].relation_id,
+      section: mappingSection,
+      coverage: mappingList[mappingIndex]['coverage'],
+      offset: mappingList[mappingIndex]['auto-fix-offset'],
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    if (mappingType == Constants._J) {
+      data['justification'] = mappingList[mappingIndex][Constants._J]
+      data['justification'] = Constants.normalizeKeys(data['justification'])
+    } else if (mappingType == Constants._D) {
+      data['document'] = mappingList[mappingIndex][Constants._D]
+      data['document'] = Constants.normalizeKeys(data['document'])
+    } else if (mappingType == Constants._SR) {
+      data['sw-requirement'] = mappingList[mappingIndex][Constants._SR_]
+      data['sw-requirement'] = Constants.normalizeKeys(data['sw-requirement'])
+    } else if (mappingType == Constants._TS) {
+      data['test-specification'] = mappingList[mappingIndex][Constants._TS_]
+      data['test-specification'] = Constants.normalizeKeys(data['test-specification'])
+    } else if (mappingType == Constants._TC) {
+      data['test-case'] = mappingList[mappingIndex][Constants._TC_]
+      data['test-case'] = Constants.normalizeKeys(data['test-case'])
+    }
+
+    fetch(mappingEndpoint, {
+      method: 'PUT',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        if (response.status !== 200) {
+          console.log(response.status)
+          // show modal notification error
+          setModalNotificationInfo('Error', response.statusText + ' - ' + response.status, true)
+        } else {
+          location.reload()
+        }
+      })
+      .catch((err) => {
+        console.log(err)
+        // show modal notification error
+        setModalNotificationInfo('Error', err.message, true)
+      })
+      .finally(() => {
+        setIsOpen(false)
+      })
   }
 
   const handleEdit = () => {
@@ -109,8 +168,19 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       <DropdownList>
         {api?.permissions.indexOf('w') >= 0 && api.raw_specification != null ? (
           <React.Fragment>
+            {mappingList[mappingIndex]['auto-fix-offset'] != -1 && (
+              <DropdownItem
+                value={0}
+                key='auto-fix'
+                className='danger-text'
+                id={'btn-menu-unmapped-auto-fix-' + mappingList[mappingIndex].relation_id}
+                onClick={handleAutoFix}
+              >
+                Auto Fix
+              </DropdownItem>
+            )}
             <DropdownItem
-              value={2}
+              value={1}
               key='delete'
               className='danger-text'
               id={'btn-menu-unmapped-delete-' + mappingList[mappingIndex].relation_id}
@@ -118,7 +188,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
             >
               Delete
             </DropdownItem>
-            <DropdownItem value={0} key='edit' id={'btn-menu-unmapped-edit-' + mappingList[mappingIndex].relation_id} onClick={handleEdit}>
+            <DropdownItem value={2} key='edit' id={'btn-menu-unmapped-edit-' + mappingList[mappingIndex].relation_id} onClick={handleEdit}>
               Edit
             </DropdownItem>
           </React.Fragment>

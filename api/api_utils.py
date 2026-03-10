@@ -290,10 +290,8 @@ def parse_int(value):
     return None  # or raise ValueError if needed
 
 
-def get_user_traceability_scanner_config(user_id):
-    from api import USER_FILES_BASE_DIR
-
-    user_config_dir = os.path.join(USER_FILES_BASE_DIR, f"{user_id}.config")
+def get_user_traceability_scanner_config(user: UserModel):
+    user_config_dir = get_user_config_folder_path(user)
     user_config_path = os.path.join(user_config_dir, "config.yaml")
     if not os.path.exists(user_config_path):
         try:

@@ -13,10 +13,15 @@ import uuid
 from pathlib import Path
 from typing import Callable, List, Optional
 
-import yaml
+from pyaml_env import parse_config
 
 currentdir = Path(__file__).resolve().parent
 sys.path.insert(1, str(currentdir.parent))
+
+from api_utils import (  # noqa E402
+    get_user_config_folder_path,
+    get_user_traceability_scanner_config
+)
 
 from db.db_orm import DbInterface  # noqa E402
 from db.models.api import ApiModel  # noqa E402
@@ -450,7 +455,7 @@ class TraceabilityGenerator:
                 api_model = existing_apis[0]
             else:
                 logger.info(
-                    f" - Api {api['api']} {api['library']} {api['library_version']}" "does not exist, creating new api"
+                    f" - Api {api['api']} {api['library']} {api['library_version']} does not exist, creating new api"
                 )
 
                 api_model = ApiModel(
@@ -468,7 +473,7 @@ class TraceabilityGenerator:
                 )
                 self.dbi.session.add(api_model)
                 self.dbi.session.commit()
-                logger.info(f" - Api {api['api']} {api['library']} {api['library_version']}" "created")
+                logger.info(f" - Api {api['api']} {api['library']} {api['library_version']} created")
 
             # Create a user file with the content of the reference document
             reference_document_filename = f"{api['api']}_{api['library']}_{api['library_version']}.txt"
@@ -2191,6 +2196,9 @@ class FilesScanner:
                     if curr_str_match in curr_file_content:
                         ret.append(curr_file)
                         break
+            else:
+                # No "contains" filter: include the file (subject to not_contains)
+                ret.append(curr_file)
             if not_contains and curr_file in ret:
                 for curr_str_match in not_contains:
                     if curr_str_match in curr_file_content:
@@ -2252,10 +2260,24 @@ class ArtifactsScanner:
         {"name": "coverage", "type": "int"},
     ]
 
-    def __init__(self, user_id: str, api: Optional[dict] = {}, scan_config: Optional[dict] = {}) -> None:
+    def __init__(self, user_id: str, api: Optional[dict] = {}, testing: bool = False) -> None:
         self.api = api
-        self.scan_config = scan_config
         self.user_id = user_id
+        self.dbi = DbInterface()
+        self.testing = testing
+
+        # search user
+        if self.testing:
+            self.user = UserModel(username=user_id, email=user_id, pwd="", role="USER")
+        else:
+            self.user = self.dbi.session.query(UserModel).filter(UserModel.id == self.user_id).first()
+            if not self.user:
+                raise ValueError(f"User with id {self.user_id} not found")
+
+        self.scan_config_str = get_user_traceability_scanner_config(self.user)
+        self.scan_config = parse_config(data=self.scan_config_str) or None
+        if not self.scan_config:
+            raise ValueError(f"Unable to parse scan configuration for user {self.user_id}")
 
     def _is_valid_repo_config(self, _config: dict) -> bool:
         mandatory_configs = ["repository"]
@@ -4047,6 +4069,7 @@ class ArtifactsScanner:
 
             values_by_field = {}
             for test_case_field in self.TEST_CASE_FIELDS:
+                logger.info(f"  - Test Case Field: {test_case_field['name']}")
                 values_by_field[test_case_field["name"]] = self._get_field_value(
                     _config=rule_config,
                     field_name=test_case_field["name"],
@@ -4054,6 +4077,8 @@ class ArtifactsScanner:
                     text=file_content,
                     _magic_variables=_magic_variables,
                 )
+                logger.info(f"  - Test Case Field Value: {values_by_field[test_case_field['name']]}")
+
             # Apply rule-level top/bottom skipping uniformly to all list fields
             wl_skip_top = rule_config.get("skip_top_items", 0)
             wl_skip_bottom = rule_config.get("skip_bottom_items", 0)
@@ -4120,6 +4145,12 @@ class ArtifactsScanner:
             test_cases_files = self.search__get_files(
                 repo_scanner=repo_scanner, _config=repository_config, _magic_variables=_magic_variables
             )
+            if not test_cases_files:
+                logger.info(
+                    f"  - Test Case Rule '{rule_config.get('name', '')}': no files found "
+                    f"(filename_pattern={repository_config.get('filename_pattern')!r}, "
+                    f"folder_pattern={repository_config.get('folder_pattern')!r})"
+                )
             if test_cases_files:
                 for test_cases_file in test_cases_files:
                     test_cases_file_content = FilesScanner.get_file_content(
@@ -4143,6 +4174,11 @@ class ArtifactsScanner:
 
                     if test_cases:
                         ret += test_cases
+                    else:
+                        logger.info(
+                            f"  - Test Case Rule '{rule_config.get('name', '')}': no test cases extracted "
+                            f"from {test_cases_file} (description/title/coverage extraction may have returned empty)"
+                        )
         return ret
 
 
@@ -4154,15 +4190,15 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Scan user configuration file
-    user_config_path = os.path.join(USER_FILES_BASE_DIR, f"{args.userid}.config")
+    dbi = DbInterface()
+    user = dbi.session.query(UserModel).filter(UserModel.id == args.userid).first()
+    if not user:
+        raise ValueError(f"User with id {args.userid} not found")
+    del dbi
+
+    user_config_path = get_user_config_folder_path(user)
     if not os.path.exists(user_config_path):
-        os.makedirs(os.path.dirname(user_config_path), exist_ok=True)
-
-    scan_config_path = os.path.join(user_config_path, "config.yaml")
-
-    with open(scan_config_path, "r") as f:
-        scan_config = yaml.safe_load(f) or {}
+        os.makedirs(user_config_path, exist_ok=True)
 
     # Update the logger to write to a file under USER_FILES_BASE_DIR
     # Use timestamp as name of the log file
@@ -4176,7 +4212,7 @@ if __name__ == "__main__":
     logger.addHandler(logging.FileHandler(logfile))
     logger.setLevel(logging.INFO)
 
-    scanner = ArtifactsScanner(user_id=args.userid, api="test", scan_config=scan_config)
+    scanner = ArtifactsScanner(user_id=args.userid, api="test")
     traceability = scanner.scan()
     generator = TraceabilityGenerator(traceability=traceability, user_id=args.userid, logfile=logfile)
     generator.generate()

@@ -578,7 +578,7 @@ def test_get_field_value_filter_integration():
     """
     After sections are extracted (start/end), filter must apply before transforms.
     """
-    scanner = ArtifactsScanner(user_id="u")
+    scanner = ArtifactsScanner(user_id="u", testing=True)
     text = "\n".join(
         [
             "START",
@@ -609,7 +609,7 @@ def test_get_field_value_filter_integration():
 def test_closest_integration():
     """
     """
-    scanner = ArtifactsScanner(user_id="u")
+    scanner = ArtifactsScanner(user_id="u", testing=True)
     text = "\n".join(
         [
             "START",

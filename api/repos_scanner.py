@@ -2260,15 +2260,19 @@ class ArtifactsScanner:
         {"name": "coverage", "type": "int"},
     ]
 
-    def __init__(self, user_id: str, api: Optional[dict] = {}) -> None:
+    def __init__(self, user_id: str, api: Optional[dict] = {}, testing: bool = False) -> None:
         self.api = api
         self.user_id = user_id
         self.dbi = DbInterface()
+        self.testing = testing
 
         # search user
-        self.user = self.dbi.session.query(UserModel).filter(UserModel.id == self.user_id).first()
-        if not self.user:
-            raise ValueError(f"User with id {self.user_id} not found")
+        if self.testing:
+            self.user = UserModel(username=user_id, email=user_id, pwd="", role="USER")
+        else:
+            self.user = self.dbi.session.query(UserModel).filter(UserModel.id == self.user_id).first()
+            if not self.user:
+                raise ValueError(f"User with id {self.user_id} not found")
 
         self.scan_config_str = get_user_traceability_scanner_config(self.user)
         self.scan_config = parse_config(data=self.scan_config_str) or None

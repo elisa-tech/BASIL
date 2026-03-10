@@ -198,7 +198,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
               itemId='ungrouped-item-3'
               isActive={location.pathname == '/signin'}
             >
-              Sign In
+              Register an account
             </NavItem>
           ) : (
             <NavItem

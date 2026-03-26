@@ -293,7 +293,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [testRunConfig])
 
   React.useEffect(() => {
-    if (titleValue.trim() === '') {
+    if (Constants._trim(titleValue) === '') {
       setValidatedTitleValue('error')
     } else {
       setValidatedTitleValue('success')
@@ -303,7 +303,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [titleValue])
 
   React.useEffect(() => {
-    if (guestValue.trim() === '') {
+    if (Constants._trim(guestValue) === '') {
       setValidatedGuestValue('error')
     } else {
       setValidatedGuestValue('success')
@@ -313,7 +313,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [guestValue])
 
   React.useEffect(() => {
-    if (guestPortValue.trim() === '') {
+    if (Constants._trim(guestPortValue) === '') {
       setValidatedGuestPortValue('error')
     } else {
       setValidatedGuestPortValue('success')
@@ -323,7 +323,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [guestPortValue])
 
   React.useEffect(() => {
-    if (provisionTypeValue.trim() === '') {
+    if (Constants._trim(provisionTypeValue) === '') {
       setValidatedProvisionTypeValue('error')
     } else {
       setValidatedProvisionTypeValue('success')
@@ -343,7 +343,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [refValue, envVarsValue, contextVarsValue])
 
   React.useEffect(() => {
-    if (sshKeyValue.trim() === '') {
+    if (Constants._trim(sshKeyValue) === '') {
       setValidatedSSHKeyValue('error')
     } else {
       setValidatedSSHKeyValue('success')
@@ -360,25 +360,25 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [pluginValue, pluginPresetValue])
 
   React.useEffect(() => {
-    if (gitlabCIUrlValue.trim() === '') {
+    if (Constants._trim(gitlabCIUrlValue) === '') {
       setValidatedGitlabCIUrlValue('error')
     } else {
       setValidatedGitlabCIUrlValue('success')
     }
 
-    if (gitlabCIProjectIdValue.trim() === '') {
+    if (Constants._trim(gitlabCIProjectIdValue) === '') {
       setValidatedGitlabCIProjectIdValue('error')
     } else {
       setValidatedGitlabCIProjectIdValue('success')
     }
 
-    if (gitlabCITriggerTokenValue.trim() === '') {
+    if (Constants._trim(gitlabCITriggerTokenValue) === '') {
       setValidatedGitlabCITriggerTokenValue('error')
     } else {
       setValidatedGitlabCITriggerTokenValue('success')
     }
 
-    if (gitlabCIPrivateTokenValue.trim() === '') {
+    if (Constants._trim(gitlabCIPrivateTokenValue) === '') {
       setValidatedGitlabCIPrivateTokenValue('error')
     } else {
       setValidatedGitlabCIPrivateTokenValue('success')
@@ -389,13 +389,13 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [gitlabCIJobValue, gitlabCIPrivateTokenValue, gitlabCIProjectIdValue, gitlabCIStageValue, gitlabCITriggerTokenValue, gitlabCIUrlValue])
 
   React.useEffect(() => {
-    if (githubActionsUrlValue.trim() === '') {
+    if (Constants._trim(githubActionsUrlValue) === '') {
       setValidatedGithubActionsUrlValue('error')
     } else {
       setValidatedGithubActionsUrlValue('success')
     }
 
-    if (githubActionsPrivateTokenValue.trim() === '') {
+    if (Constants._trim(githubActionsPrivateTokenValue) === '') {
       setValidatedGithubActionsPrivateTokenValue('error')
     } else {
       setValidatedGithubActionsPrivateTokenValue('success')
@@ -406,25 +406,25 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [githubActionsJobValue, githubActionsUrlValue, githubActionsWorkflowIdValue, githubActionsPrivateTokenValue])
 
   React.useEffect(() => {
-    if (testingFarmArchValue.trim() === '') {
+    if (Constants._trim(testingFarmArchValue) === '') {
       setValidatedTestingFarmArchValue('error')
     } else {
       setValidatedTestingFarmArchValue('success')
     }
 
-    if (testingFarmComposeValue.trim() === '') {
+    if (Constants._trim(testingFarmComposeValue) === '') {
       setValidatedTestingFarmComposeValue('error')
     } else {
       setValidatedTestingFarmComposeValue('success')
     }
 
-    if (testingFarmPrivateTokenValue.trim() === '') {
+    if (Constants._trim(testingFarmPrivateTokenValue) === '') {
       setValidatedTestingFarmPrivateTokenValue('error')
     } else {
       setValidatedTestingFarmPrivateTokenValue('success')
     }
 
-    if (testingFarmUrlValue.trim() === '') {
+    if (Constants._trim(testingFarmUrlValue) === '') {
       setValidatedTestingFarmUrlValue('error')
     } else {
       setValidatedTestingFarmUrlValue('success')
@@ -435,19 +435,19 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [testingFarmArchValue, testingFarmComposeValue, testingFarmUrlValue, testingFarmPrivateTokenValue])
 
   React.useEffect(() => {
-    if (lavaJobValue.trim() === '') {
+    if (Constants._trim(lavaJobValue) === '') {
       setValidatedLavaJobValue('error')
     } else {
       setValidatedLavaJobValue('success')
     }
 
-    if (lavaPrivateTokenValue.trim() === '') {
+    if (Constants._trim(lavaPrivateTokenValue) === '') {
       setValidatedLavaPrivateTokenValue('error')
     } else {
       setValidatedLavaPrivateTokenValue('success')
     }
 
-    if (lavaUrlValue.trim() === '') {
+    if (Constants._trim(lavaUrlValue) === '') {
       setValidatedLavaUrlValue('error')
     } else {
       setValidatedLavaUrlValue('success')

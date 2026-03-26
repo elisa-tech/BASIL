@@ -176,6 +176,10 @@ class TestRunner:
         del db_config["environment_vars"]
         del db_config["context_vars"]
 
+        # Plugins (e.g. tmt connect) expect ssh_key_id; as_dict() exposes the FK as "ssh_key"
+        if db_config.get("ssh_key") is not None:
+            db_config["ssh_key_id"] = db_config["ssh_key"]
+
         for k, v in db_config.items():
             if isinstance(v, dict):
                 if k in self.config.keys():

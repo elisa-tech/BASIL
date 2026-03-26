@@ -70,7 +70,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   }
 
   React.useEffect(() => {
-    if (titleValue.trim() === '') {
+    if (Constants._trim(titleValue) === '') {
       setValidatedTitleValue('error')
     } else {
       setValidatedTitleValue('success')
@@ -157,24 +157,24 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
       setActiveTabKey(1)
       return false
     }
-    if (testRunConfig['title'].trim() == '') {
+    if (Constants._trim(testRunConfig['title']) == '') {
       setMessageValue('Test Configuration Title is mandatory')
       setActiveTabKey(1)
       return false
     }
-    if (testRunConfig['plugin'].trim() == Constants.tmt_plugin) {
-      if (testRunConfig['plugin_preset'].trim() == '') {
-        if (testRunConfig['provision_type'].trim() == '') {
+    if (Constants._trim(testRunConfig['plugin']) == Constants.tmt_plugin) {
+      if (Constants._trim(testRunConfig['plugin_preset']) == '') {
+        if (Constants._trim(testRunConfig['provision_type']) == '') {
           setMessageValue('Test Configuration Provision Type is mandatory')
           setActiveTabKey(1)
           return false
-        } else if (testRunConfig['provision_type'].trim() == 'connect') {
-          if (testRunConfig['provision_guest'].trim() == '') {
+        } else if (Constants._trim(testRunConfig['provision_type']) == 'connect') {
+          if (Constants._trim(testRunConfig['provision_guest']) == '') {
             setMessageValue('Test Configuration Hostname or IP address is mandatory')
             setActiveTabKey(1)
             return false
           }
-          if (testRunConfig['provision_guest_port'].trim() == '') {
+          if (Constants._trim(testRunConfig['provision_guest_port']) == '') {
             setMessageValue('Test Configuration Provision Guest Port is mandatory')
             setActiveTabKey(1)
             return false
@@ -186,65 +186,65 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
           }
         }
       }
-    } else if (testRunConfig['plugin'].trim() == Constants.gitlab_ci_plugin) {
-      if (testRunConfig['plugin_preset'].trim() == '') {
-        if (testRunConfig['url'].trim() == '') {
+    } else if (Constants._trim(testRunConfig['plugin']) == Constants.gitlab_ci_plugin) {
+      if (Constants._trim(testRunConfig['plugin_preset']) == '') {
+        if (Constants._trim(testRunConfig['url']) == '') {
           setMessageValue('Test Configuration Url is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['project_id'].trim() == '') {
+        if (Constants._trim(testRunConfig['project_id']) == '') {
           setMessageValue('Test Configuration Project ID is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['trigger_token'].trim() == '') {
+        if (Constants._trim(testRunConfig['trigger_token']) == '') {
           setMessageValue('Test Configuration Trigger Token is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['private_token'].trim() == '') {
+        if (Constants._trim(testRunConfig['private_token']) == '') {
           setMessageValue('Test Configuration Private Token is mandatory')
           setActiveTabKey(1)
           return false
         }
       }
-    } else if (testRunConfig['plugin'].trim() == Constants.github_actions_plugin) {
-      if (testRunConfig['plugin_preset'].trim() == '') {
-        if (testRunConfig['url'].trim() == '') {
+    } else if (Constants._trim(testRunConfig['plugin']) == Constants.github_actions_plugin) {
+      if (Constants._trim(testRunConfig['plugin_preset']) == '') {
+        if (Constants._trim(testRunConfig['url']) == '') {
           setMessageValue('Test Configuration Url is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['private_token'].trim() == '') {
+        if (Constants._trim(testRunConfig['private_token']) == '') {
           setMessageValue('Test Configuration Private Token is mandatory')
           setActiveTabKey(1)
           return false
         }
       }
-    } else if (testRunConfig['plugin'].trim() == Constants.testing_farm_plugin) {
-      if (testRunConfig['plugin_preset'].trim() == '') {
-        if (testRunConfig['url'].trim() == '') {
+    } else if (Constants._trim(testRunConfig['plugin']) == Constants.testing_farm_plugin) {
+      if (Constants._trim(testRunConfig['plugin_preset']) == '') {
+        if (Constants._trim(testRunConfig['url']) == '') {
           setMessageValue('Testing Farm Url is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['private_token'].trim() == '') {
+        if (Constants._trim(testRunConfig['private_token']) == '') {
           setMessageValue('Testing Farm Token is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['compose'].trim() == '') {
+        if (Constants._trim(testRunConfig['compose']) == '') {
           setMessageValue('Testing Farm Compose is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['arch'].trim() == '') {
+        if (Constants._trim(testRunConfig['arch']) == '') {
           setMessageValue('Testing Farm Architecture is mandatory')
           setActiveTabKey(1)
           return false
         }
-        if (testRunConfig['git_repo_ref'].trim() == '') {
+        if (Constants._trim(testRunConfig['git_repo_ref']) == '') {
           setMessageValue('Test Configuration Git repo Ref is mandatory')
           setActiveTabKey(1)
           return false
@@ -279,8 +279,8 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
 
     const data = {
       'api-id': api.id,
-      title: titleValue.trim(),
-      notes: notesValue.trim(),
+      title: Constants._trim(titleValue),
+      notes: Constants._trim(notesValue),
       'test-run-config': testRunConfig,
       'user-id': auth.userId,
       token: auth.token,

@@ -43,7 +43,10 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
     setModalShowState(new_state)
     setIsModalOpen(new_state)
     if (!new_state) {
+      // Closing the modal
       setMessageValue('')
+      setCommentToEdit({})
+      setComments([])
     }
   }
 

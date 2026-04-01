@@ -2293,7 +2293,7 @@ class Comment(Resource):
         comments = [c.as_dict() for c in query.all()]
         return comments
 
-    @check_api_user_write_permission
+    @check_api_user_read_permission
     def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
@@ -2355,7 +2355,7 @@ class Comment(Resource):
 
         return new_comment.as_dict()
 
-    @check_api_user_write_permission
+    @check_api_user_read_permission
     def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
@@ -2388,7 +2388,7 @@ class Comment(Resource):
 
         return comment_model.as_dict()
 
-    @check_api_user_write_permission
+    @check_api_user_read_permission
     def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 

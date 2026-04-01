@@ -2342,19 +2342,19 @@ class Comment(Resource):
         # Add Notifications
         if add_notification:
             if todo:
-                notification_obj = "Todo"
+                notification_type = "Todo"
             else:
-                notification_obj = "Comment"
+                notification_type = "Comment"
 
             notification = (
-                f"{user.username} added a {notification_obj} to {notification_obj} "
+                f"{user.username} added a {notification_type} to {notification_obj} "
                 f"mapped to "
                 f"{mapping.api.api} as part of the library {mapping.api.library}"
             )
             notifications = NotificationModel(
                 mapping.api,
                 NOTIFICATION_CATEGORY_NEW,
-                f"New {notification_obj} from {user.username}",
+                f"New {notification_type} from {user.username}",
                 notification,
                 f"[{user.id}]",
                 f"/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments",

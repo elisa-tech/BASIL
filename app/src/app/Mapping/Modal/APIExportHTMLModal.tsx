@@ -3,6 +3,7 @@ import { useAuth } from '@app/User/AuthProvider'
 import * as Constants from '@app/Constants/constants'
 import {
   Button,
+  Checkbox,
   ClipboardCopyButton,
   CodeBlock,
   CodeBlockAction,
@@ -26,6 +27,7 @@ export interface APIExportHTMLModalProps {
   HTMLContent
   HTMLFilename
   setHTMLContent
+  exportToHTMLFormat
 }
 
 export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps> = ({
@@ -35,22 +37,95 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
   setModalShowState,
   HTMLContent = '',
   HTMLFilename,
-  setHTMLContent
+  setHTMLContent,
+  exportToHTMLFormat
 }: APIExportHTMLModalProps) => {
   const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+
+  const [exportJustifications, setExportJustifications] = React.useState<boolean>(true)
+  const [exportDocuments, setExportDocuments] = React.useState<boolean>(true)
+  const [exportTestSpecifications, setExportTestSpecifications] = React.useState<boolean>(true)
+  const [exportTestCases, setExportTestCases] = React.useState<boolean>(true)
+  const [exportTestRuns, setExportTestRuns] = React.useState<boolean>(true)
+  const [exportComments, setExportComments] = React.useState<boolean>(true)
+  const [exportTools, setExportTools] = React.useState<boolean>(true)
 
   React.useEffect(() => {
     setIsModalOpen(modalShowState)
   }, [modalShowState])
 
+  React.useEffect(() => {
+    if (mappingView === Constants._TSs) {
+      setExportTestSpecifications(true)
+    } else if (mappingView === Constants._TCs) {
+      setExportTestCases(true)
+    } else if (mappingView === Constants._Js) {
+      setExportJustifications(true)
+    }
+  }, [mappingView])
+
   const handleModalToggle = () => {
     const new_state = !modalShowState
+    setExportJustifications(true)
+    setExportDocuments(true)
+    setExportTestSpecifications(true)
+    setExportTestCases(true)
+    setExportTestRuns(true)
+    setExportComments(true)
+    setExportTools(true)
     if (new_state == false) {
       setHTMLContent('')
     }
     setModalShowState(new_state)
     setIsModalOpen(new_state)
+  }
+
+  const reloadHTMLExport = () => {
+    setHTMLContent('Loading... Please wait...')
+    const configExport = {
+      include_justifications: exportJustifications,
+      include_documents: exportDocuments,
+      include_test_specifications: exportTestSpecifications,
+      include_test_cases: exportTestCases,
+      include_test_runs: exportTestRuns,
+      include_comments: exportComments,
+      include_tools: exportTools
+    }
+
+    exportToHTMLFormat('html', configExport)
+  }
+
+  const handleChange = (event: React.FormEvent<HTMLInputElement>, checked: boolean) => {
+    const target = event.currentTarget
+    const name = target.name
+
+    switch (name) {
+      case 'check-export-justifications':
+        setExportJustifications(checked)
+        break
+      case 'check-export-documents':
+        setExportDocuments(checked)
+        break
+      case 'check-export-test-specifications':
+        setExportTestSpecifications(checked)
+        break
+      case 'check-export-test-cases':
+        setExportTestCases(checked)
+        break
+      case 'check-export-test-runs':
+        setExportTestRuns(checked)
+        break
+      case 'check-export-comments':
+        setExportComments(checked)
+        break
+      case 'check-export-tools':
+        setExportTools(checked)
+        break
+      default:
+        // eslint-disable-next-line no-console
+        console.log(name)
+    }
   }
 
   const downloadFile = (file_type: string = 'html') => {
@@ -67,6 +142,21 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
     query_string += '&token=' + auth.token
     query_string += '&filename=' + file_name
     query_string += '&mapping-view=' + mappingView
+
+    // for each key of the config add to the query string
+    const configExport = {
+      include_justifications: exportJustifications,
+      include_documents: exportDocuments,
+      include_test_specifications: exportTestSpecifications,
+      include_test_cases: exportTestCases,
+      include_test_runs: exportTestRuns,
+      include_comments: exportComments,
+      include_tools: exportTools
+    }
+
+    for (const key in configExport) {
+      query_string += '&' + key + '=' + configExport[key]
+    }
 
     fetch(Constants.API_BASE_URL + Constants.API_HTML_API_EXPORT_DOWNLOAD_ENDPOINT + query_string)
       .then((response) => {
@@ -115,6 +205,75 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
                 <Button variant='link' onClick={() => downloadFile('pdf')} id='btn-download-pdf-file'>
                   Download PDF
                 </Button>
+              </FlexItem>
+              <FlexItem>
+                <Flex
+                  direction={{ default: 'row' }}
+                  flexWrap={{ default: 'wrap' }}
+                  alignItems={{ default: 'alignItemsCenter' }}
+                  spaceItems={{ default: 'spaceItemsMd' }}
+                >
+                  {mappingView !== Constants._Js && (
+                    <Checkbox
+                      id='checkbox-export-justifications'
+                      label='Justifications'
+                      isChecked={exportJustifications}
+                      name='check-export-justifications'
+                      onChange={handleChange}
+                    />
+                  )}
+                  <Checkbox
+                    id='checkbox-export-documents'
+                    label='Documents'
+                    isChecked={exportDocuments}
+                    name='check-export-documents'
+                    onChange={handleChange}
+                  />
+                  {mappingView !== Constants._TSs && (
+                    <Checkbox
+                      id='checkbox-export-test-specifications'
+                      label='Test Specifications'
+                      isChecked={exportTestSpecifications}
+                      name='check-export-test-specifications'
+                      onChange={handleChange}
+                    />
+                  )}
+                  {mappingView !== Constants._TCs && (
+                    <Checkbox
+                      id='checkbox-export-test-cases'
+                      label='Test Cases'
+                      isChecked={exportTestCases}
+                      name='check-export-test-cases'
+                      onChange={handleChange}
+                    />
+                  )}
+                  {exportTestCases && (
+                    <Checkbox
+                      id='checkbox-export-test-runs'
+                      label='Test Runs'
+                      isChecked={exportTestRuns}
+                      name='check-export-test-runs'
+                      onChange={handleChange}
+                    />
+                  )}
+                  <Checkbox
+                    id='checkbox-export-comments'
+                    label='Comments'
+                    isChecked={exportComments}
+                    name='check-export-comments'
+                    onChange={handleChange}
+                  />
+                  <Checkbox
+                    id='checkbox-export-tools'
+                    label='Tools'
+                    isChecked={exportTools}
+                    name='check-export-tools'
+                    onChange={handleChange}
+                  />
+                  <Button variant='link' onClick={() => reloadHTMLExport()} id='btn-reload-html-export'>
+                    Reload HTML Export
+                  </Button>
+                </Flex>
               </FlexItem>
             </Flex>
           </FlexItem>

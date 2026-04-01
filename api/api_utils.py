@@ -166,6 +166,10 @@ def is_testing_enabled_by_env() -> bool:
     return ret
 
 
+def bool_from_string(value: str) -> bool:
+    return str(value).lower().strip() in ["1", "true"]
+
+
 def add_html_link_to_email_body(settings, body) -> str:
     """Append a link to BASIL instance if the app_url setting is populated"""
     if not settings:

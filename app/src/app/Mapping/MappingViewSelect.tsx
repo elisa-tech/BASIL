@@ -1,5 +1,6 @@
 import React from 'react'
 import { FormSelect, FormSelectOption } from '@patternfly/react-core'
+import * as Constants from '../Constants/constants'
 
 export interface MappingViewSelectProps {
   mappingViewSelectValue
@@ -18,11 +19,11 @@ export const MappingViewSelect: React.FunctionComponent<MappingViewSelectProps> 
   }
 
   const options = [
-    { value: 'sw-requirements', label: 'Sw Requirements', disabled: false },
-    { value: 'test-specifications', label: 'Test Specifications', disabled: false },
-    { value: 'test-cases', label: 'Test Cases', disabled: false },
-    { value: 'justifications', label: 'Justifications Only', disabled: false },
-    { value: 'specifications', label: 'Raw Specification', disabled: false }
+    { value: Constants._SRs, label: 'Sw Requirements', disabled: false },
+    { value: Constants._TSs, label: 'Test Specifications', disabled: false },
+    { value: Constants._TCs, label: 'Test Cases', disabled: false },
+    { value: Constants._Js, label: 'Justifications Only', disabled: false },
+    { value: Constants._RS, label: 'Raw Specification', disabled: false }
   ]
 
   return (

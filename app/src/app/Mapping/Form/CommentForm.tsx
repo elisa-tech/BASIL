@@ -14,7 +14,9 @@ import {
   HintBody,
   Text,
   TextVariants,
-  TextArea
+  TextArea,
+  Checkbox,
+  Label
 } from '@patternfly/react-core'
 import { useAuth } from '@app/User/AuthProvider'
 
@@ -47,11 +49,13 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
 }: CommentFormProps) => {
   const auth = useAuth()
   const [commentValue, setCommentValue] = React.useState('')
+  const [isTodo, setIsTodo] = React.useState(false)
   const [validatedCommentValue, setValidatedCommentValue] = React.useState<Constants.validate>('error')
   const [statusValue, setStatusValue] = React.useState('waiting')
 
   const resetForm = () => {
     setCommentValue('')
+    setIsTodo(false)
     setCommentToEdit({})
   }
 
@@ -66,6 +70,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
   React.useEffect(() => {
     if (commentToEdit.hasOwnProperty('id')) {
       setCommentValue(commentToEdit.comment)
+      setIsTodo(commentToEdit.todo)
     }
   }, [commentToEdit])
 
@@ -103,6 +108,8 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       parent_table: parent_table,
       parent_id: parent_id,
       comment: commentValue,
+      todo: isTodo,
+      done: commentToEdit.done ? 'true' : 'false',
       'user-id': auth.userId,
       token: auth.token
     }
@@ -167,8 +174,8 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
           isRequired
           rows={5}
           resizeOrientation='vertical'
-          aria-label='Comment comment field'
-          id={`input-comment-comment`}
+          aria-label='Comment field'
+          id={`input-comment-comment-${commentToEdit.id}`}
           value={commentValue || ''}
           onChange={(_ev, value) => handleCommentValueChange(_ev, value)}
           onKeyUp={handleCommentKeyUp}
@@ -180,6 +187,11 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
             </HelperText>
           </FormHelperText>
         )}
+      </FormGroup>
+
+      <FormGroup label='Todo' fieldId={`input-comment-todo-${commentToEdit.id}`}>
+        <Label>Is this a TODO?</Label>
+        <Checkbox id={`input-comment-todo-${commentToEdit.id}`} isChecked={isTodo} onChange={(_ev, _value) => setIsTodo(!isTodo)} />
       </FormGroup>
 
       {messageValue ? (

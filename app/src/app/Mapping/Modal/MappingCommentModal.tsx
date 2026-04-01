@@ -44,6 +44,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
     setIsModalOpen(new_state)
     if (!new_state) {
       // Closing the modal
+      loadMappingData(Constants.force_reload)
       setMessageValue('')
       setCommentToEdit({})
       setComments([])

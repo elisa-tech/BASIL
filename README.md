@@ -26,7 +26,7 @@ BASIL will help you on identifying gaps and on tracking progress.
 - Test Infratructure (To run your test and track results in the same place where you define requirements)
 - Support multiple test environment (Container, Virtual Machines, Physical Hardwares)
 - Trace tests executed on external test infrastructures (GitlabCI, Github Actions, Testing Farm, KernelCI)
-- Collaboration (comments, notifications)
+- Collaboration (comments, notifications, todo)
 - Clarifies gaps (each relationship support a percentage of completeness)
 - Impact analysis of specification changes and automatic fix of warnings
 - Parallelize teams work (supporting multiple mapping views)

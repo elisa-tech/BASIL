@@ -2,7 +2,6 @@ from datetime import datetime
 from db.models.api import ApiModel
 from db.models.db_base import Base
 from db.models.test_case import TestCaseModel, TestCaseHistoryModel
-from db.models.comment import CommentModel
 from db.models.user import UserModel
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import delete, event, insert, select
@@ -81,12 +80,7 @@ class ApiTestCaseModel(Base):
 
         if db_session:
             _dict['version'] = self.current_version(db_session)
-            # Comments
-            _dict['test_case']['comment_count'] = len(db_session.query(CommentModel).filter(
-                CommentModel.parent_table == self.__tablename__
-            ).filter(
-                CommentModel.parent_id == self.id
-            ).all())
+            _dict['test_case'].update(self.comment_counts(db_session))
 
         if full_data:
             _dict['api'] = self.api.as_dict(full_data=full_data, db_session=db_session)

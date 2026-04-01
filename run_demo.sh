@@ -14,7 +14,7 @@ db_password=default_db_password
 testing=0
 tmt_test_runs_base_dir="/var/test-runs"
 
-OPTSTRING=":b:d:e:f:p:t:u:w:h:T"
+OPTSTRING=":b:d:e:f:p:t:u:w:h:T:"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -174,7 +174,7 @@ echo -e " - db name = ${db_name}"
 echo -e " - db port = ${db_port}"
 echo -e " - db password = ${db_password}"
 echo -e " - testing = ${testing}"
-
+echo -e " - tmt test runs base dir = ${tmt_test_runs_base_dir}"
 
 # ---------------------------------------
 echoSectionTitle "Remove existing containers"

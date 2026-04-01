@@ -1107,8 +1107,8 @@ def get_document_children(_dbi, _document_mapping):
 
 def get_api_sw_requirements_mapping_sections(dbi, api, config={}):
 
-    include_justifications = config.get("include_justifications", True)
-    include_documents = config.get("include_documents", True)
+    include_justifications = bool_from_string(config.get(EXP_CONF_INCLUDE_JUSTIFICATIONS, "true"))
+    include_documents = bool_from_string(config.get(EXP_CONF_INCLUDE_DOCUMENTS, "true"))
 
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification is None:

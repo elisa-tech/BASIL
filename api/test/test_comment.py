@@ -139,7 +139,8 @@ def test_login(user_authentication):
     assert user_authentication.status_code == 200
 
 
-@pytest.mark.parametrize('mandatory_field', ['api-id', 'comment', 'parent_table', 'parent_id', 'user-id', 'token', 'todo'])
+@pytest.mark.parametrize('mandatory_field', 
+                         ['api-id', 'comment', 'parent_table', 'parent_id', 'user-id', 'token', 'todo'])
 def test_comment_post_bad_payload(client, user_authentication, api_sr_db, mandatory_field):
     """ Post request with bad payload, missing fields """
 

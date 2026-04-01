@@ -28,6 +28,7 @@ import { TestCaseMenuKebab } from './Menu/TestCaseMenuKebab'
 import { JustificationMenuKebab } from './Menu/JustificationMenuKebab'
 import { UnmappedMenuKebab } from './Menu/UnmappedMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
+import CommentBadges from '../Custom/CommentBadges'
 import OutlinedCommentsIcon from '@patternfly/react-icons/dist/esm/icons/outlined-comments-icon'
 import CodeIcon from '@patternfly/react-icons/dist/esm/icons/code-icon'
 import CatalogIcon from '@patternfly/react-icons/dist/esm/icons/catalog-icon'
@@ -354,20 +355,21 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>
                     {auth.isLogged() ? (
-                      <React.Fragment>
-                        <Tooltip content={'Click to read and add comments'}>
-                          <Button
-                            variant='plain'
-                            icon={<OutlinedCommentsIcon />}
-                            onClick={() =>
-                              setCommentModalInfo(true, Constants._TC, parent_type, parent_related_to_type, test_cases, cIndex)
-                            }
-                          ></Button>
-                        </Tooltip>
-                        <Badge key={3} screenReaderText='Comments'>
-                          {test_case[Constants._TC_]['comment_count']}
-                        </Badge>
-                      </React.Fragment>
+                      <CommentBadges
+                        leading={
+                          <Tooltip content={'Click to read and add comments and todos'}>
+                            <Button
+                              variant='plain'
+                              icon={<OutlinedCommentsIcon />}
+                              onClick={() =>
+                                setCommentModalInfo(true, Constants._TC, parent_type, parent_related_to_type, test_cases, cIndex)
+                              }
+                            ></Button>
+                          </Tooltip>
+                        }
+                        comment_count={test_case[Constants._TC_]['comment_count']}
+                        todo_count={test_case[Constants._TC_]['todo_count']}
+                      />
                     ) : (
                       ''
                     )}
@@ -456,20 +458,21 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>
                     {auth.isLogged() ? (
-                      <React.Fragment>
-                        <Tooltip content={'Click to read and add comments'}>
-                          <Button
-                            variant='plain'
-                            icon={<OutlinedCommentsIcon />}
-                            onClick={() =>
-                              setCommentModalInfo(true, 'test-specification', parent_type, parent_related_to_type, test_specs, cIndex)
-                            }
-                          ></Button>
-                        </Tooltip>
-                        <Badge key={3} screenReaderText='Comments'>
-                          {test_spec[Constants._TS_]['comment_count']}
-                        </Badge>
-                      </React.Fragment>
+                      <CommentBadges
+                        leading={
+                          <Tooltip content={'Click to read and add comments and todos'}>
+                            <Button
+                              variant='plain'
+                              icon={<OutlinedCommentsIcon />}
+                              onClick={() =>
+                                setCommentModalInfo(true, 'test-specification', parent_type, parent_related_to_type, test_specs, cIndex)
+                              }
+                            ></Button>
+                          </Tooltip>
+                        }
+                        comment_count={test_spec[Constants._TS_]['comment_count']}
+                        todo_count={test_spec[Constants._TS_]['todo_count']}
+                      />
                     ) : (
                       ''
                     )}
@@ -564,18 +567,19 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>
                     {auth.isLogged() ? (
-                      <React.Fragment>
-                        <Tooltip content={'Click to read and add comments'}>
-                          <Button
-                            variant='plain'
-                            icon={<OutlinedCommentsIcon />}
-                            onClick={() => setCommentModalInfo(true, Constants._SR, parent_type, parent_related_to_type, mapping, mIndex)}
-                          ></Button>
-                        </Tooltip>
-                        <Badge key={3} screenReaderText='Comments'>
-                          {mappedItem[Constants._SR_]['comment_count']}
-                        </Badge>
-                      </React.Fragment>
+                      <CommentBadges
+                        leading={
+                          <Tooltip content={'Click to read and add comments and todos'}>
+                            <Button
+                              variant='plain'
+                              icon={<OutlinedCommentsIcon />}
+                              onClick={() => setCommentModalInfo(true, Constants._SR, parent_type, parent_related_to_type, mapping, mIndex)}
+                            ></Button>
+                          </Tooltip>
+                        }
+                        comment_count={mappedItem[Constants._SR_]['comment_count']}
+                        todo_count={mappedItem[Constants._SR_]['todo_count']}
+                      />
                     ) : (
                       ''
                     )}
@@ -651,16 +655,19 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   {auth.isLogged() ? (
                     <FlexItem>
-                      <Tooltip content={'Click to read and add comments'}>
-                        <Button
-                          variant='plain'
-                          icon={<OutlinedCommentsIcon />}
-                          onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}
-                        ></Button>
-                      </Tooltip>
-                      <Badge key={3} screenReaderText='Comments'>
-                        {mappedItem[Constants._J]['comment_count']}
-                      </Badge>
+                      <CommentBadges
+                        leading={
+                          <Tooltip content={'Click to read and add comments and todos'}>
+                            <Button
+                              variant='plain'
+                              icon={<OutlinedCommentsIcon />}
+                              onClick={() => setCommentModalInfo(true, Constants._J, Constants._A, '', mapping, mIndex)}
+                            ></Button>
+                          </Tooltip>
+                        }
+                        comment_count={mappedItem[Constants._J]['comment_count']}
+                        todo_count={mappedItem[Constants._J]['todo_count']}
+                      />
                     </FlexItem>
                   ) : (
                     ''
@@ -733,16 +740,19 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   {auth.isLogged() ? (
                     <FlexItem align={{ default: 'alignRight' }}>
-                      <Tooltip content={'Click to read and add comments'}>
-                        <Button
-                          variant='plain'
-                          icon={<OutlinedCommentsIcon />}
-                          onClick={() => setCommentModalInfo(true, Constants._D, parent_type, parent_related_to_type, mapping, mIndex)}
-                        ></Button>
-                      </Tooltip>
-                      <Badge key={3} screenReaderText='Comments'>
-                        {mappedItem[Constants._D]['comment_count']}
-                      </Badge>
+                      <CommentBadges
+                        leading={
+                          <Tooltip content={'Click to read and add comments and todos'}>
+                            <Button
+                              variant='plain'
+                              icon={<OutlinedCommentsIcon />}
+                              onClick={() => setCommentModalInfo(true, Constants._D, parent_type, parent_related_to_type, mapping, mIndex)}
+                            ></Button>
+                          </Tooltip>
+                        }
+                        comment_count={mappedItem[Constants._D]['comment_count']}
+                        todo_count={mappedItem[Constants._D]['todo_count']}
+                      />
                     </FlexItem>
                   ) : (
                     ''

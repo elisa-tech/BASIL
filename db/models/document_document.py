@@ -1,6 +1,5 @@
 from datetime import datetime
 from db.models.api_document import ApiDocumentModel
-from db.models.comment import CommentModel
 from db.models.db_base import Base
 from db.models.document import DocumentModel, DocumentHistoryModel
 from db.models.user import UserModel
@@ -110,12 +109,7 @@ class DocumentDocumentModel(Base):
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
             _dict['document'] = self.document.as_dict(full_data=full_data, db_session=db_session)
-            # Comments
-            _dict['document']['comment_count'] = len(db_session.query(CommentModel).filter(
-                CommentModel.parent_table == self.__tablename__
-            ).filter(
-                CommentModel.parent_id == self.id
-            ).all())
+            _dict['document'].update(self.comment_counts(db_session))
         else:
             _dict['document'] = {'id': self.document_id}
 

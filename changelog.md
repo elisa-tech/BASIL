@@ -27,6 +27,7 @@
 - Rename API listing section and column titles (#232)
 - Fix typo: 'Eamil' → 'Email' in UserProfileModal (#226)
 - Show user role in the user profile modal
+- Comment as TODO
 
 ## 1.7.x
 

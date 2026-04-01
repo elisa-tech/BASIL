@@ -3,7 +3,6 @@ from db.models.api import ApiModel
 from db.models.db_base import Base
 from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
-from db.models.comment import CommentModel
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy import delete, event, insert, select
 from sqlalchemy import ForeignKey
@@ -123,12 +122,7 @@ class ApiSwRequirementModel(Base):
 
         if db_session:
             _dict['version'] = self.current_version(db_session)
-            # Comments
-            _dict['sw_requirement']['comment_count'] = len(db_session.query(CommentModel).filter(
-                CommentModel.parent_table == self.__tablename__
-            ).filter(
-                CommentModel.parent_id == self.id
-            ).all())
+            _dict['sw_requirement'].update(self.comment_counts(db_session))
 
         if full_data:
             _dict['api'] = self.api.as_dict(full_data=full_data, db_session=db_session)

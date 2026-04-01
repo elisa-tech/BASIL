@@ -139,7 +139,8 @@ def test_login(user_authentication):
     assert user_authentication.status_code == 200
 
 
-@pytest.mark.parametrize('mandatory_field', ['api-id', 'comment', 'parent_table', 'parent_id'])
+@pytest.mark.parametrize('mandatory_field',
+                         ['api-id', 'comment', 'parent_table', 'parent_id', 'user-id', 'token', 'todo'])
 def test_comment_post_bad_payload(client, user_authentication, api_sr_db, mandatory_field):
     """ Post request with bad payload, missing fields """
 
@@ -152,7 +153,8 @@ def test_comment_post_bad_payload(client, user_authentication, api_sr_db, mandat
         'token': user_authentication.json['token'],
         'comment': 'My first comment',
         'parent_table': ApiSwRequirementModel.__tablename__,
-        'parent_id': api_sr.id
+        'parent_id': api_sr.id,
+        'todo': False
     }
 
     # Generate bad payload removing a mandatory field
@@ -173,7 +175,8 @@ def test_comment_post_put_delete(client, user_authentication, api_sr_db):
         'token': user_authentication.json['token'],
         'comment': 'My first comment',
         'parent_table': ApiSwRequirementModel.__tablename__,
-        'parent_id': api_sr.id
+        'parent_id': api_sr.id,
+        'todo': False
     }
 
     response = client.post(_MAPPING_COMMENT_URL, json=mapping_data)
@@ -190,7 +193,9 @@ def test_comment_post_put_delete(client, user_authentication, api_sr_db):
         'comment_id': comment_id,
         'comment': 'My first comment modified',
         'parent_table': ApiSwRequirementModel.__tablename__,
-        'parent_id': api_sr.id
+        'parent_id': api_sr.id,
+        'todo': False,
+        'done': False
     }
 
     response = client.put(_MAPPING_COMMENT_URL, json=mapping_data)
@@ -212,7 +217,8 @@ def test_comment_post_put_delete(client, user_authentication, api_sr_db):
 
 
 @pytest.mark.parametrize('mandatory_field',
-                         ['api-id', 'comment_id', 'comment', 'parent_table', 'parent_id'])
+                         ['api-id', 'comment_id', 'comment', 'parent_table', 'parent_id', 'user-id', 'token', 'todo',
+                          'done'])
 def test_comment_put_bad_payload(client, user_authentication, api_sr_db, mandatory_field):
     """ Put request with bad payload, missing fields """
 
@@ -226,7 +232,9 @@ def test_comment_put_bad_payload(client, user_authentication, api_sr_db, mandato
         'comment_id': 1,
         'comment': 'My first comment modified',
         'parent_table': ApiSwRequirementModel.__tablename__,
-        'parent_id': api_sr.id
+        'parent_id': api_sr.id,
+        'todo': False,
+        'done': False
     }
 
     # Generate bad payload removing a mandatory field
@@ -256,4 +264,7 @@ def test_comment_delete_bad_payload(client, user_authentication, api_sr_db, mand
     mapping_data.pop(mandatory_field)
 
     response = client.delete(_MAPPING_COMMENT_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.BAD_REQUEST
+    if mandatory_field in ['user-id', 'token']:
+        assert response.status_code == HTTPStatus.UNAUTHORIZED
+    else:
+        assert response.status_code == HTTPStatus.BAD_REQUEST

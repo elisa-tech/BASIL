@@ -1,6 +1,7 @@
 [project]
+# Project inception: 2023-10-02
 name = "BASIL"
-version = "1.8.8"
+version = "1.8.9"
 description = "open source software quality management tool"
 authors = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"},
@@ -9,6 +10,7 @@ maintainers = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"}
 ]
 dependencies = [
+    "flake8==7.0.0",
     "Flask==2.2.2",
     "Flask-Cors==3.0.10",
     "Flask-RESTful==0.3.9",
@@ -49,6 +51,9 @@ verify_ssl = true
 [tool.pdm.dev-dependencies]
 lint = ["flake8"]
 test = ["pytest"]
+
+[tool.basil]
+project-created = "2023-10-02"
 
 [tool.pytest.ini_options]
 minversion = "8.0"

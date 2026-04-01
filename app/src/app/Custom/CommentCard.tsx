@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardHeader, CardBody, Text, TextVariants, Button, Flex, Tooltip } from '@patternfly/react-core'
+import { Badge, Card, CardHeader, CardBody, Text, TextVariants, Button, Flex, Tooltip, CardFooter } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
 import { PencilAltIcon, TrashIcon } from '@patternfly/react-icons'
 import ReactMarkdown from 'react-markdown'
@@ -74,6 +74,40 @@ const CommentCard = ({
     }
   }
 
+  const handleTodoChange = (done: boolean) => {
+    let parent_table = Constants.getMappingTableName(workItemType, parentType)
+    const parent_id = relationData.relation_id
+
+    const data = {
+      'api-id': api.id,
+      parent_table: parent_table,
+      parent_id: parent_id,
+      comment: comment.comment,
+      todo: comment.todo,
+      comment_id: comment.id,
+      done: done ? 'true' : 'false',
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + '/comments', {
+      method: 'PUT',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        if (response.status !== 200) {
+          setMessageValue(response.statusText)
+        } else {
+          loadComments(parent_table, parent_id)
+          setMessageValue('Todo marked as done')
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
+  }
+
   return (
     <Card isCompact isFlat>
       <CardHeader>
@@ -115,6 +149,47 @@ const CommentCard = ({
       <CardBody>
         <ReactMarkdown>{comment.comment}</ReactMarkdown>
       </CardBody>
+      <CardFooter>
+        <Flex fullWidth={{ default: 'fullWidth' }} justifyContent={{ default: 'justifyContentFlexEnd' }}>
+          {comment.todo && (
+            <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+              {!comment.done ? (
+                <React.Fragment>
+                  <Badge
+                    screenReaderText='TODO'
+                    style={{
+                      backgroundColor: 'var(--pf-v5-global--palette--orange-200)',
+                      color: 'var(--pf-v5-global--palette--orange-700)'
+                    }}
+                  >
+                    TODO
+                  </Badge>
+                  <Button variant='link' onClick={() => handleTodoChange(true)}>
+                    Mark as done
+                  </Button>
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  <Badge
+                    screenReaderText='Done'
+                    style={{
+                      backgroundColor: 'var(--pf-v5-global--palette--green-100)',
+                      color: 'var(--pf-v5-global--palette--green-700)',
+                      whiteSpace: 'normal',
+                      textAlign: 'left'
+                    }}
+                  >
+                    Done by {comment.done_by} on {new Date(comment.done_at).toLocaleString()}
+                  </Badge>
+                  <Button variant='link' onClick={() => handleTodoChange(false)}>
+                    Mark as not done
+                  </Button>
+                </React.Fragment>
+              )}
+            </Flex>
+          )}
+        </Flex>
+      </CardFooter>
     </Card>
   )
 }

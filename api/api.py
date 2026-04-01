@@ -2297,14 +2297,18 @@ class Comment(Resource):
     def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data, False):
+        mandatory_fields = self.fields.copy()
+        mandatory_fields.append("todo")
+
+        if not check_fields_in_request(mandatory_fields, request_data, False):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         parent_table = request_data["parent_table"].strip()
         parent_id = request_data["parent_id"]
         comment = request_data["comment"].strip()
+        todo = True if str(request_data["todo"]).strip().lower() in ["true", "1"] else False
 
-        new_comment = CommentModel(parent_table, parent_id, user, comment)
+        new_comment = CommentModel(parent_table, parent_id, user, comment, todo)
         dbi.session.add(new_comment)
 
         dbi.session.commit()
@@ -2337,15 +2341,20 @@ class Comment(Resource):
 
         # Add Notifications
         if add_notification:
+            if todo:
+                notification_type = "Todo"
+            else:
+                notification_type = "Comment"
+
             notification = (
-                f"{user.username} added a Comment to {notification_obj} "
+                f"{user.username} added a {notification_type} to {notification_obj} "
                 f"mapped to "
                 f"{mapping.api.api} as part of the library {mapping.api.library}"
             )
             notifications = NotificationModel(
                 mapping.api,
                 NOTIFICATION_CATEGORY_NEW,
-                f"New Comment from {user.username}",
+                f"New {notification_type} from {user.username}",
                 notification,
                 f"[{user.id}]",
                 f"/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments",
@@ -2361,6 +2370,8 @@ class Comment(Resource):
 
         mandatory_fields = self.fields.copy()
         mandatory_fields.append("comment_id")
+        mandatory_fields.append("todo")
+        mandatory_fields.append("done")
 
         if not check_fields_in_request(mandatory_fields, request_data, False):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
@@ -2369,6 +2380,18 @@ class Comment(Resource):
         parent_id = request_data["parent_id"]
         comment_id = request_data["comment_id"]
         new_comment = request_data["comment"].strip()
+        todo = True if str(request_data["todo"]).strip().lower() in ["true", "1"] else False
+        done = False
+
+        if todo:
+            done = True if str(request_data["done"]).strip().lower() in ["true", "1"] else False
+
+        if done:
+            done_by_id = request_data["user-id"]
+            done_at = datetime.datetime.now()
+        else:
+            done_by_id = None
+            done_at = None
 
         try:
             comment_model = (
@@ -2383,7 +2406,10 @@ class Comment(Resource):
             return f"{NOT_FOUND_MESSAGE}: comment not found", NOT_FOUND_STATUS
 
         comment_model.comment = new_comment
-        dbi.session.add(comment_model)
+        comment_model.todo = todo
+        comment_model.done = done
+        comment_model.done_by_id = done_by_id
+        comment_model.done_at = done_at
         dbi.session.commit()
 
         return comment_model.as_dict()

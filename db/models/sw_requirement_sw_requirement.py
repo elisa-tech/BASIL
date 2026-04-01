@@ -1,7 +1,6 @@
 from datetime import datetime
 from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.db_base import Base
-from db.models.comment import CommentModel
 from db.models.user import UserModel
 from db.models.sw_requirement import SwRequirementModel, SwRequirementHistoryModel
 from sqlalchemy import DateTime, Integer
@@ -114,12 +113,7 @@ class SwRequirementSwRequirementModel(Base):
         if db_session is not None:
             _dict['version'] = self.current_version(db_session)
             _dict['sw_requirement'] = self.sw_requirement.as_dict(full_data=full_data, db_session=db_session)
-            # Comments
-            _dict['sw_requirement']['comment_count'] = len(db_session.query(CommentModel).filter(
-                CommentModel.parent_table == self.__tablename__
-            ).filter(
-                CommentModel.parent_id == self.id
-            ).all())
+            _dict['sw_requirement'].update(self.comment_counts(db_session))
         else:
             _dict['sw_requirement'] = {'id': self.sw_requirement_id}
 

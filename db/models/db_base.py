@@ -44,3 +44,23 @@ class Base(DeclarativeBase):
             constraints[column.name] = field_info
 
         return constraints
+
+    def comment_counts(self, db_session):
+        """
+        Return comment and todo counts for rows where this instance is the parent
+        (``parent_table`` / ``parent_id`` on ``CommentModel``).
+        """
+        from db.models.comment import CommentModel
+
+        q = db_session.query(CommentModel).filter(
+            CommentModel.parent_table == self.__tablename__,
+            CommentModel.parent_id == self.id,
+        )
+        return {
+            "comment_count": q.count(),
+            "todo_count": (
+                q.filter(CommentModel.todo.is_(True))
+                .filter(CommentModel.done.is_(False))
+                .count()
+            ),
+        }

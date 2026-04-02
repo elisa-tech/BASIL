@@ -63,6 +63,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from api_utils import (
     add_html_link_to_email_body,
     async_email_notification,
+    bool_from_string,
     document_to_html,
     extend_unmapped_sections_for_auto_fix,
     get_api_specification,
@@ -182,6 +183,14 @@ API_PERMISSION_FIELDS = [
     "write_permissions",
 ]
 
+# Export configuration fields
+EXP_CONF_INCLUDE_JUSTIFICATIONS = "include_justifications"
+EXP_CONF_INCLUDE_DOCUMENTS = "include_documents"
+EXP_CONF_INCLUDE_TEST_SPECIFICATIONS = "include_test_specifications"
+EXP_CONF_INCLUDE_TEST_CASES = "include_test_cases"
+EXP_CONF_INCLUDE_TEST_RUNS = "include_test_runs"
+EXP_CONF_INCLUDE_COMMENTS = "include_comments"
+EXP_CONF_INCLUDE_TOOLS = "include_tools"
 
 app = Flask("BASIL-API")
 api = Api(app)
@@ -942,9 +951,12 @@ def get_query_string_args(args):
     return ret
 
 
-def get_sw_requirement_children(_dbi, _srm):
+def get_sw_requirement_children(_dbi, _srm, config={}):
     """Get hierichical mapping of Sw Requirements"""
     undesired_keys = []
+
+    include_test_specifications = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_SPECIFICATIONS, "true"))
+    include_test_cases = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
 
     mapping_field_id = f"{_srm['__tablename__']}_id"
 
@@ -965,42 +977,51 @@ def get_sw_requirement_children(_dbi, _srm):
             tmp[_SRs][iSR]["parent_mapping_type"] = "sw_requirement_mapping_api"
 
     # Indirect Test Specifications
-    ind_ts = (
-        _dbi.session.query(SwRequirementTestSpecificationModel)
-        .filter(getattr(SwRequirementTestSpecificationModel, mapping_field_id) == _srm["relation_id"])
-        .all()
-    )
-    tmp[_TSs] = [get_dict_without_keys(x.as_dict(db_session=_dbi.session), undesired_keys + ["api"]) for x in ind_ts]
-
-    for iTS in range(len(tmp[_TSs])):
-        # Indirect Test Cases
-        curr_srts_id = tmp[_TSs][iTS]["relation_id"]
-        ind_tc = (
-            _dbi.session.query(TestSpecificationTestCaseModel)
-            .filter(TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == curr_srts_id)
+    if include_test_specifications:
+        ind_ts = (
+            _dbi.session.query(SwRequirementTestSpecificationModel)
+            .filter(getattr(SwRequirementTestSpecificationModel, mapping_field_id) == _srm["relation_id"])
             .all()
         )
+        tmp[_TSs] = [
+            get_dict_without_keys(
+                x.as_dict(db_session=_dbi.session),
+                undesired_keys + ["api", "sw_requirement_mapping_sw_requirement"]
+            ) for x in ind_ts]
 
-        tmp[_TSs][iTS][_TS][_TCs] = [
-            get_dict_without_keys(x.as_dict(db_session=_dbi.session), undesired_keys + ["api"]) for x in ind_tc
-        ]
+        for iTS in range(len(tmp[_TSs])):
+            # Indirect Test Cases
+            if include_test_cases:
+                curr_srts_id = tmp[_TSs][iTS]["relation_id"]
+                ind_tc = (
+                    _dbi.session.query(TestSpecificationTestCaseModel)
+                    .filter(
+                        TestSpecificationTestCaseModel.test_specification_mapping_sw_requirement_id == curr_srts_id
+                    )
+                    .all()
+                )
+
+                tmp[_TSs][iTS][_TS][_TCs] = [
+                    get_dict_without_keys(x.as_dict(db_session=_dbi.session), undesired_keys + ["api"]) for x in ind_tc
+                ]
 
     # Indirect Test Cases
-    ind_tc = (
-        _dbi.session.query(SwRequirementTestCaseModel)
-        .filter(getattr(SwRequirementTestCaseModel, mapping_field_id) == _srm["relation_id"])
-        .all()
-    )
-    tmp[_TCs] = [
-        get_dict_without_keys(
-            x.as_dict(db_session=_dbi.session), undesired_keys + ["api", "sw_requirement_mapping_api"]
+    if include_test_cases:
+        ind_tc = (
+            _dbi.session.query(SwRequirementTestCaseModel)
+            .filter(getattr(SwRequirementTestCaseModel, mapping_field_id) == _srm["relation_id"])
+            .all()
         )
-        for x in ind_tc
-    ]
+        tmp[_TCs] = [
+            get_dict_without_keys(
+                x.as_dict(db_session=_dbi.session), undesired_keys + ["api", "sw_requirement_mapping_api"]
+            )
+            for x in ind_tc
+        ]
 
     # Recursive updating of nested SwRequirements
     for iNSR in range(len(tmp[_SRs])):
-        tmp[_SRs][iNSR] = get_sw_requirement_children(_dbi, tmp[_SRs][iNSR])
+        tmp[_SRs][iNSR] = get_sw_requirement_children(_dbi, tmp[_SRs][iNSR], config)
 
     return tmp
 
@@ -1084,7 +1105,11 @@ def get_document_children(_dbi, _document_mapping):
     return tmp
 
 
-def get_api_sw_requirements_mapping_sections(dbi, api):
+def get_api_sw_requirements_mapping_sections(dbi, api, config={}):
+
+    include_justifications = bool_from_string(config.get(EXP_CONF_INCLUDE_JUSTIFICATIONS, "true"))
+    include_documents = bool_from_string(config.get(EXP_CONF_INCLUDE_DOCUMENTS, "true"))
+
     api_specification = get_api_specification(api.raw_specification_url)
     if api_specification is None:
         api_specification = (
@@ -1101,21 +1126,25 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
     )
     sr_mapping = [x.as_dict(db_session=dbi.session) for x in sr]
 
-    documents = (
-        dbi.session.query(ApiDocumentModel)
-        .filter(ApiDocumentModel.api_id == api.id)
-        .order_by(ApiDocumentModel.offset.asc())
-        .all()
-    )
-    documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
+    documents_mapping = []
+    if include_documents:
+        documents = (
+            dbi.session.query(ApiDocumentModel)
+            .filter(ApiDocumentModel.api_id == api.id)
+            .order_by(ApiDocumentModel.offset.asc())
+            .all()
+        )
+        documents_mapping = [x.as_dict(db_session=dbi.session) for x in documents]
 
-    justifications = (
-        dbi.session.query(ApiJustificationModel)
-        .filter(ApiJustificationModel.api_id == api.id)
-        .order_by(ApiJustificationModel.offset.asc())
-        .all()
-    )
-    justifications_mapping = [x.as_dict(db_session=dbi.session) for x in justifications]
+    justifications_mapping = []
+    if include_justifications:
+        justifications = (
+            dbi.session.query(ApiJustificationModel)
+            .filter(ApiJustificationModel.api_id == api.id)
+            .order_by(ApiJustificationModel.offset.asc())
+            .all()
+        )
+        justifications_mapping = [x.as_dict(db_session=dbi.session) for x in justifications]
 
     mapping = {_A: api.as_dict(), _SRs: sr_mapping, _Js: justifications_mapping, _Ds: documents_mapping}
 
@@ -1140,7 +1169,7 @@ def get_api_sw_requirements_mapping_sections(dbi, api):
             mapped_sections[iMS][_Ds][iD] = document_children_data
 
         for iSR in range(len(mapped_sections[iMS][_SRs])):
-            sw_requirement_children_data = get_sw_requirement_children(dbi, mapped_sections[iMS][_SRs][iSR])
+            sw_requirement_children_data = get_sw_requirement_children(dbi, mapped_sections[iMS][_SRs][iSR], config)
             mapped_sections[iMS][_SRs][iSR] = sw_requirement_children_data
 
     ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
@@ -1792,48 +1821,62 @@ class HTMLApi(Resource):
     div_close_html = "</div>"
 
     def get_sw_requirements_html(self, sw_requirements: list = None, dbi: db_orm.DbInterface = None,
-                                 test_run_config_ids: list = None) -> tuple[list, str]:
+                                 test_run_config_ids: list = None, config={}) -> tuple[list, str]:
         if not isinstance(sw_requirements, list):
             return [], ""
 
         if not len(sw_requirements):
             return [], ""
 
+        include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_test_specifications = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_SPECIFICATIONS, "true"))
+        include_test_cases = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
+
         test_run_configs = []
         html = self.div_open_html
 
         for sw_requirement in sw_requirements:
-            comments = get_mapping_comments(
-                dbi=dbi,
-                relation_id=sw_requirement.get("relation_id", None),
-                tablename=sw_requirement.get("__tablename__", None)
-            )
+            comments = []
+            if include_comments:
+                comments = get_mapping_comments(
+                    dbi=dbi,
+                    relation_id=sw_requirement.get("relation_id", None),
+                    tablename=sw_requirement.get("__tablename__", None)
+                )
 
             html += sw_requirement_to_html(
                 sw_requirement=sw_requirement[_SR],
                 comments=comments
             )
-            ts_test_run_configs, ts_html = self.get_test_specifications_html(
-                test_specifications=sw_requirement[_TSs],
-                dbi=dbi,
-                test_run_config_ids=test_run_config_ids
-            )
-            test_run_configs.extend(ts_test_run_configs)
-            html += ts_html
-            tc_test_run_configs, tc_html = self.get_test_cases_html(
-                test_cases=sw_requirement[_TCs],
-                dbi=dbi,
-                test_run_config_ids=test_run_config_ids,
-                mapping_to="test_case_mapping_sw_requirement")
-            test_run_configs.extend(tc_test_run_configs)
-            html += tc_html
+
+            if include_test_specifications:
+                ts_test_run_configs, ts_html = self.get_test_specifications_html(
+                    test_specifications=sw_requirement[_TSs],
+                    dbi=dbi,
+                    test_run_config_ids=test_run_config_ids,
+                    config=config
+                )
+                test_run_configs.extend(ts_test_run_configs)
+                html += ts_html
+
+            if include_test_cases:
+                tc_test_run_configs, tc_html = self.get_test_cases_html(
+                    test_cases=sw_requirement[_TCs],
+                    dbi=dbi,
+                    test_run_config_ids=test_run_config_ids,
+                    mapping_to="test_case_mapping_sw_requirement",
+                    config=config
+                )
+                test_run_configs.extend(tc_test_run_configs)
+                html += tc_html
 
             # Nested Sw Requirements
             if len(sw_requirement[_SRs]):
                 nested_test_run_configs, nested_html = self.get_sw_requirements_html(
                     sw_requirements=sw_requirement[_SRs],
                     dbi=dbi,
-                    test_run_config_ids=test_run_config_ids
+                    test_run_config_ids=test_run_config_ids,
+                    config=config
                 )
                 test_run_configs.extend(nested_test_run_configs)
                 html += nested_html
@@ -1842,57 +1885,70 @@ class HTMLApi(Resource):
         return test_run_configs, html
 
     def get_test_specifications_html(self, test_specifications: list = None, dbi: db_orm.DbInterface = None,
-                                     test_run_config_ids: list = None) -> tuple[list, str]:
+                                     test_run_config_ids: list = None, config={}) -> tuple[list, str]:
         if not isinstance(test_specifications, list):
             return [], ""
 
         if not len(test_specifications):
             return [], ""
 
+        include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_test_cases = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
+
         test_run_configs = []
         html = self.div_open_html
 
         for test_specification in test_specifications:
-            comments = get_mapping_comments(
-                dbi=dbi,
-                relation_id=test_specification.get("relation_id", None),
-                tablename=test_specification.get("__tablename__", None)
-            )
+            comments = []
+            if include_comments:
+                comments = get_mapping_comments(
+                    dbi=dbi,
+                    relation_id=test_specification.get("relation_id", None),
+                    tablename=test_specification.get("__tablename__", None)
+                )
 
             html += test_specification_to_html(
                 test_specification=test_specification[_TS],
                 comments=comments
             )
 
-            # Test Cases
-            if len(test_specification[_TS][_TCs]):
-                test_run_configs, test_cases_html = self.get_test_cases_html(
-                    test_cases=test_specification[_TS][_TCs],
-                    dbi=dbi,
-                    test_run_config_ids=test_run_config_ids,
-                    mapping_to="test_case_mapping_test_specification")
+            if include_test_cases:
+                # Test Cases
+                if len(test_specification[_TS][_TCs]):
+                    test_run_configs, test_cases_html = self.get_test_cases_html(
+                        test_cases=test_specification[_TS][_TCs],
+                        dbi=dbi,
+                        test_run_config_ids=test_run_config_ids,
+                        mapping_to="test_case_mapping_test_specification",
+                        config=config
+                    )
                 html += test_cases_html
 
         html += self.div_close_html
         return test_run_configs, html
 
     def get_test_cases_html(self, test_cases: list = None, dbi: db_orm.DbInterface = None,
-                            test_run_config_ids: list = None, mapping_to: str = None) -> tuple[list, str]:
+                            test_run_config_ids: list = None, mapping_to: str = None, config={}) -> tuple[list, str]:
         if not isinstance(test_cases, list):
             return [], ""
 
         if not len(test_cases):
             return [], ""
 
+        include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_test_runs = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
+
         test_run_configs = []
         html = self.div_open_html
 
         for test_case in test_cases:
-            comments = get_mapping_comments(
-                dbi=dbi,
-                relation_id=test_case.get("relation_id", None),
-                tablename=test_case.get("__tablename__", None)
-            )
+            comments = []
+            if include_comments:
+                comments = get_mapping_comments(
+                    dbi=dbi,
+                    relation_id=test_case.get("relation_id", None),
+                    tablename=test_case.get("__tablename__", None)
+                )
 
             html += test_case_to_html(
                 test_case=test_case[_TC],
@@ -1900,24 +1956,25 @@ class HTMLApi(Resource):
             )
 
             # Test Runs
-            test_runs_query = (
-                dbi.session.query(TestRunModel)
-                .filter(TestRunModel.mapping_to == mapping_to)
-                .filter(TestRunModel.mapping_id == test_case["relation_id"])
+            if include_test_runs:
+                test_runs_query = (
+                    dbi.session.query(TestRunModel)
+                    .filter(TestRunModel.mapping_to == mapping_to)
+                    .filter(TestRunModel.mapping_id == test_case["relation_id"])
 
-            )
-            if test_run_config_ids:
-                test_runs_query = test_runs_query.filter(TestRunModel.test_run_config_id.in_(test_run_config_ids))
-            test_runs = (
-                test_runs_query.order_by(TestRunModel.test_run_config_id.desc(), TestRunModel.id.asc()).all()
-            )
+                )
+                if test_run_config_ids:
+                    test_runs_query = test_runs_query.filter(TestRunModel.test_run_config_id.in_(test_run_config_ids))
+                test_runs = (
+                    test_runs_query.order_by(TestRunModel.test_run_config_id.desc(), TestRunModel.id.asc()).all()
+                )
 
-            if test_runs:
-                html += self.div_open_html
-                for test_run in test_runs:
-                    test_run_configs.append(test_run.as_dict().get("config", {}))
-                    html += test_run_to_html(test_run.as_dict(full_data=True))
-                html += self.div_close_html
+                if test_runs:
+                    html += self.div_open_html
+                    for test_run in test_runs:
+                        test_run_configs.append(test_run.as_dict().get("config", {}))
+                        html += test_run_to_html(test_run.as_dict(full_data=True))
+                    html += self.div_close_html
 
         html += self.div_close_html
         return test_run_configs, html
@@ -1938,21 +1995,25 @@ class HTMLApi(Resource):
         html += self.div_close_html
         return html
 
-    def get_documents_html(self, documents: list = None, dbi: db_orm.DbInterface = None) -> str:
+    def get_documents_html(self, documents: list = None, dbi: db_orm.DbInterface = None, config={}) -> str:
         if not isinstance(documents, list):
             return ""
 
         if not len(documents):
             return ""
 
+        include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+
         html = self.div_open_html
 
         for document in documents:
-            comments = get_mapping_comments(
-                dbi=dbi,
-                relation_id=document.get("relation_id", None),
-                tablename=document.get("__tablename__", None)
-            )
+            comments = []
+            if include_comments:
+                comments = get_mapping_comments(
+                    dbi=dbi,
+                    relation_id=document.get("relation_id", None),
+                    tablename=document.get("__tablename__", None)
+                )
 
             html += document_to_html(
                 document=document[_D],
@@ -1963,13 +2024,14 @@ class HTMLApi(Resource):
             if len(document[_Ds]):
                 html += self.get_documents_html(
                     documents=document[_Ds],
-                    dbi=dbi
+                    dbi=dbi,
+                    config=config
                 )
 
         html += self.div_close_html
         return html
 
-    def get_justifications_html(self, justifications: list = None, dbi: db_orm.DbInterface = None) -> str:
+    def get_justifications_html(self, justifications: list = None, dbi: db_orm.DbInterface = None, config={}) -> str:
         if not isinstance(justifications, list):
             return ""
 
@@ -1978,12 +2040,16 @@ class HTMLApi(Resource):
 
         html = self.div_open_html
 
+        include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+
         for justification in justifications:
-            comments = get_mapping_comments(
-                dbi=dbi,
-                relation_id=justification.get("relation_id", None),
-                tablename=justification.get("__tablename__", None)
-            )
+            comments = []
+            if include_comments:
+                comments = get_mapping_comments(
+                    dbi=dbi,
+                    relation_id=justification.get("relation_id", None),
+                    tablename=justification.get("__tablename__", None)
+                )
 
             html += justification_to_html(
                 justification=justification[_J],
@@ -2002,6 +2068,24 @@ class HTMLApi(Resource):
                 fields=mandatory_fields,
                 request=request.args):
             return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        include_justifications = bool_from_string(request.args.get(EXP_CONF_INCLUDE_JUSTIFICATIONS, "true"))
+        include_documents = bool_from_string(request.args.get(EXP_CONF_INCLUDE_DOCUMENTS, "true"))
+        include_test_specifications = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TEST_SPECIFICATIONS, "true"))
+        include_test_cases = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
+        include_test_runs = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
+        include_comments = bool_from_string(request.args.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_tools = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TOOLS, "true"))
+
+        config = {
+            EXP_CONF_INCLUDE_JUSTIFICATIONS: include_justifications,
+            EXP_CONF_INCLUDE_DOCUMENTS: include_documents,
+            EXP_CONF_INCLUDE_TEST_SPECIFICATIONS: include_test_specifications,
+            EXP_CONF_INCLUDE_TEST_CASES: include_test_cases,
+            EXP_CONF_INCLUDE_TEST_RUNS: include_test_runs,
+            EXP_CONF_INCLUDE_COMMENTS: include_comments,
+            EXP_CONF_INCLUDE_TOOLS: include_tools
+        }
 
         args = get_query_string_args(request.args)
         mapping_view = args.get("mapping-view", "").replace("-", "_")
@@ -2070,55 +2154,67 @@ class HTMLApi(Resource):
             sr_test_run_configs, sr_html = self.get_sw_requirements_html(
                 sw_requirements=mapped_section[_SRs],
                 dbi=dbi,
-                test_run_config_ids=test_run_config_ids
+                test_run_config_ids=test_run_config_ids,
+                config=config
             )
             test_run_configs.extend(sr_test_run_configs)
             html += sr_html
 
             # Test Specifications
-            ts_test_run_configs, ts_html = self.get_test_specifications_html(
-                test_specifications=mapped_section[_TSs],
-                dbi=dbi,
-                test_run_config_ids=test_run_config_ids
-            )
-            test_run_configs.extend(ts_test_run_configs)
-            html += ts_html
+            if include_test_specifications:
+                ts_test_run_configs, ts_html = self.get_test_specifications_html(
+                    test_specifications=mapped_section[_TSs],
+                    dbi=dbi,
+                    test_run_config_ids=test_run_config_ids,
+                    config=config
+                )
+                test_run_configs.extend(ts_test_run_configs)
+                html += ts_html
 
             # Test Cases
-            tc_test_run_configs, tc_html = self.get_test_cases_html(
-                test_cases=mapped_section[_TCs],
-                dbi=dbi,
-                test_run_config_ids=test_run_config_ids,
-                mapping_to="test_case_mapping_api")
-            test_run_configs.extend(tc_test_run_configs)
-            html += tc_html
+            if include_test_cases:
+                tc_test_run_configs, tc_html = self.get_test_cases_html(
+                    test_cases=mapped_section[_TCs],
+                    dbi=dbi,
+                    test_run_config_ids=test_run_config_ids,
+                    mapping_to="test_case_mapping_api",
+                    config=config
+                )
+                test_run_configs.extend(tc_test_run_configs)
+                html += tc_html
 
             # Documents
-            html += self.get_documents_html(
-                documents=mapped_section[_Ds],
-                dbi=dbi
-            )
+            if include_documents:
+                html += self.get_documents_html(
+                    documents=mapped_section[_Ds],
+                    dbi=dbi,
+                    config=config
+                )
 
             # Justifications
-            html += self.get_justifications_html(
-                justifications=mapped_section[_Js],
-                dbi=dbi
-            )
+            if include_justifications:
+                html += self.get_justifications_html(
+                    justifications=mapped_section[_Js],
+                    dbi=dbi,
+                    config=config
+                )
 
         # Test Run Configs
         # Remove duplicates
-        unique_test_run_config_ids = [x.get("id", None) for x in test_run_configs if x.get("id", None) is not None]
-        unique_test_run_config_ids = list(set(unique_test_run_config_ids))
-        unique_test_run_configs = (
-            dbi.session.query(TestRunConfigModel)
-            .filter(TestRunConfigModel.id.in_(unique_test_run_config_ids))
-            .all()
-        )
-        unique_test_run_configs = [x.as_dict(full_data=True) for x in unique_test_run_configs]
-        html += self.get_test_run_configs_html(test_run_configs=unique_test_run_configs)
+        if include_test_runs:
+            unique_test_run_config_ids = [x.get("id", None) for x in test_run_configs if x.get("id", None) is not None]
+            unique_test_run_config_ids = list(set(unique_test_run_config_ids))
+            unique_test_run_configs = (
+                dbi.session.query(TestRunConfigModel)
+                .filter(TestRunConfigModel.id.in_(unique_test_run_config_ids))
+                .all()
+            )
+            unique_test_run_configs = [x.as_dict(full_data=True) for x in unique_test_run_configs]
+            html += self.get_test_run_configs_html(test_run_configs=unique_test_run_configs)
 
         # Tools
-        html += tools_to_html()
+        if include_tools:
+            html += tools_to_html()
         html += "</body></html>"
 
         # Save HTML to file
@@ -3835,7 +3931,7 @@ class MappingUsage(Resource):
         if wi_type in ["sw-requirement", "test-specification", "test-case"]:
             api_srs = dbi.session.query(ApiSwRequirementModel).all()
             for api_sr in api_srs:
-                sr_mapping = get_sw_requirement_children(dbi, api_sr.as_dict(db_session=dbi.session))
+                sr_mapping = get_sw_requirement_children(dbi, api_sr.as_dict(db_session=dbi.session), config={})
                 for work_item in get_indirect_work_items_from_hierichical_mapping(dbi, sr_mapping, wi_type):
                     if work_item.get("id", None) == wi_id:
                         api_ids.append(api_sr.api_id)

@@ -109,7 +109,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
   const exportFilename = React.useRef('')
 
-  const exportToFormat = (format: string = 'jsonld') => {
+  const exportToFormat = (format: string = 'jsonld', config: any = {}) => {
     if (!auth.isLogged()) {
       return
     }
@@ -121,6 +121,11 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     query_string += '&token=' + auth.token
     query_string += '&filename=' + exportFilename.current
     query_string += '&mapping-view=' + mappingViewSelectValue
+
+    // for each key of the config add to the query string
+    for (const key in config) {
+      query_string += '&' + key + '=' + config[key]
+    }
 
     let url
     if (format == 'jsonld') {
@@ -483,7 +488,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           id='btn-export-sw-component-to-spdx'
                           isDisabled={SPDXContentLoading}
                           variant='secondary'
-                          onClick={() => exportToFormat('jsonld')}
+                          onClick={() => exportToFormat('jsonld', {})}
                         >
                           {SPDXContentLoading ? 'Loading ...' : 'Export to SPDX'}
                         </Button>
@@ -493,7 +498,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                           id='btn-export-sw-component-to-html'
                           isDisabled={HTMLContentLoading}
                           variant='secondary'
-                          onClick={() => exportToFormat('html')}
+                          onClick={() => exportToFormat('html', {})}
                         >
                           {HTMLContentLoading ? 'Loading ...' : 'Export to HTML/PDF'}
                         </Button>
@@ -835,6 +840,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         setHTMLContent={setHTMLContent}
         modalShowState={modalHTMLExportShowState}
         setModalShowState={setModalHTMLExportShowState}
+        exportToHTMLFormat={exportToFormat}
       />
     </React.Fragment>
   )

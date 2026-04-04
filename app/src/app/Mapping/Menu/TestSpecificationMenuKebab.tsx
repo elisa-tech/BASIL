@@ -3,10 +3,12 @@ import * as Constants from '../../Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import { ActionButtons } from '@app/Common/Actions/ActionButtons'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestSpecificationMenuKebabProps {
   indirect
   setCommentModalInfo
+  setForkModalInfo
   setHistoryModalInfo
   setDetailsModalInfo
   setUsageModalInfo
@@ -25,6 +27,7 @@ export interface TestSpecificationMenuKebabProps {
 export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificationMenuKebabProps> = ({
   indirect,
   setCommentModalInfo,
+  setForkModalInfo,
   setHistoryModalInfo,
   setDetailsModalInfo,
   setUsageModalInfo,
@@ -40,6 +43,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
   mappingOffset
 }: TestSpecificationMenuKebabProps) => {
   const [isOpen, setIsOpen] = React.useState(false)
+  const auth = useAuth()
 
   const onToggleClick = () => {
     setIsOpen(!isOpen)
@@ -62,7 +66,7 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {api?.permissions.indexOf('w') >= 0 ? (
+        {auth.isLogged() && Constants.hasWritePermission(api) ? (
           <React.Fragment>
             <DropdownItem
               value={0}
@@ -118,7 +122,15 @@ export const TestSpecificationMenuKebab: React.FunctionComponent<TestSpecificati
             >
               Edit
             </DropdownItem>
-            <DropdownItem value={3} key='fork' isDisabled>
+            <DropdownItem
+              value={3}
+              id={'btn-menu-test-specification-fork-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-test-specification-fork'}
+              key='fork'
+              onClick={() =>
+                setForkModalInfo(true, Constants._TS, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)
+              }
+            >
               Fork
             </DropdownItem>
           </React.Fragment>

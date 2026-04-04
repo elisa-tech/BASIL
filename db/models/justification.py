@@ -63,6 +63,15 @@ class JustificationModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def fork(self, created_by, db_session=None):
+        new_justification = JustificationModel(
+            description=self.description,
+            created_by=created_by
+        )
+        db_session.add(new_justification)
+        db_session.commit()
+        return new_justification
+
 
 @event.listens_for(JustificationModel, "after_update")
 def receive_after_update(mapper, connection, target):

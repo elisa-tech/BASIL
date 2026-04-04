@@ -481,7 +481,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
               </Flex>
               {auth.isLogged() ? (
                 <Flex align={{ default: 'alignRight' }}>
-                  {api?.permissions?.indexOf('r') >= 0 ? (
+                  {Constants.hasReadPermission(api) ? (
                     <>
                       <FlexItem>
                         <Button
@@ -507,7 +507,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                   ) : (
                     ''
                   )}
-                  {api?.permissions?.indexOf('w') >= 0 ? (
+                  {auth.isLogged() && Constants.hasWritePermission(api) ? (
                     <React.Fragment>
                       <FlexItem>
                         <Button

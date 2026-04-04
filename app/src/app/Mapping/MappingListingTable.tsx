@@ -325,6 +325,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       indirect={indirect}
                       setCommentModalInfo={setCommentModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
+                      setForkModalInfo={setForkModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setImplementationModalInfo={setImplementationModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
@@ -428,6 +429,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                       indirect={indirect}
                       setCommentModalInfo={setCommentModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
+                      setForkModalInfo={setForkModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
                       setTcModalInfo={setTcModalInfo}
@@ -632,6 +634,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <JustificationMenuKebab
                       setCommentModalInfo={setCommentModalInfo}
                       setJModalInfo={setJModalInfo}
+                      setForkModalInfo={setForkModalInfo}
                       setDetailsModalInfo={setDetailsModalInfo}
                       setHistoryModalInfo={setHistoryModalInfo}
                       setUsageModalInfo={setUsageModalInfo}
@@ -739,7 +742,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <CompletionLabel mappedItem={mappedItem} />
                   </FlexItem>
                   {auth.isLogged() ? (
-                    <FlexItem align={{ default: 'alignRight' }}>
+                    <FlexItem>
                       <CommentBadges
                         leading={
                           <Tooltip content={'Click to read and add comments and todos'}>
@@ -970,7 +973,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     />
                   </FlexItem>
                   <FlexItem align={{ default: 'alignRight' }}>
-                    {api?.permissions?.indexOf('w') >= 0 ? (
+                    {auth.isLogged() && Constants.hasWritePermission(api) ? (
                       <MappingSectionMenuKebab
                         api={api}
                         offset={snippet['offset']}

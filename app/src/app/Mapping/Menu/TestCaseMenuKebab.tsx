@@ -3,10 +3,12 @@ import * as Constants from '../../Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import { ActionButtons } from '@app/Common/Actions/ActionButtons'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestCaseMenuKebabProps {
   indirect
   setCommentModalInfo
+  setForkModalInfo
   setHistoryModalInfo
   setDetailsModalInfo
   setImplementationModalInfo
@@ -27,6 +29,7 @@ export interface TestCaseMenuKebabProps {
 export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> = ({
   indirect,
   setCommentModalInfo,
+  setForkModalInfo,
   setHistoryModalInfo,
   setDetailsModalInfo,
   setImplementationModalInfo,
@@ -44,6 +47,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
   mappingOffset
 }: TestCaseMenuKebabProps) => {
   const [isOpen, setIsOpen] = React.useState(false)
+  const auth = useAuth()
 
   const onToggleClick = () => {
     setIsOpen(!isOpen)
@@ -73,7 +77,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {api?.permissions.indexOf('w') >= 0 ? (
+        {auth.isLogged() && Constants.hasWritePermission(api) ? (
           <>
             <DropdownItem
               value={0}
@@ -107,7 +111,15 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
             >
               Edit
             </DropdownItem>
-            <DropdownItem value={2} key='fork' isDisabled>
+            <DropdownItem
+              value={2}
+              id={'btn-menu-test-case-fork-' + mappingList[mappingIndex].relation_id}
+              name={'btn-menu-test-case-fork'}
+              key='fork'
+              onClick={() =>
+                setForkModalInfo(true, Constants._TC, mappingParentType, mappingParentRelatedToType, mappingList, mappingIndex)
+              }
+            >
               Fork
             </DropdownItem>
           </>
@@ -124,7 +136,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           History
         </DropdownItem>
 
-        {api?.permissions.indexOf('w') >= 0 ? (
+        {auth.isLogged() && Constants.hasWritePermission(api) ? (
           <>
             <DropdownItem
               value={4}
@@ -164,7 +176,7 @@ export const TestCaseMenuKebab: React.FunctionComponent<TestCaseMenuKebabProps> 
           View implementation
         </DropdownItem>
 
-        {api?.permissions.indexOf('r') >= 0 ? (
+        {Constants.hasReadPermission(api) ? (
           <>
             <DropdownItem
               value={6}

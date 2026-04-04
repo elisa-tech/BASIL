@@ -343,6 +343,38 @@ def get_api_from_indirect_sw_requirement_mapping(_mapping, _dbisession):
     return None
 
 
+def get_api_from_indirect_test_specification_mapping(_mapping, _dbisession):
+    """Return the ApiModel instance from an indirect mapping to
+    TestSpecification.
+    Possible nested mappings are:
+    - TestSpecificationTestCaseModel
+    The parent test specification can be mapped to an Api directly
+    (ApiTestSpecificationModel) or indirectly through a SwRequirement.
+    """
+    if not isinstance(_mapping, TestSpecificationTestCaseModel):
+        logger.warning(f"Mapping is instance of {type(_mapping)}")
+        return None
+
+    if _mapping.test_specification_mapping_api_id:
+        try:
+            api_ts = _dbisession.query(ApiTestSpecificationModel).filter(
+                ApiTestSpecificationModel.id == _mapping.test_specification_mapping_api_id
+            ).one()
+            return api_ts.api
+        except NoResultFound:
+            return None
+    elif _mapping.test_specification_mapping_sw_requirement_id:
+        try:
+            sr_ts = _dbisession.query(SwRequirementTestSpecificationModel).filter(
+                SwRequirementTestSpecificationModel.id == _mapping.test_specification_mapping_sw_requirement_id
+            ).one()
+        except NoResultFound:
+            return None
+        return get_api_from_indirect_sw_requirement_mapping(sr_ts, _dbisession)
+
+    return None
+
+
 def get_direct_sw_requirement_mapping_id(_mapping, _dbisession):
     """Return the ApiSwRequirementModel.id
     from an indirect mapping to SwRequirement"""
@@ -3101,7 +3133,6 @@ class ApiWritePermissionRequest(Resource):
             return f"{CONFLICT_MESSAGE}: user already requested write permission", CONFLICT_STATUS
         else:
             api.write_permission_requests += f"[{user.id}]"
-            dbi.session.add(api)
             dbi.session.commit()
 
             notification_title = f"Write permission request from {user.username}"
@@ -3185,7 +3216,6 @@ class ApiLastCoverage(Resource):
             setattr(api, edit_field, request_data[edit_field.replace("_", "-")])
 
         if api_modified:
-            dbi.session.add(api)
             dbi.session.commit()
 
         return api.as_dict()
@@ -3262,6 +3292,102 @@ class ApiHistory(Resource):
 
         ret = ret[::-1]
         return ret
+
+
+class ApiNewVersion(Resource):
+    @check_api_user_read_permission
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+        """Create a new version of a target software component
+        In case the version already exists, the API will return CONFLICT.
+        Otherwise:
+        - Create a new version of the software component
+        - Clone permissions of the software component to the new version
+        - Clone all the work items of the software component to the new version (without the test runs)
+        - Return the new software component object as dictionary
+        """
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["api-id", "new-version"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        api_id = request_data["api-id"]
+        new_version = request_data["new-version"]
+
+        api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
+        if not api:
+            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        same_existing_apis = (
+            dbi.session.query(ApiModel)
+            .filter(ApiModel.api == api.api)
+            .filter(ApiModel.library == api.library)
+            .filter(ApiModel.library_version == new_version)
+            .all()
+        )
+        if len(same_existing_apis) > 0:
+            return "An Api with selected name and library already exist in the db", CONFLICT_STATUS
+
+        new_api = ApiModel(
+            api.api,
+            api.library,
+            new_version,
+            api.raw_specification_url,
+            api.category,
+            api.checksum,
+            api.implementation_file,
+            api.implementation_file_from_row,
+            api.implementation_file_to_row,
+            api.tags,
+            user,
+        )
+
+        # Clone permissions
+        new_api.delete_permissions = api.delete_permissions
+        new_api.edit_permissions = api.edit_permissions
+        new_api.manage_permissions = api.manage_permissions
+        new_api.read_denials = api.read_denials
+        new_api.write_permissions = api.write_permissions
+        new_api.write_permission_requests = api.write_permission_requests
+
+        dbi.session.add(new_api)
+        dbi.session.commit()
+
+        # Clone ApiSwRequirements
+        api_sw_requirements = dbi.session.query(ApiSwRequirementModel).filter(
+            ApiSwRequirementModel.api_id == api.id
+        ).all()
+        for api_sw_requirement in api_sw_requirements:
+            api_sw_requirement.fork(new_api, dbi.session)
+
+        # Clone ApiTestSpecifications
+        api_test_specifications = dbi.session.query(ApiTestSpecificationModel).filter(
+            ApiTestSpecificationModel.api_id == api.id
+        ).all()
+        for api_test_specification in api_test_specifications:
+            api_test_specification.fork(new_api, dbi.session)
+
+        # Clone ApiTestCases
+        api_test_cases = dbi.session.query(ApiTestCaseModel).filter(
+            ApiTestCaseModel.api_id == api.id
+        ).all()
+        for api_test_case in api_test_cases:
+            api_test_case.fork(new_api, dbi.session)
+
+        # Clone ApiDocuments
+        api_documents = dbi.session.query(ApiDocumentModel).filter(
+            ApiDocumentModel.api_id == api.id
+        ).all()
+        for api_document in api_documents:
+            api_document.fork(new_api, dbi.session)
+
+        # Clone ApiJustifications
+        api_justifications = dbi.session.query(ApiJustificationModel).filter(
+            ApiJustificationModel.api_id == api.id
+        ).all()
+        for api_justification in api_justifications:
+            api_justification.fork(new_api, dbi.session)
+
+        return new_api.as_dict()
 
 
 class Library(Resource):
@@ -6199,32 +6325,8 @@ class TestSpecificationTestCasesMapping(Resource):
             return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
 
         # Api
-        if ts_mapping_tc.test_specification_mapping_api_id:
-            try:
-                api_ts = (
-                    dbi.session.query(ApiTestSpecificationModel)
-                    .filter(ApiTestSpecificationModel.id == ts_mapping_tc.test_specification_mapping_api_id)
-                    .one()
-                )
-            except NoResultFound:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-            api = api_ts.api
-        elif ts_mapping_tc.test_specification_mapping_sw_requirement_id:
-            try:
-                sr_ts = (
-                    dbi.session.query(SwRequirementTestSpecificationModel)
-                    .filter(
-                        SwRequirementTestSpecificationModel.id
-                        == ts_mapping_tc.test_specification_mapping_sw_requirement_id
-                    )
-                    .one()
-                )
-            except NoResultFound:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-            api = get_api_from_indirect_sw_requirement_mapping(sr_ts, dbi.session)
-            if not isinstance(api, ApiModel):
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-        else:
+        api = get_api_from_indirect_test_specification_mapping(ts_mapping_tc, dbi.session)
+        if not isinstance(api, ApiModel):
             return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         test_case = ts_mapping_tc.test_case
@@ -6636,7 +6738,6 @@ class ForkApiSwRequirement(Resource):
         dbi.session.commit()
 
         asr_mapping.sw_requirement_id = new_sr.id
-        dbi.session.add(asr_mapping)
         dbi.session.commit()
         return asr_mapping.as_dict()
 
@@ -6672,7 +6773,6 @@ class ForkApiDocument(Resource):
 
         new_doc = ad_mapping.document.fork(created_by=user, db_session=dbi.session)
         ad_mapping.document_id = new_doc.id
-        dbi.session.add(ad_mapping)
         dbi.session.commit()
         return ad_mapping.as_dict()
 
@@ -6715,7 +6815,6 @@ class ForkSwRequirementSwRequirement(Resource):
         dbi.session.commit()
 
         sr_sr_mapping.sw_requirement_id = new_sr.id
-        dbi.session.add(sr_sr_mapping)
         dbi.session.commit()
         return sr_sr_mapping.as_dict()
 
@@ -6756,9 +6855,211 @@ class ForkDocumentDocument(Resource):
         new_doc = doc_doc_mapping.document.fork(created_by=user, db_session=dbi.session)
 
         doc_doc_mapping.document_id = new_doc.id
-        dbi.session.add(doc_doc_mapping)
         dbi.session.commit()
         return doc_doc_mapping.as_dict()
+
+
+class ForkApiJustification(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            api_justification_mapping = (
+                dbi.session.query(ApiJustificationModel)
+                .filter(ApiJustificationModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Justification mapping to Api id {request_data['relation-id']}", 400
+
+        # Permissions
+        permissions = get_api_user_permissions(api_justification_mapping.api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_justification = api_justification_mapping.justification.fork(created_by=user, db_session=dbi.session)
+        api_justification_mapping.justification_id = new_justification.id
+        dbi.session.commit()
+        return api_justification_mapping.as_dict()
+
+
+class ForkApiTestSpecification(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            api_ts_mapping = (
+                dbi.session.query(ApiTestSpecificationModel)
+                .filter(ApiTestSpecificationModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
+
+        # Permissions
+        permissions = get_api_user_permissions(api_ts_mapping.api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_ts = api_ts_mapping.test_specification.fork(created_by=user, db_session=dbi.session)
+        api_ts_mapping.test_specification_id = new_ts.id
+        dbi.session.commit()
+        return api_ts_mapping.as_dict()
+
+
+class ForkSwRequirementTestSpecification(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+
+        try:
+            sw_requirement_ts_mapping = (
+                dbi.session.query(SwRequirementTestSpecificationModel)
+                .filter(SwRequirementTestSpecificationModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return (
+                "Unable to find the Test Specification mapping to Sw Requirement id {request_data['relation-id']}",
+                400,
+            )
+
+        # Permissions
+        api = get_api_from_indirect_sw_requirement_mapping(sw_requirement_ts_mapping, dbi.session)
+        if not isinstance(api, ApiModel):
+            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        permissions = get_api_user_permissions(api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_ts = sw_requirement_ts_mapping.test_specification.fork(created_by=user, db_session=dbi.session)
+        sw_requirement_ts_mapping.test_specification_id = new_ts.id
+        dbi.session.commit()
+        return sw_requirement_ts_mapping.as_dict()
+
+
+class ForkApiTestCase(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            api_tc_mapping = (
+                dbi.session.query(ApiTestCaseModel)
+                .filter(ApiTestCaseModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Api id {request_data['relation-id']}", 400
+
+        # Permissions
+        permissions = get_api_user_permissions(api_tc_mapping.api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_tc = api_tc_mapping.test_case.fork(created_by=user, db_session=dbi.session)
+        api_tc_mapping.test_case_id = new_tc.id
+        dbi.session.commit()
+        return api_tc_mapping.as_dict()
+
+
+class ForkSwRequirementTestCase(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+
+        try:
+            sw_requirement_tc_mapping = (
+                dbi.session.query(SwRequirementTestCaseModel)
+                .filter(SwRequirementTestCaseModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
+
+        # Permissions
+        api = get_api_from_indirect_sw_requirement_mapping(sw_requirement_tc_mapping, dbi.session)
+        if not isinstance(api, ApiModel):
+            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        permissions = get_api_user_permissions(api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_tc = sw_requirement_tc_mapping.test_case.fork(created_by=user, db_session=dbi.session)
+        sw_requirement_tc_mapping.test_case_id = new_tc.id
+        dbi.session.commit()
+        return sw_requirement_tc_mapping.as_dict()
+
+
+class ForkTestSpecificationTestCase(Resource):
+    def post(self):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["relation-id"]
+        if not check_fields_in_request(mandatory_fields, request_data):
+            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        try:
+            test_specification_tc_mapping = (
+                dbi.session.query(TestSpecificationTestCaseModel)
+                .filter(TestSpecificationTestCaseModel.id == request_data["relation-id"])
+                .one()
+            )
+        except NoResultFound:
+            return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
+
+        # Permissions
+        api = get_api_from_indirect_test_specification_mapping(test_specification_tc_mapping, dbi.session)
+        if not isinstance(api, ApiModel):
+            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+
+        permissions = get_api_user_permissions(api, user, dbi.session)
+        if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+
+        new_tc = test_specification_tc_mapping.test_case.fork(created_by=user, db_session=dbi.session)
+        test_specification_tc_mapping.test_case_id = new_tc.id
+        dbi.session.commit()
+        return test_specification_tc_mapping.as_dict()
 
 
 class TestingSupportInitDb(Resource):
@@ -7262,7 +7563,6 @@ class UserEnable(Resource):
 
         target_user.enabled = int(str(request_data["target-user"]["enabled"]).strip())
 
-        dbi.session.add(target_user)
         dbi.session.commit()
 
         return True
@@ -7319,7 +7619,6 @@ class User(Resource):
                 return "Username already in use.", BAD_REQUEST_STATUS
 
             user.username = username
-            dbi.session.add(user)
             dbi.session.commit()
             dbi.close()
             return {"result": "success", "message": "Your username has been saved. Please login again."}
@@ -7691,7 +7990,6 @@ class UserNotifications(Resource):
                 user_api_notifications.append(api_id)
 
         user.api_notifications = ",".join([str(x) for x in user_api_notifications])
-        dbi.session.add(user)
         dbi.session.commit()
         return "Notification updated"
 
@@ -8328,7 +8626,6 @@ class TestRun(Resource):
             run.notes = request_data["notes"]
 
         if test_run_modified:
-            dbi.session.add(run)
             dbi.session.commit()
 
             # Notification
@@ -9446,6 +9743,7 @@ class Version(Resource):
 
 api.add_resource(Api, "/apis")
 api.add_resource(ApiHistory, "/apis/history")
+api.add_resource(ApiNewVersion, "/apis/new-version")
 api.add_resource(ApiSpecification, "/api-specifications")
 api.add_resource(ApiWritePermissionRequest, "/apis/write-permission-request")
 api.add_resource(Library, "/libraries")
@@ -9512,9 +9810,12 @@ api.add_resource(ForkApiSwRequirement, "/fork/api/sw-requirement")
 api.add_resource(ForkSwRequirementSwRequirement, "/fork/sw-requirement/sw-requirement")
 api.add_resource(ForkApiDocument, "/fork/api/document")
 api.add_resource(ForkDocumentDocument, "/fork/document/document")
-# api.add_resource(ForkTestSpecification, '/fork/api/test-specification')
-# api.add_resource(ForkTestCase, '/fork/api/test-case')
-# api.add_resource(ForkJustification, '/fork/api/justification')
+api.add_resource(ForkApiTestSpecification, '/fork/api/test-specification')
+api.add_resource(ForkSwRequirementTestSpecification, '/fork/sw-requirement/test-specification')
+api.add_resource(ForkApiTestCase, '/fork/api/test-case')
+api.add_resource(ForkSwRequirementTestCase, '/fork/sw-requirement/test-case')
+api.add_resource(ForkTestSpecificationTestCase, '/fork/test-specification/test-case')
+api.add_resource(ForkApiJustification, '/fork/api/justification')
 
 api.add_resource(User, "/user")
 api.add_resource(UserApis, "/user/apis")

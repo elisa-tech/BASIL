@@ -75,6 +75,18 @@ class TestSpecificationModel(Base):
             _dict["updated_at"] = self.updated_at.strftime(Base.dt_format_str)
         return _dict
 
+    def fork(self, created_by, db_session=None):
+        new_test_specification = TestSpecificationModel(
+            title=self.title,
+            preconditions=self.preconditions,
+            test_description=self.test_description,
+            expected_behavior=self.expected_behavior,
+            created_by=created_by
+        )
+        db_session.add(new_test_specification)
+        db_session.commit()
+        return new_test_specification
+
 
 @event.listens_for(TestSpecificationModel, "after_update")
 def receive_after_update(mapper, connection, target):

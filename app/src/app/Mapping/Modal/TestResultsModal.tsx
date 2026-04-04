@@ -348,7 +348,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     setTestResults([]) // clean the list before showing it again
     setSearchEnabled(false)
     const filter = searchValue
-    if (api?.permissions.indexOf('r') < 0) {
+    if (!Constants.hasReadPermission(api)) {
       return
     }
     if (api == null) {
@@ -388,7 +388,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     setMessageValue('')
     setExternalTestResults([]) // clean the list
     setExternalSearchEnabled(false)
-    if (api?.permissions.indexOf('r') < 0) {
+    if (!Constants.hasReadPermission(api)) {
       return
     }
     if (api == null) {
@@ -686,7 +686,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                       </Td>
                       <Td dataLabel={columnNames.actions}>
                         {(() => {
-                          if (api?.permissions.indexOf('w') >= 0) {
+                          if (auth.isLogged() && Constants.hasWritePermission(api)) {
                             for (let iPlugin = 0; iPlugin < Constants.test_run_plugins.length; iPlugin++) {
                               if (Constants.test_run_plugins[iPlugin].value == testResult.config.plugin) {
                                 if (Constants.test_run_plugins[iPlugin].trigger == true) {
@@ -718,7 +718,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                         })()}
 
                         {(() => {
-                          if (api?.permissions.indexOf('w') >= 0) {
+                          if (auth.isLogged() && Constants.hasWritePermission(api)) {
                             return (
                               <>
                                 <Button
@@ -745,7 +745,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                         })()}
 
                         {(() => {
-                          if (api?.permissions.indexOf('r') >= 0) {
+                          if (Constants.hasReadPermission(api)) {
                             return (
                               <>
                                 <Button
@@ -975,7 +975,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                       <Td dataLabel={externalColumnNames.date}>{testResult?.created_at || ''}</Td>
 
                       <Td dataLabel={externalColumnNames.actions}>
-                        {api?.permissions.indexOf('w') >= 0 ? (
+                        {auth.isLogged() && Constants.hasWritePermission(api) ? (
                           <>
                             <Button
                               variant='plain'

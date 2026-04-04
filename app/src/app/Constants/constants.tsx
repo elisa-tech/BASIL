@@ -1,5 +1,5 @@
 export const API_BASE_URL = 'http://localhost:5000'
-export const BASIL_VERSION = '1.8.9'
+export const BASIL_VERSION = '1.8.10'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
@@ -536,4 +536,71 @@ export const normalizeKeys = (obj: any) => {
     normalizedObj[key.replace('_', '-')] = obj[key]
   }
   return normalizedObj
+}
+
+export const hasPermission = (permissions: string, permission: string): boolean => {
+  /*  Check if the user has the given permission */
+  if (permissions === undefined || permissions === null) {
+    return false
+  }
+  if (permission === undefined || permission === null) {
+    return false
+  }
+  if (permission.length !== 1) {
+    return false
+  }
+  if (permissions.length === 0) {
+    return false
+  }
+  return permissions.includes(permission)
+}
+
+export const hasReadPermission = (api: any): boolean => {
+  if (api == undefined || api == null) {
+    return false
+  }
+  if (api.permissions == undefined || api.permissions == null) {
+    return false
+  }
+  return hasPermission(api.permissions, 'r')
+}
+
+export const hasWritePermission = (api: any): boolean => {
+  if (api == undefined || api == null) {
+    return false
+  }
+  if (api.permissions == undefined || api.permissions == null) {
+    return false
+  }
+  return hasPermission(api.permissions, 'w')
+}
+
+export const hasEditPermission = (api: any): boolean => {
+  if (api == undefined || api == null) {
+    return false
+  }
+  if (api.permissions == undefined || api.permissions == null) {
+    return false
+  }
+  return hasPermission(api.permissions, 'e')
+}
+
+export const hasManagePermission = (api: any): boolean => {
+  if (api == undefined || api == null) {
+    return false
+  }
+  if (api.permissions == undefined || api.permissions == null) {
+    return false
+  }
+  return hasPermission(api.permissions, 'm')
+}
+
+export const hasDeletePermission = (api: any): boolean => {
+  if (api == undefined || api == null) {
+    return false
+  }
+  if (api.permissions == undefined || api.permissions == null) {
+    return false
+  }
+  return hasPermission(api.permissions, 'd')
 }

@@ -18,6 +18,7 @@ import { APIListingTable } from './APIListingTable'
 import { APIModal } from './Modal/APIModal'
 import { APICheckSpecModal } from './Modal/APICheckSpecModal'
 import { APIDeleteModal } from './Modal/APIDeleteModal'
+import { APINewVersionModal } from './Modal/APINewVersionModal'
 import { APIManageUserPermissionsModal } from './Modal/APIManageUserPermissionsModal'
 import { useAuth } from '../User/AuthProvider'
 import { ModalNotification } from '@app/Common/Modal/ModalNotification'
@@ -61,6 +62,10 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
   const [modalNotificationMessage, setModalNotificationMessage] = React.useState('')
 
   const [modalDeleteShowState, setModalDeleteShowState] = React.useState(false)
+  const [modalNewVersionShowState, setModalNewVersionShowState] = React.useState(false)
+  const [modalNewVersionApiData, setModalNewVersionApiData] = React.useState(null)
+  const [modalNewVersionTitle, setModalNewVersionTitle] = React.useState('')
+  const [modalNewVersionDescription, setModalNewVersionDescription] = React.useState('')
   const [modalManageUserPermissionsApiData, setModalManageUserPermissionsApiData] = React.useState(null)
   const [modalManageUserPermissionsShowState, setModalManageUserPermissionsShowState] = React.useState(false)
   /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -88,6 +93,13 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
     setModalObject(_modalObject)
     setModalTitle(_modalTitle)
     setModalDescription(_modalDescription)
+  }
+
+  const setModalNewVersionInfo = (_api, _modalShowState, _modalTitle, _modalDescription) => {
+    setModalNewVersionApiData(_api)
+    setModalNewVersionShowState(_modalShowState)
+    setModalNewVersionTitle(_modalTitle)
+    setModalNewVersionDescription(_modalDescription)
   }
 
   const setModalCheckSpecInfo = (_api, _modalShowState) => {
@@ -185,6 +197,7 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
             setModalInfo={setModalInfo}
             setModalCheckSpecInfo={setModalCheckSpecInfo}
             setModalDeleteInfo={setModalDeleteInfo}
+            setModalNewVersionInfo={setModalNewVersionInfo}
             setModalManageUserPermissionsInfo={setModalManageUserPermissionsInfo}
             setModalNotificationInfo={setModalNotificationInfo}
             apis={apis}
@@ -208,6 +221,13 @@ const APIListingPageSection: React.FunctionComponent<APIListingPageSectionProps>
         api={modalObject}
         modalTitle={modalTitle}
         modalDescription={modalDescription}
+      />
+      <APINewVersionModal
+        modalShowState={modalNewVersionShowState}
+        setModalShowState={setModalNewVersionShowState}
+        api={modalNewVersionApiData}
+        modalTitle={modalNewVersionTitle}
+        modalDescription={modalNewVersionDescription}
       />
       <APICheckSpecModal
         api={modalCheckSpecApiData}

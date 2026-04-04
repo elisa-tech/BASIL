@@ -19,15 +19,20 @@ class SwRequirementSwRequirementModel(Base):
     sw_requirement_mapping_api: Mapped[Optional["ApiSwRequirementModel"]] = relationship(
         "ApiSwRequirementModel",
         passive_deletes=True,
-        foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_api_id")
+        foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_api_id",
+        overlaps="sw_requirement_mapping_sw_requirement",
+    )
     sw_requirement_mapping_api_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("sw_requirement_mapping_api.id", ondelete="CASCADE"), nullable=True
     )
+    # Self-referential parent: use string remote_side. remote_side=[id] with Mapped columns can
+    # mis-resolve and produce a wrong primaryjoin so cascade sees ApiSwRequirementModel here.
     sw_requirement_mapping_sw_requirement: Mapped[Optional["SwRequirementSwRequirementModel"]] = relationship(
         "SwRequirementSwRequirementModel",
         passive_deletes=True,
         foreign_keys="SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id",
-        remote_side=[id]
+        remote_side="SwRequirementSwRequirementModel.id",
+        overlaps="sw_requirement_mapping_api",
     )
     sw_requirement_mapping_sw_requirement_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("sw_requirement_mapping_sw_requirement.id", ondelete="CASCADE"), nullable=True
@@ -52,12 +57,18 @@ class SwRequirementSwRequirementModel(Base):
                  sw_requirement,
                  coverage,
                  created_by):
+        # Exactly one parent link (API mapping vs nested SR–SR). Clear the other side so SQLAlchemy
+        # does not sync a transient ApiSwRequirementModel onto the self-referential relationship.
         if sw_requirement_mapping_api:
             self.sw_requirement_mapping_api = sw_requirement_mapping_api
             self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
-        if sw_requirement_mapping_sw_requirement:
+            self.sw_requirement_mapping_sw_requirement = None
+            self.sw_requirement_mapping_sw_requirement_id = None
+        elif sw_requirement_mapping_sw_requirement:
             self.sw_requirement_mapping_sw_requirement = sw_requirement_mapping_sw_requirement
             self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement.id
+            self.sw_requirement_mapping_api = None
+            self.sw_requirement_mapping_api_id = None
         self.sw_requirement = sw_requirement
         self.sw_requirement_id = sw_requirement.id
         self.coverage = coverage
@@ -177,13 +188,23 @@ class SwRequirementSwRequirementModel(Base):
         from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel
         from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
 
+        # Set only FK columns for parent links, not ORM relationships. Assigning
+        # sw_requirement_mapping_api=<ApiSwRequirementModel> can confuse cascade on the
+        # self-referential sw_requirement_mapping_sw_requirement relationship (SQLAlchemy
+        # AssertionError mixing ApiSwRequirementModel into that attribute).
         new_sw_requirement_sw_requirement = SwRequirementSwRequirementModel(
-            sw_requirement_mapping_api=new_sw_requirement_mapping_api,
-            sw_requirement_mapping_sw_requirement=new_sw_requirement_mapping_sw_requirement,
+            sw_requirement_mapping_api=None,
+            sw_requirement_mapping_sw_requirement=None,
             sw_requirement=self.sw_requirement,
             coverage=self.coverage,
             created_by=self.created_by
         )
+        if new_sw_requirement_mapping_api is not None:
+            new_sw_requirement_sw_requirement.sw_requirement_mapping_api_id = new_sw_requirement_mapping_api.id
+        elif new_sw_requirement_mapping_sw_requirement is not None:
+            new_sw_requirement_sw_requirement.sw_requirement_mapping_sw_requirement_id = (
+                new_sw_requirement_mapping_sw_requirement.id
+            )
         db_session.add(new_sw_requirement_sw_requirement)
 
         srsrs = db_session.query(SwRequirementSwRequirementModel).filter(

@@ -166,7 +166,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {api?.permissions.indexOf('w') >= 0 && api.raw_specification != null ? (
+        {auth.isLogged() && Constants.hasWritePermission(api) && api.raw_specification != null ? (
           <React.Fragment>
             {mappingList[mappingIndex]['auto-fix-offset'] != -1 && (
               <DropdownItem

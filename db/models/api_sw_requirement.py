@@ -190,25 +190,26 @@ class ApiSwRequirementModel(Base):
             coverage=self.coverage,
             created_by=self.created_by
         )
+        db_session.add(new_api_sw_requirement)
+        db_session.flush()
 
         srsrs = db_session.query(SwRequirementSwRequirementModel).filter(
             SwRequirementSwRequirementModel.sw_requirement_mapping_api_id == self.id
         ).all()
         for srsr in srsrs:
             srsr.fork(
-                new_sw_requirement_mapping_api=None,
-                new_sw_requirement_mapping_sw_requirement=new_api_sw_requirement,
+                new_sw_requirement_mapping_api=new_api_sw_requirement,
+                new_sw_requirement_mapping_sw_requirement=None,
                 db_session=db_session
             )
-        return new_api_sw_requirement
 
         srtss = db_session.query(SwRequirementTestSpecificationModel).filter(
             SwRequirementTestSpecificationModel.sw_requirement_mapping_api_id == self.id
         ).all()
         for srtss in srtss:
             srtss.fork(
-                new_sw_requirement_mapping_api=None,
-                new_sw_requirement_mapping_sw_requirement=new_api_sw_requirement,
+                new_sw_requirement_mapping_api=new_api_sw_requirement,
+                new_sw_requirement_mapping_sw_requirement=None,
                 db_session=db_session
             )
 
@@ -217,12 +218,11 @@ class ApiSwRequirementModel(Base):
         ).all()
         for srtc in srtcs:
             srtc.fork(
-                new_sw_requirement_mapping_api=None,
-                new_sw_requirement_mapping_sw_requirement=new_api_sw_requirement,
+                new_sw_requirement_mapping_api=new_api_sw_requirement,
+                new_sw_requirement_mapping_sw_requirement=None,
                 db_session=db_session
             )
 
-        db_session.add(new_api_sw_requirement)
         db_session.commit()
         return new_api_sw_requirement
 

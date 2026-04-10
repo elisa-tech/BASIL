@@ -180,7 +180,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     })
       .then((response) => {
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue('Unable to find the api')
           return
         }
@@ -215,7 +215,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     })
       .then((response) => {
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue('Unable to find the user')
           return
         }
@@ -267,7 +267,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     })
       .then((response) => {
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue('Unable to copy permissions')
           return
         } else {
@@ -294,7 +294,7 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
     })
       .then((response) => {
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue('Unable to find the user')
           return
         } else {

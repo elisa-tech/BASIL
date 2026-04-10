@@ -58,7 +58,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
 
     let status
     let status_text
-    fetch(Constants.API_BASE_URL + '/apis', {
+    fetch(Constants.API_BASE_URL + Constants.API_APIS_ENDPOINT, {
       method: 'DELETE',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -66,7 +66,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           return response.text()
         } else {
           window.location.replace('/?currentLibrary=' + api.library)
@@ -74,7 +74,7 @@ export const APIDeleteModal: React.FunctionComponent<APIDeleteModalProps> = ({
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })

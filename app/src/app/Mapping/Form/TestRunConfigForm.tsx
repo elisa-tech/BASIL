@@ -168,7 +168,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }
 
   const load_plugin_presets = (_plugin) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_PLUGINS_PRESETS_ENDPOINT + '?plugin=' + _plugin
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
@@ -797,9 +797,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
               aria-label='Test Run Config SSH Key'
             >
               <FormSelectOption key={0} value='' label='' />
-              {sshKeys?.map((option, index) => (
-                <FormSelectOption key={index} value={option.id} label={option.title} />
-              ))}
+              {sshKeys?.map((option, index) => <FormSelectOption key={index} value={option.id} label={option.title} />)}
             </FormSelect>
             {validatedSSHKeyValue !== 'success' && (
               <FormHelperText>
@@ -864,9 +862,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
               aria-label='Test Run Config Testing Farm Compose'
             >
               <FormSelectOption key={0} value='' label='' />
-              {testingFarmComposes?.map((option, index) => (
-                <FormSelectOption key={index} value={option} label={option} />
-              ))}
+              {testingFarmComposes?.map((option, index) => <FormSelectOption key={index} value={option} label={option} />)}
             </FormSelect>
             {validatedTestingFarmComposeValue !== 'success' && (
               <FormHelperText>

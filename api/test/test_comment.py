@@ -136,7 +136,7 @@ def sw_requirement_db(client_db, ut_user_db, utilities):
 
 def test_login(user_authentication):
     """ Just ensure we are logged in """
-    assert user_authentication.status_code == 200
+    assert user_authentication.status_code == HTTPStatus.OK
 
 
 @pytest.mark.parametrize('mandatory_field',
@@ -180,7 +180,7 @@ def test_comment_post_put_delete(client, user_authentication, api_sr_db):
     }
 
     response = client.post(_MAPPING_COMMENT_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
 
     comment_id = response.json.get("id")
 

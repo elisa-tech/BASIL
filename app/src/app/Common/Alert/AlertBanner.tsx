@@ -8,7 +8,7 @@ export const AlertBanner: React.FunctionComponent = () => {
   const [alert, setAlert] = React.useState<{ info: string[]; warning: string[]; danger: string[]; success: string[] } | null>(null)
   const auth = useAuth()
   const loadAlertMessages = () => {
-    fetch(Constants.API_BASE_URL + '/alert')
+    fetch(Constants.API_BASE_URL + Constants.API_ALERT_ENDPOINT)
       .then((res) => res.json())
       .then((data) => setAlert(data))
   }

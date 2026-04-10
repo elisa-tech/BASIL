@@ -73,7 +73,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       return
     }
     setFetchLibrariesCount(fetchLibrariesCount + 1)
-    fetch(Constants.API_BASE_URL + '/libraries')
+    fetch(Constants.API_BASE_URL + Constants.API_LIBRARIES_ENDPOINT)
       .then((res) => res.json())
       .then((data) => {
         setLibraries(data)
@@ -93,7 +93,7 @@ const AppLayout: React.FunctionComponent<IAppLayout> = ({ children }) => {
       return
     }
 
-    let url = Constants.API_BASE_URL + '/user/notifications?'
+    let url = Constants.API_BASE_URL + Constants.API_USER_NOTIFICATIONS_ENDPOINT + '?'
     url += '&user-id=' + auth.userId + '&token=' + auth.token
 
     fetch(url)

@@ -70,7 +70,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     //let response_status
     let response_data
 
-    const url = Constants.API_BASE_URL + '/user/notifications'
+    const url = Constants.API_BASE_URL + Constants.API_USER_NOTIFICATIONS_ENDPOINT
     const data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
@@ -80,7 +80,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
       .then((response) => {
         //response_status = response.status
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           return
         } else {
           location.reload()

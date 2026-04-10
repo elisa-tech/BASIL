@@ -178,7 +178,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
     let status: number = 0
     let status_text: string = ''
 
-    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/test-specifications', {
+    fetch(Constants.API_BASE_URL + Constants.buildMappingParentWorkItemsPath(parentType, Constants._TSs), {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -186,7 +186,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setStatusValue('waiting')
           return response.text()
         } else {
@@ -199,7 +199,7 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })

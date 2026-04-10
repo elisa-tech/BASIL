@@ -84,13 +84,13 @@ export const SSHKeyForm: React.FunctionComponent<SSHKeyFormProps> = ({
       ssh_key: sshKeyValue
     }
 
-    fetch(Constants.API_BASE_URL + '/user/ssh-key', {
+    fetch(Constants.API_BASE_URL + Constants.API_USER_SSH_KEY_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
           setModalSubmit('waiting')
         } else {

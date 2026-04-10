@@ -65,6 +65,64 @@ export const API_TEST_RUN_ARTIFACTS_ENDPOINT = '/mapping/api/test-run/artifacts'
 export const API_TEST_RUN_ARTIFACT_CONTENT_ENDPOINT = '/mapping/api/test-run/artifact-content'
 export const API_TEST_CASE_LOCAL_FILE_IMPLEMENTATION_ENDPOINT = '/test-cases/local-file-implementation'
 
+/** Align with api/api_response.py: success responses are 200 OK or 201 CREATED (and other 2xx). */
+export const HTTP_OK = 200
+export const HTTP_CREATED = 201
+export const isHttpSuccessStatus = (status: number): boolean => Number.isFinite(status) && status >= 200 && status < 300
+
+/** Base path for listing unmapped work items: `/mapping/api/{specifications|test-cases|...}` */
+export const API_MAPPING_API_BASE = `${PATH_SEP}mapping${PATH_SEP}api`
+export const buildMappingApiResourcePath = (resourceSuffix: string): string => `${API_MAPPING_API_BASE}/${resourceSuffix}`
+
+/** Nested mapping CRUD under a parent work item, e.g. `/mapping/sw-requirement/sw-requirements` */
+export const buildMappingParentWorkItemsPath = (parentKebabType: string, workItemsPluralSegment: string): string =>
+  `${PATH_SEP}mapping${PATH_SEP}${parentKebabType}${PATH_SEP}${workItemsPluralSegment}`
+
+/** DELETE mapping row: `/mapping/{parentType}/{workItemType}s` */
+export const buildMappingDeletePath = (parentType: string, workItemType: string): string =>
+  `${PATH_SEP}mapping${PATH_SEP}${parentType}${PATH_SEP}${workItemType}s`
+
+/** Fork: `/fork/{parentType}/{workItemType}` */
+export const buildForkPath = (parentType: string, workItemType: string): string =>
+  `${PATH_SEP}fork${PATH_SEP}${parentType}${PATH_SEP}${workItemType}`
+
+export const API_ALERT_ENDPOINT = '/alert'
+export const API_USER_LOGIN_ENDPOINT = '/user/login'
+export const API_USER_NOTIFICATIONS_ENDPOINT = '/user/notifications'
+export const API_USER_ROLE_ENDPOINT = '/user/role'
+export const API_USER_ENABLE_ENDPOINT = '/user/enable'
+export const API_USER_SSH_KEY_ENDPOINT = '/user/ssh-key'
+export const API_LIBRARIES_ENDPOINT = '/libraries'
+export const API_APIS_ENDPOINT = '/apis'
+export const API_APIS_HISTORY_ENDPOINT = '/apis/history'
+export const API_APIS_NEW_VERSION_ENDPOINT = '/apis/new-version'
+export const API_APIS_CHECK_SPECIFICATION_ENDPOINT = '/apis/check-specification'
+export const API_APIS_FIX_SPECIFICATION_WARNINGS_ENDPOINT = '/apis/fix-specification-warnings'
+export const API_API_SPECIFICATIONS_ENDPOINT = '/api-specifications'
+export const API_REMOTE_DOCUMENTS_ENDPOINT = '/remote-documents'
+export const API_COMMENTS_ENDPOINT = '/comments'
+export const API_MAPPING_HISTORY_ENDPOINT = '/mapping/history'
+export const API_MAPPING_USAGE_ENDPOINT = '/mapping/usage'
+export const API_MAPPING_API_LAST_COVERAGE_ENDPOINT = '/mapping/api/last-coverage'
+export const API_TEST_RUN_CONFIGS_ENDPOINT = '/mapping/api/test-run-configs'
+export const API_TEST_RUNS_ENDPOINT = '/mapping/api/test-runs'
+export const API_TEST_RUNS_EXTERNAL_ENDPOINT = '/mapping/api/test-runs/external'
+export const API_TEST_RUN_PLUGINS_PRESETS_ENDPOINT = '/mapping/api/test-run-plugins-presets'
+export const API_JUSTIFICATIONS_ROOT_ENDPOINT = '/justifications'
+export const API_TEST_SPECIFICATIONS_ROOT_ENDPOINT = '/test-specifications'
+export const API_SW_REQUIREMENTS_ROOT_ENDPOINT = '/sw-requirements'
+export const API_TEST_CASES_ROOT_ENDPOINT = '/test-cases'
+export const API_DOCUMENTS_ROOT_ENDPOINT = '/documents'
+export const API_VERSION_ENDPOINT = '/version'
+export const API_TRACEABILITY_SCANNER_SETTINGS_ENDPOINT = '/traceability-scanner/settings'
+export const API_TRACEABILITY_SCANNER_SCAN_ENDPOINT = '/traceability-scanner/scan'
+export const API_TRACEABILITY_SCANNER_LOGS_ENDPOINT = '/traceability-scanner/logs'
+export const API_ADMIN_TEST_RUN_PLUGINS_PRESETS_ENDPOINT = '/admin/test-run-plugins-presets'
+export const API_ADMIN_SETTINGS_ENDPOINT = '/admin/settings'
+
+/** GET `/{type}s` for top-level work item collections (e.g. `sw-requirement` -> `/sw-requirements`). */
+export const buildWorkItemRootListPath = (workItemKebabSingular: string): string => `${PATH_SEP}${workItemKebabSingular}s`
+
 export const FORM_COMPLETION_LABEL = 'Completion (how much of the parent is covered by this work item) [0-100]:'
 
 export const JSON_HEADER = {

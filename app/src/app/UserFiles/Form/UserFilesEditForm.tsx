@@ -55,7 +55,7 @@ export const UserFilesEditForm: React.FunctionComponent<UserFilesEditFormProps> 
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           if (modalFileName) {

@@ -175,14 +175,14 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           return response.text()
         } else {
           return response.json()
         }
       })
       .then((data) => {
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         } else {
           const test_cases: TestCase[] = []
@@ -299,7 +299,7 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
         status = response.status
         status_text = response.statusText
         setStatusValue('waiting')
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           return response.text()
         } else {
           loadTestCases('')
@@ -307,7 +307,7 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
         }
       })
       .then((data) => {
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         } else {
           setMessageValue('Test Repository Scan requested. The process can take some time depending on the repository. Check your files!')
@@ -351,7 +351,7 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
           setStatusValue('waiting')
         } else {

@@ -39,7 +39,7 @@ const Mapping: React.FunctionComponent = () => {
       }
     }
     let url
-    url = Constants.API_BASE_URL + '/mapping/api/' + mappingViewSelectValue
+    url = Constants.API_BASE_URL + Constants.buildMappingApiResourcePath(mappingViewSelectValue)
     url += '?api-id=' + api_id
 
     if (auth.isLogged()) {
@@ -61,7 +61,7 @@ const Mapping: React.FunctionComponent = () => {
 
   React.useEffect(() => {
     const loadApiData = () => {
-      let url = Constants.API_BASE_URL + '/api-specifications?api-id=' + api_id
+      let url = Constants.API_BASE_URL + Constants.API_API_SPECIFICATIONS_ENDPOINT + '?api-id=' + api_id
 
       if (auth.isLogged()) {
         url += '&user-id=' + auth.userId + '&token=' + auth.token
@@ -133,13 +133,13 @@ const Mapping: React.FunctionComponent = () => {
 
     setTotalCoverage(new_coverage)
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/last-coverage', {
+    fetch(Constants.API_BASE_URL + Constants.API_MAPPING_API_LAST_COVERAGE_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           console.log(response.statusText)
         }
       })

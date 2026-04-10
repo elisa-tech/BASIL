@@ -167,7 +167,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [LAVAFilter, setLAVAFilter] = React.useState(LAVAFilterTemplate)
 
   const load_plugin_presets = (_plugin) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_PLUGINS_PRESETS_ENDPOINT + '?plugin=' + _plugin
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
@@ -324,13 +324,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           // Move to the BASIL internal test results page
@@ -355,7 +355,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       return
     }
     const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
-    let url = Constants.API_BASE_URL + '/mapping/api/test-runs'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     url += '&api-id=' + api.id
@@ -416,7 +416,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     }
 
     const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
-    let url = Constants.API_BASE_URL + '/mapping/api/test-runs/external'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUNS_EXTERNAL_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&params=' + params.join(';')
     url += '&plugin=' + pluginValue
@@ -473,13 +473,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadTestResults()
@@ -522,13 +522,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'DELETE',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadTestResults()

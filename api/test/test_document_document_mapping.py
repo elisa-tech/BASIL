@@ -485,7 +485,7 @@ def test_post_new_to_api(client, client_db, user_authentication, mapped_api_doc_
 
     response = client.post(_MAPPING_DOCUMENT_DOCUMENTS_URL, json=mapping_data)
 
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == DocumentDocumentModel.__tablename__
 
@@ -513,7 +513,7 @@ def test_post_new_to_api(client, client_db, user_authentication, mapped_api_doc_
     }
 
     response = client.post(_MAPPING_DOCUMENT_DOCUMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == DocumentDocumentModel.__tablename__
 
@@ -680,7 +680,7 @@ def test_put_ok(client, client_db, user_authentication, mapped_api_doc_doc_db, u
     }
 
     response = client.post(_MAPPING_DOCUMENT_DOCUMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == DocumentDocumentModel.__tablename__
 
@@ -756,7 +756,7 @@ def test_delete_bad_payload(client, client_db, user_authentication, mapped_api_d
     }
 
     response = client.post(_MAPPING_DOCUMENT_DOCUMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == DocumentDocumentModel.__tablename__
 
@@ -793,7 +793,7 @@ def test_delete_miss_parent(client, client_db, user_authentication, mapped_api_d
     }
 
     response = client.post(_MAPPING_DOCUMENT_DOCUMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == DocumentDocumentModel.__tablename__
 
@@ -830,7 +830,7 @@ def test_delete_ok(client, client_db, user_authentication, mapped_api_doc_doc_db
     }
 
     response = client.post(_MAPPING_DOCUMENT_DOCUMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get("__tablename__", "") == DocumentDocumentModel.__tablename__
 

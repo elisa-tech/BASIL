@@ -75,7 +75,7 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   const clearNotification = (notification_id) => {
     let response_data
 
-    const url = Constants.API_BASE_URL + '/user/notifications'
+    const url = Constants.API_BASE_URL + Constants.API_USER_NOTIFICATIONS_ENDPOINT
     const data = { 'user-id': auth.userId, token: auth.token }
 
     if (notification_id != null) {
@@ -89,7 +89,7 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
     })
       .then((response) => {
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           return
         } else {
           location.reload()

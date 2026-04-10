@@ -65,13 +65,13 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           setMessageValue('SAVED')

@@ -93,7 +93,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
   }, [modalShowState])
 
   const loadSSHKeys = () => {
-    let url = Constants.API_BASE_URL + '/user/ssh-key'
+    let url = Constants.API_BASE_URL + Constants.API_USER_SSH_KEY_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
 
@@ -112,7 +112,7 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
       return
     }
 
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run-configs'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_CONFIGS_ENDPOINT
     url = url + '?user-id=' + auth.userId
     url = url + '&token=' + auth.token
     if (searchValue != undefined) {
@@ -288,13 +288,13 @@ export const TestRunModal: React.FunctionComponent<TestRunModalProps> = ({
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           handleModalToggle()

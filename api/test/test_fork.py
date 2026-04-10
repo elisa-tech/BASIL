@@ -353,7 +353,7 @@ def test_login(user_authentication):
 
 @pytest.mark.parametrize('url', _ALL_FORK_URLS)
 def test_fork_missing_mandatory_fields(client, user_authentication, url):
-    """POST without relation-id returns 400."""
+    """POST without relation-id returns BAD_REQUEST."""
     response = client.post(url, json={
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
@@ -363,13 +363,13 @@ def test_fork_missing_mandatory_fields(client, user_authentication, url):
 
 @pytest.mark.parametrize('url', _ALL_FORK_URLS)
 def test_fork_unexisting_relation_id(client, user_authentication, url):
-    """POST with a non-existent relation-id returns 400."""
+    """POST with a non-existent relation-id returns NOT_FOUND."""
     response = client.post(url, json={
         'relation-id': UNMATCHING_ID,
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.status_code == HTTPStatus.NOT_FOUND
 
 
 # ---------------------------------------------------------------------------
@@ -386,7 +386,7 @@ def test_fork_api_sw_requirement_ok(client, user_authentication, api_sr_mapping)
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == mapping.id
     assert response.json['sw_requirement']['id'] != original_sr_id
@@ -402,7 +402,7 @@ def test_fork_sr_sr_ok(client, user_authentication, sr_sr_mapping):
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == sr_sr.id
     assert response.json['sw_requirement']['id'] != original_sr_id
@@ -418,7 +418,7 @@ def test_fork_api_document_ok(client, user_authentication, api_doc_mapping):
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == mapping.id
     assert response.json['document']['id'] != original_doc_id
@@ -434,7 +434,7 @@ def test_fork_document_document_ok(client, user_authentication, doc_doc_mapping)
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == doc_doc.id
     assert response.json['document']['id'] != original_doc_id
@@ -450,7 +450,7 @@ def test_fork_api_test_specification_ok(client, user_authentication, api_ts_mapp
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == mapping.id
     assert response.json['test_specification']['id'] != original_ts_id
@@ -466,7 +466,7 @@ def test_fork_sr_test_specification_ok(client, user_authentication, sr_ts_mappin
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == sr_ts.id
     assert response.json['test_specification']['id'] != original_ts_id
@@ -482,7 +482,7 @@ def test_fork_api_test_case_ok(client, user_authentication, api_tc_mapping):
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == mapping.id
     assert response.json['test_case']['id'] != original_tc_id
@@ -498,7 +498,7 @@ def test_fork_sr_test_case_ok(client, user_authentication, sr_tc_mapping):
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == sr_tc.id
     assert response.json['test_case']['id'] != original_tc_id
@@ -514,7 +514,7 @@ def test_fork_ts_test_case_via_api_ok(client, user_authentication, ts_tc_mapping
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == ts_tc.id
     assert response.json['test_case']['id'] != original_tc_id
@@ -530,7 +530,7 @@ def test_fork_ts_test_case_via_sr_ok(client, user_authentication, ts_tc_mapping_
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == ts_tc.id
     assert response.json['test_case']['id'] != original_tc_id
@@ -546,7 +546,7 @@ def test_fork_api_justification_ok(client, user_authentication, api_j_mapping):
         'user-id': user_authentication.json['id'],
         'token': user_authentication.json['token']
     })
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
     assert response.json.get('relation_id') == mapping.id
     assert response.json['justification']['id'] != original_j_id

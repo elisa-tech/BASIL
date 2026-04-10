@@ -53,7 +53,7 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
 
 def test_login(user_authentication):
     """ Just ensure we are logged in """
-    assert user_authentication.status_code == 200
+    assert user_authentication.status_code == HTTPStatus.OK
 
 
 @pytest.mark.parametrize('mandatory_field', ['api-id', 'user-id', 'token'])

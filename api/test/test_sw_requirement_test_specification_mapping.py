@@ -476,7 +476,7 @@ def test_post_new_to_api(
     }
 
     response = client.post(_MAPPING_SW_REQUIREMENT_TEST_SPECIFICATIONS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
 
     # New Test Specification - Same data: Conflict
@@ -500,7 +500,7 @@ def test_post_new_to_api(
     }
 
     response = client.post(_MAPPING_SW_REQUIREMENT_TEST_SPECIFICATIONS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
     assert isinstance(response.json, dict)
 
     # Existing test specification - Same data: Conflict

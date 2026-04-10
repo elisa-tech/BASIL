@@ -317,13 +317,13 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
       data['default-view'] = defaultViewValue
     }
 
-    fetch(Constants.API_BASE_URL + '/apis', {
+    fetch(Constants.API_BASE_URL + Constants.API_APIS_ENDPOINT, {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
           if (setModalFormSubmitState != null) {
             setModalFormSubmitState('waiting')

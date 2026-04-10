@@ -60,6 +60,12 @@ from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
 from sqlalchemy import String, and_, cast, or_, update
 from sqlalchemy.orm.exc import NoResultFound
+from api_response import (
+    CREATED_STATUS,
+    OK_STATUS,
+    ApiResponse,
+    api_response_decorator,
+)
 from api_utils import (
     add_html_link_to_email_body,
     async_email_notification,
@@ -70,7 +76,6 @@ from api_utils import (
     get_custom_actions,
     get_html_email_body_from_template,
     get_mapping_comments,
-    get_missing_mandatory_fields,
     get_safe_str,
     get_user_config_folder_path,
     get_user_html_folder_path,
@@ -121,7 +126,8 @@ EMAIL_DISCORD_FOOTER_MESSAGE = "<p>Join our <a href='" \
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
 PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
-
+HISTORY_DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+HTML_EXPORT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 SETTINGS_CACHE, SETTINGS_LAST_MODIFIED = load_settings(None, None)
 
@@ -152,24 +158,6 @@ USER_ROLES_MANAGE_PERMISSIONS = ["ADMIN", "USER"]
 USER_ROLES_MANAGE_USERS = [
     "ADMIN",
 ]
-
-OK_STATUS = 200
-CREATED_STATUS = 201
-BAD_REQUEST_MESSAGE = "Bad request"
-BAD_REQUEST_STATUS = 400
-UNAUTHORIZED_MESSAGE = "User not authorized"
-UNAUTHORIZED_STATUS = 401
-FORBIDDEN_MESSAGE = "Forbidden"
-FORBIDDEN_STATUS = 403
-NOT_FOUND_MESSAGE = "Not found"
-SW_COMPONENT_NOT_FOUND_MESSAGE = "Sw Component not found."
-NOT_FOUND_STATUS = 404
-CONFLICT_MESSAGE = "Conflict with existing data"
-CONFLICT_STATUS = 409
-PRECONDITION_FAILED_MESSAGE = "Some precondition failed"
-PRECONDITION_FAILED_STATUS = 412
-SERVER_ERROR_MESSAGE = "Unexpected Server Error"
-SERVER_ERROR_STATUS = 500
 
 NOTIFICATION_CATEGORY_NEW = "success"
 NOTIFICATION_CATEGORY_EDIT = "warning"
@@ -901,24 +889,29 @@ def get_split_sections(_specification, _mapping, _work_item_types):
     return sorted(mapped_sections, key=lambda k: k["offset"])
 
 
-def check_fields_in_request(fields=[], request={}, allow_empty_string=True, int_fields=[]) -> bool:
+def get_wrong_mandatory_fields(fields=[], request={}, allow_empty_string=True, int_fields=[]) -> bool:
+    wrong_fields = []
     for field in fields + int_fields:
         if field not in request.keys():
-            logger.warning(f"field: {field} not in request: {request.keys()}")
-            return False
+            wrong_fields.append(field)
         else:
             if allow_empty_string:
                 pass
             else:
                 if not str(request[field]):
-                    logger.warning(f"field {field} is empty")
-                    return False
+                    wrong_fields.append(field)
 
     for field in int_fields:
         if parse_int(request.get(field)) is None:
-            logger.warning(f"field {field} is not an integer")
-            return False
+            wrong_fields.append(field)
 
+    return wrong_fields
+
+
+def check_fields_in_request(fields=[], request={}, allow_empty_string=True, int_fields=[]) -> bool:
+    wrong_fields = get_wrong_mandatory_fields(fields, request, allow_empty_string, int_fields)
+    if len(wrong_fields) > 0:
+        return False
     return True
 
 
@@ -931,6 +924,7 @@ def get_query_string_args(args):
     permitted_keys = [
         "api-id",
         "artifact",
+        "email",
         "filename",
         "filter",
         "id",
@@ -951,14 +945,23 @@ def get_query_string_args(args):
         "relation_id",
         "relation-id",
         "relation-to",
+        "reset_token",
         "search",
         "stage",
+        "test-case-id",
         "test_run_config_id",
         "test_runs_limit",
         "token",
         "url",
         "user-id",
-        "work_item_type"
+        "work_item_type",
+        EXP_CONF_INCLUDE_JUSTIFICATIONS,
+        EXP_CONF_INCLUDE_DOCUMENTS,
+        EXP_CONF_INCLUDE_TEST_SPECIFICATIONS,
+        EXP_CONF_INCLUDE_TEST_CASES,
+        EXP_CONF_INCLUDE_TEST_RUNS,
+        EXP_CONF_INCLUDE_COMMENTS,
+        EXP_CONF_INCLUDE_TOOLS,
     ]
 
     ret = {"db": db, "limit": limit, "order_by": order_by, "order_how": order_how}
@@ -1449,7 +1452,7 @@ class Token:
         return False
 
 
-def add_test_run_config(dbi, request_data, user):
+def add_test_run_config(dbi, request_data, user, api_response: ApiResponse = None):
     mandatory_fields = ["environment_vars", "git_repo_ref", "id", "plugin", "plugin_preset", "title"]
     tmt_mandatory_fields = ["context_vars", "provision_guest", "provision_guest_port", "provision_type", "ssh_key"]
     gitlab_ci_mandatory_fields = ["job", "private_token", "project_id", "stage", "trigger_token", "url"]
@@ -1458,8 +1461,10 @@ def add_test_run_config(dbi, request_data, user):
     testing_farm_mandatory_fields = ["arch", "compose", "private_token", "url"]
     lava_mandatory_fields = ["job", "private_token", "url"]
 
-    if not check_fields_in_request(mandatory_fields, request_data):
-        return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+    if len(wrong_fields) > 0:
+        api_response.set_missing_fields(wrong_fields)
+        return api_response.return_bad_request_missing_fields()
 
     if request_data["id"] not in ["", 0]:
         if str(request_data["id"]).strip().isnumeric():
@@ -1468,15 +1473,20 @@ def add_test_run_config(dbi, request_data, user):
                 existing_config = (
                     dbi.session.query(TestRunConfigModel).filter(TestRunConfigModel.id == testrun_config_id).one()
                 )
-                return existing_config, OK_STATUS
+                api_response.set_data(existing_config.as_dict())
+                return api_response.return_ok()
             except NoResultFound:
-                return f"{BAD_REQUEST_MESSAGE} Unable to find the Test Run Configuration", BAD_REQUEST_STATUS
+                api_response.set_message("Unable to find the Test Run Configuration")
+                return api_response.return_bad_request()
         else:
-            return f"{BAD_REQUEST_MESSAGE} Test Run Configuration ID is not valid", BAD_REQUEST_STATUS
+            api_response.set_message("Test Run Configuration ID is not valid")
+            return api_response.return_bad_request()
 
     if request_data["plugin"] not in TestRunner.test_run_plugin_models.keys():
-        if not check_fields_in_request(tmt_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Plugin not supported", BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(tmt_mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
     # Config
     config_title = str(request_data["title"]).strip()
@@ -1493,11 +1503,14 @@ def add_test_run_config(dbi, request_data, user):
 
     # Check mandatory fields
     if config_title == "":
-        return f"{BAD_REQUEST_MESSAGE} Empty Configuration Title", BAD_REQUEST_STATUS
+        api_response.set_message("Empty Configuration Title")
+        return api_response.return_bad_request()
 
     if plugin == TestRunner.TMT:
-        if not check_fields_in_request(tmt_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} tmt miss mandatory fields", BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(tmt_mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         context_vars = str(request_data["context_vars"]).strip()
         provision_type = str(request_data["provision_type"]).strip()
@@ -1507,11 +1520,13 @@ def add_test_run_config(dbi, request_data, user):
 
         if not plugin_preset:
             if not provision_type:
-                return f"{BAD_REQUEST_MESSAGE} tmt provision type not defined", BAD_REQUEST_STATUS
+                api_response.set_message("tmt provision type not defined")
+                return api_response.return_bad_request()
 
             if provision_type == "connect":
                 if provision_guest == "" or provision_guest_port == "" or ssh_key_id == "" or ssh_key_id == "0":
-                    return f"{BAD_REQUEST_MESSAGE} tmt provision configuration is not correct", BAD_REQUEST_STATUS
+                    api_response.set_message("tmt provision configuration is not correct")
+                    return api_response.return_bad_request()
 
                 try:
                     ssh_key = (
@@ -1520,36 +1535,42 @@ def add_test_run_config(dbi, request_data, user):
                         .one()
                     )
                 except NoResultFound:
-                    return f"{BAD_REQUEST_MESSAGE} Unable to find the SSH Key", BAD_REQUEST_STATUS
+                    api_response.set_message("Unable to find the SSH Key")
+                    return api_response.return_bad_request()
 
     elif plugin == TestRunner.GITLAB_CI:
         if not check_fields_in_request(gitlab_ci_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} GitlabCI miss mandatory fields", BAD_REQUEST_STATUS
+            api_response.set_message("GitlabCI miss mandatory fields")
+            return api_response.return_bad_request()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in gitlab_ci_mandatory_fields]
         )
     elif plugin == TestRunner.GITHUB_ACTIONS:
         if not check_fields_in_request(github_actions_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Github Actions miss mandatory fields", BAD_REQUEST_STATUS
+            api_response.set_message("Github Actions miss mandatory fields")
+            return api_response.return_bad_request()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in github_actions_mandatory_fields]
         )
     elif plugin == TestRunner.KERNEL_CI:
         if not check_fields_in_request(kernel_ci_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} KernelCI miss mandatory fields", BAD_REQUEST_STATUS
+            api_response.set_message("KernelCI miss mandatory fields")
+            return api_response.return_bad_request()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in kernel_ci_mandatory_fields]
         )
     elif plugin == TestRunner.TESTING_FARM:
         if not check_fields_in_request(testing_farm_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} Testing Farm miss mandatory fields", BAD_REQUEST_STATUS
+            api_response.set_message("Testing Farm miss mandatory fields")
+            return api_response.return_bad_request()
         context_vars = str(request_data["context_vars"]).strip()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in testing_farm_mandatory_fields]
         )
     elif plugin == TestRunner.LAVA:
         if not check_fields_in_request(lava_mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE} LAVA miss mandatory fields", BAD_REQUEST_STATUS
+            api_response.set_message("LAVA miss mandatory fields")
+            return api_response.return_bad_request()
         plugin_vars += ";".join(
             [f"{field}={str(request_data[field]).strip()}" for field in lava_mandatory_fields]
         )
@@ -1570,7 +1591,9 @@ def add_test_run_config(dbi, request_data, user):
     )
     dbi.session.add(test_config)
     dbi.session.commit()
-    return test_config, CREATED_STATUS
+    ret = test_config
+    api_response.set_data(ret)
+    return api_response.return_created()
 
 
 def check_api_user_permission(
@@ -1599,12 +1622,19 @@ def check_api_user_permission(
             else:
                 request_data = request.args
 
-            if not check_fields_in_request(
-                    fields=[],
-                    request=request_data,
-                    allow_empty_string=False,
-                    int_fields=["api-id"]):
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response = ApiResponse()
+            api_response.set_logger(logger)
+            api_response.set_args(request_data)
+
+            wrong_fields = get_wrong_mandatory_fields(
+                fields=[],
+                request=request_data,
+                allow_empty_string=False,
+                int_fields=["api-id"],
+            )
+            if len(wrong_fields) > 0:
+                api_response.set_missing_fields(wrong_fields)
+                return api_response.return_bad_request_missing_fields()
 
             dbi = get_db()
             user = get_active_user_from_request(request_data, dbi.session)
@@ -1614,36 +1644,27 @@ def check_api_user_permission(
                     ApiModel.id == request_data["api-id"]
                 ).one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Api", NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
             except Exception as e:
-                return f"{SERVER_ERROR_MESSAGE}: {e}", SERVER_ERROR_STATUS
+                api_response.set_exception(e)
+                return api_response.return_server_error()
 
             user_permissions = get_api_user_permissions(api, user, dbi.session)
 
             for perm in required_permissions:
                 if perm not in user_permissions:
                     if isinstance(user, UserModel):
-                        return (
-                            f"{UNAUTHORIZED_MESSAGE}: {user.username}, "
-                            f"need {perm_label} permission.",
-                            UNAUTHORIZED_STATUS,
-                        )
-                    return (
-                        f"{UNAUTHORIZED_MESSAGE}: GUEST user cannot access this content.",
-                        UNAUTHORIZED_STATUS,
-                    )
+                        api_response.set_message(f"Username {user.username} needs {perm_label} permission.")
+                        return api_response.return_unauthorized()
+                    api_response.set_message("GUEST user cannot access this content.")
+                    return api_response.return_unauthorized()
 
             if required_roles is not None and user.role not in required_roles:
                 if isinstance(user, UserModel):
-                    return (
-                        f"{UNAUTHORIZED_MESSAGE}: {user.username}, "
-                        f"need {perm_label} permission.",
-                        UNAUTHORIZED_STATUS,
-                    )
-                return (
-                    f"{UNAUTHORIZED_MESSAGE}: GUEST user cannot access this content.",
-                    UNAUTHORIZED_STATUS,
-                )
+                    api_response.set_message(f"Username {user.username} needs {perm_label} permission.")
+                    return api_response.return_unauthorized()
+                api_response.set_message("GUEST user cannot access this content.")
+                return api_response.return_unauthorized()
 
             try:
                 result = func(*args, **kwargs, api=api, dbi=dbi, user=user)
@@ -1683,6 +1704,8 @@ tokenManager = Token()
 
 
 class Alert(Resource):
+    route = "/alert"
+
     response = {
             "info": [],
             "danger": [],
@@ -1712,23 +1735,33 @@ class Alert(Resource):
             response = populate_alert_type(response, settings, "success")
         return response
 
-    def delete(self):
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        delete an alert
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["message", "type"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if request_data["type"] not in self.response.keys():
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"Alert type {request_data['type']} not found")
+            return api_response.return_bad_request()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         settings = get_updated_settings()
 
@@ -1756,28 +1789,44 @@ class Alert(Resource):
         f.write(yaml_settings_str)
         f.close()
 
-        return self.get_alert_settings()
+        api_response.set_data(self.get_alert_settings())
+        return api_response.return_ok()
 
-    def get(self):
-        return self.get_alert_settings()
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get alert settings
+        """
+        api_response.set_data(self.get_alert_settings())
+        return api_response.return_ok()
 
-    def post(self):
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        post an alert
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["message", "type"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if request_data["type"] not in self.response.keys():
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"Alert type {request_data['type']} not found")
+            return api_response.return_bad_request()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         settings = get_updated_settings()
 
@@ -1803,25 +1852,35 @@ class Alert(Resource):
         f.write(yaml_settings_str)
         f.close()
 
-        return self.get_alert_settings()
+        api_response.set_data(self.get_alert_settings())
+        return api_response.return_created()
 
 
 class SPDXApi(Resource):
+    route = "/spdx/apis"
     fields = ["filename"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        """
+        get SPDX APIs
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        args = get_query_string_args(request.args)
-        test_runs_limit = args.get("test_runs_limit", 5)
+        mandatory_fields = ["filename"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        test_runs_limit = request_data.get("test_runs_limit", 5)
 
         if not str(test_runs_limit).isdigit():
             test_runs_limit = 5
-
-        if not check_fields_in_request(
-                fields=self.fields,
-                request=args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
         spdxManager = SPDXManager(
             user=user,
@@ -1840,7 +1899,7 @@ class SPDXApi(Resource):
         if not os.path.exists(spdx_user_path):
             os.makedirs(spdx_user_path, exist_ok=True)
 
-        spdx_filepath = os.path.join(spdx_user_path, args["filename"])
+        spdx_filepath = os.path.join(spdx_user_path, request_data["filename"])
         spdxManager.export(spdx_filepath)
         del spdxManager
 
@@ -1848,6 +1907,7 @@ class SPDXApi(Resource):
 
 
 class HTMLApi(Resource):
+    route = "/html/apis"
     fields = ["filename"]
     div_open_html = "<div style='border-left: 1px solid #DDD; padding-left: 20px; padding-right: 20px;'>"
     div_close_html = "</div>"
@@ -2091,23 +2151,31 @@ class HTMLApi(Resource):
         html += self.div_close_html
         return html
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        """
+        get HTML APIs
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["api-id", "mapping-view"]
+        mandatory_fields += self.fields
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        if not check_fields_in_request(
-                fields=mandatory_fields,
-                request=request.args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        include_justifications = bool_from_string(request.args.get(EXP_CONF_INCLUDE_JUSTIFICATIONS, "true"))
-        include_documents = bool_from_string(request.args.get(EXP_CONF_INCLUDE_DOCUMENTS, "true"))
-        include_test_specifications = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TEST_SPECIFICATIONS, "true"))
-        include_test_cases = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
-        include_test_runs = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
-        include_comments = bool_from_string(request.args.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
-        include_tools = bool_from_string(request.args.get(EXP_CONF_INCLUDE_TOOLS, "true"))
+        include_justifications = bool_from_string(request_data.get(EXP_CONF_INCLUDE_JUSTIFICATIONS, "true"))
+        include_documents = bool_from_string(request_data.get(EXP_CONF_INCLUDE_DOCUMENTS, "true"))
+        include_test_specifications = bool_from_string(request_data.get(EXP_CONF_INCLUDE_TEST_SPECIFICATIONS, "true"))
+        include_test_cases = bool_from_string(request_data.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
+        include_test_runs = bool_from_string(request_data.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
+        include_comments = bool_from_string(request_data.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_tools = bool_from_string(request_data.get(EXP_CONF_INCLUDE_TOOLS, "true"))
 
         config = {
             EXP_CONF_INCLUDE_JUSTIFICATIONS: include_justifications,
@@ -2119,24 +2187,18 @@ class HTMLApi(Resource):
             EXP_CONF_INCLUDE_TOOLS: include_tools
         }
 
-        args = get_query_string_args(request.args)
-        mapping_view = args.get("mapping-view", "").replace("-", "_")
+        mapping_view = request_data.get("mapping-view", "").replace("-", "_")
 
         test_run_configs = []
         test_run_config_ids = []
-        test_run_config_id = args.get("test_run_config_id", None)
+        test_run_config_id = request_data.get("test_run_config_id", None)
         if test_run_config_id:
             if isinstance(test_run_config_id, int):
                 test_run_config_ids = [test_run_config_id]
             elif isinstance(test_run_config_id, list):
                 test_run_config_ids = test_run_config_id
 
-        if not check_fields_in_request(
-                fields=self.fields,
-                request=args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        export_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        export_date = datetime.datetime.now().strftime(HTML_EXPORT_DATE_FORMAT)
 
         html = "<html><head><meta charset='utf-8'><style>" \
                "@page {size: A4; margin: 0 !important;}" \
@@ -2173,7 +2235,8 @@ class HTMLApi(Resource):
         elif mapping_view == "test_cases":
             mapped_sections = get_api_test_cases_mapping_sections(dbi, api)
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Invalid mapping view")
+            return api_response.return_bad_request()
 
         for i_mapped_section, mapped_section in enumerate(mapped_sections["mapped"]):
             html += f"<div id='reference_document_snippet-{i_mapped_section+1}'>"
@@ -2255,38 +2318,45 @@ class HTMLApi(Resource):
         with open(html_filepath, "w") as f:
             f.write(html)
 
-        return {"data": html}
+        ret = {"data": html}
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class HTMLExportDownload(Resource):
-    # Return PDF to user
-    def get(self):
-        mandatory_fields = ["api-id", "mapping-view", "filename", "user-id", "token"]
-        request_data = request.args
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    route = "/html/apis/export-download"
 
-        mapping_view = request_data.get("mapping-view", None)
-        api_id = request_data.get("api-id", None)
-        download_filename = request_data.get("filename", None)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        export HTML API to PDF or HTML
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["api-id", "mapping-view", "filename", "user-id", "token"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        mapping_view = request_data["mapping-view"]
+        api_id = request_data["api-id"]
+        download_filename = request_data["filename"]
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        if mapping_view is None:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-        if api_id is None:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-        if not download_filename:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Unauthorized")
+            return api_response.return_unauthorized()
 
         # Mapping view is not None, refactor the string
         mapping_view = mapping_view.replace("-", "_")
         download_file_basename, download_file_extension = os.path.splitext(download_filename)
         if download_file_extension not in [".pdf", ".html"]:
-            return BAD_REQUEST_MESSAGE + f": Invalid file extension: {download_file_extension}", BAD_REQUEST_STATUS
+            api_response.set_message(f"Invalid file extension: {download_file_extension}")
+            return api_response.return_bad_request()
 
         if download_file_extension == ".pdf":
             user_dir = get_user_pdf_folder_path(user)
@@ -2296,7 +2366,8 @@ class HTMLExportDownload(Resource):
             html_filename = f"{api_id}_{mapping_view}.html"
             html_filepath = os.path.join(html_user_dir, html_filename)
             if not os.path.exists(html_filepath):
-                return NOT_FOUND_MESSAGE + f": file not found: {html_filepath}", NOT_FOUND_STATUS
+                api_response.set_message(f"File not found: {html_filepath}")
+                return api_response.return_not_found()
             with open(html_filepath, "r") as f:
                 html_content = f.read()
 
@@ -2316,8 +2387,8 @@ class HTMLExportDownload(Resource):
                     )
                 )
             except Exception as e:
-                logger.error(f"Pandoc convert error: {e}")
-                return {"error": "PDF conversion failed"}, 500
+                api_response.set_message(f"Pandoc convert error: {e}")
+                return api_response.return_server_error()
 
             # Save PDF to target location
             pdf_filepath = os.path.join(user_dir, f"{api_id}_{mapping_view}.pdf")
@@ -2329,50 +2400,57 @@ class HTMLExportDownload(Resource):
         export_filename = f"{api_id}_{mapping_view}{download_file_extension}"
         export_filepath = os.path.join(user_dir, export_filename)
         if not os.path.exists(export_filepath):
-            return NOT_FOUND_MESSAGE + f": file not found: {export_filepath}", NOT_FOUND_STATUS
+            api_response.set_message(f"File not found: {export_filepath}")
+            return api_response.return_not_found()
 
         return send_file(export_filepath, as_attachment=True, download_name=export_filename)
 
 
 @app.route('/spdx/apis/export-download')
+@api_response_decorator
 @check_api_user_read_permission
-def SPDXApiExportDownload(api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-    """Download a file from the user's spdx-export directory"""
-    fields = ["filename"]
-    args = get_query_string_args(request.args)
+def SPDXApiExportDownload(
+    api: ApiModel = None,
+    user: UserModel = None,
+    dbi: db_orm.DbInterface = None,
+    api_response: ApiResponse = None,
+):
+    """
+    Download a file from the user's spdx-export directory
+    """
+    request_data = get_query_string_args(request.args)
+    api_response.set_logger(logger)
+    api_response.set_args(request_data)
 
-    # Check required fields
-    if not check_fields_in_request(
-            fields=fields,
-            request=args,
-            allow_empty_string=False,
-            int_fields=[]):
-        return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    mandatory_fields = ["filename"]
+    wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+    if len(wrong_fields) > 0:
+        api_response.set_missing_fields(wrong_fields)
+        return api_response.return_bad_request_missing_fields()
 
     # Construct file path
-    filename = args["filename"]
+    filename = request_data["filename"]
     # Prevent directory traversal: only allow basename (no path separators)
     if os.path.basename(filename) != filename or any(sep in filename for sep in ('/', '\\')):
-        logger.warning(f"SPDXApiExportDownload - Attempted directory traversal with filename: {filename}")
-        return f"{FORBIDDEN_MESSAGE}: Invalid filename", FORBIDDEN_STATUS
+        api_response.set_message("Invalid filename")
+        return api_response.return_forbidden()
 
     file_path = os.path.join(currentdir, "public", "spdx_export", str(user.id), filename)
 
     # Security check: ensure the file is within the allowed directory
     allowed_dir = os.path.join(currentdir, "public", "spdx_export", str(user.id))
     if not os.path.abspath(file_path).startswith(os.path.abspath(allowed_dir)):
-        logger.warning(f"SPDXApiExportDownload - {file_path} invalid file path")
-        return f"{FORBIDDEN_MESSAGE}: Access denied - Invalid file path", FORBIDDEN_STATUS
+        api_response.set_message("Access denied - Invalid file path")
+        return api_response.return_forbidden()
 
     # Check if file exists
     if not os.path.exists(file_path):
-        logger.warning(f"SPDXApiExportDownload - File {file_path} not found")
-        return f"{NOT_FOUND_MESSAGE}: File not found", NOT_FOUND_STATUS
+        return api_response.return_not_found_file()
 
     # Check if it's a file (not a directory)
     if not os.path.isfile(file_path):
-        logger.warning(f"SPDXApiExportDownload - {file_path} is not a file")
-        return f"{BAD_REQUEST_MESSAGE}: Invalid file", BAD_REQUEST_STATUS
+        api_response.set_message("Invalid file")
+        return api_response.return_bad_request()
 
     name, ext = os.path.splitext(file_path)
     if ext.lower() == '.jsonld':
@@ -2382,8 +2460,8 @@ def SPDXApiExportDownload(api: ApiModel = None, user: UserModel = None, dbi: db_
     elif ext.lower() == '.png':
         mimetype = 'image/png'
     else:
-        logger.warning(f"SPDXApiExportDownload - {file_path} is not the correct extension")
-        return f"{BAD_REQUEST_MESSAGE}: Invalid file extension", BAD_REQUEST_STATUS
+        api_response.set_message("Invalid file extension")
+        return api_response.return_bad_request()
 
     dbi.close()
 
@@ -2392,15 +2470,30 @@ def SPDXApiExportDownload(api: ApiModel = None, user: UserModel = None, dbi: db_
 
 
 class Comment(Resource):
+    route = "/comments"
     fields = ["api-id", "comment", "parent_table", "parent_id", "user-id", "token"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        # mandatory_fields = ["parent_table", "parent_id"]
-        args = get_query_string_args(request.args)
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get comments
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = ["parent_table", "parent_id"]
 
-        if "parent_table" not in args.keys() or "parent_id" not in args.keys():
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
@@ -2410,26 +2503,41 @@ class Comment(Resource):
             .filter(CommentModel.parent_id == args["parent_id"])
         )
 
-        if "search" in args:
+        if "search" in request_data:
             query = query.filter(
                 or_(
-                    CommentModel.comment.like(f'%{args["search"]}%'),
+                    CommentModel.comment.like(f'%{request_data["search"]}%'),
                 )
             )
 
         query = query.order_by(CommentModel.created_at.asc())
         comments = [c.as_dict() for c in query.all()]
-        return comments
+        api_response.set_data(comments)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        post comment
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = self.fields.copy()
         mandatory_fields.append("todo")
 
-        if not check_fields_in_request(mandatory_fields, request_data, False):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         parent_table = request_data["parent_table"].strip()
         parent_id = request_data["parent_id"]
@@ -2490,19 +2598,34 @@ class Comment(Resource):
             dbi.session.add(notifications)
             dbi.session.commit()
 
-        return new_comment.as_dict()
+        api_response.set_data(new_comment.as_dict())
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        put comment
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = self.fields.copy()
         mandatory_fields.append("comment_id")
         mandatory_fields.append("todo")
         mandatory_fields.append("done")
 
-        if not check_fields_in_request(mandatory_fields, request_data, False):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         parent_table = request_data["parent_table"].strip()
         parent_id = request_data["parent_id"]
@@ -2531,7 +2654,7 @@ class Comment(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: comment not found", NOT_FOUND_STATUS
+            return api_response.return_not_found_comment()
 
         comment_model.comment = new_comment
         comment_model.todo = todo
@@ -2540,18 +2663,33 @@ class Comment(Resource):
         comment_model.done_at = done_at
         dbi.session.commit()
 
-        return comment_model.as_dict()
+        api_response.set_data(comment_model.as_dict())
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete comment
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = self.fields.copy()
         mandatory_fields.append("comment_id")
         mandatory_fields.remove("comment")
 
-        if not check_fields_in_request(mandatory_fields, request_data, False):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         parent_table = request_data["parent_table"].strip()
         parent_id = request_data["parent_id"]
@@ -2567,87 +2705,108 @@ class Comment(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: comment not found", NOT_FOUND_STATUS
+            return api_response.return_not_found_comment()
 
         dbi.session.delete(comment_model)
         dbi.session.commit()
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class CheckSpecification(Resource):
+    route = "/apis/check-specification"
     fields = ["id"]
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        check specification
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        args = get_query_string_args(request.args)
-
-        if not check_fields_in_request(self.fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
-        query = dbi.session.query(ApiModel).filter(ApiModel.id == args["id"])
+        query = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["id"])
         apis = query.all()
 
         if len(apis) != 1:
-            return "Unable to find the api", NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         api = apis[0]
 
-        if "url" in args.keys():
-            spec = get_api_specification(request.args["url"])
+        if "url" in request_data.keys():
+            spec = get_api_specification(request_data["url"])
         else:
             spec = get_api_specification(api.raw_specification_url)
 
         ret = check_direct_work_items_against_another_spec_file(dbi.session, spec, api)
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class Document(Resource):
+    route = "/documents"
     fields = get_model_editable_fields(DocumentModel, False)
     fields_hashes = [x.replace("_", "-") for x in fields]
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get documents
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         dbi = get_db()
         query = dbi.session.query(DocumentModel)
-        query = filter_query(query, args, DocumentModel, False)
+        query = filter_query(query, request_data, DocumentModel, False)
         docs = [doc.as_dict() for doc in query.all()]
-        return docs
+        api_response.set_data(docs)
+        return api_response.return_ok()
 
 
 class RemoteDocument(Resource):
-    def get(self):
-        args = get_query_string_args(request.args)
+    route = "/remote-documents"
+
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get remote documents
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = {}
-        if "api-id" not in args.keys():
-            return {}
+        if "id" not in request_data.keys() and "url" not in request_data.keys():
+            api_response.set_data({})
+            return api_response.return_ok()
 
-        if "id" not in args.keys() and "url" not in args.keys():
-            return {}
-
-        dbi = get_db()
-
-        # User permission
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        if "url" in args.keys():
-            ret = {"url": args["url"], "valid": None, "content": get_api_specification(args["url"])}  # not evaluated
-        elif "id" in args.keys():
+        if "url" in request_data.keys():
+            ret = {
+                "url": request_data["url"],
+                "valid": None,
+                "content": get_api_specification(request_data["url"]),
+            }  # not evaluated
+        elif "id" in request_data.keys():
             try:
-                document = dbi.session.query(DocumentModel).filter(DocumentModel.id == args["id"]).one()
+                document = dbi.session.query(DocumentModel).filter(DocumentModel.id == request_data["id"]).one()
                 content = get_api_specification(document.url)
                 valid = False
                 if content:
@@ -2674,28 +2833,36 @@ class RemoteDocument(Resource):
                     dbi.session.commit()
 
             except NoResultFound:
-                return f"Unable to find the Document id {id}", 400
-            ret = {"id": args["id"], "content": content, "valid": valid}
+                api_response.set_message(f"Unable to find the Document id {request_data['id']}")
+                return api_response.return_not_found()
+            ret = {"id": request_data["id"], "content": content, "valid": valid}
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class FixNewSpecificationWarnings(Resource):
+    route = "/apis/fix-specification-warnings"
     fields = ["id"]
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(self.fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
-        query = dbi.session.query(ApiModel).filter(ApiModel.id == args["id"])
+        query = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["id"])
         apis = query.all()
 
         if len(apis) != 1:
-            return "Unable to find the api", NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         api = apis[0]
 
@@ -2758,17 +2925,26 @@ class FixNewSpecificationWarnings(Resource):
                 doc_all[0].offset = analysis["documents"]["warning"][i]["new-offset"]
                 dbi.session.commit()
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class Api(Resource):
+    route = "/apis"
     fields = get_model_editable_fields(ApiModel, False)
     fields.remove("last_coverage")
     fields_hashes = [x.replace("_", "-") for x in fields]
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        Get apis
+        """
         apis_dict = []
         args = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(args)
+
         dbi = get_db()
 
         # User permission
@@ -2841,15 +3017,23 @@ class Api(Resource):
             "count": count,
         }
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def post(self):
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        api_response.set_logger(logger)
+        api_response.set_args(request.get_json(force=True))
+
         request_data = request.get_json(force=True)
         post_fields = self.fields_hashes.copy()
         post_fields.append("action")
         post_fields.remove("default-view")
-        if not check_fields_in_request(post_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(post_fields, request_data)
+
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
@@ -2863,22 +3047,25 @@ class Api(Resource):
         )
 
         if len(api) > 0:
-            return "Api is already in the db for the selected library", CONFLICT_STATUS
+            api_response.set_message("Api is already in the db for the selected library")
+            return api_response.return_conflict()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
         if user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return "Current user have no writing permissions", 401
+            return api_response.return_forbidden_write()
 
         if request_data["action"] == "fork":
             source_api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).all()
             if len(source_api) != 1:
-                return "Api not found", NOT_FOUND_STATUS
+                return api_response.return_not_found_api()
             if source_api[0].api != request_data["api"]:
-                return "New Api name differ from the original one", CONFLICT_STATUS
+                api_response.set_message("New Api name differ from the original one")
+                return api_response.return_conflict()
             if source_api[0].library != request_data["library"]:
-                return "New Api library differ from the original one", CONFLICT_STATUS
+                api_response.set_message("New Api library differ from the original one")
+                return api_response.return_conflict()
 
         file_from_row = parse_int(request_data.get("implementation-file-from-row", ""))
         file_to_row = parse_int(request_data.get("implementation-file-to-row", ""))
@@ -2888,7 +3075,8 @@ class Api(Resource):
         for field, constraint in filed_constraints.items():
             if "max_length" in constraint and field in request_data:
                 if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
-                    return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+                    api_response.set_message(f"{field} must be less than {constraint['max_length']} characters")
+                    return api_response.return_bad_request()
 
         new_api = ApiModel(
             request_data["api"],
@@ -2962,32 +3150,23 @@ class Api(Resource):
                 api_test_case.fork(new_api, dbi.session)
 
         dbi.session.commit()
-        return new_api.as_dict()
+        api_response.set_data(new_api.as_dict())
+        return api_response.return_created()
 
-    def put(self):
+    @api_response_decorator
+    @check_api_user_edit_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         put_fields = self.fields_hashes.copy()
         put_fields.append("api-id")
-        if not check_fields_in_request(put_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # User permission
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
-            return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+        wrong_fields = get_wrong_mandatory_fields(put_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # Check that the new api+library+library_version is not already in the db
         same_existing_apis = (
@@ -3000,7 +3179,8 @@ class Api(Resource):
         )
 
         if len(same_existing_apis) > 0:
-            return "An Api with selected name and library already exist in the db", CONFLICT_STATUS
+            api_response.set_message("An Api with selected name and library already exist in the db")
+            return api_response.return_conflict()
 
         api_modified = False
         for field in self.fields:
@@ -3025,39 +3205,30 @@ class Api(Resource):
             dbi.session.add(notifications)
 
         dbi.session.commit()
-        return api.as_dict()
+        api_response.set_data(api.as_dict())
+        return api_response.return_ok()
 
-    def delete(self):
+    @api_response_decorator
+    @check_api_user_edit_permission
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        api_response.set_logger(logger)
+        api_response.set_args(request.get_json(force=True))
+
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["api-id", "api", "library", "library-version", "user-id", "token"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # Find api
-        try:
-            api = (
-                dbi.session.query(ApiModel)
-                .filter(ApiModel.id == request_data["api-id"])
-                .filter(ApiModel.api == request_data["api"])
-                .filter(ApiModel.library == request_data["library"])
-                .filter(ApiModel.library_version == request_data["library-version"])
-                .one()
-            )
-        except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # User permission
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "e" not in permissions or user.role not in USER_ROLES_EDIT_PERMISSIONS:
-            return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # Delete history tables first (bulk delete does not trigger before_delete events,
         # so history rows would block api deletion due to FK constraints)
@@ -3100,37 +3271,50 @@ class Api(Resource):
         dbi.session.add(notifications)
         dbi.session.delete(api)
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class ApiWritePermissionRequest(Resource):
+    route = "/apis/write-permission-request"
+
+    @api_response_decorator
     @check_api_user_read_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
         """
         Update api write permission request field
         """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         put_fields = ["api-id"]
 
-        if not check_fields_in_request(put_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(put_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # Guest not logged in cannot request write permission as we need an entry in the user table
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            api_response.set_message("User role does not have write permissions")
+            return api_response.return_unauthorized()
 
         # Permissions
         permissions = get_api_user_permissions(api, user, dbi.session)
 
         if "w" in permissions:
-            return f"{CONFLICT_MESSAGE}: user already has write permission", CONFLICT_STATUS
+            api_response.set_message("User already has write permission")
+            return api_response.return_conflict()
 
         write_permission_request = get_api_user_requested_write_permissions(api, user, dbi)
         if write_permission_request:
-            return f"{CONFLICT_MESSAGE}: user already requested write permission", CONFLICT_STATUS
+            api_response.set_message("User already requested write permission")
+            return api_response.return_conflict()
         else:
             api.write_permission_requests += f"[{user.id}]"
             dbi.session.commit()
@@ -3175,40 +3359,35 @@ class ApiWritePermissionRequest(Resource):
                                                  email_footer,
                                                  True)
             except Exception as e:
-                print(f"Unable to send email notification: {e}")
+                api_response.set_message("Unable to send email notification")
+                api_response.set_exception(e)
+                return api_response.return_server_error()
 
-            return True
+            api_response.set_data(True)
+            return api_response.return_ok()
 
 
 class ApiLastCoverage(Resource):
-    def put(self):
+    route = "/mapping/api/last-coverage"
+
+    @api_response_decorator
+    @check_api_user_write_permission
+    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
         """
         edit api last_coverage field
         """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         edit_field = "last_coverage"
         put_fields = ["api-id", edit_field.replace("_", "-")]
 
-        if not check_fields_in_request(put_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # User permission
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+        wrong_fields = get_wrong_mandatory_fields(put_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         api_modified = False
         if getattr(api, edit_field) != request_data[edit_field.replace("_", "-")]:
@@ -3218,17 +3397,23 @@ class ApiLastCoverage(Resource):
         if api_modified:
             dbi.session.commit()
 
-        return api.as_dict()
+        api_response.set_data(api.as_dict())
+        return api_response.return_ok()
 
 
 class ApiHistory(Resource):
-    def get(self):
-        args = get_query_string_args(request.args)
+    route = "/apis/history"
 
-        if "api-id" not in args.keys():
-            return []
-
-        dbi = get_db()
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        """
+        get api history
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         _model = ApiModel
         _model_history = ApiHistoryModel
@@ -3236,7 +3421,7 @@ class ApiHistory(Resource):
 
         model_versions_query = (
             dbi.session.query(_model_history)
-            .filter(_model_history.id == args["api-id"])
+            .filter(_model_history.id == api.id)
             .order_by(_model_history.version.asc())
         )
         staging_array = []
@@ -3247,7 +3432,7 @@ class ApiHistory(Resource):
             obj = {
                 "version": model_version.version,
                 "type": "object",
-                "created_at": datetime.datetime.strptime(str(model_version.created_at), "%Y-%m-%d %H:%M:%S.%f"),
+                "created_at": datetime.datetime.strptime(str(model_version.created_at), HISTORY_DATE_FORMAT),
             }
 
             for k in _model_fields:
@@ -3268,7 +3453,8 @@ class ApiHistory(Resource):
                 break
 
         if not first_found:
-            return []
+            api_response.set_data([])
+            return api_response.return_ok()
 
         ret.append(get_combined_history_object(first_obj, {}, _model_fields, []))
 
@@ -3291,12 +3477,22 @@ class ApiHistory(Resource):
                     )
 
         ret = ret[::-1]
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class ApiNewVersion(Resource):
+    route = "/apis/new-version"
+
+    @api_response_decorator
     @check_api_user_read_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         """Create a new version of a target software component
         In case the version already exists, the API will return CONFLICT.
         Otherwise:
@@ -3306,16 +3502,18 @@ class ApiNewVersion(Resource):
         - Return the new software component object as dictionary
         """
         request_data = request.get_json(force=True)
-        mandatory_fields = ["api-id", "new-version"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        api_id = request_data["api-id"]
+        mandatory_fields = ["api-id", "new-version", "user-id", "token"]
+        wrong_fields = get_wrong_mandatory_fields(
+            mandatory_fields, request_data, allow_empty_string=False, int_fields=["api-id", "user-id"]
+        )
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
         new_version = request_data["new-version"]
-
-        api = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).one()
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
 
         same_existing_apis = (
             dbi.session.query(ApiModel)
@@ -3325,7 +3523,8 @@ class ApiNewVersion(Resource):
             .all()
         )
         if len(same_existing_apis) > 0:
-            return "An Api with selected name and library already exist in the db", CONFLICT_STATUS
+            api_response.set_message("An Api with selected name and library already exist in the db")
+            return api_response.return_conflict()
 
         new_api = ApiModel(
             api.api,
@@ -3387,64 +3586,91 @@ class ApiNewVersion(Resource):
         for api_justification in api_justifications:
             api_justification.fork(new_api, dbi.session)
 
-        return new_api.as_dict()
+        api_response.set_data(new_api.as_dict())
+        return api_response.return_created()
 
 
 class Library(Resource):
+    route = "/libraries"
 
-    def get(self):
-        # args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get libraries
+        """
         dbi = get_db()
         libraries = dbi.session.query(ApiModel.library).distinct().all()
-        return sorted([x.library for x in libraries])
+        ret = sorted([x.library for x in libraries])
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class ApiSpecification(Resource):
-    def get(self):
-        args = get_query_string_args(request.args)
-        if "api-id" not in args.keys():
-            return {}
+    route = "/api-specifications"
 
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        """
+        get api specification
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         spec = get_api_specification(api.raw_specification_url)
 
+        permissions = get_api_user_permissions(api, user, dbi.session)
         ret = api.as_dict()
         ret["raw_specification"] = spec
         ret["permissions"] = permissions
-        return ret
+
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class ApiTestSpecificationsMapping(Resource):
+    route = "/mapping/api/test-specifications"
     fields = ["api-id", "test-specification", "section", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(["api-id"], args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get api test specifications mapping
+        """
+        mapping = get_api_test_specifications_mapping_sections(dbi, api)
+        api_response.set_data(mapping)
+        return api_response.return_ok()
 
-        ret = get_api_test_specifications_mapping_sections(dbi, api)
-        return ret
-
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new api test specification mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = self.fields
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -3455,7 +3681,8 @@ class ApiTestSpecificationsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestSpecification.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-specification"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["test-specification"]["title"]
             preconditions = request_data["test-specification"]["preconditions"]
@@ -3469,8 +3696,11 @@ class ApiTestSpecificationsMapping(Resource):
                         TestSpecificationModel.test_description == test_description).filter(
                             TestSpecificationModel.expected_behavior == expected_behavior).all()
             if len(existing_tss):
-                return f"Test Specification {existing_tss[0].id} has same content, " \
-                       f"consider to use the existing one or to edit at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Specification {existing_tss[0].id} has same content, "
+                    "consider to use the existing one or to edit at least one field"
+                )
+                return api_response.return_conflict()
 
             new_test_specification = TestSpecificationModel(
                 title, preconditions, test_description, expected_behavior, user
@@ -3492,14 +3722,16 @@ class ApiTestSpecificationsMapping(Resource):
                         ApiTestSpecificationModel.section == section).filter(
                             ApiTestSpecificationModel.offset == offset).all()
             if len(existing_tss_mapping):
-                return f"Test Specification {id} already associated to the selected api", CONFLICT_STATUS
+                api_response.set_message(f"Test Specification {id} already associated to the selected api")
+                return api_response.return_conflict()
 
             try:
                 existing_test_specification = (
                     dbi.session.query(TestSpecificationModel).filter(TestSpecificationModel.id == id).one()
                 )
             except NoResultFound:
-                return f"Unable to find the Test Specification id {id}", 400
+                api_response.set_message(f"Unable to find the Test Specification id {id}")
+                return api_response.return_not_found()
 
             new_test_specification_mapping_api = ApiTestSpecificationModel(
                 api, existing_test_specification, section, offset, coverage, user
@@ -3525,16 +3757,31 @@ class ApiTestSpecificationsMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return new_test_specification_mapping_api.as_dict()
+        api_response.set_data(new_test_specification_mapping_api.as_dict())
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update an existing api test specification mapping
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = self.fields + ["relation-id"]
 
-        request_data = request.get_json(force=True)
-
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             test_specification_mapping_api = (
@@ -3543,7 +3790,11 @@ class ApiTestSpecificationsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Specification mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         test_specification = test_specification_mapping_api.test_specification
 
@@ -3593,15 +3844,30 @@ class ApiTestSpecificationsMapping(Resource):
             dbi.session.add(notifications)
             dbi.session.commit()
 
-        return test_specification_mapping_api.as_dict()
+        api_response.set_data(test_specification_mapping_api.as_dict())
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete an existing api test specification mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
+        mandatory_fields = ["relation-id", "api-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
         # check if api ...
         try:
             test_specification_mapping_api = (
@@ -3610,10 +3876,18 @@ class ApiTestSpecificationsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Specification mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         if test_specification_mapping_api.api.id != api.id:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(
+                f"The Test Specification mapping to Api id {request_data['relation-id']} "
+                "is not associated to the requested api"
+            )
+            return api_response.return_bad_request()
 
         notification_ts_id = test_specification_mapping_api.test_specification.id
         notification_ts_title = test_specification_mapping_api.test_specification.title
@@ -3643,28 +3917,51 @@ class ApiTestSpecificationsMapping(Resource):
         """
 
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class ApiTestCasesMapping(Resource):
+    route = "/mapping/api/test-cases"
     fields = ["api-id", "test-case", "section", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(["api-id"], args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get api test cases mapping
+        """
+        mapping = get_api_test_cases_mapping_sections(dbi, api)
+        api_response.set_data(mapping)
+        return api_response.return_ok()
 
-        ret = get_api_test_cases_mapping_sections(dbi, api)
-        return ret
-
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new api test case mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(self.fields, request_data):
-            logger.error("Bad request: missing mandatory fields")
-            return f"{BAD_REQUEST_MESSAGE} - Missing mandatory fields", BAD_REQUEST_STATUS
+        mandatory_fields = self.fields
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -3675,8 +3972,8 @@ class ApiTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    logger.error("Bad request: missing field in test case payload")
-                    return f"{BAD_REQUEST_MESSAGE} - Missing field in test case payload", BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             repository = request_data["test-case"]["repository"]
             relative_path = request_data["test-case"]["relative-path"].lstrip(os.path.sep)
@@ -3690,15 +3987,18 @@ class ApiTestCasesMapping(Resource):
                         TestCaseModel.repository == repository).filter(
                             TestCaseModel.relative_path == relative_path).all()
             if len(existing_tcs):
-                return f"Test Case {existing_tcs[0].id} has same content, " \
-                       f"consider to use the exsting one or to edit at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Case {existing_tcs[0].id} has same content, "
+                    "consider to use the exsting one or to edit at least one field"
+                )
+                return api_response.return_conflict()
 
             test_case_path = os.path.join(repository, relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    logger.error(f"Test Case {title} has an invalid path: {test_case_path}")
-                    return f"{BAD_REQUEST_MESSAGE} - Invalid path", BAD_REQUEST_STATUS
+                    api_response.set_message(f"Invalid path: {test_case_path}")
+                    return api_response.return_bad_request()
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -3715,12 +4015,14 @@ class ApiTestCasesMapping(Resource):
                         ApiTestCaseModel.section == section).filter(
                             ApiTestCaseModel.offset == offset).all()
             if len(existing_tcs_mapping):
-                return f"Test Case {id} already associated to the selected api", CONFLICT_STATUS
+                api_response.set_message(f"Test Case {id} already associated to the selected api")
+                return api_response.return_conflict()
 
             try:
                 existing_test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == id).one()
             except NoResultFound:
-                return f"Unable to find the Test Case id {id}", 400
+                api_response.set_message(f"Unable to find the Test Case id {id}")
+                return api_response.return_not_found()
 
             new_test_case_mapping_api = ApiTestCaseModel(api, existing_test_case, section, offset, coverage, user)
 
@@ -3743,15 +4045,30 @@ class ApiTestCasesMapping(Resource):
             f"/mapping/{api.id}",
         )
         dbi.session.add(notifications)
-        return new_test_case_mapping_api.as_dict()
+        api_response.set_data(new_test_case_mapping_api.as_dict(db_session=dbi.session))
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        mandatory_fields = self.fields + ["relation-id"]
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update an existing api test case mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = self.fields + ["relation-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             test_case_mapping_api = (
@@ -3759,7 +4076,11 @@ class ApiTestCasesMapping(Resource):
             )
             test_case = test_case_mapping_api.test_case
         except NoResultFound:
-            return "Test Case mapping api not found", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Update only modified fields
         modified_tc = False
@@ -3771,13 +4092,14 @@ class ApiTestCasesMapping(Resource):
 
         if modified_tc:
             test_case_path = os.path.join(
-                request_data["test-case"]["repository"],
-                request_data["test-case"]["relative-path"].lstrip(os.path.sep)
+                test_case.repository,
+                str(test_case.relative_path).lstrip(os.path.sep),
             )
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message(f"Invalid path: {test_case_path}")
+                    return api_response.return_bad_request()
 
             setattr(test_case, "edited_by_id", user.id)
 
@@ -3813,14 +4135,30 @@ class ApiTestCasesMapping(Resource):
             dbi.session.add(notifications)
             dbi.session.commit()
 
-        return test_case_mapping_api.as_dict()
+        api_response.set_data(test_case_mapping_api.as_dict())
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete an existing api test case mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["relation-id", "api-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check if api ...
         try:
@@ -3828,10 +4166,18 @@ class ApiTestCasesMapping(Resource):
                 dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.id == request_data["relation-id"]).one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         if test_case_mapping_api.api.id != api.id:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(
+                f"The Test Case mapping to Api id {request_data['relation-id']} "
+                "is not associated to the requested api"
+            )
+            return api_response.return_bad_request()
 
         notification_tc_id = test_case_mapping_api.test_case.id
         notification_tc_title = test_case_mapping_api.test_case.title
@@ -3861,43 +4207,52 @@ class ApiTestCasesMapping(Resource):
         """
 
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class MappingHistory(Resource):
-    def get(self):
-        args = get_query_string_args(request.args)
+    route = "/mapping/history"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get mapping history
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         dbi = get_db()
 
-        if (
-            "work_item_type" not in args.keys()
-            or "mapped_to_type" not in args.keys()
-            or "relation_id" not in args.keys()
-        ):
-            return []
+        mandatory_fields = ["work_item_type", "mapped_to_type", "relation_id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        if args["mapped_to_type"] == "api":
-            if args["work_item_type"] == "justification":
+        if request_data["mapped_to_type"] == "api":
+            if request_data["work_item_type"] == "justification":
                 _model = JustificationModel
                 _model_map = ApiJustificationModel
                 _model_map_history = ApiJustificationHistoryModel
                 _model_history = JustificationHistoryModel
-            elif args["work_item_type"] == "document":
+            elif request_data["work_item_type"] == "document":
                 _model = DocumentModel
                 _model_map = ApiDocumentModel
                 _model_map_history = ApiDocumentHistoryModel
                 _model_history = DocumentHistoryModel
-            elif args["work_item_type"] == "sw-requirement":
+            elif request_data["work_item_type"] == "sw-requirement":
                 _model = SwRequirementModel
                 _model_map = ApiSwRequirementModel
                 _model_map_history = ApiSwRequirementHistoryModel
                 _model_history = SwRequirementHistoryModel
-            elif args["work_item_type"] == "test-specification":
+            elif request_data["work_item_type"] == "test-specification":
                 _model = TestSpecificationModel
                 _model_map = ApiTestSpecificationModel
                 _model_map_history = ApiTestSpecificationHistoryModel
                 _model_history = TestSpecificationHistoryModel
-            elif args["work_item_type"] == "test-case":
+            elif request_data["work_item_type"] == "test-case":
                 _model = TestCaseModel
                 _model_map = ApiTestCaseModel
                 _model_map_history = ApiTestCaseHistoryModel
@@ -3905,18 +4260,18 @@ class MappingHistory(Resource):
             else:
                 return []
 
-        elif args["mapped_to_type"] == "sw-requirement":
-            if args["work_item_type"] == "sw-requirement":
+        elif request_data["mapped_to_type"] == "sw-requirement":
+            if request_data["work_item_type"] == "sw-requirement":
                 _model = SwRequirementModel
                 _model_map = SwRequirementSwRequirementModel
                 _model_map_history = SwRequirementSwRequirementHistoryModel
                 _model_history = SwRequirementHistoryModel
-            elif args["work_item_type"] == "test-specification":
+            elif request_data["work_item_type"] == "test-specification":
                 _model = TestSpecificationModel
                 _model_map = SwRequirementTestSpecificationModel
                 _model_map_history = SwRequirementTestSpecificationHistoryModel
                 _model_history = TestSpecificationHistoryModel
-            elif args["work_item_type"] == "test-case":
+            elif request_data["work_item_type"] == "test-case":
                 _model = TestCaseModel
                 _model_map = SwRequirementTestCaseModel
                 _model_map_history = SwRequirementTestCaseHistoryModel
@@ -3924,8 +4279,8 @@ class MappingHistory(Resource):
             else:
                 return []
 
-        elif args["mapped_to_type"] == "test-specification":
-            if args["work_item_type"] == "test-case":
+        elif request_data["mapped_to_type"] == "test-specification":
+            if request_data["work_item_type"] == "test-case":
                 _model = TestCaseModel
                 _model_map = TestSpecificationTestCaseModel
                 _model_map_history = TestSpecificationTestCaseHistoryModel
@@ -3933,33 +4288,35 @@ class MappingHistory(Resource):
             else:
                 return []
 
-        elif args["mapped_to_type"] == "document":
-            if args["work_item_type"] == "document":
+        elif request_data["mapped_to_type"] == "document":
+            if request_data["work_item_type"] == "document":
                 _model = DocumentModel
                 _model_map = DocumentDocumentModel
                 _model_map_history = DocumentDocumentHistoryModel
                 _model_history = DocumentHistoryModel
 
         else:
-            return []
+            api_response.set_data([])
+            return api_response.return_ok()
 
         _model_fields = _model.__table__.columns.keys()
         _model_map_fields = _model_map.__table__.columns.keys()
 
-        relation_rows = dbi.session.query(_model_map).filter(_model_map.id == args["relation_id"]).all()
+        relation_rows = dbi.session.query(_model_map).filter(_model_map.id == request_data["relation_id"]).all()
         if len(relation_rows) != 1:
-            return []
+            api_response.set_data([])
+            return api_response.return_ok()
 
         relation_row = relation_rows[0].as_dict()
 
         model_versions_query = (
             dbi.session.query(_model_history)
-            .filter(_model_history.id == relation_row[args["work_item_type"].replace("-", "_")]["id"])
+            .filter(_model_history.id == relation_row[request_data["work_item_type"].replace("-", "_")]["id"])
             .order_by(_model_history.version.asc())
         )
         model_map_versions_query = (
             dbi.session.query(_model_map_history)
-            .filter(_model_map_history.id == args["relation_id"])
+            .filter(_model_map_history.id == request_data["relation_id"])
             .order_by(_model_map_history.version.asc())
         )
 
@@ -3971,7 +4328,7 @@ class MappingHistory(Resource):
             obj = {
                 "version": model_version.version,
                 "type": "object",
-                "created_at": datetime.datetime.strptime(str(model_version.created_at), "%Y-%m-%d %H:%M:%S.%f"),
+                "created_at": datetime.datetime.strptime(str(model_version.created_at), HISTORY_DATE_FORMAT),
             }
 
             for k in _model_fields:
@@ -3985,10 +4342,10 @@ class MappingHistory(Resource):
             obj = {
                 "version": model_map_version.version,
                 "type": "mapping",
-                "created_at": datetime.datetime.strptime(str(model_map_version.created_at), "%Y-%m-%d %H:%M:%S.%f"),
+                "created_at": datetime.datetime.strptime(str(model_map_version.created_at), HISTORY_DATE_FORMAT),
             }
             for k in _model_map_fields:
-                if args["work_item_type"] == "justification":
+                if request_data["work_item_type"] == "justification":
                     if k not in ["coverage", "created_at", "updated_at"]:
                         obj[k] = getattr(model_map_version, k)
                 else:
@@ -4014,7 +4371,8 @@ class MappingHistory(Resource):
                 break
 
         if not first_found:
-            return []
+            api_response.set_data([])
+            return api_response.return_ok()
 
         ret.append(get_combined_history_object(first_obj, first_map, _model_fields, _model_map_fields))
 
@@ -4032,24 +4390,34 @@ class MappingHistory(Resource):
 
         ret = get_reduced_history_data(ret, _model_fields, _model_map_fields, dbi.session)
         ret = ret[::-1]
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class MappingUsage(Resource):
-    def get(self):
+    route = "/mapping/usage"
+    fields = ["work_item_type", "id"]
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
         """Return list of api the selected work item is mapped directly against
         Improvement: Take in consideration also indirect mapping and other
           work items, like list of Test Specifications where a Test Case
           is used
         """
-        args = get_query_string_args(request.args)
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
         dbi = get_db()
 
-        if "work_item_type" not in args.keys() or "id" not in args.keys():
-            return []
-
-        wi_type = args["work_item_type"]
-        wi_id = int(args["id"])
+        wi_type = request_data["work_item_type"]
+        wi_id = int(request_data["id"])
 
         api_ids = []
 
@@ -4072,24 +4440,24 @@ class MappingUsage(Resource):
                         api_ids.append(api_doc.api_id)
 
         # Api
-        if args["work_item_type"] == "justification":
+        if wi_type == "justification":
             model = ApiJustificationModel
             api_data = dbi.session.query(model).filter(model.justification_id == wi_id).all()
             api_ids += [x.api_id for x in api_data]
-        elif args["work_item_type"] == "document":
+        elif wi_type == "document":
             model = ApiDocumentModel
             api_data = dbi.session.query(model).filter(model.document_id == wi_id).all()
             api_ids += [x.api_id for x in api_data]
-        elif args["work_item_type"] == "sw-requirement":
+        elif wi_type == "sw-requirement":
             model = ApiSwRequirementModel
             api_data = dbi.session.query(model).filter(model.sw_requirement_id == wi_id).all()
             api_ids += [x.api_id for x in api_data]
-        elif args["work_item_type"] == "test-specification":
+        elif wi_type == "test-specification":
             # Direct
             model = ApiTestSpecificationModel
             api_data = dbi.session.query(model).filter(model.test_specification_id == wi_id).all()
             api_ids += [x.api_id for x in api_data]
-        elif args["work_item_type"] == "test-case":
+        elif wi_type == "test-case":
             model = ApiTestCaseModel
             api_data = dbi.session.query(model).filter(model.test_case_id == wi_id).all()
             api_ids += [x.api_id for x in api_data]
@@ -4123,60 +4491,74 @@ class MappingUsage(Resource):
             ]
         }
 
-        return query_data
+        api_response.set_data(query_data)
+        return api_response.return_ok()
 
 
 class ApiSpecificationsMapping(Resource):
+    route = "/mapping/api/specifications"
     fields = ["api-id", "justification", "section", "offset"]
 
-    def get(self):
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(["api-id"], args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get api specifications mapping
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        # undesired_keys = ['section', 'offset']
-
-        dbi = get_db()
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        user = get_active_user_from_request(args, dbi.session)
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        mapped_sections = []
+        unmapped_sections = []
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
-            return []
+            api_response.set_message("Unable to find the Api Specification")
+            return api_response.return_not_found()
 
         mapped_sections = [
             {"section": api_specification, "offset": 0, "coverage": 0, _Ds: [], _TCs: [], _TSs: [], _SRs: [], _Js: []}
         ]
-        unmapped_sections = []
 
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class ApiJustificationsMapping(Resource):
+    route = "/mapping/api/justifications"
     fields = ["api-id", "justification", "section", "offset", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(["api-id"], args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get api justifications mapping
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         # undesired_keys = ['section', 'offset']
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
-            return []
+            api_response.set_message("Unable to find the Api Specification")
+            return api_response.return_not_found()
 
         justifications = (
             dbi.session.query(ApiJustificationModel)
@@ -4203,14 +4585,26 @@ class ApiJustificationsMapping(Resource):
 
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         section = request_data["section"]
         offset = request_data["offset"]
@@ -4223,8 +4617,11 @@ class ApiJustificationsMapping(Resource):
             existing_js = dbi.session.query(JustificationModel).filter(
                 JustificationModel.description == description).all()
             if len(existing_js):
-                return f"Justification {existing_js[0].id} has same content, " \
-                       f"consider to use the exsting one or to edit at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Justification {existing_js[0].id} has same content, "
+                    f"consider to use the exsting one or to edit at least one field"
+                )
+                return api_response.return_conflict()
 
             new_justification = JustificationModel(description, user)
             new_justification_mapping_api = ApiJustificationModel(
@@ -4242,15 +4639,19 @@ class ApiJustificationsMapping(Resource):
                         ApiJustificationModel.section == section).filter(
                             ApiJustificationModel.offset == offset).all()
             if len(existing_js_mapping):
-                return f"Justification {id} already associated to " \
-                       "the selected api", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Justification {id} already associated to "
+                    "the selected api"
+                )
+                return api_response.return_conflict()
 
             try:
                 existing_justification = (
                     dbi.session.query(JustificationModel).filter(JustificationModel.id == id).one()
                 )
             except NoResultFound:
-                return f"Unable to find the Justification id {id}", NOT_FOUND_STATUS
+                api_response.set_message(f"Unable to find the Justification id {id}")
+                return api_response.return_not_found()
 
             new_justification_mapping_api = ApiJustificationModel(
                 api, existing_justification, section, offset, coverage, user
@@ -4277,15 +4678,28 @@ class ApiJustificationsMapping(Resource):
         dbi.session.add(notifications)
 
         dbi.session.commit()
-        return new_justification_mapping_api.as_dict()
+        ret = new_justification_mapping_api.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        mandatory_fields = self.fields + ["relation-id"]
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = self.fields + ["relation-id"]
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check if api ...
         try:
@@ -4295,7 +4709,8 @@ class ApiJustificationsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Justification mapping id {request_data['relation-id']}", NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the Justification mapping id {request_data['relation-id']}")
+            return api_response.return_not_found()
 
         justification = justification_mapping_api.justification
 
@@ -4344,14 +4759,28 @@ class ApiJustificationsMapping(Resource):
             dbi.session.add(notifications)
 
         dbi.session.commit()
-        return justification_mapping_api.as_dict()
+        ret = justification_mapping_api.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = ["relation-id", "api-id"]
 
-        if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check if api ...
         justification_mapping_api = (
@@ -4361,12 +4790,17 @@ class ApiJustificationsMapping(Resource):
         )
 
         if len(justification_mapping_api) != 1:
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            api_response.set_message(f"Justification mapping id {request_data['relation-id']} not found")
+            return api_response.return_precondition_failed()
 
         justification_mapping_api = justification_mapping_api[0]
 
         if justification_mapping_api.api.id != api.id:
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            api_response.set_message(
+                f"The Justification mapping to Api id {request_data['relation-id']} "
+                "is not associated to the requested api"
+            )
+            return api_response.return_precondition_failed()
 
         notification_j_id = justification_mapping_api.justification.id
         dbi.session.delete(justification_mapping_api)
@@ -4399,23 +4833,28 @@ class ApiJustificationsMapping(Resource):
         """
 
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class ApiDocumentsMapping(Resource):
+    route = "/mapping/api/documents"
     fields = ["api-id", "coverage", "document", "offset", "section"]
 
     document_fields = ["description", "document_type", "offset", "section", "spdx_relation", "title", "url"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(["api-id"], args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         api_specification = get_api_specification(api.raw_specification_url)
         if api_specification is None:
-            return []
+            api_response.set_message("Unable to find the Api Specification")
+            return api_response.return_not_found()
 
         documents = (
             dbi.session.query(ApiDocumentModel)
@@ -4442,14 +4881,26 @@ class ApiDocumentsMapping(Resource):
 
         ret = {"mapped": mapped_sections, "unmapped": unmapped_sections}
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         mapping_section = request_data["section"]
         mapping_offset = request_data["offset"]
@@ -4458,8 +4909,10 @@ class ApiDocumentsMapping(Resource):
         if "id" not in request_data["document"].keys():
 
             document_fields_app = [x.replace("_", "-") for x in self.document_fields]
-            if not check_fields_in_request(document_fields_app, request_data["document"]):
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            wrong_fields = get_wrong_mandatory_fields(document_fields_app, request_data["document"])
+            if len(wrong_fields) > 0:
+                api_response.set_missing_fields(wrong_fields)
+                return api_response.return_bad_request_missing_fields()
 
             # Validate Document fields constraints
             filed_constraints = DocumentModel.get_field_constraints()
@@ -4467,7 +4920,8 @@ class ApiDocumentsMapping(Resource):
                 if "max_length" in constraint and field in request_data["document"]:
                     if constraint["max_length"] is not None and \
                        len(request_data["document"][field]) > constraint["max_length"]:
-                        return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+                        api_response.set_message(f"{field} must be less than {constraint['max_length']} characters")
+                        return api_response.return_bad_request()
 
             doc_title = request_data["document"]["title"]
             doc_description = request_data["document"]["description"]
@@ -4505,13 +4959,14 @@ class ApiDocumentsMapping(Resource):
                         ApiDocumentModel.section == mapping_section).filter(
                             ApiDocumentModel.offset == mapping_offset).all()
             if len(existing_docs_mapping):
-                return f"Document {id} " \
-                    "already associated to the selected api", CONFLICT_STATUS
+                api_response.set_message(f"Document {id} already associated to the selected api")
+                return api_response.return_conflict()
 
             try:
                 existing_document = dbi.session.query(DocumentModel).filter(DocumentModel.id == id).one()
             except NoResultFound:
-                return f"Unable to find the Document id {id}", 400
+                api_response.set_message(f"Unable to find the Document id {id}")
+                return api_response.return_not_found()
 
             new_document_mapping_api = ApiDocumentModel(
                 api, existing_document, mapping_section, mapping_offset, mapping_coverage, user
@@ -4537,22 +4992,35 @@ class ApiDocumentsMapping(Resource):
         dbi.session.add(notifications)
 
         dbi.session.commit()
-        return new_document_mapping_api.as_dict()
+        ret = new_document_mapping_api.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        mandatory_fields = self.fields + ["relation-id"]
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = self.fields + ["relation-id"]
         document_fields = self.document_fields + ["status"]
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            missing_fields = get_missing_mandatory_fields(mandatory_fields, request_data)
-            return f"{BAD_REQUEST_MESSAGE} - missing mandatory fields: {missing_fields}", BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         document_fields_app = [x.replace("_", "-") for x in document_fields]
-        if not check_fields_in_request(document_fields_app, request_data["document"]):
-            missing_fields = get_missing_mandatory_fields(document_fields_app, request_data["document"])
-            return f"{BAD_REQUEST_MESSAGE} - missing document fields: {missing_fields}", BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(document_fields_app, request_data["document"])
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check if api ...
         try:
@@ -4560,7 +5028,11 @@ class ApiDocumentsMapping(Resource):
                 dbi.session.query(ApiDocumentModel).filter(ApiDocumentModel.id == request_data["relation-id"]).one()
             )
         except NoResultFound:
-            return f"Unable to find the Document mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Document mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         document = document_mapping_api.document
 
@@ -4612,14 +5084,28 @@ class ApiDocumentsMapping(Resource):
             dbi.session.add(notifications)
 
         dbi.session.commit()
-        return document_mapping_api.as_dict()
+        ret = document_mapping_api.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = ["relation-id", "api-id"]
 
-        if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check if api ...
         document_mapping_api = (
@@ -4627,12 +5113,17 @@ class ApiDocumentsMapping(Resource):
         )
 
         if len(document_mapping_api) != 1:
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            api_response.set_message(f"Document mapping id {request_data['relation-id']} not found")
+            return api_response.return_precondition_failed()
 
         document_mapping_api = document_mapping_api[0]
 
         if document_mapping_api.api.id != api.id:
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            api_response.set_message(
+                f"The Document mapping to Api id {request_data['relation-id']} "
+                "is not associated to the requested api"
+            )
+            return api_response.return_precondition_failed()
 
         notification_d_id = document_mapping_api.document.id
         dbi.session.delete(document_mapping_api)
@@ -4654,27 +5145,51 @@ class ApiDocumentsMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class ApiSwRequirementsMapping(Resource):
+    route = "/mapping/api/sw-requirements"
     fields = ["api-id", "sw-requirement", "section", "offset", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(["api-id"], args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get api sw requirements mapping
+        """
+        mapping = get_api_sw_requirements_mapping_sections(dbi, api)
+        api_response.set_data(mapping)
+        return api_response.return_ok()
 
-        ret = get_api_sw_requirements_mapping_sections(dbi, api)
-        return ret
-
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new api sw requirement mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         notification_sr_title = ""
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         section = request_data["section"]
         coverage = request_data["coverage"]
@@ -4685,7 +5200,8 @@ class ApiSwRequirementsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in SwRequirement.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["sw-requirement"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["sw-requirement"]["title"]
             description = request_data["sw-requirement"]["description"]
@@ -4695,8 +5211,11 @@ class ApiSwRequirementsMapping(Resource):
                 SwRequirementModel.title == title).filter(
                     SwRequirementModel.description == description).all()
             if len(existing_srs):
-                return f"SW Requirement {existing_srs[0].id} has same content, " \
-                    "consider to use the existing one or to edit at least on field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"SW Requirement {existing_srs[0].id} has same content, "
+                    "consider to use the existing one or to edit at least on field"
+                )
+                return api_response.return_conflict()
 
             new_sw_requirement = SwRequirementModel(title, description, user)
 
@@ -4718,8 +5237,11 @@ class ApiSwRequirementsMapping(Resource):
                         ApiSwRequirementModel.section == section).filter(
                             ApiSwRequirementModel.offset == offset).all()
             if len(existing_srs_mapping):
-                return f"SW Requirement {id} already associated to " \
-                       "the selected api", CONFLICT_STATUS
+                api_response.set_message(
+                    f"SW Requirement {id} already associated to "
+                    "the selected api"
+                )
+                return api_response.return_conflict()
 
             try:
                 existing_sw_requirement = (
@@ -4727,7 +5249,8 @@ class ApiSwRequirementsMapping(Resource):
                 )
                 notification_sr_title = existing_sw_requirement.title
             except NoResultFound:
-                return f"SW Requirement {id} not found", NOT_FOUND_STATUS
+                api_response.set_message(f"SW Requirement {id} not found")
+                return api_response.return_not_found()
 
             new_sw_requirement_mapping_api = ApiSwRequirementModel(
                 api, existing_sw_requirement, section, offset, coverage, user
@@ -4750,15 +5273,30 @@ class ApiSwRequirementsMapping(Resource):
         dbi.session.add(notifications)
         dbi.session.commit()
 
-        return new_sw_requirement_mapping_api.as_dict()
+        api_response.set_data(new_sw_requirement_mapping_api.as_dict())
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        mandatory_fields = self.fields + ["relation-id"]
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update an existing api sw requirement mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = self.fields + ["relation-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             sw_requirement_mapping_api = (
@@ -4767,10 +5305,11 @@ class ApiSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return (
-                f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}",
-                NOT_FOUND_STATUS
+            api_response.set_message(
+                f"Unable to find the Sw Requirement mapping to Api id "
+                f"{request_data['relation-id']}"
             )
+            return api_response.return_not_found()
 
         sw_requirement = sw_requirement_mapping_api.sw_requirement
 
@@ -4814,16 +5353,32 @@ class ApiSwRequirementsMapping(Resource):
                 f"/mapping/{api.id}?asr={sw_requirement_mapping_api.id}&view=details",
             )
             dbi.session.add(notifications)
-
         dbi.session.commit()
-        return sw_requirement_mapping_api.as_dict()
 
+        api_response.set_data(sw_requirement_mapping_api.as_dict())
+        return api_response.return_ok()
+
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete an existing api sw requirement mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(["relation-id", "api-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["relation-id", "api-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check if api ...
         try:
@@ -4833,13 +5388,18 @@ class ApiSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return (
-                f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}",
-                NOT_FOUND_STATUS
+            api_response.set_message(
+                f"Unable to find the Sw Requirement mapping to Api id "
+                f"{request_data['relation-id']}"
             )
+            return api_response.return_not_found()
 
         if sw_requirement_mapping_api.api.id != api.id:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(
+                f"The Sw Requirement mapping to Api id {request_data['relation-id']} "
+                "is not associated to the requested api"
+            )
+            return api_response.return_bad_request()
 
         notification_sr_id = sw_requirement_mapping_api.sw_requirement.id
         notification_sr_title = sw_requirement_mapping_api.sw_requirement.title
@@ -4858,11 +5418,15 @@ class ApiSwRequirementsMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class SwRequirementImport(Resource):
-    def post(self):
+    route = "/import/sw-requirements"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
         """Return a list of Requirements from an input file to let the user able
         to select the ones he want to import
 
@@ -4872,31 +5436,39 @@ class SwRequirementImport(Resource):
 
         mandatory_fields = ["file_name", "file_content"]
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         importer = ImportSwRequirements()
         sw_requirements = importer.extractWorkItems(file_name=request_data["file_name"],
                                                     file_content=request_data["file_content"])
-        return {_SRs: sw_requirements}
+        ret = {_SRs: sw_requirements}
+        api_response.set_data(ret)
+        return api_response.return_created()
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
         """Create work items in BASIL"""
+        ret = {_SRs: []}
         request_data = request.get_json(force=True)
-
-        if not check_fields_in_request(["file_content", "items"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["file_content", "items"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Permissions
         if user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         importer = ImportSwRequirements()
         sw_requirements = importer.getFilteredSwRequirementModels(items=request_data["items"],
@@ -4907,36 +5479,44 @@ class SwRequirementImport(Resource):
         if sw_requirements:
             dbi.session.add_all(sw_requirements)
             dbi.session.commit()
-            return {_SRs: [sr.as_dict() for sr in sw_requirements]}
+            ret = {_SRs: [sr.as_dict() for sr in sw_requirements]}
 
-        return {_SRs: []}
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class TestCaseGenerateJson(Resource):
-    def post(self):
+    route = "/import/test-cases-generate-json"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
         """Scan a remote git repository to export test cases with tmt in
         a json file to be stored in user folder"""
-
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["repository", "branch", "user-id", "token"]
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"User files path {user_files_path} not found")
+            return api_response.return_not_found()
 
         cmd = [
             "bash",
@@ -4953,12 +5533,22 @@ class TestCaseGenerateJson(Resource):
                          stderr=subprocess.PIPE,
                          shell=True)
 
-        return {"message": "tmt test import requested. It can take some time, depending on the test repository."
-                " check in the user file secontion.", "result": "success"}
+        ret = {
+            "message": (
+                "tmt test import requested. It can take some time, depending on the test repository."
+                " check in the user file secontion."
+            ),
+            "result": "success",
+        }
+        api_response.set_data(ret)
+        return api_response.return_created()
 
 
 class TestCaseImport(Resource):
-    def post(self):
+    route = "/import/test-cases"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
         """Read a file from user files and
         return a list of Test Cases from an input file to let the user able
         to select the ones he want to import
@@ -4966,29 +5556,35 @@ class TestCaseImport(Resource):
         :return: dictionary with list of test cases under a proper key
         """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["file_name", "user-id", "token"]
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"User files path {user_files_path} not found")
+            return api_response.return_not_found()
 
         user_filepath = os.path.join(user_files_path, request_data["file_name"])
         if not os.path.exists(user_filepath):
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"User file {user_filepath} not found")
+            return api_response.return_not_found()
 
         f = open(user_filepath, 'r')
         fc = f.read()
@@ -4997,14 +5593,16 @@ class TestCaseImport(Resource):
         try:
             data = json.loads(fc)
         except Exception:
-            return "Unable to read the file, not a valid JSON file.", BAD_REQUEST_STATUS
+            api_response.set_message("Unable to read the file, not a valid JSON file.")
+            return api_response.return_bad_request()
 
         json_mandatory_fields = ["repository", "test_cases"]
         json_test_cases_mandatory_fields = ["description", "name", "summary"]
 
         for mandatory_field in json_mandatory_fields:
             if mandatory_field not in data.keys():
-                return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+                api_response.set_message(f"Mandatory field {mandatory_field} not found in the file")
+                return api_response.return_precondition_failed()
 
         test_cases = []
         for test_case in data["test_cases"]:
@@ -5026,25 +5624,34 @@ class TestCaseImport(Resource):
                     "description": test_case["description"],
                 })
 
-        return {_TCs: test_cases}
+        ret = {_TCs: test_cases}
+        api_response.set_data(ret)
+        return api_response.return_created()
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
         """Create work items in BASIL"""
+        ret = {_TCs: []}
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(["items"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["items"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Permissions
         if user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Pay attention: we actually doesn't check if the work item already exists
         # (if already exists a test case with same content)
@@ -5068,96 +5675,130 @@ class TestCaseImport(Resource):
         if test_cases:
             dbi.session.add_all(test_cases)
             dbi.session.commit()
-            return {_TCs: [tc.as_dict() for tc in test_cases]}
+            ret = {_TCs: [tc.as_dict() for tc in test_cases]}
 
-        return {_TCs: []}
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class Justification(Resource):
+    route = "/justifications"
     fields = get_model_editable_fields(JustificationModel, False)
     fields_hashes = [x.replace("_", "-") for x in fields]
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        request_data = get_query_string_args(request.args)
         dbi = get_db()
         query = dbi.session.query(JustificationModel)
-        query = filter_query(query, args, JustificationModel, False)
+        query = filter_query(query, request_data, JustificationModel, False)
         jus = [ju.as_dict() for ju in query.all()]
 
-        if "mode" in args.keys():
-            if args["mode"] == "minimal":
+        if "mode" in request_data.keys():
+            if request_data["mode"] == "minimal":
                 minimal_keys = ["id", "description"]
                 jus = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in jus]
 
-        return jus
+        api_response.set_data(jus)
+        return api_response.return_ok()
 
 
 class TestSpecification(Resource):
+    route = "/test-specifications"
     fields = get_model_editable_fields(TestSpecificationModel, False)
     fields_hashes = [x.replace("_", "-") for x in fields]
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        request_data = get_query_string_args(request.args)
         dbi = get_db()
 
         query = dbi.session.query(TestSpecificationModel)
-        query = filter_query(query, args, TestSpecificationModel, False)
+        query = filter_query(query, request_data, TestSpecificationModel, False)
         tss = [ts.as_dict() for ts in query.all()]
 
-        if "mode" in args.keys():
-            if args["mode"] == "minimal":
+        if "mode" in request_data.keys():
+            if request_data["mode"] == "minimal":
                 minimal_keys = ["id", "title"]
                 tss = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in tss]
 
-        return tss
+        api_response.set_data(tss)
+        return api_response.return_ok()
 
 
 class SwRequirement(Resource):
+    route = "/sw-requirements"
     fields = get_model_editable_fields(SwRequirementModel, False)
     fields_hashes = [x.replace("_", "-") for x in fields]
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get sw requirements
+        """
+        request_data = get_query_string_args(request.args)
+
         dbi = get_db()
 
         query = dbi.session.query(SwRequirementModel)
-        query = filter_query(query, args, SwRequirementModel, False)
+        query = filter_query(query, request_data, SwRequirementModel, False)
         srs = [sr.as_dict() for sr in query.all()]
 
-        if "mode" in args.keys():
-            if args["mode"] == "minimal":
+        if "mode" in request_data.keys():
+            if request_data["mode"] == "minimal":
                 minimal_keys = ["id", "title"]
                 srs = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in srs]
 
-        return srs
+        api_response.set_data(srs)
+        return api_response.return_ok()
 
 
 class TestCase(Resource):
+    route = "/test-cases"
     fields = get_model_editable_fields(TestCaseModel, False)
     fields_hashes = [x.replace("_", "-") for x in fields]
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get test cases
+        """
+        request_data = get_query_string_args(request.args)
         dbi = get_db()
         query = dbi.session.query(TestCaseModel)
-        query = filter_query(query, args, TestCaseModel, False)
+        query = filter_query(query, request_data, TestCaseModel, False)
         tcs = [tc.as_dict() for tc in query.all()]
 
-        if "mode" in args.keys():
-            if args["mode"] == "minimal":
+        if "mode" in request_data.keys():
+            if request_data["mode"] == "minimal":
                 minimal_keys = ["id", "title"]
                 tcs = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in tcs]
 
-        return tcs
+        api_response.set_data(tcs)
+        return api_response.return_ok()
 
 
 class TestCaseLocalFileImplementation(Resource):
+    route = "/test-cases/local-file-implementation"
+
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        request_data = request.args
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get test case local file implementation
+        """
+        request_data = get_query_string_args(request.args)
         mandatory_fields = ["test-case-id", "relation-to", "relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -5174,11 +5815,11 @@ class TestCaseLocalFileImplementation(Resource):
                     .one()
                 )
             except NoResultFound:
-                logger.info(
+                api_response.set_message(
                     "Unable to find ApiTestCaseModel entry with "
                     f"id: {relation_id} and test case id: {test_case_id}"
                 )
-                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found()
         elif relation_to == "sw-requirement":
             try:
                 test_case_mapping = (
@@ -5188,20 +5829,20 @@ class TestCaseLocalFileImplementation(Resource):
                     .one()
                 )
             except NoResultFound:
-                logger.info(
+                api_response.set_message(
                     "Unable to find SwRequirementTestCaseModel entry with "
                     f"id: {relation_id} and test case id: {test_case_id}"
                 )
-                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found()
 
             # check the parent api is the expected one
             parent_api = get_api_from_indirect_sw_requirement_mapping(test_case_mapping, dbi.session)
             if not isinstance(parent_api, ApiModel):
-                logger.info("Unable to find the Software Requirement parent Api")
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                api_response.set_message("Unable to find the Software Requirement parent Api")
+                return api_response.return_not_found_sw_component()
             if parent_api.id != api.id:
-                logger.info("The Software Requirement parent Api is different from the requested one")
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message("The Software Requirement parent Api is different from the requested one")
+                return api_response.return_bad_request()
 
         elif relation_to == "test-specification":
             try:
@@ -5212,11 +5853,11 @@ class TestCaseLocalFileImplementation(Resource):
                     .one()
                 )
             except NoResultFound:
-                logger.info(
+                api_response.set_message(
                     "Unable to find TestSpecificationTestCaseModel entry with "
                     f"id: {relation_id} and test case id: {test_case_id}"
                 )
-                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found()
 
             # check the parent api is the expected one
             # if the test-specification is mapped to an api, check the parent api is the expected one
@@ -5228,11 +5869,11 @@ class TestCaseLocalFileImplementation(Resource):
                         .one()
                     )
                 except NoResultFound:
-                    logger.info("Unable to find the corresponding api from ApiTestSpecificationModel")
-                    return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                    api_response.set_message("Unable to find the corresponding api from ApiTestSpecificationModel")
+                    return api_response.return_not_found_sw_component()
                 if parent_api.id != api.id:
-                    logger.info("The retrieved ApiTestSpecificationModel is referring to a different api")
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message("The retrieved ApiTestSpecificationModel is referring to a different api")
+                    return api_response.return_bad_request()
             # if the test-specification is mapped to a sw-requirement, check the parent api is the expected one
             elif test_case_mapping.test_specification_mapping_sw_requirement_id:
                 try:
@@ -5243,16 +5884,16 @@ class TestCaseLocalFileImplementation(Resource):
                         .one()
                     )
                 except NoResultFound:
-                    logger.info("Unable to find the corresponding SwRequirementTestSpecificationModel")
-                    return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                    api_response.set_message("Unable to find the corresponding SwRequirementTestSpecificationModel")
+                    return api_response.return_not_found()
 
                 parent_api = get_api_from_indirect_sw_requirement_mapping(ts_sr_mapping, dbi.session)
                 if not isinstance(parent_api, ApiModel):
-                    logger.info("Unable to find the Software Requirement parent Api")
-                    return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                    api_response.set_message("Unable to find the Software Requirement parent Api")
+                    return api_response.return_not_found_sw_component()
                 if parent_api.id != api.id:
-                    logger.info("The Software Requirement parent Api is different from the requested one")
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message("The Software Requirement parent Api is different from the requested one")
+                    return api_response.return_bad_request()
 
         # if repository is a local path, return the file content
         if test_case_mapping.test_case.repository.startswith("/"):
@@ -5261,37 +5902,52 @@ class TestCaseLocalFileImplementation(Resource):
             )
 
             if not is_safe_local_user_file_path(test_case_path):
-                logger.info("Local path is not valid, possible attempt of traversal")
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message("Local path is not valid, possible attempt of traversal")
+                return api_response.return_bad_request()
 
             file_content = read_file(test_case_path)
             if not file_content:
-                logger.info(f"The local file {test_case_path} doesn't exists")
-                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                api_response.set_message(f"The local file {test_case_path} doesn't exists")
+                return api_response.return_not_found()
             return Response(file_content, mimetype="text/plain; charset=utf-8")
 
         # in case the file is remote, it is not possible to read it based on repository and releative path
         # in a way that applies to any web services
-        logger.info("Unable to retrieve test case content for a remote file using repository and relative path")
-        return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_message(
+            "Unable to retrieve test case content for a remote file using repository "
+            "and relative path"
+        )
+        return api_response.return_bad_request()
 
 
 class SwRequirementSwRequirementsMapping(Resource):
+    route = "/mapping/sw-requirement/sw-requirements"
     fields = ["sw-requirement", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         """ Get the list of nested requirements
         We can have parent requirement mapped to
         - an Api Reference Document snippet: relation-to must be 'api'
         - another Sw Requirement: relation-to must be 'sw-requirement'
         """
         request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         # user mandatory fields are evaluated as part of the check_api_user_read_permission
         mandatory_fields = ["api-id", "relation-id", "relation-to"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         query = dbi.session.query(SwRequirementSwRequirementModel)
         if request_data["relation-to"] == "api":
@@ -5301,26 +5957,43 @@ class SwRequirementSwRequirementsMapping(Resource):
             query = query.filter(SwRequirementSwRequirementModel.sw_requirement_mapping_sw_requirement_id
                                  == request_data["relation-id"])
         else:
-            return f"{BAD_REQUEST_MESSAGE}: relation-to value not valid", BAD_REQUEST_STATUS
+            api_response.set_message("relation-to value not valid")
+            return api_response.return_bad_request()
 
         srsrs = [srsr.as_dict(db_session=dbi.session) for srsr in query.all()]
 
-        return srsrs
+        api_response.set_data(srsrs)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new sw requirement sw requirement mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         api_sr = None
         sr_sr = None
 
         # user mandatory fields are evaluated as part of the check_api_user_read_permission
         mandatory_fields = self.fields + ["api-id", "relation-id", "relation-to", "parent-sw-requirement"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if "id" not in request_data["parent-sw-requirement"].keys():
-            return f"{BAD_REQUEST_MESSAGE}: miss id of parent-sw-requirement", BAD_REQUEST_STATUS
+            api_response.set_message("miss id of parent-sw-requirement")
+            return api_response.return_bad_request()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -5335,7 +6008,8 @@ class SwRequirementSwRequirementsMapping(Resource):
             try:
                 api_sr = relation_to_query.one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
         elif relation_to == "sw-requirement":
             relation_to_query = dbi.session.query(SwRequirementSwRequirementModel).filter(
@@ -5344,17 +6018,20 @@ class SwRequirementSwRequirementsMapping(Resource):
             try:
                 sr_sr = relation_to_query.one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
             mapping_api = get_api_from_indirect_sw_requirement_mapping(sr_sr, dbi.session)
             if not mapping_api:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
 
             if api.id != mapping_api.id:
-                return f"{BAD_REQUEST_MESSAGE}: Mapping is not related to the selected api", BAD_REQUEST_STATUS
+                api_response.set_message("Mapping is not related to the selected api")
+                return api_response.return_bad_request()
 
         else:
-            return f"{BAD_REQUEST_MESSAGE}: relation-to value not valid", BAD_REQUEST_STATUS
+            api_response.set_message("relation-to value not valid")
+            return api_response.return_bad_request()
 
         parent_sw_requirement_id = request_data["parent-sw-requirement"]["id"]
         coverage = request_data["coverage"]
@@ -5364,7 +6041,8 @@ class SwRequirementSwRequirementsMapping(Resource):
                 dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == parent_sw_requirement_id).one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Sw Requirement", NOT_FOUND_STATUS
+            api_response.set_message("Sw Requirement not found")
+            return api_response.return_not_found()
 
         del parent_sw_requirement  # Just need to check it exists
 
@@ -5373,7 +6051,8 @@ class SwRequirementSwRequirementsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in SwRequirement.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["sw-requirement"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["sw-requirement"]["title"]
             description = request_data["sw-requirement"]["description"]
@@ -5383,8 +6062,11 @@ class SwRequirementSwRequirementsMapping(Resource):
                 SwRequirementModel.title == title).filter(
                     SwRequirementModel.description == description).all()
             if len(existing_srs):
-                return f"Sw Requirement `{existing_srs[0].id}` with same content already exists, " \
-                       f"consider to use the existing one or to change at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Sw Requirement `{existing_srs[0].id}` with same content already exists, "
+                    f"consider to use the existing one or to change at least one field"
+                )
+                return api_response.return_conflict()
 
             new_sw_requirement = SwRequirementModel(title, description, user)
 
@@ -5404,15 +6086,19 @@ class SwRequirementSwRequirementsMapping(Resource):
                 SwRequirementSwRequirementModel.sw_requirement_mapping_api_id == relation_id).filter(
                     SwRequirementSwRequirementModel.sw_requirement_id == sw_requirement_id).all()
             if existing_srs_mapping:
-                return f"Sw Requirement `{sw_requirement_id}` already " \
-                    "associated to the selected Software Requirement", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Sw Requirement `{sw_requirement_id}` already "
+                    "associated to the selected Software Requirement"
+                )
+                return api_response.return_conflict()
 
             try:
                 sw_requirement = (
                     dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == sw_requirement_id).one()
                 )
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: sw requiremnt", NOT_FOUND_STATUS
+                api_response.set_message("Sw Requirement not found")
+                return api_response.return_not_found()
 
             new_sw_requirement_mapping_sw_requirement = SwRequirementSwRequirementModel(
                 api_sr, sr_sr, sw_requirement, coverage, user
@@ -5435,15 +6121,31 @@ class SwRequirementSwRequirementsMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return new_sw_requirement_mapping_sw_requirement.as_dict()
+        ret = new_sw_requirement_mapping_sw_requirement.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update a sw requirement sw requirement mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = self.fields + ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             sr_mapping_sr = (
@@ -5452,7 +6154,8 @@ class SwRequirementSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Sw Requirement mapping", NOT_FOUND_STATUS
+            api_response.set_message("Sw Requirement mapping not found")
+            return api_response.return_not_found()
 
         sr = sr_mapping_sr.sw_requirement
 
@@ -5492,14 +6195,30 @@ class SwRequirementSwRequirementsMapping(Resource):
             )
             dbi.session.add(notifications)
             dbi.session.commit()
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete a sw requirement sw requirement mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(["relation-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["relation-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check sw_requirement_mapping_sw_requirement
         try:
@@ -5509,7 +6228,8 @@ class SwRequirementSwRequirementsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Sw Requirement mapping", NOT_FOUND_STATUS
+            api_response.set_message("Sw Requirement mapping not found")
+            return api_response.return_not_found()
 
         # Check SwRequirementSwRequirementModel refers to the same api defined in api-id
         if sr_mapping_sr.sw_requirement_mapping_api:
@@ -5518,16 +6238,19 @@ class SwRequirementSwRequirementsMapping(Resource):
                     ApiSwRequirementModel.id == sr_mapping_sr.sw_requirement_mapping_api_id
                 ).one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
             mapping_api = parent_mapping.api
         else:
             mapping_api = get_api_from_indirect_sw_requirement_mapping(sr_mapping_sr, dbi.session)
 
         if not mapping_api:
-            return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+            api_response.set_message("Parent mapping not found")
+            return api_response.return_not_found()
 
         if mapping_api.id != api.id:
-            return f"{BAD_REQUEST_MESSAGE}: Wrong api id", BAD_REQUEST_STATUS
+            api_response.set_message("Wrong api id")
+            return api_response.return_bad_request()
 
         notification_sr_id = sr_mapping_sr.sw_requirement.id
         notification_sr_title = sr_mapping_sr.sw_requirement.title
@@ -5549,23 +6272,41 @@ class SwRequirementSwRequirementsMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class SwRequirementTestSpecificationsMapping(Resource):
+    route = "/mapping/sw-requirement/test-specifications"
     fields = ["api-id", "sw-requirement", "test-specification", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        request_data = request.args
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get the list of test specifications mapped to a sw requirement
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_int_fields = ["api-id", "relation-id"]
         mandatory_fields = ["relation-to"]
-        if not check_fields_in_request(
+
+        wrong_fields = get_wrong_mandatory_fields(
                     fields=mandatory_fields,
                     request=request_data,
                     allow_empty_string=False,
-                    int_fields=mandatory_int_fields):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    int_fields=mandatory_int_fields)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -5583,30 +6324,50 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 ).all()
             )
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-        return [row.as_dict() for row in ret]
+            api_response.set_message("wrong relation-to")
+            return api_response.return_bad_request()
+        ret = [row.as_dict() for row in ret]
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new sw requirement test specification mapping
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         api_sr = None
         sr_sr = None
 
-        request_data = request.get_json(force=True)
         mandatory_fields = self.fields + ["relation-id", "relation-to"]
         mandatory_int_fields = ["api-id", "relation-id"]
-        if not check_fields_in_request(
+        wrong_fields = get_wrong_mandatory_fields(
                 fields=mandatory_fields,
                 request=request_data,
                 allow_empty_string=False,
-                int_fields=mandatory_int_fields):
-            return f"{BAD_REQUEST_MESSAGE} - Mandatory field missing", BAD_REQUEST_STATUS
+                int_fields=mandatory_int_fields)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        if not check_fields_in_request(
+        wrong_fields = get_wrong_mandatory_fields(
                 fields=[],
                 request=request_data["sw-requirement"],
                 allow_empty_string=False,
-                int_fields=["id"]):
-            return f"{BAD_REQUEST_MESSAGE} - Mandatory field in Sw Requirement missing", BAD_REQUEST_STATUS
+                int_fields=["id"])
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -5619,7 +6380,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == sw_requirement_id).one()
             )
         except NoResultFound:
-            return "Sw Requirement not found", NOT_FOUND_STATUS
+            api_response.set_message("Sw Requirement not found")
+            return api_response.return_not_found()
 
         del sw_requirement  # Just need to check it exists
 
@@ -5630,7 +6392,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
             api = relation_to_item.api
         elif relation_to == "sw-requirement":
@@ -5640,13 +6403,15 @@ class SwRequirementTestSpecificationsMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
             api = get_api_from_indirect_sw_requirement_mapping(relation_to_item, dbi.session)
             if not isinstance(api, ApiModel):
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
         else:
-            return f"{BAD_REQUEST_MESSAGE} - wrong relation-to", BAD_REQUEST_STATUS
+            api_response.set_message("wrong relation-to")
+            return api_response.return_bad_request()
 
         if relation_to == "api":
             api_sr = relation_to_item
@@ -5660,7 +6425,8 @@ class SwRequirementTestSpecificationsMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestSpecification.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-specification"].keys():
-                    return f"{BAD_REQUEST_MESSAGE} - {check_field} missing", BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["test-specification"]["title"]
             preconditions = request_data["test-specification"]["preconditions"]
@@ -5674,8 +6440,11 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 TestSpecificationModel.test_description == test_description).filter(
                 TestSpecificationModel.expected_behavior == expected_behavior).all()
             if len(existing_tss) > 0:
-                return f"Test Specification `{existing_tss[0].id}` with same content already exists, " \
-                       f"consider to use the existing one or to change at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Specification `{existing_tss[0].id}` with same content already exists, "
+                    "consider to use the existing one or to change at least one field"
+                )
+                return api_response.return_conflict()
 
             new_test_specification = TestSpecificationModel(
                 title, preconditions, test_description, expected_behavior, user
@@ -5697,8 +6466,11 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 == request_data["relation-id"]).filter(
                 SwRequirementTestSpecificationModel.test_specification_id == test_specification_id).all()
             if existing_tss_mapping:
-                return f"Test Specification `{test_specification_id}` already " \
-                    "associated to the selected Software Requirement", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Specification `{test_specification_id}` already "
+                    "associated to the selected Software Requirement"
+                )
+                return api_response.return_conflict()
 
             try:
                 test_specification = (
@@ -5707,10 +6479,12 @@ class SwRequirementTestSpecificationsMapping(Resource):
                     .one()
                 )
             except NoResultFound:
-                return "Unable to find the selected Test Specification", NOT_FOUND_STATUS
+                api_response.set_message("Unable to find the selected Test Specification")
+                return api_response.return_not_found()
 
             if not isinstance(test_specification, TestSpecificationModel):
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message("Test Specification not found")
+                return api_response.return_not_found()
 
             new_test_specification_mapping_sw_requirement = SwRequirementTestSpecificationModel(
                 api_sr, sr_sr, test_specification, coverage, user
@@ -5733,28 +6507,46 @@ class SwRequirementTestSpecificationsMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return new_test_specification_mapping_sw_requirement.as_dict()
+        ret = new_test_specification_mapping_sw_requirement.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update a sw requirement test specification mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = self.fields + ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             sw_mapping_ts = (
                 dbi.session.query(SwRequirementTestSpecificationModel)
-                .filter(SwRequirementTestSpecificationModel.id == request_data["relation-id"])
+                .filter(
+                    SwRequirementTestSpecificationModel.id == request_data["relation-id"]
+                )
                 .one()
             )
         except NoResultFound:
-            return (
-                f"Unable to find the Test Specification "
-                f"mapping to Sw Requirement id {request_data['relation-id']}",
-                NOT_FOUND_STATUS,
+            api_response.set_message(
+                f"Unable to find the Test Specification mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
             )
+            return api_response.return_not_found()
 
         test_specification = sw_mapping_ts.test_specification
 
@@ -5794,15 +6586,30 @@ class SwRequirementTestSpecificationsMapping(Resource):
             )
             dbi.session.add(notifications)
             dbi.session.commit()
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete a sw requirement test specification mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             sw_mapping_ts = (
@@ -5811,11 +6618,11 @@ class SwRequirementTestSpecificationsMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return (
-                f"Unable to find the Test Specification "
-                f"mapping to Sw Requirement id {request_data['relation-id']}",
-                NOT_FOUND_STATUS,
+            api_response.set_message(
+                f"Unable to find the Test Specification mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
             )
+            return api_response.return_not_found()
 
         notification_ts_id = sw_mapping_ts.test_specification.id
         notification_ts_title = sw_mapping_ts.test_specification.title
@@ -5838,27 +6645,78 @@ class SwRequirementTestSpecificationsMapping(Resource):
         dbi.session.add(notifications)
         dbi.session.commit()
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class SwRequirementTestCasesMapping(Resource):
+    route = "/mapping/sw-requirement/test-cases"
     fields = ["api-id", "sw-requirement", "test-case", "coverage"]
 
-    def get(self):
-        ret = {}
-        return ret
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the list of test cases mapped to a sw requirement
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-    def post(self):
+        mandatory_int_fields = ["api-id", "relation-id"]
+        mandatory_fields = ["relation-to"]
+        wrong_fields = get_wrong_mandatory_fields(
+            mandatory_fields,
+            request_data,
+            allow_empty_string=False,
+            int_fields=mandatory_int_fields,
+        )
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        relation_id = request_data["relation-id"]
+        relation_to = request_data["relation-to"]
+
+        if relation_to == 'api':
+            ret = (
+                dbi.session.query(SwRequirementTestCaseModel)
+                .filter(SwRequirementTestCaseModel.sw_requirement_mapping_api_id == relation_id).all()
+            )
+        elif relation_to == "sw-requirement":
+            ret = (
+                dbi.session.query(SwRequirementTestCaseModel)
+                .filter(SwRequirementTestCaseModel.sw_requirement_mapping_sw_requirement_id == relation_id).all()
+            )
+        else:
+            api_response.set_message("wrong relation-to")
+            return api_response.return_bad_request()
+
+        ret = [row.as_dict() for row in ret]
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        create a new sw requirement test case mapping
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         api_sr = None
         sr_sr = None
-        request_data = request.get_json(force=True)
 
         post_mandatory_fields = self.fields + ["relation-id", "relation-to"]
-        if not check_fields_in_request(post_mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(post_mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if "id" not in request_data["sw-requirement"].keys():
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("miss id of sw-requirement")
+            return api_response.return_bad_request()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -5868,7 +6726,7 @@ class SwRequirementTestCasesMapping(Resource):
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Find ApiSwRequirement
         if relation_to == "api":
@@ -5879,7 +6737,8 @@ class SwRequirementTestCasesMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
             api = relation_to_item.api
 
@@ -5890,18 +6749,20 @@ class SwRequirementTestCasesMapping(Resource):
             try:
                 relation_to_item = relation_to_query.one()
             except NoResultFound:
-                return "Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
             api = get_api_from_indirect_sw_requirement_mapping(relation_to_item, dbi.session)
             if not isinstance(api, ApiModel):
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("wrong relation-to")
+            return api_response.return_bad_request()
 
         # Permissions
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         if relation_to == "api":
             api_sr = relation_to_item
@@ -5918,7 +6779,8 @@ class SwRequirementTestCasesMapping(Resource):
                 dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == sw_requirement_id).one()
             )
         except NoResultFound:
-            return "Sw Requirement not found", NOT_FOUND_STATUS
+            api_response.set_message("Sw Requirement not found")
+            return api_response.return_not_found()
 
         del sw_requirement  # Just need to check it exists
 
@@ -5927,7 +6789,8 @@ class SwRequirementTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["test-case"]["title"]
             description = request_data["test-case"]["description"]
@@ -5941,14 +6804,18 @@ class SwRequirementTestCasesMapping(Resource):
                         TestCaseModel.repository == repository).filter(
                             TestCaseModel.relative_path == relative_path).all()
             if len(existing_tcs):
-                return f"Test Case `{existing_tcs[0].id}` has same content, " \
-                       "consider to use the existing one or to edit at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Case `{existing_tcs[0].id}` has same content, "
+                    "consider to use the existing one or to edit at least one field"
+                )
+                return api_response.return_conflict()
 
             test_case_path = os.path.join(repository, relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message(f"Invalid path: {test_case_path}")
+                    return api_response.return_bad_request()
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -5968,16 +6835,21 @@ class SwRequirementTestCasesMapping(Resource):
                 getattr(SwRequirementTestCaseModel, mapping_id_field) == relation_id).filter(
                     SwRequirementTestCaseModel.test_case_id == test_case_id).all()
             if len(existing_tcs_mapping):
-                return f"Test Case `{test_case_id}` already associated " \
-                       "to the selected Sw Requirement", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Case `{test_case_id}` already associated "
+                    "to the selected Sw Requirement"
+                )
+                return api_response.return_conflict()
 
             try:
                 test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == test_case_id).one()
             except NoResultFound:
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message(f"Unable to find the Test Case id {test_case_id}")
+                return api_response.return_not_found()
 
             if not isinstance(test_case, TestCaseModel):
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message("Test Case not found")
+                return api_response.return_not_found()
 
             new_test_case_mapping_sw_requirement = SwRequirementTestCaseModel(api_sr, sr_sr, test_case, coverage, user)
             dbi.session.add(new_test_case_mapping_sw_requirement)
@@ -5996,21 +6868,31 @@ class SwRequirementTestCasesMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return new_test_case_mapping_sw_requirement.as_dict()
+        ret = new_test_case_mapping_sw_requirement.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        update a sw requirement test case mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = self.fields + ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             sw_mapping_tc = (
@@ -6019,16 +6901,20 @@ class SwRequirementTestCasesMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_tc, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         # Permissions
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         test_case = sw_mapping_tc.test_case
 
@@ -6047,7 +6933,8 @@ class SwRequirementTestCasesMapping(Resource):
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message(f"Invalid path: {test_case_path}")
+                    return api_response.return_bad_request()
             setattr(test_case, "edited_by_id", user.id)
 
         modified_srtc = False
@@ -6062,7 +6949,8 @@ class SwRequirementTestCasesMapping(Resource):
         if modified_tc or modified_srtc:
             # Add Notifications
             notification = (
-                f"{user.username} modified test case " f"from {api.api} mapping as part of the library {api.library}"
+                f"{user.username} modified test case "
+                f"from {api.api} mapping as part of the library {api.library}"
             )
             notifications = NotificationModel(
                 api,
@@ -6075,22 +6963,27 @@ class SwRequirementTestCasesMapping(Resource):
             dbi.session.add(notifications)
             dbi.session.commit()
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def delete(self):
-        ret = False
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             sw_mapping_tc = (
@@ -6099,16 +6992,20 @@ class SwRequirementTestCasesMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         api = get_api_from_indirect_sw_requirement_mapping(sw_mapping_tc, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         # Permissions
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         # test_case = sw_mapping_tc.test_case
         # dbi.session.delete(test_case)
@@ -6134,23 +7031,40 @@ class SwRequirementTestCasesMapping(Resource):
         dbi.session.add(notifications)
         dbi.session.commit()
 
-        return ret
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class TestSpecificationTestCasesMapping(Resource):
+    route = "/mapping/test-specification/test-cases"
     fields = ["api-id", "test-specification", "test-case", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        request_data = request.args
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get the list of test cases mapped to a test specification
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_int_fields = ["api-id", "relation-id"]
         mandatory_fields = ["relation-to"]
-        if not check_fields_in_request(
+        wrong_fields = get_wrong_mandatory_fields(
                     fields=mandatory_fields,
                     request=request_data,
                     allow_empty_string=False,
-                    int_fields=mandatory_int_fields):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    int_fields=mandatory_int_fields)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -6168,21 +7082,40 @@ class TestSpecificationTestCasesMapping(Resource):
                 ).all()
             )
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-        return [row.as_dict() for row in ret]
+            api_response.set_message("wrong relation-to")
+            return api_response.return_bad_request()
+        ret = [row.as_dict() for row in ret]
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new test specification test case mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         api_ts = None
         sr_ts = None
 
         post_mandatory_fields = self.fields + ["relation-id", "relation-to"]
-        if not check_fields_in_request(post_mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(post_mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if "id" not in request_data["test-specification"].keys():
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("miss id of test-specification")
+            return api_response.return_bad_request()
 
         relation_id = request_data["relation-id"]
 
@@ -6196,12 +7129,14 @@ class TestSpecificationTestCasesMapping(Resource):
                 SwRequirementTestSpecificationModel.id == relation_id
             )
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("wrong relation-to")
+            return api_response.return_bad_request()
 
         try:
             relation_to_item = relation_to_query.one()
         except NoResultFound:
-            return "Parent mapping not found", NOT_FOUND_STATUS
+            api_response.set_message("Parent mapping not found")
+            return api_response.return_not_found()
 
         if request_data["relation-to"] == "api":
             api_ts = relation_to_item
@@ -6213,7 +7148,7 @@ class TestSpecificationTestCasesMapping(Resource):
             mapping_id_field = "test_specification_mapping_sw_requirement_id"
 
             if not isinstance(api, ApiModel):
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
 
         test_specification_id = request_data["test-specification"]["id"]
         coverage = request_data["coverage"]
@@ -6225,7 +7160,8 @@ class TestSpecificationTestCasesMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return "Test Specification not found", 400
+            api_response.set_message("Test Specification not found")
+            return api_response.return_not_found()
 
         del test_specification  # Just need to check it exists
 
@@ -6234,7 +7170,8 @@ class TestSpecificationTestCasesMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in TestCase.fields if x not in ["status"]]:
                 if check_field.replace("_", "-") not in request_data["test-case"].keys():
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["test-case"]["title"]
             description = request_data["test-case"]["description"]
@@ -6248,14 +7185,18 @@ class TestSpecificationTestCasesMapping(Resource):
                         TestCaseModel.repository == repository).filter(
                             TestCaseModel.relative_path == relative_path).all()
             if len(existing_tcs):
-                return f"Test Case `{existing_tcs[0].id}` has same content, " \
-                       "consider to use the existing one or to edit at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Case `{existing_tcs[0].id}` has same content, "
+                    "consider to use the existing one or to edit at least one field"
+                )
+                return api_response.return_conflict()
 
             test_case_path = os.path.join(repository, relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message(f"Invalid path: {test_case_path}")
+                    return api_response.return_bad_request()
 
             new_test_case = TestCaseModel(repository, relative_path, title, description, user)
 
@@ -6275,16 +7216,21 @@ class TestSpecificationTestCasesMapping(Resource):
                 getattr(TestSpecificationTestCaseModel, mapping_id_field) == relation_id).filter(
                     TestSpecificationTestCaseModel.test_case_id == test_case_id).all()
             if len(existing_tcs_mapping):
-                return f"Test Case `{test_case_id}` already associated " \
-                       "to the selected Test Specification", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Test Case `{test_case_id}` already associated "
+                    "to the selected Test Specification"
+                )
+                return api_response.return_conflict()
 
             try:
                 test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == test_case_id).one()
             except NoResultFound:
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message(f"Unable to find the Test Case id {test_case_id}")
+                return api_response.return_not_found()
 
             if not isinstance(test_case, TestCaseModel):
-                return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                api_response.set_message("Test Case not found")
+                return api_response.return_not_found()
 
             new_test_case_mapping_test_specification = TestSpecificationTestCaseModel(
                 api_ts, sr_ts, test_case, coverage, user
@@ -6305,15 +7251,29 @@ class TestSpecificationTestCasesMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return new_test_case_mapping_test_specification.as_dict()
+        ret = new_test_case_mapping_test_specification.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update a test specification test case mapping
+        """
         request_data = request.get_json(force=True)
 
         mandatory_fields = self.fields + ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             ts_mapping_tc = (
@@ -6322,12 +7282,16 @@ class TestSpecificationTestCasesMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Test Specification id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Api
         api = get_api_from_indirect_test_specification_mapping(ts_mapping_tc, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         test_case = ts_mapping_tc.test_case
 
@@ -6346,7 +7310,8 @@ class TestSpecificationTestCasesMapping(Resource):
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                    api_response.set_message(f"Invalid path: {test_case_path}")
+                    return api_response.return_bad_request()
             setattr(test_case, "edited_by_id", user.id)
 
         modified_tstc = False
@@ -6361,7 +7326,8 @@ class TestSpecificationTestCasesMapping(Resource):
         if modified_tc or modified_tstc:
             # Add Notifications
             notification = (
-                f"{user.username} modified test case " f"to {api.api} mapping as part of the library {api.library}"
+                f"{user.username} modified test case "
+                f"to {api.api} mapping as part of the library {api.library}"
             )
             notifications = NotificationModel(
                 api,
@@ -6373,16 +7339,30 @@ class TestSpecificationTestCasesMapping(Resource):
             )
             dbi.session.add(notifications)
             dbi.session.commit()
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-        ret = False
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete a test specification test case mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             ts_mapping_tc = (
@@ -6391,7 +7371,11 @@ class TestSpecificationTestCasesMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Test Specification id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         notification_tc_id = ts_mapping_tc.test_case.id
         notification_tc_title = ts_mapping_tc.test_case.title
@@ -6413,25 +7397,38 @@ class TestSpecificationTestCasesMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return ret
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class DocumentDocumentMapping(Resource):
+    route = "/mapping/document/documents"
     fields = ["document", "coverage"]
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
         """ Get the list of nested documents
         We can have parent document mapped to
         - an Api Reference Document snippet: relation-to must be 'api'
         - another Document: relation-to must be 'document'
         """
         request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         # user mandatory fields are evaluated as part of the check_api_user_read_permission
         mandatory_fields = ["api-id", "relation-id", "relation-to"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         query = dbi.session.query(DocumentDocumentModel)
         if request_data["relation-to"] == "api":
@@ -6441,26 +7438,43 @@ class DocumentDocumentMapping(Resource):
             query = query.filter(DocumentDocumentModel.document_mapping_document_id
                                  == request_data["relation-id"])
         else:
-            return f"{BAD_REQUEST_MESSAGE}: relation-to value not valid", BAD_REQUEST_STATUS
+            api_response.set_message("relation-to value not valid")
+            return api_response.return_bad_request()
 
         docdocs = [docdoc.as_dict(db_session=dbi.session) for docdoc in query.all()]
 
-        return docdocs
+        api_response.set_data(docdocs)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
-
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new document document mapping
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         api_doc = None
         doc_doc = None
 
         # user mandatory fields are evaluated as part of the check_api_user_read_permission
         mandatory_fields = self.fields + ["api-id", "relation-id", "relation-to", "parent-document"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE}: missing fields", BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if "id" not in request_data["parent-document"].keys():
-            return f"{BAD_REQUEST_MESSAGE}: miss id of parent-document", BAD_REQUEST_STATUS
+            api_response.set_message("miss id of parent-document")
+            return api_response.return_bad_request()
 
         relation_id = request_data["relation-id"]
         relation_to = request_data["relation-to"]
@@ -6475,7 +7489,8 @@ class DocumentDocumentMapping(Resource):
             try:
                 api_doc = relation_to_query.one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
         elif relation_to == "document":
             relation_to_query = dbi.session.query(DocumentDocumentModel).filter(
@@ -6484,17 +7499,20 @@ class DocumentDocumentMapping(Resource):
             try:
                 doc_doc = relation_to_query.one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
 
             mapping_api = get_api_from_indirect_document_mapping(doc_doc, dbi.session)
             if not mapping_api:
-                return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
 
             if api.id != mapping_api.id:
-                return f"{BAD_REQUEST_MESSAGE}: Mapping is not related to the selected api", BAD_REQUEST_STATUS
+                api_response.set_message("Mapping is not related to the selected api")
+                return api_response.return_bad_request()
 
         else:
-            return f"{BAD_REQUEST_MESSAGE}: relation-to value not valid", BAD_REQUEST_STATUS
+            api_response.set_message("relation-to value not valid")
+            return api_response.return_bad_request()
 
         parent_document_id = request_data["parent-document"]["id"]
         coverage = request_data["coverage"]
@@ -6504,7 +7522,8 @@ class DocumentDocumentMapping(Resource):
                 dbi.session.query(DocumentModel).filter(DocumentModel.id == parent_document_id).one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Document", NOT_FOUND_STATUS
+            api_response.set_message("Document not found")
+            return api_response.return_not_found()
 
         del parent_document  # Just need to check it exists
 
@@ -6513,7 +7532,8 @@ class DocumentDocumentMapping(Resource):
             # `status` field should be skipped because a default is assigned in the model
             for check_field in [x for x in Document.fields if x not in ["status", "valid"]]:
                 if check_field.replace("_", "-") not in request_data["document"].keys():
-                    return f"{BAD_REQUEST_MESSAGE} {check_field} missing", BAD_REQUEST_STATUS
+                    api_response.set_missing_fields([check_field])
+                    return api_response.return_bad_request_missing_fields()
 
             title = request_data["document"]["title"]
             description = request_data["document"]["description"]
@@ -6531,8 +7551,11 @@ class DocumentDocumentMapping(Resource):
                                 DocumentModel.url == url).all()
 
             if len(existing_docs):
-                return f"Document `{existing_docs[0].id}` with same content already exists, " \
-                       f"consider to use the existing one or to change at least one field", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Document `{existing_docs[0].id}` with same content already exists, "
+                    "consider to use the existing one or to change at least one field"
+                )
+                return api_response.return_conflict()
 
             new_document = DocumentModel(
                 title, description, document_type, spdx_relation, url, section, offset, 0, user)
@@ -6553,15 +7576,19 @@ class DocumentDocumentMapping(Resource):
                 DocumentDocumentModel.document_mapping_api_id == relation_id).filter(
                     DocumentDocumentModel.document_id == document_id).all()
             if existing_docs_mapping:
-                return f"Document `{document_id}` already " \
-                    "associated to the selected Document", CONFLICT_STATUS
+                api_response.set_message(
+                    f"Document `{document_id}` already "
+                    "associated to the selected Document"
+                )
+                return api_response.return_conflict()
 
             try:
                 document = (
                     dbi.session.query(DocumentModel).filter(DocumentModel.id == document_id).one()
                 )
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: document", NOT_FOUND_STATUS
+                api_response.set_message("Document not found")
+                return api_response.return_not_found()
 
             section = ""
             offset = 0
@@ -6587,15 +7614,29 @@ class DocumentDocumentMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return new_document_mapping_document.as_dict()
+        ret = new_document_mapping_document.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def put(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update a document document mapping
+        """
         request_data = request.get_json(force=True)
 
         mandatory_fields = self.fields + ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             doc_mapping_doc = (
@@ -6604,7 +7645,8 @@ class DocumentDocumentMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Document mapping", NOT_FOUND_STATUS
+            api_response.set_message("Document mapping not found")
+            return api_response.return_not_found()
 
         doc = doc_mapping_doc.document
 
@@ -6644,14 +7686,29 @@ class DocumentDocumentMapping(Resource):
             )
             dbi.session.add(notifications)
             dbi.session.commit()
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def delete(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete a document document mapping
+        """
         request_data = request.get_json(force=True)
-
-        if not check_fields_in_request(["relation-id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = ["relation-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # check sw_requirement_mapping_sw_requirement
         try:
@@ -6661,7 +7718,8 @@ class DocumentDocumentMapping(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Document mapping", NOT_FOUND_STATUS
+            api_response.set_message("Document mapping not found")
+            return api_response.return_not_found()
 
         # Check DocumentDocumentModel refers to the same api defined in api-id
         if doc_mapping_doc.document_mapping_api:
@@ -6670,16 +7728,19 @@ class DocumentDocumentMapping(Resource):
                     ApiDocumentModel.id == doc_mapping_doc.document_mapping_api_id
                 ).one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+                api_response.set_message("Parent mapping not found")
+                return api_response.return_not_found()
             mapping_api = parent_mapping.api
         else:
             mapping_api = get_api_from_indirect_document_mapping(doc_mapping_doc, dbi.session)
 
         if not mapping_api:
-            return f"{NOT_FOUND_MESSAGE}: Parent mapping not found", NOT_FOUND_STATUS
+            api_response.set_message("Parent mapping not found")
+            return api_response.return_not_found()
 
         if mapping_api.id != api.id:
-            return f"{BAD_REQUEST_MESSAGE}: Wrong api id", BAD_REQUEST_STATUS
+            api_response.set_message("Wrong api id")
+            return api_response.return_bad_request()
 
         notification_doc_id = doc_mapping_doc.document.id
         notification_doc_title = doc_mapping_doc.document.title
@@ -6701,23 +7762,34 @@ class DocumentDocumentMapping(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class ForkApiSwRequirement(Resource):
-    def post(self):
+    route = "/fork/api/sw-requirement"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an api sw requirement
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             asr_mapping = (
@@ -6726,12 +7798,16 @@ class ForkApiSwRequirement(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Sw Requirement mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Sw Requirement mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         permissions = get_api_user_permissions(asr_mapping.api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_sr = asr_mapping.sw_requirement.fork(created_by=user, db_session=dbi.session)
         dbi.session.add(new_sr)
@@ -6739,23 +7815,34 @@ class ForkApiSwRequirement(Resource):
 
         asr_mapping.sw_requirement_id = new_sr.id
         dbi.session.commit()
-        return asr_mapping.as_dict()
+        api_response.set_data(asr_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkApiDocument(Resource):
-    def post(self):
+    route = "/fork/api/document"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an api document
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             ad_mapping = (
@@ -6764,33 +7851,48 @@ class ForkApiDocument(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Document mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Document mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         permissions = get_api_user_permissions(ad_mapping.api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_doc = ad_mapping.document.fork(created_by=user, db_session=dbi.session)
         ad_mapping.document_id = new_doc.id
         dbi.session.commit()
-        return ad_mapping.as_dict()
+        api_response.set_data(ad_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkSwRequirementSwRequirement(Resource):
-    def post(self):
+    route = "/fork/sw-requirement/sw-requirement"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an sw requirement sw requirement
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             sr_sr_mapping = (
@@ -6799,16 +7901,20 @@ class ForkSwRequirementSwRequirement(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Sw Requirement mapping to Sw Requirement id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Sw Requirement mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         api = get_api_from_indirect_sw_requirement_mapping(sr_sr_mapping, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_sr = sr_sr_mapping.sw_requirement.fork(created_by=user, db_session=dbi.session)
         dbi.session.add(new_sr)
@@ -6816,23 +7922,34 @@ class ForkSwRequirementSwRequirement(Resource):
 
         sr_sr_mapping.sw_requirement_id = new_sr.id
         dbi.session.commit()
-        return sr_sr_mapping.as_dict()
+        api_response.set_data(sr_sr_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkDocumentDocument(Resource):
-    def post(self):
+    route = "/fork/document/document"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an document document
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             doc_doc_mapping = (
@@ -6841,35 +7958,51 @@ class ForkDocumentDocument(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Document mapping to Document id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Document mapping to Document id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         api = get_api_from_indirect_document_mapping(doc_doc_mapping, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_doc = doc_doc_mapping.document.fork(created_by=user, db_session=dbi.session)
 
         doc_doc_mapping.document_id = new_doc.id
         dbi.session.commit()
-        return doc_doc_mapping.as_dict()
+        api_response.set_data(doc_doc_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkApiJustification(Resource):
-    def post(self):
+    route = "/fork/api/justification"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an api justification
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             api_justification_mapping = (
@@ -6878,30 +8011,43 @@ class ForkApiJustification(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Justification mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Justification mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         permissions = get_api_user_permissions(api_justification_mapping.api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_justification = api_justification_mapping.justification.fork(created_by=user, db_session=dbi.session)
         api_justification_mapping.justification_id = new_justification.id
         dbi.session.commit()
-        return api_justification_mapping.as_dict()
+        api_response.set_data(api_justification_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkApiTestSpecification(Resource):
-    def post(self):
+    route = "/fork/api/test-specification"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             api_ts_mapping = (
@@ -6910,25 +8056,41 @@ class ForkApiTestSpecification(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Specification mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Specification mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         permissions = get_api_user_permissions(api_ts_mapping.api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_ts = api_ts_mapping.test_specification.fork(created_by=user, db_session=dbi.session)
         api_ts_mapping.test_specification_id = new_ts.id
         dbi.session.commit()
-        return api_ts_mapping.as_dict()
+        api_response.set_data(api_ts_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkSwRequirementTestSpecification(Resource):
-    def post(self):
+    route = "/fork/sw-requirement/test-specification"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an sw requirement test specification
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
@@ -6940,37 +8102,50 @@ class ForkSwRequirementTestSpecification(Resource):
                 .one()
             )
         except NoResultFound:
-            return (
-                "Unable to find the Test Specification mapping to Sw Requirement id {request_data['relation-id']}",
-                400,
+            api_response.set_message(
+                f"Unable to find the Test Specification mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
             )
+            return api_response.return_not_found()
 
         # Permissions
         api = get_api_from_indirect_sw_requirement_mapping(sw_requirement_ts_mapping, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_ts = sw_requirement_ts_mapping.test_specification.fork(created_by=user, db_session=dbi.session)
         sw_requirement_ts_mapping.test_specification_id = new_ts.id
         dbi.session.commit()
-        return sw_requirement_ts_mapping.as_dict()
+        api_response.set_data(sw_requirement_ts_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkApiTestCase(Resource):
-    def post(self):
+    route = "/fork/api/test-case"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an api test case
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             api_tc_mapping = (
@@ -6979,25 +8154,41 @@ class ForkApiTestCase(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Api id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Api id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         permissions = get_api_user_permissions(api_tc_mapping.api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_tc = api_tc_mapping.test_case.fork(created_by=user, db_session=dbi.session)
         api_tc_mapping.test_case_id = new_tc.id
         dbi.session.commit()
-        return api_tc_mapping.as_dict()
+        api_response.set_data(api_tc_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkSwRequirementTestCase(Resource):
-    def post(self):
+    route = "/fork/sw-requirement/test-case"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork an sw requirement test case
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
@@ -7009,34 +8200,50 @@ class ForkSwRequirementTestCase(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Sw Requirement id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Sw Requirement id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         api = get_api_from_indirect_sw_requirement_mapping(sw_requirement_tc_mapping, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_tc = sw_requirement_tc_mapping.test_case.fork(created_by=user, db_session=dbi.session)
         sw_requirement_tc_mapping.test_case_id = new_tc.id
         dbi.session.commit()
-        return sw_requirement_tc_mapping.as_dict()
+        api_response.set_data(sw_requirement_tc_mapping.as_dict())
+        return api_response.return_created()
 
 
 class ForkTestSpecificationTestCase(Resource):
-    def post(self):
+    route = "/fork/test-specification/test-case"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        fork a test specification test case
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["relation-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             test_specification_tc_mapping = (
@@ -7045,38 +8252,60 @@ class ForkTestSpecificationTestCase(Resource):
                 .one()
             )
         except NoResultFound:
-            return f"Unable to find the Test Case mapping to Test Specification id {request_data['relation-id']}", 400
+            api_response.set_message(
+                f"Unable to find the Test Case mapping to Test Specification id "
+                f"{request_data['relation-id']}"
+            )
+            return api_response.return_not_found()
 
         # Permissions
         api = get_api_from_indirect_test_specification_mapping(test_specification_tc_mapping, dbi.session)
         if not isinstance(api, ApiModel):
-            return SW_COMPONENT_NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         permissions = get_api_user_permissions(api, user, dbi.session)
         if "w" not in permissions or user.role not in USER_ROLES_WRITE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_write()
 
         new_tc = test_specification_tc_mapping.test_case.fork(created_by=user, db_session=dbi.session)
         test_specification_tc_mapping.test_case_id = new_tc.id
         dbi.session.commit()
-        return test_specification_tc_mapping.as_dict()
+        api_response.set_data(test_specification_tc_mapping.as_dict())
+        return api_response.return_created()
 
 
 class TestingSupportInitDb(Resource):
+    route = "/test-support/init-db"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         if app.config.get("TESTING", False):
             init_db.initialization(db_name=app.config["DB"])
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class UserLogin(Resource):
-    def post(self):
+    route = "/user/login"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        Login user
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         DATE_FORMAT = "%m/%d/%Y, %H:%M:%S"
         mandatory_fields = ["email", "password"]
-        request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         cache_key = f"{request_data['email']}|{request.remote_addr}"
 
@@ -7087,11 +8316,12 @@ class UserLogin(Resource):
                 last_attempt_dt = datetime.datetime.strptime(last_attempt_str, DATE_FORMAT)
                 delta_sec = (datetime.datetime.now() - last_attempt_dt).total_seconds()
                 if delta_sec <= MAX_LOGIN_ATTEMPTS_TIMEOUT:
-                    return (
-                        f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user {request_data['email']}, "
-                        f"retry in {MAX_LOGIN_ATTEMPTS_TIMEOUT/60} minutes",
-                        400,
+                    retry_in = int(MAX_LOGIN_ATTEMPTS_TIMEOUT/60)
+                    api_response.set_message(
+                        f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user "
+                        f"{request_data['email']}, retry in {retry_in} minutes"
                     )
+                    return api_response.return_bad_request()
                 else:
                     login_attempt_cache[cache_key]["attempts"] = 1
 
@@ -7100,7 +8330,8 @@ class UserLogin(Resource):
             dbi = get_db()
             user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
             if not user.enabled:
-                return "This user has been disabled, please contact your BASIL admin", UNAUTHORIZED_STATUS
+                api_response.set_message("This user has been disabled, please contact your BASIL admin")
+                return api_response.return_unauthorized()
             if user.pwd != str_encoded_password:
                 if cache_key in login_attempt_cache.keys():
                     login_attempt_cache[cache_key]["attempts"] = login_attempt_cache[cache_key]["attempts"] + 1
@@ -7109,10 +8340,12 @@ class UserLogin(Resource):
 
                 login_attempt_cache[cache_key]["last_attempt_dt"] = datetime.datetime.now().strftime(DATE_FORMAT)
 
-                return f"Wrong credentials for user {request_data['email']}", 400
+                api_response.set_message(f"Wrong credentials for user {request_data['email']}")
+                return api_response.return_bad_request()
 
         except NoResultFound:
-            return "Email not assigned to any user, consider to register an account", UNAUTHORIZED_STATUS
+            api_response.set_message("Email not assigned to any user, consider to register an account")
+            return api_response.return_unauthorized()
 
         # Login success, clear login attempt cache for that ip
         if cache_key in login_attempt_cache.keys():
@@ -7123,23 +8356,35 @@ class UserLogin(Resource):
         dbi.session.add(user)
         dbi.session.commit()
 
-        return {
+        ret = {
             "email": user.username,
             "id": user.id,
             "role": user.role,
             "token": user.token,
             "username": user.username
         }
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class UserSignin(Resource):
-    def post(self):
+    route = "/user/signin"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        Signin user
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["username", "email", "password"]
         email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
-        request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
@@ -7149,26 +8394,32 @@ class UserSignin(Resource):
 
         # Input validation needed in case of direct interaction with the API
         if " " in username or len(username) < 4:
-            return "Username not valid, it hould be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+            api_response.set_message("Username not valid, it hould be at least 4 chars and space is not allowed")
+            return api_response.return_bad_request()
         if not re.match(email_regex, email):
-            return "Email not valid, it must be a valid email", BAD_REQUEST_STATUS
+            api_response.set_message("Email not valid, it must be a valid email")
+            return api_response.return_bad_request()
         if " " in password or len(password) < 4:
-            return "Password not valid it should be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+            api_response.set_message("Password not valid it should be at least 4 chars and space is not allowed")
+            return api_response.return_bad_request()
 
         same_username = dbi.session.query(UserModel).filter(UserModel.username == username).all()
         if len(same_username) > 0:
-            return "Username already in use.", BAD_REQUEST_STATUS
+            api_response.set_message("Username already in use.")
+            return api_response.return_bad_request()
 
         same_email = dbi.session.query(UserModel).filter(UserModel.email == email).all()
         if len(same_email) > 0:
-            return "Email already in use.", BAD_REQUEST_STATUS
+            api_response.set_message("Email already in use.")
+            return api_response.return_bad_request()
 
         # Validate fields constraints
         filed_constraints = UserModel.get_field_constraints()
         for field, constraint in filed_constraints.items():
             if "max_length" in constraint and field in request_data:
                 if constraint["max_length"] is not None and len(request_data[field]) > constraint["max_length"]:
-                    return f"{field} must be less than {constraint['max_length']} characters", BAD_REQUEST_STATUS
+                    api_response.set_message(f"{field} must be less than {constraint['max_length']} characters")
+                    return api_response.return_bad_request()
 
         user = UserModel(username, email, password, "GUEST")
         dbi.session.add(user)
@@ -7216,37 +8467,46 @@ class UserSignin(Resource):
                                      email_footer,
                                      True)
 
-        return {"id": user.id, "email": user.username, "token": user.token}
+        ret = {"id": user.id, "email": user.username, "token": user.token}
+        api_response.set_data(ret)
+        return api_response.return_created()
 
 
 class UserApis(Resource):
-    def get(self):
+    route = "/user/apis"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
         """List of software components for the ones the user has owner permissions
 
         This endpoint is used to list the apis that can be used in the permission copy
         """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["api-id", "token", "user-id"]
-        request_data = request.args
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
-        if not user:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
 
         # api
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # apis
         query = dbi.session.query(ApiModel).filter(
@@ -7292,11 +8552,15 @@ class UserApis(Resource):
             if current_api.write_permissions != api.write_permissions:
                 current_api_dict["selected"] = 0
             ret.append(current_api_dict)
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class UserPermissionsApiCopy(Resource):
-    def put(self):
+    route = "/user/permissions/copy"
+
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
         """Copy user permissions from api identified by api-id to the ones
         specified in the copy-to list
 
@@ -7304,39 +8568,44 @@ class UserPermissionsApiCopy(Resource):
 
         Need to check that user has the owner permissions for each api defined in copy-to
         """
-        mandatory_fields = ["api-id", "copy-to", "token", "user-id"]
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["api-id", "copy-to", "token", "user-id"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # api
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_manage()
 
         for copy_to_api_id in request_data["copy-to"]:
             try:
                 copy_to_api = dbi.session.query(ApiModel).filter(ApiModel.id == copy_to_api_id).one()
             except NoResultFound:
-                return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
+                return api_response.return_not_found_sw_component()
 
             # check requester user api permission
             user_permissions = get_api_user_permissions(copy_to_api, user, dbi.session)
             if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-                return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+                return api_response.return_forbidden_manage()
 
             copy_to_api.delete_permissions = api.delete_permissions
             copy_to_api.edit_permissions = api.edit_permissions
@@ -7347,35 +8616,47 @@ class UserPermissionsApiCopy(Resource):
 
         dbi.session.commit()
 
-        return {"result": "success"}
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class UserPermissionsApi(Resource):
-    def get(self):
+    route = "/user/permissions/api"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        Get api permissions
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         # Requester identified by id and token
         # Email is related to the user for who I need to know api permissions
         mandatory_fields = ["api-id", "token", "user-id"]
-        request_data = request.args
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
-        if not user:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
 
         # api
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return "Software component not found.", NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_manage()
 
         query = dbi.session.query(UserModel).filter(
             UserModel.id != user.id
@@ -7404,33 +8685,39 @@ class UserPermissionsApi(Resource):
             )
             del tmp["api_notifications"]
             users_dict.append(tmp)
-        return users_dict
+        api_response.set_data(users_dict)
+        return api_response.return_ok()
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
         # Requester identified by id and token
         # Email is related to the user for who I need to know api permissions
-        mandatory_fields = ["api-id", "permissions", "token", "user-id"]
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = ["api-id", "permissions", "token", "user-id"]
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return f"{BAD_REQUEST_MESSAGE}", BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # api
         try:
             api = dbi.session.query(ApiModel).filter(ApiModel.id == request_data["api-id"]).one()
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: Software component", NOT_FOUND_STATUS
+            return api_response.return_not_found_sw_component()
 
         # check requester user api permission
         user_permissions = get_api_user_permissions(api, user, dbi.session)
         if "m" not in user_permissions or user.role not in USER_ROLES_MANAGE_PERMISSIONS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_forbidden_manage()
 
         for user_permission in request_data["permissions"]:
             user_permission_id = user_permission.get("id", None)
@@ -7440,7 +8727,7 @@ class UserPermissionsApi(Resource):
                         UserModel.id == user_permission["id"]).filter(
                         UserModel.role != 'GUEST').one()
                 except NoResultFound:
-                    return f"{NOT_FOUND_MESSAGE}: User with id {user_permission_id}", NOT_FOUND_STATUS
+                    return api_response.return_not_found_user()
 
             permission_string = f"[{target_user.id}]"
             user_permission_changed = False
@@ -7526,127 +8813,179 @@ class UserPermissionsApi(Resource):
         dbi.session.add(api)
         dbi.session.commit()
 
-        return {"result": "success"}
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class UserEnable(Resource):
+    route = "/user/enable"
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        Enable or disable user
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         # Requester identified by id and token
         # Email is related to the user for who I need to change the status
         mandatory_fields = ["token", "user-id", "target-user"]
         target_user_mandatory_fields = ["id", "enabled"]
-        request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(target_user_mandatory_fields, request_data["target-user"])
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if not str(request_data["target-user"]["enabled"]).strip().isnumeric():
-            return f"{BAD_REQUEST_MESSAGE}: Not numeric value", BAD_REQUEST_STATUS
+            api_response.set_message("Not numeric value")
+            return api_response.return_bad_request()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.id == request_data["target-user"]["id"]).one()
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
+            return api_response.return_not_found_user()
 
         target_user.enabled = int(str(request_data["target-user"]["enabled"]).strip())
 
         dbi.session.commit()
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class User(Resource):
+    route = "/user"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        Get list of users (requires ADMIN role)
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         # Requester identified by id and token
         mandatory_fields = ["user-id", "token"]
-        request_data = request.args
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role != "ADMIN":
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         users = dbi.session.query(UserModel).filter(UserModel.id != request_data["user-id"]).all()
-        # users = [{k: v for k, v in user.as_dict().items() if k not in ['pwd']} for user in users]
 
-        return [x.as_dict(full_data=True) for x in users]
+        # Sort by role and username
+        users = sorted(users, key=lambda x: (x.role, x.username))
+        ret = [x.as_dict(full_data=True) for x in users]
 
-    def put(self):
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
         """Edit username or password
         Note: Need to perform the validation to avoid direct usage of the api
         """
-        mandatory_fields = ["user-id", "token"]
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["user-id", "token"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Edit username
         if "username" in request_data.keys():
             username = request_data["username"]
             if " " in username or len(username) < 4:
-                return "Username not valid, it hould be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+                api_response.set_message("Username not valid, it hould be at least 4 chars and space is not allowed")
+                return api_response.return_bad_request()
 
             same_username = dbi.session.query(UserModel).filter(UserModel.username == username).all()
             if len(same_username) > 0:
-                return "Username already in use.", BAD_REQUEST_STATUS
+                api_response.set_message("Username already in use.")
+                return api_response.return_bad_request()
 
             user.username = username
             dbi.session.commit()
             dbi.close()
-            return {"result": "success", "message": "Your username has been saved. Please login again."}
+            ret = {"result": "success", "message": "Your username has been saved. Please login again."}
+            api_response.set_data(ret)
+            return api_response.return_ok()
 
         # Edit password
         if "password" in request_data.keys():
             password = request_data["password"]
             if " " in password or len(password) < 4:
-                return "Password not valid it should be at least 4 chars and space is not allowed", BAD_REQUEST_STATUS
+                api_response.set_message("Password not valid it should be at least 4 chars and space is not allowed")
+                return api_response.return_bad_request()
             encoded_password = base64.b64encode(password.encode("utf-8")).decode("utf-8")
             user.pwd = encoded_password
             dbi.session.add(user)
             dbi.session.commit()
             dbi.close()
-            return {"result": "success", "message": "Your password has been saved. Please login again."}
+            ret = {"result": "success", "message": "Your password has been saved. Please login again."}
+            api_response.set_data(ret)
+            return api_response.return_ok()
+
+        api_response.set_message("No changes to save")
+        return api_response.return_bad_request()
 
 
 class UserResetPassword(Resource):
+    route = "/user/reset-password"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
         """If the request reset_token match the one in the db for the selected user
         we will copy the reset password to the official one and we will clear the
         reset_token and reset_pwd fields
         """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["email", "reset_token"]
-        request_data = request.args
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
@@ -7658,7 +8997,7 @@ class UserResetPassword(Resource):
                 UserModel.email == email).filter(
                     UserModel.reset_token == reset_token).one()
         except NoResultFound:
-            return "User not found or your link is no longer valid", NOT_FOUND_STATUS
+            return api_response.return_not_found_user()
 
         target_user.pwd = target_user.reset_pwd
         target_user.reset_pwd = ""
@@ -7688,18 +9027,27 @@ class UserResetPassword(Resource):
         if ret:
             if "redirect" in request_data.keys():
                 return redirect(request_data["redirect"], code=302)
-            return {"result": "success", "message": "Your password has been reset"}
+            ret = {"result": "success", "message": "Your password has been reset"}
+            api_response.set_data(ret)
+            return api_response.return_ok()
         else:
-            return "Unable to send the email. Please contant the admin.", PRECONDITION_FAILED_STATUS
+            api_response.set_message("Unable to send the email. Please contact the admin.")
+            return api_response.return_precondition_failed()
 
-    def post(self):
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
         """Generate a reset_token and a reset_pwd
         send an email with a link to activate the reset_pwd
         """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["email"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
@@ -7708,7 +9056,7 @@ class UserResetPassword(Resource):
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.email == email).one()
         except NoResultFound:
-            return f"User {email} not found", NOT_FOUND_STATUS
+            return api_response.return_not_found_user()
 
         # Read updated settings
         settings = get_updated_settings()
@@ -7750,78 +9098,107 @@ class UserResetPassword(Resource):
         )
         ret = email_notifier.send_email(email, email_subject, email_body, True)
         if ret:
-            return {"result": "success", "message": "An email has been sent to reset your password"}
+            ret = {"result": "success", "message": "An email has been sent to reset your password"}
+            api_response.set_data(ret)
+            return api_response.return_created()
         else:
-            return "Unable to send the email. Please contant the admin.", PRECONDITION_FAILED_STATUS
+            api_response.set_message("Unable to send the email. Please contact the admin.")
+            return api_response.return_precondition_failed()
 
 
 class AdminResetUserPassword(Resource):
+    route = "/admin/reset-user-password"
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        reset the password of a user
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         # Requester identified by id and token
         # Email is related to the user for who I need to change the status
         mandatory_fields = ["target-user", "token", "user-id"]
         target_user_mandatory_fields = ["id", "password"]
-        request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(target_user_mandatory_fields, request_data["target-user"])
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.id == request_data["target-user"]["id"]).one()
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
+            return api_response.return_not_found_user()
 
         target_user.pwd = request_data["target-user"]["password"]
         dbi.session.commit()
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class UserRole(Resource):
+    route = "/user/role"
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        Change the role of a user
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         # Requester identified by id and token
         # Email is related to the user for who I need to change the role
         mandatory_fields = ["token", "user-id", "target-user"]
         target_user_mandatory_fields = ["id", "role"]
-        request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        if not check_fields_in_request(target_user_mandatory_fields, request_data["target-user"]):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(target_user_mandatory_fields, request_data["target-user"])
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         target_user_role = request_data["target-user"]["role"]
         if target_user_role not in ["ADMIN", "GUEST", "USER"]:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"Invalid role: {target_user_role}")
+            return api_response.return_bad_request()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             target_user = dbi.session.query(UserModel).filter(UserModel.id == request_data["target-user"]["id"]).one()
         except NoResultFound:
-            return f"{NOT_FOUND_MESSAGE}: User", NOT_FOUND_STATUS
+            return api_response.return_not_found_user()
 
         target_user.role = target_user_role
         dbi.session.commit()
@@ -7844,22 +9221,34 @@ class UserRole(Resource):
                                  email_footer,
                                  True)
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class UserNotifications(Resource):
+    route = "/user/notifications"
 
-    def delete(self):
-        mandatory_fields = ["token", "user-id"]
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        Delete a notification
+        """
         request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["token", "user-id"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # It should be possible to delete 1 notification filtering with `id`
         # It should be possible to clear all the notifications if `id` is not defined
@@ -7869,7 +9258,7 @@ class UserNotifications(Resource):
                     dbi.session.query(NotificationModel).filter(NotificationModel.id == request_data["id"]).all()
                 )
             except NoResultFound:
-                return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+                return api_response.return_not_found()
         else:
 
             user_api_notifications = []
@@ -7890,17 +9279,25 @@ class UserNotifications(Resource):
                 notifications[i].read_by += f"[{user.id}]"
 
         dbi.session.commit()
-        return "Notification updated"
+        api_response.set_data(True)
+        return api_response.return_ok()
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        Get notifications
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         undesired_keys = ["ready_by"]
-        request_data = request.args
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         user_api_notifications = []
         if user.api_notifications:
@@ -7961,19 +9358,30 @@ class UserNotifications(Resource):
 
         tmp = [x.as_dict() for x in notifications]
         tmp = [get_dict_without_keys(x, undesired_keys) for x in tmp]
-        return tmp
+        api_response.set_data(tmp)
+        return api_response.return_ok()
 
-    def put(self):
-        mandatory_fields = ["api-id", "notifications", "token", "user-id"]
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        Update notifications
+        """
         request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["api-id", "notifications", "token", "user-id"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if not user.api_notifications:
             user_api_notifications = []
@@ -7991,21 +9399,29 @@ class UserNotifications(Resource):
 
         user.api_notifications = ",".join([str(x) for x in user_api_notifications])
         dbi.session.commit()
-        return "Notification updated"
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class Testing(Resource):
-    def get(self):
-        request_data = request.args
-        dbi = get_db()
-        if "mapped_to_id" not in request_data.keys():
-            return "wrong input", 400
+    route = "/testing"
 
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
         """
-        mapping = dbi.session.query(SwRequirementSwRequirementModel).filter(
-            SwRequirementSwRequirementModel.id == request_data['mapped_to_id']
-        ).one()
+        Get testing
         """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+        mandatory_fields = ["mapped_to_id"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
 
         mapping = (
             dbi.session.query(SwRequirementTestCaseModel)
@@ -8013,20 +9429,30 @@ class Testing(Resource):
             .one()
         )
 
-        return get_api_from_indirect_sw_requirement_mapping(mapping, dbi.session)
+        api = get_api_from_indirect_sw_requirement_mapping(mapping, dbi.session)
+        api_response.set_data(api.as_dict())
+        return api_response.return_ok()
 
 
 class UserSshKey(Resource):
+    route = "/user/ssh-key"
     fields = get_model_editable_fields(SshKeyModel, False)
 
-    def get(self):
-        args = get_query_string_args(request.args)
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get user ssh keys
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         dbi = get_db()
 
         # User
-        user_id = get_user_id_from_request(args, dbi.session)
+        user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         ssh_keys = (
             dbi.session.query(SshKeyModel)
@@ -8035,25 +9461,31 @@ class UserSshKey(Resource):
             .all()
         )
         ssh_keys = [x.as_dict(full_data=True) for x in ssh_keys]
-        return ssh_keys
+        api_response.set_data(ssh_keys)
+        return api_response.return_ok()
 
-    def post(self):
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        post user ssh key
+        """
         request_data = request.get_json(force=True)
 
-        if not check_fields_in_request(self.fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(self.fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
-
-        # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         title = request_data["title"].strip()
         ssh_key = request_data["ssh_key"].strip()
         if title == "" or ssh_key == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Missing title or ssh_key value")
+            return api_response.return_bad_request()
 
         existing = (
             dbi.session.query(SshKeyModel)
@@ -8062,7 +9494,8 @@ class UserSshKey(Resource):
         )
 
         if len(existing):
-            return CONFLICT_MESSAGE, CONFLICT_STATUS
+            api_response.set_message("SSH key already exists")
+            return api_response.return_conflict()
 
         new_ssh_key = SshKeyModel(title, ssh_key, user)
         dbi.session.add(new_ssh_key)
@@ -8081,30 +9514,40 @@ class UserSshKey(Resource):
         if not os.path.exists(f"{SSH_KEYS_PATH}/{new_ssh_key.id}"):
             dbi.session.delete(new_ssh_key)
             dbi.session.commit()
-            return "Error", PRECONDITION_FAILED_STATUS
+            api_response.set_message("Error creating SSH key")
+            return api_response.return_precondition_failed()
 
-        return new_ssh_key.as_dict()
+        api_response.set_data(new_ssh_key.as_dict())
+        return api_response.return_created()
 
-    def delete(self):
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        delete user ssh key
+        """
         request_data = request.get_json(force=True)
-
-        if not check_fields_in_request(["id"], request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         try:
             ssh_key = dbi.session.query(SshKeyModel).filter(SshKeyModel.id == request_data["id"]).one()
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message("SSH key not found")
+            return api_response.return_not_found()
 
         if ssh_key.created_by.id != user.id:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            api_response.set_message("SSH key not owned by the current user")
+            return api_response.return_unauthorized()
 
         dbi.session.delete(ssh_key)
         dbi.session.commit()
@@ -8112,27 +9555,38 @@ class UserSshKey(Resource):
         if os.path.exists(f"{SSH_KEYS_PATH}/{ssh_key.id}"):
             os.remove(f"{SSH_KEYS_PATH}/{ssh_key.id}")
 
-        return True
+        api_response.set_data(True)
+        return api_response.return_ok()
 
 
 class UserFiles(Resource):
+    route = "/user/files"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get user files
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = []
-        args = get_query_string_args(request.args)
+
         dbi = get_db()
 
         # User
-        user_id = get_user_id_from_request(args, dbi.session)
+        user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
-            return ret
+            api_response.set_data(ret)
+            return api_response.return_ok()
 
         i = 0
         for user_file in os.listdir(user_files_path):
@@ -8147,33 +9601,42 @@ class UserFiles(Resource):
                 "updated_at": time.ctime(os.path.getmtime(os.path.join(user_files_path, user_file))),
             }
 
-            if "filter" in args.keys():
-                if str(args["filter"]).lower() not in user_file.lower():
+            if "filter" in request_data.keys():
+                if str(request_data["filter"]).lower() not in user_file.lower():
                     continue
 
             ret.append(tmp)
             i += 1
 
         ret = sorted(ret, key=lambda f: f["filepath"], reverse=False)  # sort by filename
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def post(self):
-        fields = ["filename", "filecontent"]
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        post user file
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(fields, request_data):
-            logger.error("Bad request: missing mandatory fields in user file payload")
-            return f"{BAD_REQUEST_MESSAGE} - Missing mandatory fields in user file payload", BAD_REQUEST_STATUS
+        mandatory_fields = ["filename", "filecontent"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         if request_data["filename"].startswith("."):
-            return f"{BAD_REQUEST_MESSAGE} - Filename cannot start with a dot", BAD_REQUEST_STATUS
+            api_response.set_message("Filename cannot start with a dot")
+            return api_response.return_bad_request()
 
         dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
@@ -8186,61 +9649,77 @@ class UserFiles(Resource):
         filepath = os.path.join(user_files_path, filename)
 
         if filename == "":
-            return f"{BAD_REQUEST_MESSAGE} - Missing filename value", BAD_REQUEST_STATUS
+            api_response.set_message("Missing filename value")
+            return api_response.return_bad_request()
         if filecontent == "":
-            return f"{BAD_REQUEST_MESSAGE} - Missing filecontent value", BAD_REQUEST_STATUS
+            api_response.set_message("Missing filecontent value")
+            return api_response.return_bad_request()
 
         if os.path.exists(filepath):
-            return CONFLICT_MESSAGE, CONFLICT_STATUS
+            api_response.set_message("File already exists")
+            return api_response.return_conflict()
 
         f = open(filepath, "w")
         f.write(filecontent)
         f.close()
 
         if not os.path.exists(filepath):
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message("File not found")
+            return api_response.return_not_found()
 
         ret = {
             "index": 0,
             "filepath": filepath,
             "updated_at": time.ctime(os.path.getmtime(filepath))
         }
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_created()
 
-    def delete(self):
-        fields = ["filename"]
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        delete user file
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        if not check_fields_in_request(fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["filename"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
         filename = request_data["filename"]
         filepath = os.path.join(user_files_path, filename)
 
         if filename == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Missing filename value")
+            return api_response.return_bad_request()
 
         if not os.path.exists(filepath):
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message("File not found")
+            return api_response.return_not_found()
 
         os.remove(filepath)
 
         if os.path.exists(filepath):
-            return CONFLICT_MESSAGE, CONFLICT_STATUS
+            api_response.set_message("File not found")
+            return api_response.return_not_found()
 
         ret = {"index": 0,
                "filepath": filepath,
@@ -8249,36 +9728,46 @@ class UserFiles(Resource):
 
 
 class UserFileContent(Resource):
+    route = "/user/files/content"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get user file content
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         fields = ["filename"]
         ret = {}
-        args = request.args
 
-        if not check_fields_in_request(fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
-        user_id = get_user_id_from_request(args, dbi.session)
+        user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
-        filepath = os.path.join(user_files_path, args["filename"])
+        filepath = os.path.join(user_files_path, request_data["filename"])
         if not os.path.exists(filepath):
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
-        f = open(filepath, "r")
-        filecontent = f.read()
-        f.close()
+        filecontent = read_file(filepath)
+        if not filecontent:
+            return api_response.return_not_found()
 
         ret = {
             "index": 0,
@@ -8286,46 +9775,54 @@ class UserFileContent(Resource):
             "filecontent": filecontent,
             "updated_at": time.ctime(os.path.getmtime(os.path.join(filepath))),
         }
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-        return ret
-
-    def put(self):
-        fields = ["filename", "filecontent"]
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        put user file content
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request.get_json(force=True))
 
-        if not check_fields_in_request(fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        mandatory_fields = ["filename", "filecontent"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         dbi.close()
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
         filename = request_data["filename"]
         filecontent = request_data["filecontent"]
         filepath = os.path.join(user_files_path, filename)
 
         if filename == "" or filecontent == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            return api_response.return_bad_request()
 
         if not os.path.exists(filepath):
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
         f = open(filepath, "w")
         f.write(filecontent)
         f.close()
 
         if not os.path.exists(filepath):
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
         ret = {
             "index": 0,
@@ -8333,7 +9830,8 @@ class UserFileContent(Resource):
             "filecontent": filecontent,
             "updated_at": time.ctime(os.path.getmtime(filepath)),
         }
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class TestRunConfig(Resource):
@@ -8341,18 +9839,24 @@ class TestRunConfig(Resource):
     # Once a Test Run has been executed the Test Run Config is defined
     # and should be accessible in future to identify the Test Run
     # A new Test Config is created by the Test Run post endpoint
-
+    route = "/mapping/api/test-run-configs"
     fields = get_model_editable_fields(TestRunConfigModel, False)
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get test run configs
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
-        args = get_query_string_args(request.args)
         dbi = get_db()
 
         # User
         user_id = get_user_id_from_request(args, dbi.session)
         if user_id == 0:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         query = dbi.session.query(TestRunConfigModel).filter(TestRunConfigModel.created_by_id == user_id)
 
@@ -8370,51 +9874,66 @@ class TestRunConfig(Resource):
         configs = query.order_by(TestRunConfigModel.created_at.desc()).all()
 
         configs = [x.as_dict(full_data=True) for x in configs]
-        return configs
+        api_response.set_data(configs)
+        return api_response.return_ok()
 
-    def post(self):
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        create a new test run config
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         dbi = get_db()
 
         # User
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Test Run Configuration
-        test_config_ret, test_config_status = add_test_run_config(dbi, request_data, user)
+        test_config_ret, test_config_status = add_test_run_config(dbi, request_data, user, api_response)
         if test_config_status not in [OK_STATUS, CREATED_STATUS]:
             return test_config_ret, test_config_status
+        if isinstance(test_config_ret, dict):
+            tc_id = test_config_ret.get("id")
+            test_config = dbi.session.query(TestRunConfigModel).filter(TestRunConfigModel.id == tc_id).one()
         else:
             test_config = test_config_ret
-
-        return test_config.as_dict()
+        ret = test_config.as_dict()
+        api_response.set_data(ret)
+        if test_config_status == OK_STATUS:
+            return api_response.return_ok()
+        return api_response.return_created()
 
 
 class TestRun(Resource):
+    route = "/mapping/api/test-runs"
     fields = get_model_editable_fields(TestRunModel, False)
 
-    def get(self):
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get test runs
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["api-id", "mapped_to_type", "mapped_to_id"]
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         runs_query = (
             dbi.session.query(TestRunModel)
@@ -8450,32 +9969,38 @@ class TestRun(Resource):
             )
 
         runs = runs_query.order_by(TestRunModel.created_at.desc()).all()
-
         runs = [x.as_dict(full_data=True) for x in runs]
-        return runs
+        api_response.set_data(runs)
+        return api_response.return_ok()
 
-    def post(self):
+    @api_response_decorator
+    @check_api_user_write_permission
+    def post(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        create a new test run
+        """
         request_data = request.get_json(force=True)
         mandatory_fields = ["api-id", "title", "notes", "test-run-config", "mapped_to_type", "mapped_to_id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         # Test Run Configuration
-        test_config_ret, test_config_status = add_test_run_config(dbi, request_data["test-run-config"], user)
+        test_config_ret, test_config_status = add_test_run_config(
+            dbi, request_data["test-run-config"], user, api_response
+        )
         if test_config_status not in [OK_STATUS, CREATED_STATUS]:
             return test_config_ret, test_config_status
+        if isinstance(test_config_ret, dict):
+            tc_id = test_config_ret.get("id")
+            test_config = dbi.session.query(TestRunConfigModel).filter(TestRunConfigModel.id == tc_id).one()
         else:
             test_config = test_config_ret
 
@@ -8486,8 +10011,15 @@ class TestRun(Resource):
         mapping_id = request_data["mapped_to_id"]
 
         # Check mandatory fields
-        if title == "" or mapping_to == "" or mapping_id == "":
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        if title == "":
+            api_response.set_message("Missing title")
+            return api_response.return_bad_request()
+        if mapping_to == "":
+            api_response.set_message("Missing mapping_to")
+            return api_response.return_bad_request()
+        if mapping_id == "":
+            api_response.set_message("Missing mapping_id")
+            return api_response.return_bad_request()
 
         mapping_model = None
         if mapping_to == ApiTestCaseModel.__tablename__:
@@ -8497,12 +10029,14 @@ class TestRun(Resource):
         elif mapping_to == TestSpecificationTestCaseModel.__tablename__:
             mapping_model = TestSpecificationTestCaseModel
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Invalid mapping_to")
+            return api_response.return_bad_request()
 
         try:
             mapping = dbi.session.query(mapping_model).filter(mapping_model.id == mapping_id).one()
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the mapping to {mapping_to} id {mapping_id}")
+            return api_response.return_not_found()
 
         # Create the Test Config only if the Test Run data is consistent
         dbi.session.commit()
@@ -8556,30 +10090,30 @@ class TestRun(Resource):
             dbi.session.add(notifications)
             dbi.session.commit()
 
-        return new_test_run.as_dict()
+        ret = new_test_run.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_created()
 
-    def put(self):
+    @api_response_decorator
+    @check_api_user_write_permission
+    def put(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        update an existing test run
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["api-id", "id", "bugs", "fixes", "notes", "mapped_to_type", "mapped_to_id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         mapping_model = None
         mapping_to = request_data["mapped_to_type"]
@@ -8591,12 +10125,14 @@ class TestRun(Resource):
         elif mapping_to == TestSpecificationTestCaseModel.__tablename__:
             mapping_model = TestSpecificationTestCaseModel
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Invalid mapping_to")
+            return api_response.return_bad_request()
 
         try:
             mapping = dbi.session.query(mapping_model).filter(mapping_model.id == mapping_id).one()
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the mapping to {mapping_to} id {mapping_id}")
+            return api_response.return_not_found()
 
         try:
             run = (
@@ -8610,7 +10146,8 @@ class TestRun(Resource):
                 .one()
             )
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the test run id {request_data['id']}")
+            return api_response.return_not_found()
 
         test_run_modified = False
         if run.bugs != request_data["bugs"]:
@@ -8645,30 +10182,30 @@ class TestRun(Resource):
             dbi.session.add(notifications)
             dbi.session.commit()
 
-        return run.as_dict()
+        ret = run.as_dict()
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def delete(self):
+    @api_response_decorator
+    @check_api_user_write_permission
+    def delete(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        delete an existing test run
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["api-id", "id", "mapped_to_type", "mapped_to_id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(request_data, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "w" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         mapping_model = None
         mapping_to = request_data["mapped_to_type"]
@@ -8680,12 +10217,14 @@ class TestRun(Resource):
         elif mapping_to == TestSpecificationTestCaseModel.__tablename__:
             mapping_model = TestSpecificationTestCaseModel
         else:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Invalid mapping_to")
+            return api_response.return_bad_request()
 
         try:
             mapping = dbi.session.query(mapping_model).filter(mapping_model.id == mapping_id).one()
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the mapping to {mapping_to} id {mapping_id}")
+            return api_response.return_not_found()
 
         try:
             run = (
@@ -8699,7 +10238,8 @@ class TestRun(Resource):
                 .one()
             )
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the test run id {request_data['id']}")
+            return api_response.return_not_found()
 
         run_dict = run.as_dict()
         dbi.session.delete(run)
@@ -8727,31 +10267,35 @@ class TestRun(Resource):
         )
         dbi.session.add(notifications)
         dbi.session.commit()
-        return run_dict
+        api_response.set_data(run_dict)
+        return api_response.return_ok()
 
 
 class TestRunLog(Resource):
+    route = "/mapping/api/test-run/log"
 
-    def get(self):
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get the log of a test run
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["api-id", "id"]
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             run = (
@@ -8763,7 +10307,8 @@ class TestRunLog(Resource):
                 .one()
             )
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the test run id {request_data['id']}")
+            return api_response.return_not_found()
 
         log_exec = ""
         log_exec_path = os.path.join(TEST_RUNS_BASE_DIR, f"{run.uid}.log")
@@ -8786,64 +10331,82 @@ class TestRunLog(Resource):
         ret = run.as_dict()
         ret["artifacts"] = artifacts
         ret["log_exec"] = log_exec
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class TestRunArtifacts(Resource):
+    route = "/mapping/api/test-run/artifacts"
 
-    def get(self):
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get the artifacts of a test run
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["api-id", "artifact", "id"]
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             run = (
                 dbi.session.query(TestRunModel)
                 .filter(
                     TestRunModel.api_id == api.id,
-                    TestRunModel.id == args["id"],
+                    TestRunModel.id == request_data["id"],
                 )
                 .one()
             )
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the test run id {request_data['id']}")
+            return api_response.return_not_found()
 
         # List files in the TMT_PLAN_DATA dir
         artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data")
         artifacts = os.listdir(artifacts_path)
-        if args["artifact"] not in artifacts:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        if request_data["artifact"] not in artifacts:
+            api_response.set_message(f"Unable to find the artifact {request_data['artifact']}")
+            return api_response.return_not_found()
 
-        return send_from_directory(artifacts_path, args["artifact"])
+        return send_from_directory(artifacts_path, request_data["artifact"])
 
 
 class TestRunArtifactContent(Resource):
-    """Return artifact file content as text for viewing in the UI."""
+    route = "/mapping/api/test-run/artifact-content"
 
+    @api_response_decorator
     @check_api_user_read_permission
-    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get the content of an artifact
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["api-id", "artifact", "id"]
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         try:
             run = (
@@ -8855,71 +10418,97 @@ class TestRunArtifactContent(Resource):
                 .one()
             )
         except NoResultFound:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            api_response.set_message(f"Unable to find the test run id {request_data['id']}")
+            return api_response.return_not_found()
 
         artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data")
         artifacts = os.listdir(artifacts_path)
-        if args["artifact"] not in artifacts:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        if request_data["artifact"] not in artifacts:
+            api_response.set_message(f"Unable to find the artifact {request_data['artifact']}")
+            return api_response.return_not_found()
 
-        file_path = os.path.join(artifacts_path, args["artifact"])
+        file_path = os.path.join(artifacts_path, request_data["artifact"])
         try:
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
-            return {"content": content}
+            api_response.set_data({"content": content})
+            return api_response.return_ok()
         except OSError as e:
-            return {"content": None, "error": str(e)}, 500
+            api_response.set_message(f"Unable to read the artifact {request_data['artifact']}: {str(e)}")
+            return api_response.return_server_error()
 
 
 class TestRunPluginPresets(Resource):
+    route = "/mapping/api/test-run-plugins-presets"
 
-    def get(self):
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get the plugin presets
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
         mandatory_fields = ["api-id", "plugin"]
-        args = get_query_string_args(request.args)
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
 
-        plugin = args["plugin"]
-        dbi = get_db()
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+        plugin = request_data["plugin"]
 
         if os.path.exists(TESTRUN_PRESET_FILEPATH):
             try:
                 presets = parse_config(path=TESTRUN_PRESET_FILEPATH)
                 if plugin in presets.keys():
                     if isinstance(presets[plugin], list):
-                        return [x["name"] for x in presets[plugin] if "name" in x.keys()]
-            except Exception:
-                logger.error(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
-                return []
-        return []
+                        ret = [x["name"] for x in presets[plugin] if "name" in x.keys()]
+                        api_response.set_data(ret)
+                        return api_response.return_ok()
+            except Exception as e:
+                api_response.set_message(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
+                api_response.set_exception(e)
+                return api_response.return_server_error()
+        api_response.set_data([])
+        return api_response.return_ok()
 
 
 class ExternalTestRuns(Resource):
-    def get(self):
+    route = "/mapping/api/test-runs/external"
+
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        get external test runs
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         PARAM_DATE_FORMAT = "%Y-%m-%d"
         GITLAB_CI_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
         KERNEL_CI_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
         mandatory_fields = ["api-id", "plugin", "preset"]
-        args = get_query_string_args(request.args)
-
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         ret = []
         ret_pipelines = []
@@ -8931,22 +10520,6 @@ class ExternalTestRuns(Resource):
         params = {}
 
         preset_config = None
-        dbi = get_db()
-
-        # User
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        # Find api
-        api = get_api_from_request(args, dbi.session)
-        if not api:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-
-        # Permissions
-        permissions = get_api_user_permissions(api, user, dbi.session)
-        if "r" not in permissions:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
 
         if preset:
             presets = parse_config(path=TESTRUN_PRESET_FILEPATH)
@@ -8959,7 +10532,8 @@ class ExternalTestRuns(Resource):
                     preset_config = tmp[0]
 
             if not preset_config:
-                return "Preset not found", NOT_FOUND_STATUS
+                api_response.set_message("Preset not found")
+                return api_response.return_not_found()
 
             if "params" in args.keys():
                 params_strings = args["params"].split(";")
@@ -8978,8 +10552,10 @@ class ExternalTestRuns(Resource):
                 # Skip pending pipelines from the list
                 gitlab_ci_valid_status = ["success", "failed"]
 
-                if not check_fields_in_request(gitlab_ci_mandatory_fields, preset_config, allow_empty_string=False):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                wrong_fields = get_wrong_mandatory_fields(gitlab_ci_mandatory_fields, preset_config)
+                if len(wrong_fields) > 0:
+                    api_response.set_missing_fields(wrong_fields)
+                    return api_response.return_bad_request_missing_fields()
 
                 gl = gitlab.Gitlab(url=preset_config["url"], private_token=preset_config["private_token"])
                 gl.auth()
@@ -9012,7 +10588,9 @@ class ExternalTestRuns(Resource):
                 # Filter
                 all_pipelines = [x for x in all_pipelines if x.status in gitlab_ci_valid_status]
                 if not all_pipelines:
-                    return []
+                    api_response.set_data([])
+                    return api_response.return_ok()
+
                 pipeline_attrs = all_pipelines[0].__dict__["_attrs"].keys()
                 params_pipelines = all_pipelines
                 filtered_by_params = False
@@ -9096,10 +10674,10 @@ class ExternalTestRuns(Resource):
                 github_actions_mandatory_fields = ["private_token", "url"]
                 ref = None
 
-                if not check_fields_in_request(
-                    github_actions_mandatory_fields, preset_config, allow_empty_string=False
-                ):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                wrong_fields = get_wrong_mandatory_fields(github_actions_mandatory_fields, preset_config)
+                if len(wrong_fields) > 0:
+                    api_response.set_missing_fields(wrong_fields)
+                    return api_response.return_bad_request_missing_fields()
 
                 if preset_config["url"].endswith("/"):
                     preset_config["url"] = preset_config["url"][:-1]
@@ -9108,7 +10686,8 @@ class ExternalTestRuns(Resource):
 
                 url_split = preset_config["url"].split("/")
                 if len(url_split) < 2:
-                    return f"{BAD_REQUEST_MESSAGE} Github repository url is not valid", BAD_REQUEST_STATUS
+                    api_response.set_message("Github repository url is not valid")
+                    return api_response.return_bad_request()
 
                 owner = url_split[-2]
                 repo = url_split[-1]
@@ -9142,7 +10721,8 @@ class ExternalTestRuns(Resource):
                     response_data = urllib.request.urlopen(request_params).read()
                     content = json.loads(response_data.decode("utf-8"))
                 except Exception as e:
-                    return f"{BAD_REQUEST_MESSAGE} Unable to read workflows {e}", BAD_REQUEST_STATUS
+                    api_response.set_message(f"Unable to read workflows: {e}")
+                    return api_response.return_bad_request()
                 else:
                     ret_pipelines = content["workflow_runs"]
 
@@ -9164,8 +10744,10 @@ class ExternalTestRuns(Resource):
                 dashboard_base_url = "https://dashboard.kernelci.org/tree/unknown/test/maestro:"
                 kernel_ci_mandatory_fields = ["private_token", "url"]
 
-                if not check_fields_in_request(kernel_ci_mandatory_fields, preset_config, allow_empty_string=False):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                wrong_fields = get_wrong_mandatory_fields(kernel_ci_mandatory_fields, preset_config)
+                if len(wrong_fields) > 0:
+                    api_response.set_missing_fields(wrong_fields)
+                    return api_response.return_bad_request_missing_fields()
 
                 if preset_config["url"].endswith("/"):
                     preset_config["url"] = preset_config["url"][:-1]
@@ -9209,7 +10791,8 @@ class ExternalTestRuns(Resource):
                     response_data = urllib.request.urlopen(kernel_ci_request).read()
                     content = json.loads(response_data.decode("utf-8"))
                 except Exception as e:
-                    return f"{BAD_REQUEST_MESSAGE} Unable to read workflows {e}", BAD_REQUEST_STATUS
+                    api_response.set_message(f"Unable to read workflows: {e}")
+                    return api_response.return_bad_request()
                 else:
                     ret_pipelines = content["items"]
 
@@ -9237,8 +10820,10 @@ class ExternalTestRuns(Resource):
                     "Accept": "application/json",
                 }
 
-                if not check_fields_in_request(lava_mandatory_fields, preset_config, allow_empty_string=False):
-                    return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+                wrong_fields = get_wrong_mandatory_fields(lava_mandatory_fields, preset_config)
+                if len(wrong_fields) > 0:
+                    api_response.set_missing_fields(wrong_fields)
+                    return api_response.return_bad_request_missing_fields()
 
                 if preset_config["url"].endswith("/"):
                     preset_config["url"] = preset_config["url"][:-1]
@@ -9255,16 +10840,15 @@ class ExternalTestRuns(Resource):
                         response_data = response.read()
                         content = json.loads(response_data.decode("utf-8"))
                 except urllib.error.HTTPError as e:
-                    logger.error(f"HTTP Error: {e.code} - {e.reason}")
                     error_content = e.read().decode()
-                    logger.error(f"Error details: {error_content}")
-                    return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+                    api_response.set_message(f"HTTP Error: {e.code} - {e.reason} - {error_content}")
+                    return api_response.return_forbidden()
                 except urllib.error.URLError as e:
-                    logger.error(f"URL Error: {e.reason}")
-                    return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+                    api_response.set_message(f"URL Error: {e.reason}")
+                    return api_response.return_forbidden()
                 except Exception as e:
-                    logger.error(f"Unexpected error: {e}")
-                    return FORBIDDEN_MESSAGE, FORBIDDEN_STATUS
+                    api_response.set_message(f"Unexpected error: {e}")
+                    return api_response.return_forbidden()
 
                 ret_pipelines = content["results"]
 
@@ -9341,27 +10925,39 @@ class ExternalTestRuns(Resource):
 
                     ret.append(tmp_test_run)
 
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class AdminTestRunPluginsPresets(Resource):
-    def get(self):
+    route = "/admin/test-run-plugins-presets"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the test run plugins presets
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = {"content": ""}
 
         mandatory_fields = ["token", "user-id"]
-        args = get_query_string_args(request.args)
 
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
-        user = get_active_user_from_request(args, dbi.session)
+        user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if os.path.exists(TESTRUN_PRESET_FILEPATH):
             try:
@@ -9371,55 +10967,74 @@ class AdminTestRunPluginsPresets(Resource):
                 ret["content"] = fc
             except Exception:
                 logger.error(f"Unable to read {TESTRUN_PRESET_FILEPATH}")
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        put the test run plugins presets
+        """
         request_data = request.get_json(force=True)
         ret = {"content": ""}
         mandatory_fields = ["content", "user-id", "token"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Validate the content
         try:
             new_content = parse_config(data=request_data["content"])  # noqa: F841
         except Exception as exc:
-            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+            api_response.set_message(f"Unable to parse the content: {exc}")
+            return api_response.return_bad_request()
 
         f = open(TESTRUN_PRESET_FILEPATH, "w")
         f.write(request_data["content"])
         f.close()
         ret["content"] = request_data["content"]
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class AdminSettings(Resource):
-    def get(self):
+    route = "/admin/settings"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the settings
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = {"content": ""}
 
         mandatory_fields = ["token", "user-id"]
-        args = get_query_string_args(request.args)
-
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
-        user = get_active_user_from_request(args, dbi.session)
+        user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if os.path.exists(SETTINGS_FILEPATH):
             try:
@@ -9429,29 +11044,40 @@ class AdminSettings(Resource):
                 ret["content"] = fc
             except Exception:
                 logger.error("Unable to read settings file")
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def put(self):
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        put the settings
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = {"content": ""}
         mandatory_fields = ["content", "user-id", "token"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         if user.role not in USER_ROLES_MANAGE_USERS:
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         # Validate the content
         try:
             new_content = parse_config(data=request_data["content"])  # noqa: F841
         except Exception as exc:
-            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+            api_response.set_message(f"Unable to parse the content: {exc}")
+            return api_response.return_bad_request()
 
         f = open(SETTINGS_FILEPATH, "w")
         f.write(request_data["content"])
@@ -9461,48 +11087,71 @@ class AdminSettings(Resource):
         get_updated_settings()
 
         ret["content"] = request_data["content"]
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class TraceabilityScannerSettings(Resource):
-    def get(self):
+    route = "/traceability-scanner/settings"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the traceability scanner settings
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = {"content": ""}
         mandatory_fields = ["token", "user-id"]
-        args = get_query_string_args(request.args)
 
-        if not check_fields_in_request(mandatory_fields, args):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
-
-        dbi = get_db()
-
-        user = get_active_user_from_request(args, dbi.session)
-        if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
-
-        config = get_user_traceability_scanner_config(user)
-        if config is None:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
-        ret["content"] = config
-        return ret
-
-    def put(self):
-        request_data = request.get_json(force=True)
-        ret = {"content": ""}
-        mandatory_fields = ["content", "user-id", "token"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
+
+        config = get_user_traceability_scanner_config(user)
+        if config is None:
+            return api_response.return_not_found()
+        ret["content"] = config
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        put the traceability scanner settings
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        ret = {"content": ""}
+        mandatory_fields = ["content", "user-id", "token"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
 
         # Validate YAML content
         try:
             _ = parse_config(data=request_data["content"])  # noqa: F841
         except Exception as exc:
-            return f"{BAD_REQUEST_MESSAGE} {exc}", BAD_REQUEST_STATUS
+            api_response.set_message(f"Unable to parse the content: {exc}")
+            return api_response.return_bad_request()
 
         user_config_dir = get_user_config_folder_path(user)
         user_config_filepath = os.path.join(user_config_dir, "config.yaml")
@@ -9512,24 +11161,35 @@ class TraceabilityScannerSettings(Resource):
             f.close()
             ret["content"] = request_data["content"]
         except Exception as exc:
-            logger.error(f"Unable to write user settings file {user_config_filepath}: {exc}")
-            return f"{BAD_REQUEST_MESSAGE} Unable to write configuration", BAD_REQUEST_STATUS
-        return ret
+            api_response.set_message(f"Unable to write user settings file {user_config_filepath}: {exc}")
+            return api_response.return_bad_request()
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
 class TraceabilityScannerScan(Resource):
+    route = "/traceability-scanner/scan"
 
-    def get(self):
-        request_data = request.args
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the traceability scanner scan
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ret = {"content": []}
         mandatory_fields = ["user-id", "token"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         user_config_dir = get_user_config_folder_path(user)
         user_config_filepath = os.path.join(user_config_dir, "config.yaml")
@@ -9538,27 +11198,39 @@ class TraceabilityScannerScan(Resource):
             """list of traceability scans log files"""
             log_files = [f for f in os.listdir(user_config_dir) if f.endswith(".log")]
             ret["content"] = log_files
-        return ret
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
-    def post(self):
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        post the traceability scanner scan
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["user-id", "token"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         user_config_dir = get_user_config_folder_path(user)
         user_config_filepath = os.path.join(user_config_dir, "config.yaml")
         if not os.path.exists(user_config_filepath):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"User configuration file {user_config_filepath} not found")
+            return api_response.return_bad_request()
 
         config = get_user_traceability_scanner_config(user)
         if not config:
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message("Unable to get user traceability scanner config")
+            return api_response.return_bad_request()
 
         # call repos_scanner.py with the user id and the name of the logfile
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -9571,7 +11243,8 @@ class TraceabilityScannerScan(Resource):
             log_fh.flush()
         except Exception as exc:
             logger.error(f"Unable to open log file {log_file_path}: {exc}")
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"Unable to open log file {log_file_path}: {exc}")
+            return api_response.return_bad_request()
 
         # Launch asynchronously without waiting
         subprocess.Popen(
@@ -9584,82 +11257,134 @@ class TraceabilityScannerScan(Resource):
         )
 
         # Return the status and the logfile name
-        return {"status": "success", "logfile": f"{timestamp}.log"}
+        ret = {"status": "success", "logfile": f"{timestamp}.log"}
+        api_response.set_data(ret)
+        return api_response.return_created()
 
 
 class TraceabilityScannerLogs(Resource):
+    route = "/traceability-scanner/logs"
 
-    def delete(self):
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        delete the traceability scanner logs
+        """
         request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["user-id", "token", "scan-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         user_config_dir = get_user_config_folder_path(user)
         scan_id = str(request_data.get("scan-id", "")).strip()
         # basic validation to avoid directories/path traversal
         if not scan_id or scan_id != os.path.basename(scan_id):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"Invalid scan ID: {scan_id}")
+            return api_response.return_bad_request()
         log_file = os.path.join(user_config_dir, scan_id)
 
-        if os.path.isfile(log_file):
-            os.remove(log_file)
-            return {"status": "success"}
-        return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+        if not os.path.isfile(log_file):
+            api_response.set_message(f"Log file {log_file} not found")
+            return api_response.return_not_found()
 
-    def get(self):
-        request_data = request.args
+        os.remove(log_file)
+        ret = {"status": "success"}
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the traceability scanner logs
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         mandatory_fields = ["user-id", "token", "scan-id"]
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
         user_config_dir = get_user_config_folder_path(user)
         scan_id = str(request_data.get("scan-id", "")).strip()
         if not scan_id or scan_id != os.path.basename(scan_id):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+            api_response.set_message(f"Invalid scan ID: {scan_id}")
+            return api_response.return_bad_request()
         log_file = os.path.join(user_config_dir, scan_id)
 
-        if os.path.isfile(log_file):
+        if not os.path.isfile(log_file):
+            api_response.set_message(f"Log file {log_file} not found")
+            return api_response.return_not_found()
+
+        try:
             with open(log_file, "r") as f:
                 content = f.read()
-            return {"status": "success", "content": content}
-        return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            ret = {"status": "success", "content": content}
+            api_response.set_data(ret)
+            return api_response.return_ok()
+        except Exception as exc:
+            api_response.set_message(f"Unable to read log file {log_file}: {exc}")
+            return api_response.return_bad_request()
 
 
 class AIHealthCheck(Resource):
+    route = "/ai/health-check"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            return api_response.return_precondition_failed()
 
         if ai_prompter.ai_health_check():
-            return True
+            api_response.set_data(True)
+            return api_response.return_ok()
         else:
-            return NOT_FOUND_MESSAGE, NOT_FOUND_STATUS
+            return api_response.return_not_found()
 
 
 class AISuggestTestCaseImplementation(Resource):
+    route = "/ai/suggest/test-case/implementation"
+
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+             api_response: ApiResponse = None):
         mandatory_fields = ["spec", "title"]
         request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            return api_response.return_precondition_failed()
         return ai_prompter.ai_askfor__test_case_implementation(
             api=api.api,
             title=request_data["spec"],
@@ -9669,16 +11394,25 @@ class AISuggestTestCaseImplementation(Resource):
 
 
 class AISuggestTestCaseMetadata(Resource):
+    route = "/ai/suggest/test-case/metadata"
+
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+             api_response: ApiResponse = None):
         mandatory_fields = ["spec"]
         request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            return api_response.return_precondition_failed()
         return ai_prompter.ai_askfor__test_case_metadata(
             api=api.api,
             spec=request_data["spec"]
@@ -9686,17 +11420,25 @@ class AISuggestTestCaseMetadata(Resource):
 
 
 class AISuggestTestSpecificationMetadata(Resource):
+    route = "/ai/suggest/test-specification/metadata"
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+             api_response: ApiResponse = None):
         mandatory_fields = ["spec"]
         request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            return api_response.return_precondition_failed()
         return ai_prompter.ai_askfor__test_specification_metadata(
             api=api.api,
             spec=request_data["spec"]
@@ -9704,17 +11446,25 @@ class AISuggestTestSpecificationMetadata(Resource):
 
 
 class AISuggestSoftwareRequirementMetadata(Resource):
+    route = "/ai/suggest/sw-requirement/metadata"
 
+    @api_response_decorator
     @check_api_user_write_permission
-    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None):
+    def post(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+             api_response: ApiResponse = None):
         mandatory_fields = ["spec"]
         request_data = request.get_json(force=True)
-        if not check_fields_in_request(mandatory_fields, request_data):
-            return BAD_REQUEST_MESSAGE, BAD_REQUEST_STATUS
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
 
         ai_prompter = AIPrompter(SETTINGS_CACHE, SETTINGS_LAST_MODIFIED)
         if not ai_prompter.validate_settings():
-            return PRECONDITION_FAILED_MESSAGE, PRECONDITION_FAILED_STATUS
+            return api_response.return_precondition_failed()
         return ai_prompter.ai_askfor__software_requirement_metadata(
             api=api.api,
             spec=request_data["spec"]
@@ -9722,127 +11472,140 @@ class AISuggestSoftwareRequirementMetadata(Resource):
 
 
 class CustomActions(Resource):
-    def get(self):
-        request_data = request.args
+    route = "/custom-actions"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get custom actions
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
 
         dbi = get_db()
 
         user = get_active_user_from_request(request_data, dbi.session)
         if not isinstance(user, UserModel):
-            return UNAUTHORIZED_MESSAGE, UNAUTHORIZED_STATUS
+            return api_response.return_unauthorized()
 
-        return get_custom_actions(user=user)
+        api_response.set_data(get_custom_actions(user=user))
+        return api_response.return_ok()
 
 
 class Version(Resource):
+    route = "/version"
 
-    def get(self):
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
         """Take first row with version definition from pyproject.toml"""
-        return {"version": API_VERSION}
+        ret = {"version": API_VERSION}
+        api_response.set_data(ret)
+        return api_response.return_ok()
 
 
-api.add_resource(Api, "/apis")
-api.add_resource(ApiHistory, "/apis/history")
-api.add_resource(ApiNewVersion, "/apis/new-version")
-api.add_resource(ApiSpecification, "/api-specifications")
-api.add_resource(ApiWritePermissionRequest, "/apis/write-permission-request")
-api.add_resource(Library, "/libraries")
-api.add_resource(SPDXApi, "/spdx/apis")
-api.add_resource(HTMLApi, "/html/apis")
-api.add_resource(HTMLExportDownload, "/html/apis/export-download")
-api.add_resource(Document, "/documents")
-api.add_resource(RemoteDocument, "/remote-documents")
-api.add_resource(Justification, "/justifications")
-api.add_resource(SwRequirement, "/sw-requirements")
-api.add_resource(TestSpecification, "/test-specifications")
-api.add_resource(TestCase, "/test-cases")
-api.add_resource(TestCaseLocalFileImplementation, "/test-cases/local-file-implementation")
+api.add_resource(Api, Api.route)
+api.add_resource(ApiHistory, ApiHistory.route)
+api.add_resource(ApiNewVersion, ApiNewVersion.route)
+api.add_resource(ApiSpecification, ApiSpecification.route)
+api.add_resource(ApiWritePermissionRequest, ApiWritePermissionRequest.route)
+api.add_resource(Library, Library.route)
+api.add_resource(SPDXApi, SPDXApi.route)
+api.add_resource(HTMLApi, HTMLApi.route)
+api.add_resource(HTMLExportDownload, HTMLExportDownload.route)
+api.add_resource(Document, Document.route)
+api.add_resource(RemoteDocument, RemoteDocument.route)
+api.add_resource(Justification, Justification.route)
+api.add_resource(SwRequirement, SwRequirement.route)
+api.add_resource(TestSpecification, TestSpecification.route)
+api.add_resource(TestCase, TestCase.route)
+api.add_resource(TestCaseLocalFileImplementation, TestCaseLocalFileImplementation.route)
 
 # Mapping
 # - Direct
-api.add_resource(ApiSpecificationsMapping, "/mapping/api/specifications")
-api.add_resource(ApiDocumentsMapping, "/mapping/api/documents")
-api.add_resource(ApiJustificationsMapping, "/mapping/api/justifications")
-api.add_resource(ApiLastCoverage, "/mapping/api/last-coverage")
-api.add_resource(ApiSwRequirementsMapping, "/mapping/api/sw-requirements")
-api.add_resource(ApiTestSpecificationsMapping, "/mapping/api/test-specifications")
-api.add_resource(ApiTestCasesMapping, "/mapping/api/test-cases")
-api.add_resource(TestRunConfig, "/mapping/api/test-run-configs")
-api.add_resource(TestRun, "/mapping/api/test-runs")
-api.add_resource(ExternalTestRuns, "/mapping/api/test-runs/external")
-api.add_resource(TestRunLog, "/mapping/api/test-run/log")
-api.add_resource(TestRunArtifacts, "/mapping/api/test-run/artifacts")
-api.add_resource(TestRunArtifactContent, "/mapping/api/test-run/artifact-content")
-api.add_resource(TestRunPluginPresets, "/mapping/api/test-run-plugins-presets")
-api.add_resource(AdminTestRunPluginsPresets, "/admin/test-run-plugins-presets")
-api.add_resource(AdminSettings, "/admin/settings")
-api.add_resource(TraceabilityScannerSettings, "/traceability-scanner/settings")
-api.add_resource(TraceabilityScannerScan, "/traceability-scanner/scan")
-api.add_resource(TraceabilityScannerLogs, "/traceability-scanner/logs")
-api.add_resource(AdminResetUserPassword, "/admin/reset-user-password")
+api.add_resource(ApiSpecificationsMapping, ApiSpecificationsMapping.route)
+api.add_resource(ApiDocumentsMapping, ApiDocumentsMapping.route)
+api.add_resource(ApiJustificationsMapping, ApiJustificationsMapping.route)
+api.add_resource(ApiLastCoverage, ApiLastCoverage.route)
+api.add_resource(ApiSwRequirementsMapping, ApiSwRequirementsMapping.route)
+api.add_resource(ApiTestSpecificationsMapping, ApiTestSpecificationsMapping.route)
+api.add_resource(ApiTestCasesMapping, ApiTestCasesMapping.route)
+api.add_resource(TestRunConfig, TestRunConfig.route)
+api.add_resource(TestRun, TestRun.route)
+api.add_resource(ExternalTestRuns, ExternalTestRuns.route)
+api.add_resource(TestRunLog, TestRunLog.route)
+api.add_resource(TestRunArtifacts, TestRunArtifacts.route)
+api.add_resource(TestRunArtifactContent, TestRunArtifactContent.route)
+api.add_resource(TestRunPluginPresets, TestRunPluginPresets.route)
+api.add_resource(AdminTestRunPluginsPresets, AdminTestRunPluginsPresets.route)
+api.add_resource(AdminSettings, AdminSettings.route)
+api.add_resource(TraceabilityScannerSettings, TraceabilityScannerSettings.route)
+api.add_resource(TraceabilityScannerScan, TraceabilityScannerScan.route)
+api.add_resource(TraceabilityScannerLogs, TraceabilityScannerLogs.route)
+api.add_resource(AdminResetUserPassword, AdminResetUserPassword.route)
 
 # - Import
-api.add_resource(SwRequirementImport, "/import/sw-requirements")
-api.add_resource(TestCaseGenerateJson, "/import/test-cases-generate-json")
-api.add_resource(TestCaseImport, "/import/test-cases")
+api.add_resource(SwRequirementImport, SwRequirementImport.route)
+api.add_resource(TestCaseGenerateJson, TestCaseGenerateJson.route)
+api.add_resource(TestCaseImport, TestCaseImport.route)
 
 # - Indirect
-api.add_resource(SwRequirementSwRequirementsMapping, "/mapping/sw-requirement/sw-requirements")
-api.add_resource(SwRequirementTestSpecificationsMapping, "/mapping/sw-requirement/test-specifications")
-api.add_resource(SwRequirementTestCasesMapping, "/mapping/sw-requirement/test-cases")
-api.add_resource(TestSpecificationTestCasesMapping, "/mapping/test-specification/test-cases")
-api.add_resource(DocumentDocumentMapping, "/mapping/document/documents")
+api.add_resource(SwRequirementSwRequirementsMapping, SwRequirementSwRequirementsMapping.route)
+api.add_resource(SwRequirementTestSpecificationsMapping, SwRequirementTestSpecificationsMapping.route)
+api.add_resource(SwRequirementTestCasesMapping, SwRequirementTestCasesMapping.route)
+api.add_resource(TestSpecificationTestCasesMapping, TestSpecificationTestCasesMapping.route)
+api.add_resource(DocumentDocumentMapping, DocumentDocumentMapping.route)
 
 # History
-api.add_resource(MappingHistory, "/mapping/history")
-api.add_resource(CheckSpecification, "/apis/check-specification")
-api.add_resource(FixNewSpecificationWarnings, "/apis/fix-specification-warnings")
+api.add_resource(MappingHistory, MappingHistory.route)
+api.add_resource(CheckSpecification, CheckSpecification.route)
+api.add_resource(FixNewSpecificationWarnings, FixNewSpecificationWarnings.route)
 
 # Testing Support
-api.add_resource(TestingSupportInitDb, "/test-support/init-db")
+api.add_resource(TestingSupportInitDb, TestingSupportInitDb.route)
 
 # Usage
-api.add_resource(MappingUsage, "/mapping/usage")
+api.add_resource(MappingUsage, MappingUsage.route)
 # Comments
-api.add_resource(Comment, "/comments")
+api.add_resource(Comment, Comment.route)
 # Fork
-api.add_resource(ForkApiSwRequirement, "/fork/api/sw-requirement")
-api.add_resource(ForkSwRequirementSwRequirement, "/fork/sw-requirement/sw-requirement")
-api.add_resource(ForkApiDocument, "/fork/api/document")
-api.add_resource(ForkDocumentDocument, "/fork/document/document")
-api.add_resource(ForkApiTestSpecification, '/fork/api/test-specification')
-api.add_resource(ForkSwRequirementTestSpecification, '/fork/sw-requirement/test-specification')
-api.add_resource(ForkApiTestCase, '/fork/api/test-case')
-api.add_resource(ForkSwRequirementTestCase, '/fork/sw-requirement/test-case')
-api.add_resource(ForkTestSpecificationTestCase, '/fork/test-specification/test-case')
-api.add_resource(ForkApiJustification, '/fork/api/justification')
+api.add_resource(ForkApiSwRequirement, ForkApiSwRequirement.route)
+api.add_resource(ForkSwRequirementSwRequirement, ForkSwRequirementSwRequirement.route)
+api.add_resource(ForkApiDocument, ForkApiDocument.route)
+api.add_resource(ForkDocumentDocument, ForkDocumentDocument.route)
+api.add_resource(ForkApiTestSpecification, ForkApiTestSpecification.route)
+api.add_resource(ForkSwRequirementTestSpecification, ForkSwRequirementTestSpecification.route)
+api.add_resource(ForkApiTestCase, ForkApiTestCase.route)
+api.add_resource(ForkSwRequirementTestCase, ForkSwRequirementTestCase.route)
+api.add_resource(ForkTestSpecificationTestCase, ForkTestSpecificationTestCase.route)
+api.add_resource(ForkApiJustification, ForkApiJustification.route)
 
-api.add_resource(User, "/user")
-api.add_resource(UserApis, "/user/apis")
-api.add_resource(UserEnable, "/user/enable")
-api.add_resource(UserLogin, "/user/login")
-api.add_resource(UserNotifications, "/user/notifications")
-api.add_resource(UserPermissionsApi, "/user/permissions/api")
-api.add_resource(UserPermissionsApiCopy, "/user/permissions/copy")
-api.add_resource(UserResetPassword, "/user/reset-password")
-api.add_resource(UserRole, "/user/role")
-api.add_resource(UserSignin, "/user/signin")
-api.add_resource(UserSshKey, "/user/ssh-key")
-api.add_resource(UserFiles, "/user/files")
-api.add_resource(UserFileContent, "/user/files/content")
-api.add_resource(Alert, "/alert")
-api.add_resource(Testing, "/testing")
-api.add_resource(Version, "/version")
+api.add_resource(User, User.route)
+api.add_resource(UserApis, UserApis.route)
+api.add_resource(UserEnable, UserEnable.route)
+api.add_resource(UserLogin, UserLogin.route)
+api.add_resource(UserNotifications, UserNotifications.route)
+api.add_resource(UserPermissionsApi, UserPermissionsApi.route)
+api.add_resource(UserPermissionsApiCopy, UserPermissionsApiCopy.route)
+api.add_resource(UserResetPassword, UserResetPassword.route)
+api.add_resource(UserRole, UserRole.route)
+api.add_resource(UserSignin, UserSignin.route)
+api.add_resource(UserSshKey, UserSshKey.route)
+api.add_resource(UserFiles, UserFiles.route)
+api.add_resource(UserFileContent, UserFileContent.route)
+api.add_resource(Alert, Alert.route)
+api.add_resource(Testing, Testing.route)
+api.add_resource(Version, Version.route)
 
 # AI
-api.add_resource(AIHealthCheck, "/ai/health-check")
-api.add_resource(AISuggestTestCaseMetadata, "/ai/suggest/test-case/metadata")
-api.add_resource(AISuggestTestCaseImplementation, "/ai/suggest/test-case/implementation")
-api.add_resource(AISuggestTestSpecificationMetadata, "/ai/suggest/test-specification/metadata")
-api.add_resource(AISuggestSoftwareRequirementMetadata, "/ai/suggest/sw-requirement/metadata")
+api.add_resource(AIHealthCheck, AIHealthCheck.route)
+api.add_resource(AISuggestTestCaseMetadata, AISuggestTestCaseMetadata.route)
+api.add_resource(AISuggestTestCaseImplementation, AISuggestTestCaseImplementation.route)
+api.add_resource(AISuggestTestSpecificationMetadata, AISuggestTestSpecificationMetadata.route)
+api.add_resource(AISuggestSoftwareRequirementMetadata, AISuggestSoftwareRequirementMetadata.route)
 
 # Custom Actions
-api.add_resource(CustomActions, "/custom-actions")
+api.add_resource(CustomActions, CustomActions.route)
 
 if __name__ == "__main__":
     import argparse

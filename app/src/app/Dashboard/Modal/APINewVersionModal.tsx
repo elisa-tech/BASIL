@@ -76,7 +76,7 @@ export const APINewVersionModal: React.FunctionComponent<APINewVersionModalProps
 
     let status
     let status_text
-    fetch(Constants.API_BASE_URL + '/apis/new-version', {
+    fetch(Constants.API_BASE_URL + Constants.API_APIS_NEW_VERSION_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -84,7 +84,7 @@ export const APINewVersionModal: React.FunctionComponent<APINewVersionModalProps
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           return response.text()
         } else {
           window.location.replace('/?currentLibrary=' + encodeURIComponent(api.library))
@@ -92,7 +92,7 @@ export const APINewVersionModal: React.FunctionComponent<APINewVersionModalProps
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })

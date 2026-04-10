@@ -395,7 +395,8 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const setHistoryModalInfo = (show, work_item_type, mapped_to_type, relation_id) => {
     const url =
       Constants.API_BASE_URL +
-      '/mapping/history?work_item_type=' +
+      Constants.API_MAPPING_HISTORY_ENDPOINT +
+      '?work_item_type=' +
       work_item_type +
       '&mapped_to_type=' +
       mapped_to_type +
@@ -413,7 +414,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setDetailsModalInfo = (show, work_item_type, work_item_id) => {
-    const url = Constants.API_BASE_URL + '/' + work_item_type + 's?field1=id&filter1=' + work_item_id
+    const url = Constants.API_BASE_URL + Constants.buildWorkItemRootListPath(work_item_type) + '?field1=id&filter1=' + work_item_id
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -435,7 +436,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   }
 
   const setUsageModalInfo = (show, work_item_type, work_item_id) => {
-    const url = Constants.API_BASE_URL + '/mapping/usage?work_item_type=' + work_item_type + '&id=' + work_item_id
+    const url = Constants.API_BASE_URL + Constants.API_MAPPING_USAGE_ENDPOINT + '?work_item_type=' + work_item_type + '&id=' + work_item_id
     fetch(url)
       .then((res) => res.json())
       .then((data) => {

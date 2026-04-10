@@ -258,7 +258,7 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     const valid_class = 'pf-m-green'
     const unvalid_class = 'pf-m-red'
 
-    let url = Constants.API_BASE_URL + '/remote-documents?id=' + _id
+    let url = Constants.API_BASE_URL + Constants.API_REMOTE_DOCUMENTS_ENDPOINT + '?id=' + _id
     url += '&api-id=' + api.id
     url += '&user-id=' + auth.userId + '&token=' + auth.token
 

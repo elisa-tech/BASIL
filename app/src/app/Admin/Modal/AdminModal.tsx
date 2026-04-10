@@ -89,7 +89,7 @@ export const AdminModal: React.FunctionComponent<AdminModalProps> = ({
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setSubmitEnable(false)
           setMessageValue(response.statusText)
         } else {

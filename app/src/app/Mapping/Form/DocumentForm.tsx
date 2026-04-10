@@ -327,7 +327,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
     let status: number = 0
     let status_text: string = ''
 
-    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/documents', {
+    fetch(Constants.API_BASE_URL + Constants.buildMappingParentWorkItemsPath(parentType, Constants._Ds), {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -335,7 +335,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setStatusValue('waiting')
           return response.text()
         } else {
@@ -347,7 +347,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })
@@ -372,7 +372,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   }
 
   const readRemoteTextFile = () => {
-    let url = Constants.API_BASE_URL + '/remote-documents?url=' + documentUrlValue
+    let url = Constants.API_BASE_URL + Constants.API_REMOTE_DOCUMENTS_ENDPOINT + '?url=' + documentUrlValue
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {

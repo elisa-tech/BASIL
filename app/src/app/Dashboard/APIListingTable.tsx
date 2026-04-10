@@ -65,7 +65,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     if (currentApiID == 0) {
       return
     }
-    const url = Constants.API_BASE_URL + '/apis/history?api-id=' + currentApiID
+    const url = Constants.API_BASE_URL + Constants.API_APIS_HISTORY_ENDPOINT + '?api-id=' + currentApiID
     fetch(url)
       .then((res) => res.json())
       .then((data) => {

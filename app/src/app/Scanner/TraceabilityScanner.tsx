@@ -34,10 +34,6 @@ const TraceabilityScanner: React.FunctionComponent = () => {
   const [scanLogModalShowState, setScanLogModalShowState] = React.useState(false)
 
   const auth = useAuth()
-  const TRACEABILITY_SCANNER_SETTINGS_ENDPOINT = '/traceability-scanner/settings'
-  const TRACEABILITY_SCANNER_ENDPOINT = '/traceability-scanner/scan'
-  const TRACEABILITY_SCANNER_LOGS_ENDPOINT = '/traceability-scanner/logs'
-
   const increaseEditorFont = () => setEditorFontSize((f) => Math.min(f + 2, 40))
   const decreaseEditorFont = () => setEditorFontSize((f) => Math.max(f - 2, 8))
 
@@ -67,7 +63,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
     toggleNotificationModal('', '')
     setSettingsContent('')
 
-    let url = Constants.API_BASE_URL + TRACEABILITY_SCANNER_SETTINGS_ENDPOINT
+    let url = Constants.API_BASE_URL + Constants.API_TRACEABILITY_SCANNER_SETTINGS_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     fetch(url)
@@ -90,7 +86,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
   const saveSettings = () => {
     toggleNotificationModal('', '')
 
-    const url = Constants.API_BASE_URL + TRACEABILITY_SCANNER_SETTINGS_ENDPOINT
+    const url = Constants.API_BASE_URL + Constants.API_TRACEABILITY_SCANNER_SETTINGS_ENDPOINT
     const data = { content: settingsContent, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
@@ -98,7 +94,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           toggleNotificationModal('Error', response.statusText)
         } else {
           loadSettings()
@@ -114,7 +110,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
   const scanTraceability = () => {
     toggleNotificationModal('', '')
 
-    const url = Constants.API_BASE_URL + TRACEABILITY_SCANNER_ENDPOINT
+    const url = Constants.API_BASE_URL + Constants.API_TRACEABILITY_SCANNER_SCAN_ENDPOINT
     const data = { 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'POST',
@@ -141,7 +137,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
   }
 
   const listTraceabilityScans = () => {
-    let url = Constants.API_BASE_URL + TRACEABILITY_SCANNER_ENDPOINT
+    let url = Constants.API_BASE_URL + Constants.API_TRACEABILITY_SCANNER_SCAN_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     fetch(url, {
@@ -160,7 +156,7 @@ const TraceabilityScanner: React.FunctionComponent = () => {
   const getTraceabilityScanLog = (scanId: string) => {
     toggleNotificationModal('', '')
 
-    let url = Constants.API_BASE_URL + TRACEABILITY_SCANNER_LOGS_ENDPOINT
+    let url = Constants.API_BASE_URL + Constants.API_TRACEABILITY_SCANNER_LOGS_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     url += '&scan-id=' + scanId

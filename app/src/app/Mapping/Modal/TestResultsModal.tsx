@@ -75,7 +75,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [searchValue, setSearchValue] = React.useState('')
   const [pluginValue, setPluginValue] = React.useState('')
   const [pluginPresetValue, setPluginPresetValue] = React.useState('')
-  const [pluginPresetsValue, setPluginPresetsValue] = React.useState([])
+  const [pluginPresetsValue, setPluginPresetsValue] = React.useState<string[]>([])
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
   const [filterKey, setFilterKey] = React.useState('')
   const [filterValue, setFilterValue] = React.useState('')
@@ -177,9 +177,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     }
 
     fetch(url)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return []
+        }
+        return res.json()
+      })
       .then((data) => {
-        setPluginPresetsValue(data)
+        setPluginPresetsValue(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
         console.log(err.message)

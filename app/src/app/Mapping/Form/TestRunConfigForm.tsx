@@ -42,7 +42,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   const [userFiles, setUserFiles] = React.useState([])
   const [messageValue, setMessageValue] = React.useState('')
 
-  const [pluginPresetsValue, setPluginPresetsValue] = React.useState([])
+  const [pluginPresetsValue, setPluginPresetsValue] = React.useState<string[]>([])
   const [pluginValue, setPluginValue] = React.useState(testRunConfig.plugin || 'tmt')
 
   // tmt
@@ -178,9 +178,14 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     }
 
     fetch(url)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return []
+        }
+        return res.json()
+      })
       .then((data) => {
-        setPluginPresetsValue(data)
+        setPluginPresetsValue(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
         console.log(err.message)

@@ -3411,9 +3411,8 @@ class ApiHistory(Resource):
         """
         get api history
         """
-        request_data = request.get_json(force=True)
         api_response.set_logger(logger)
-        api_response.set_args(request_data)
+        api_response.set_args(get_query_string_args(request.args))
 
         _model = ApiModel
         _model_history = ApiHistoryModel
@@ -3615,9 +3614,8 @@ class ApiSpecification(Resource):
         """
         get api specification
         """
-        request_data = request.get_json(force=True)
         api_response.set_logger(logger)
-        api_response.set_args(request_data)
+        api_response.set_args(get_query_string_args(request.args))
 
         spec = get_api_specification(api.raw_specification_url)
 

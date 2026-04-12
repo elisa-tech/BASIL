@@ -2499,8 +2499,8 @@ class Comment(Resource):
 
         query = (
             dbi.session.query(CommentModel)
-            .filter(CommentModel.parent_table == args["parent_table"])
-            .filter(CommentModel.parent_id == args["parent_id"])
+            .filter(CommentModel.parent_table == request_data["parent_table"])
+            .filter(CommentModel.parent_id == request_data["parent_id"])
         )
 
         if "search" in request_data:
@@ -9852,20 +9852,20 @@ class TestRunConfig(Resource):
         dbi = get_db()
 
         # User
-        user_id = get_user_id_from_request(args, dbi.session)
+        user_id = get_user_id_from_request(request_data, dbi.session)
         if user_id == 0:
             return api_response.return_unauthorized()
 
         query = dbi.session.query(TestRunConfigModel).filter(TestRunConfigModel.created_by_id == user_id)
 
-        if "search" in args.keys():
+        if "search" in request_data.keys():
             query = query.filter(
                 or_(
-                    TestRunConfigModel.title.like(f'%{args["search"]}%'),
-                    TestRunConfigModel.provision_guest.like(f'%{args["search"]}%'),
-                    TestRunConfigModel.provision_guest_port.like(f'%{args["search"]}%'),
-                    TestRunConfigModel.environment_vars.like(f'%{args["search"]}%'),
-                    TestRunConfigModel.context_vars.like(f'%{args["search"]}%'),
+                    TestRunConfigModel.title.like(f'%{request_data["search"]}%'),
+                    TestRunConfigModel.provision_guest.like(f'%{request_data["search"]}%'),
+                    TestRunConfigModel.provision_guest_port.like(f'%{request_data["search"]}%'),
+                    TestRunConfigModel.environment_vars.like(f'%{request_data["search"]}%'),
+                    TestRunConfigModel.context_vars.like(f'%{request_data["search"]}%'),
                 )
             )
 
@@ -9938,13 +9938,13 @@ class TestRun(Resource):
             .join(TestRunConfigModel)
             .filter(
                 TestRunModel.api_id == api.id,
-                TestRunModel.mapping_to == args["mapped_to_type"],
-                TestRunModel.mapping_id == args["mapped_to_id"],
+                TestRunModel.mapping_to == request_data["mapped_to_type"],
+                TestRunModel.mapping_id == request_data["mapped_to_id"],
             )
         )
 
-        if "search" in args.keys():
-            search = args["search"]
+        if "search" in request_data.keys():
+            search = request_data["search"]
             runs_query = runs_query.filter(
                 or_(
                     cast(TestRunModel.id, String).like(f"%{search}%"),
@@ -10300,7 +10300,7 @@ class TestRunLog(Resource):
                 dbi.session.query(TestRunModel)
                 .filter(
                     TestRunModel.api_id == api.id,
-                    TestRunModel.id == args["id"],
+                    TestRunModel.id == request_data["id"],
                 )
                 .one()
             )
@@ -10411,7 +10411,7 @@ class TestRunArtifactContent(Resource):
                 dbi.session.query(TestRunModel)
                 .filter(
                     TestRunModel.api_id == api.id,
-                    TestRunModel.id == args["id"],
+                    TestRunModel.id == request_data["id"],
                 )
                 .one()
             )
@@ -10512,8 +10512,8 @@ class ExternalTestRuns(Resource):
         ret_pipelines = []
         all_pipelines = []
         filtered_pipelines = []
-        plugin = args["plugin"].strip()
-        preset = args["preset"].strip()
+        plugin = request_data["plugin"].strip()
+        preset = request_data["preset"].strip()
         params_strings = []
         params = {}
 
@@ -10533,8 +10533,8 @@ class ExternalTestRuns(Resource):
                 api_response.set_message("Preset not found")
                 return api_response.return_not_found()
 
-            if "params" in args.keys():
-                params_strings = args["params"].split(";")
+            if "params" in request_data.keys():
+                params_strings = request_data["params"].split(";")
                 params_strings = [x for x in params_strings if "=" in x]
                 for param_string in params_strings:
                     k = param_string.split("=")[0].strip()

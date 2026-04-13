@@ -51,9 +51,13 @@ class SwRequirementTestSpecificationModel(Base):
         if sw_requirement_mapping_api:
             self.sw_requirement_mapping_api = sw_requirement_mapping_api
             self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
-        if sw_requirement_mapping_sw_requirement:
+            self.sw_requirement_mapping_sw_requirement = None
+            self.sw_requirement_mapping_sw_requirement_id = None
+        elif sw_requirement_mapping_sw_requirement:
             self.sw_requirement_mapping_sw_requirement = sw_requirement_mapping_sw_requirement
             self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement.id
+            self.sw_requirement_mapping_api = None
+            self.sw_requirement_mapping_api_id = None
         self.test_specification = test_specification
         self.test_specification_id = test_specification.id
         self.coverage = coverage
@@ -147,12 +151,18 @@ class SwRequirementTestSpecificationModel(Base):
         from db.models.test_specification_test_case import TestSpecificationTestCaseModel
 
         new_sw_requirement_test_specification = SwRequirementTestSpecificationModel(
-            sw_requirement_mapping_api=new_sw_requirement_mapping_api,
-            sw_requirement_mapping_sw_requirement=new_sw_requirement_mapping_sw_requirement,
+            sw_requirement_mapping_api=None,
+            sw_requirement_mapping_sw_requirement=None,
             test_specification=self.test_specification,
             coverage=self.coverage,
             created_by=self.created_by
         )
+        if new_sw_requirement_mapping_api is not None:
+            new_sw_requirement_test_specification.sw_requirement_mapping_api_id = new_sw_requirement_mapping_api.id
+        elif new_sw_requirement_mapping_sw_requirement is not None:
+            new_sw_requirement_test_specification.sw_requirement_mapping_sw_requirement_id = (
+                new_sw_requirement_mapping_sw_requirement.id
+            )
         db_session.add(new_sw_requirement_test_specification)
         db_session.commit()
 
@@ -161,8 +171,8 @@ class SwRequirementTestSpecificationModel(Base):
         ).all()
         for tstc in tstcs:
             tstc.fork(
-                new_sw_requirement_test_specification=new_sw_requirement_test_specification,
-                new_test_specification_mapping_sw_requirement=None,
+                new_test_specification_mapping_api=None,
+                new_test_specification_mapping_sw_requirement=new_sw_requirement_test_specification,
                 db_session=db_session
             )
         return new_sw_requirement_test_specification

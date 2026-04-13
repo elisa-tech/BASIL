@@ -72,13 +72,13 @@ export const UserFilesAddForm: React.FunctionComponent<UserFilesAddFormProps> = 
       filecontent: fileContent
     }
 
-    fetch(Constants.API_BASE_URL + '/user/files', {
+    fetch(Constants.API_BASE_URL + Constants.API_USER_FILES_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           window.location.reload()

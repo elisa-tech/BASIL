@@ -50,9 +50,13 @@ class TestSpecificationTestCaseModel(Base):
         if test_specification_mapping_api:
             self.test_specification_mapping_api = test_specification_mapping_api
             self.test_specification_mapping_api_id = test_specification_mapping_api.id
-        if test_specification_mapping_sw_requirement:
+            self.test_specification_mapping_sw_requirement = None
+            self.test_specification_mapping_sw_requirement_id = None
+        elif test_specification_mapping_sw_requirement:
             self.test_specification_mapping_sw_requirement = test_specification_mapping_sw_requirement
             self.test_specification_mapping_sw_requirement_id = test_specification_mapping_sw_requirement.id
+            self.test_specification_mapping_api = None
+            self.test_specification_mapping_api_id = None
         self.test_case = test_case
         self.test_case_id = test_case.id
         self.coverage = coverage

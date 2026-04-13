@@ -432,7 +432,7 @@ def test_post_existing_sw_requirement_ok(client, user_authentication, unmapped_a
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
 
     # ensure SW requirement is added
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, unmapped_api_db.id)
@@ -501,7 +501,7 @@ def test_post_new_sw_requirement_ok(client, user_authentication, unmapped_api_db
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
 
     # ensure SW requirement is added
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)
@@ -608,7 +608,7 @@ def test_post_add_sw_requirement(client, user_authentication, mapped_api_db, uti
         }
     }
     response = client.post(_MAPPING_API_SW_REQUIREMENTS_URL, json=mapping_data)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.CREATED
 
     # ensure a SW requirement is added for a mapped section
     mapped_sections = _get_sections_mapped_by_sw_requirements(client, api_id)

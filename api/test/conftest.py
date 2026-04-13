@@ -108,3 +108,19 @@ def reader_authentication(client, ut_reader_user_db):
     login_response = authentication.login(email=UT_READER_USER_EMAIL, password=UT_READER_USER_PASSWORD)
 
     return login_response
+
+
+@pytest.fixture(scope="module")
+def ut_user_files_dir(ut_user_db):
+    """Ensure the UT user has a clean user-files directory for this test."""
+    from user_files_test_helpers import user_files_dir
+
+    base = user_files_dir(ut_user_db.id)
+    os.makedirs(base, exist_ok=True)
+    before = set(os.listdir(base))
+    yield base
+    after = set(os.listdir(base))
+    for name in after - before:
+        p = os.path.join(base, name)
+        if os.path.isfile(p):
+            os.remove(p)

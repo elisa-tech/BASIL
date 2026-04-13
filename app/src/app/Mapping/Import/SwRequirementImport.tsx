@@ -230,7 +230,7 @@ export const SwRequirementImport: React.FunctionComponent<SwRequirementImportPro
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
           setStatusValue('waiting')
         } else {

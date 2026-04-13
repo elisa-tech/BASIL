@@ -11,7 +11,6 @@ const AdminTestRunPluginPresets: React.FunctionComponent = () => {
   const [editorFontSize, setEditorFontSize] = React.useState(16)
 
   const auth = useAuth()
-  const ADMIN_PRESETS_PLUGINS_ENDPOINT = '/admin/test-run-plugins-presets'
 
   const increaseEditorFont = () => setEditorFontSize((f) => Math.min(f + 2, 40))
   const decreaseEditorFont = () => setEditorFontSize((f) => Math.max(f - 2, 8))
@@ -30,7 +29,7 @@ const AdminTestRunPluginPresets: React.FunctionComponent = () => {
     setMessageValue('')
     setPresetsContent('')
 
-    let url = Constants.API_BASE_URL + ADMIN_PRESETS_PLUGINS_ENDPOINT
+    let url = Constants.API_BASE_URL + Constants.API_ADMIN_TEST_RUN_PLUGINS_PRESETS_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     fetch(url)
@@ -53,7 +52,7 @@ const AdminTestRunPluginPresets: React.FunctionComponent = () => {
   const savePresetsPlugins = () => {
     setMessageValue('')
 
-    const url = Constants.API_BASE_URL + ADMIN_PRESETS_PLUGINS_ENDPOINT
+    const url = Constants.API_BASE_URL + Constants.API_ADMIN_TEST_RUN_PLUGINS_PRESETS_ENDPOINT
     const data = { content: presetsContent, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
@@ -61,7 +60,7 @@ const AdminTestRunPluginPresets: React.FunctionComponent = () => {
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadPresetsPlugins()

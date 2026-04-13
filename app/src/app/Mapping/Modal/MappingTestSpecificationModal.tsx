@@ -63,7 +63,7 @@ export const MappingTestSpecificationModal: React.FunctionComponent<MappingTestS
   }, [modalShowState])
 
   const loadTestSpecifications = (searchValue) => {
-    const url = Constants.API_BASE_URL + '/test-specifications?search=' + searchValue
+    const url = Constants.API_BASE_URL + Constants.API_TEST_SPECIFICATIONS_ROOT_ENDPOINT + '?search=' + searchValue
     fetch(url)
       .then((res) => res.json())
       .then((data) => {

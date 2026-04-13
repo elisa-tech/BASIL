@@ -33,7 +33,6 @@ RUN virtualenv penv && \
     . penv/bin/activate && \
     pip3 install --no-cache-dir -r requirements.txt
 
-# Set the public ip in the api/api_url.py
 ARG API_PORT=5000
 ARG ADMIN_PASSWORD=admin
 ARG TESTING=0

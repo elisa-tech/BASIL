@@ -66,7 +66,7 @@ export const MappingTestCaseModal: React.FunctionComponent<MappingTestCaseModalP
   }, [modalShowState])
 
   const loadTestCases = (searchValue) => {
-    let url = Constants.API_BASE_URL + '/test-cases'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_CASES_ROOT_ENDPOINT
     if (searchValue != undefined) {
       url = url + '?search=' + searchValue
     }

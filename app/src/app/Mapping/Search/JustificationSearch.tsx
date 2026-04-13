@@ -163,7 +163,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
     let status: number = 0
     let status_text: string = ''
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/justifications', {
+    fetch(Constants.API_BASE_URL + Constants.buildMappingApiResourcePath(Constants._Js), {
       method: formVerb,
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
@@ -171,7 +171,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setStatusValue('waiting')
           return response.text()
         } else {
@@ -184,7 +184,7 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })

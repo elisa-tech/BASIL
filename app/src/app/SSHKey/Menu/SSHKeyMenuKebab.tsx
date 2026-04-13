@@ -27,13 +27,13 @@ export const SSHKeyMenuKebab: React.FunctionComponent<SSHKeyMenuKebabProps> = ({
       id: sshKey.id // The one that will be changed
     }
 
-    fetch(Constants.API_BASE_URL + '/user/ssh-key', {
+    fetch(Constants.API_BASE_URL + Constants.API_USER_SSH_KEY_ENDPOINT, {
       method: 'DELETE',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           console.log(response.status)
         } else {
           location.reload()

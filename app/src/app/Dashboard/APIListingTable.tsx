@@ -36,6 +36,7 @@ export interface APIListingTableProps {
   apis
   setModalCheckSpecInfo
   setModalDeleteInfo
+  setModalNewVersionInfo
   setModalManageUserPermissionsInfo
   setModalNotificationInfo
 }
@@ -44,6 +45,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
   setModalInfo,
   setModalCheckSpecInfo,
   setModalDeleteInfo,
+  setModalNewVersionInfo,
   setModalManageUserPermissionsInfo,
   setModalNotificationInfo,
   apis
@@ -63,7 +65,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
     if (currentApiID == 0) {
       return
     }
-    const url = Constants.API_BASE_URL + '/apis/history?api-id=' + currentApiID
+    const url = Constants.API_BASE_URL + Constants.API_APIS_HISTORY_ENDPOINT + '?api-id=' + currentApiID
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -156,7 +158,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 ) : (
                   ''
                 )}
-                {dataRow?.['permissions'].indexOf('w') > -1 ? (
+                {Constants.hasWritePermission(dataRow) ? (
                   <Icon>
                     <span data-icon='write-permission'>
                       <EditIcon title='You have Write permission' />
@@ -165,7 +167,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 ) : (
                   ''
                 )}
-                {dataRow?.['permissions'].indexOf('m') > -1 ? (
+                {Constants.hasManagePermission(dataRow) ? (
                   <Icon>
                     <EqualizerIcon title='You have Manage permission' />
                   </Icon>
@@ -197,6 +199,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 setModalInfo={setModalInfo}
                 setModalCheckSpecInfo={setModalCheckSpecInfo}
                 setModalDeleteInfo={setModalDeleteInfo}
+                setModalNewVersionInfo={setModalNewVersionInfo}
                 setModalManageUserPermissionsInfo={setModalManageUserPermissionsInfo}
                 setModalNotificationInfo={setModalNotificationInfo}
                 apiData={dataRow}
@@ -214,7 +217,7 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                     </TextContent>
                   </FlexItem>
                   <FlexItem flex={{ default: 'flex_1' }}>
-                    {auth.isLogged() && dataRow['permissions'].indexOf('e') > 0 ? (
+                    {auth.isLogged() && Constants.hasEditPermission(dataRow) ? (
                       <APIForm formAction={'edit'} formVerb={'PUT'} formData={dataRow} />
                     ) : (
                       ''

@@ -163,7 +163,7 @@ const Signin: React.FunctionComponent = () => {
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (response.status == 200) {
+        if (Constants.isHttpSuccessStatus(response.status)) {
           setAlertMessage('User created!')
           window.location.href = '/login'
           return response.json()
@@ -172,7 +172,7 @@ const Signin: React.FunctionComponent = () => {
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setAlertMessage(Constants.getResponseErrorMessage(status, status_text, data))
         }
       })

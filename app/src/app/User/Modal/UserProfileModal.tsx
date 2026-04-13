@@ -195,14 +195,14 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
       .then((response) => {
         status = response.status
         status_text = response.statusText
-        if (status !== 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           return response.text()
         } else {
           return response.json()
         }
       })
       .then((data) => {
-        if (status != 200) {
+        if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
         } else {
           setMessageValue(data['message'])

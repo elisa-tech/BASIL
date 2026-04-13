@@ -10,7 +10,6 @@ const AdminSettings: React.FunctionComponent = () => {
   const [messageValue, setMessageValue] = React.useState('')
   const [editorFontSize, setEditorFontSize] = React.useState(16)
   const auth = useAuth()
-  const ADMIN_SETTINGS_ENDPOINT = '/admin/settings'
 
   const increaseEditorFont = () => setEditorFontSize((f) => Math.min(f + 2, 40))
   const decreaseEditorFont = () => setEditorFontSize((f) => Math.max(f - 2, 8))
@@ -29,7 +28,7 @@ const AdminSettings: React.FunctionComponent = () => {
     setMessageValue('')
     setSettingsContent('')
 
-    let url = Constants.API_BASE_URL + ADMIN_SETTINGS_ENDPOINT
+    let url = Constants.API_BASE_URL + Constants.API_ADMIN_SETTINGS_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     fetch(url)
@@ -52,7 +51,7 @@ const AdminSettings: React.FunctionComponent = () => {
   const saveSettings = () => {
     setMessageValue('')
 
-    const url = Constants.API_BASE_URL + ADMIN_SETTINGS_ENDPOINT
+    const url = Constants.API_BASE_URL + Constants.API_ADMIN_SETTINGS_ENDPOINT
     const data = { content: settingsContent, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
@@ -60,7 +59,7 @@ const AdminSettings: React.FunctionComponent = () => {
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadSettings()

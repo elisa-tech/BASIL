@@ -51,9 +51,13 @@ class SwRequirementTestCaseModel(Base):
         if sw_requirement_mapping_api:
             self.sw_requirement_mapping_api = sw_requirement_mapping_api
             self.sw_requirement_mapping_api_id = sw_requirement_mapping_api.id
-        if sw_requirement_mapping_sw_requirement:
+            self.sw_requirement_mapping_sw_requirement = None
+            self.sw_requirement_mapping_sw_requirement_id = None
+        elif sw_requirement_mapping_sw_requirement:
             self.sw_requirement_mapping_sw_requirement = sw_requirement_mapping_sw_requirement
             self.sw_requirement_mapping_sw_requirement_id = sw_requirement_mapping_sw_requirement.id
+            self.sw_requirement_mapping_api = None
+            self.sw_requirement_mapping_api_id = None
         self.test_case = test_case
         self.test_case_id = test_case.id
         self.coverage = coverage
@@ -139,12 +143,18 @@ class SwRequirementTestCaseModel(Base):
 
     def fork(self, new_sw_requirement_mapping_api, new_sw_requirement_mapping_sw_requirement, db_session):
         new_sw_requirement_test_case = SwRequirementTestCaseModel(
-            sw_requirement_mapping_api=new_sw_requirement_mapping_api,
-            sw_requirement_mapping_sw_requirement=new_sw_requirement_mapping_sw_requirement,
+            sw_requirement_mapping_api=None,
+            sw_requirement_mapping_sw_requirement=None,
             test_case=self.test_case,
             coverage=self.coverage,
             created_by=self.created_by
         )
+        if new_sw_requirement_mapping_api is not None:
+            new_sw_requirement_test_case.sw_requirement_mapping_api_id = new_sw_requirement_mapping_api.id
+        elif new_sw_requirement_mapping_sw_requirement is not None:
+            new_sw_requirement_test_case.sw_requirement_mapping_sw_requirement_id = (
+                new_sw_requirement_mapping_sw_requirement.id
+            )
         db_session.add(new_sw_requirement_test_case)
         db_session.commit()
         return new_sw_requirement_test_case

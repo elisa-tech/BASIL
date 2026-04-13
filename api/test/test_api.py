@@ -1,4 +1,5 @@
 import os
+from http import HTTPStatus
 from db.models.api import ApiModel
 
 
@@ -44,7 +45,7 @@ def test_api_post(client, user_authentication):
                }
 
     response = client.post('/apis', json=new_api)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.CREATED
 
 
 def test_api_put(client, user_authentication):

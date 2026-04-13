@@ -58,7 +58,8 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
 
   const handleAutoFix = () => {
     // Mapping endpoint based on mappingType
-    const mappingEndpoint = Constants.API_BASE_URL + '/mapping/api/' + mappingType.toLowerCase().replace('_', '-') + 's'
+    const mappingEndpoint =
+      Constants.API_BASE_URL + Constants.buildMappingApiResourcePath(mappingType.toLowerCase().replace('_', '-') + 's')
 
     const data = {
       'api-id': api.id,
@@ -93,7 +94,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           console.log(response.status)
           // show modal notification error
           setModalNotificationInfo('Error', response.statusText + ' - ' + response.status, true)
@@ -166,7 +167,7 @@ export const UnmappedMenuKebab: React.FunctionComponent<UnmappedMenuKebabProps> 
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {api?.permissions.indexOf('w') >= 0 && api.raw_specification != null ? (
+        {auth.isLogged() && Constants.hasWritePermission(api) && api.raw_specification != null ? (
           <React.Fragment>
             {mappingList[mappingIndex]['auto-fix-offset'] != -1 && (
               <DropdownItem

@@ -40,7 +40,7 @@ const AuthProvider = ({ children }) => {
         headers: Constants.JSON_HEADER,
         body: JSON.stringify(data)
       }
-      fetch(Constants.API_BASE_URL + '/user/login', requestOptions)
+      fetch(Constants.API_BASE_URL + Constants.API_USER_LOGIN_ENDPOINT, requestOptions)
         .then((res) => {
           return res.json()
         })

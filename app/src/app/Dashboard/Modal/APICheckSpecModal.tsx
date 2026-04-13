@@ -270,10 +270,13 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
       return
     } else {
       setMessageValue('')
-      fetch(Constants.API_BASE_URL + '/apis/check-specification?id=' + api.id + '&url=' + rawSpecificationUrlValue, {
-        method: 'GET',
-        headers: Constants.JSON_HEADER
-      })
+      fetch(
+        Constants.API_BASE_URL + Constants.API_APIS_CHECK_SPECIFICATION_ENDPOINT + '?id=' + api.id + '&url=' + rawSpecificationUrlValue,
+        {
+          method: 'GET',
+          headers: Constants.JSON_HEADER
+        }
+      )
         .then((response) => response.json())
         .then((response) => {
           if (Object.keys(response).includes(Constants._SRs)) {
@@ -311,12 +314,12 @@ export const APICheckSpecModal: React.FunctionComponent<APICheckSpecModalProps> 
 
   const handleFixWarnings = () => {
     setMessageValue('')
-    fetch(Constants.API_BASE_URL + '/apis/fix-specification-warnings?id=' + api.id, {
+    fetch(Constants.API_BASE_URL + Constants.API_APIS_FIX_SPECIFICATION_WARNINGS_ENDPOINT + '?id=' + api.id, {
       method: 'GET',
       headers: Constants.JSON_HEADER
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           handleModalConfirm()

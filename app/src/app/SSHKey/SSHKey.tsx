@@ -15,7 +15,7 @@ const SSHKey: React.FunctionComponent = () => {
       return
     }
     let url
-    url = Constants.API_BASE_URL + '/user/ssh-key'
+    url = Constants.API_BASE_URL + Constants.API_USER_SSH_KEY_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     fetch(url, {

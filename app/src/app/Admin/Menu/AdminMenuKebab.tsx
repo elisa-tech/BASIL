@@ -32,13 +32,13 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
       }
     }
 
-    fetch(Constants.API_BASE_URL + '/user/role', {
+    fetch(Constants.API_BASE_URL + Constants.API_USER_ROLE_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           //setMessageValue(response.statusText);
         } else {
           location.reload()
@@ -61,13 +61,13 @@ export const AdminMenuKebab: React.FunctionComponent<AdminMenuKebabProps> = ({ s
       }
     }
 
-    fetch(Constants.API_BASE_URL + '/user/enable', {
+    fetch(Constants.API_BASE_URL + Constants.API_USER_ENABLE_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           //setMessageValue(response.statusText);
         } else {
           location.reload()

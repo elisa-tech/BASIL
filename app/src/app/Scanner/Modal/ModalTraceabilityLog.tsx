@@ -25,7 +25,6 @@ export const ModalTraceabilityLog: React.FunctionComponent<ModalTraceabilityLogP
 }: ModalTraceabilityLogProps) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
 
-  const TRACEABILITY_SCANNER_LOGS_ENDPOINT = '/traceability-scanner/logs'
   const auth = useAuth()
 
   const handleModalToggle = () => {
@@ -41,7 +40,7 @@ export const ModalTraceabilityLog: React.FunctionComponent<ModalTraceabilityLogP
   const deleteTraceabilityScanLog = (scanId: string) => {
     toggleNotificationModal('', '')
 
-    let url = Constants.API_BASE_URL + TRACEABILITY_SCANNER_LOGS_ENDPOINT
+    let url = Constants.API_BASE_URL + Constants.API_TRACEABILITY_SCANNER_LOGS_ENDPOINT
     const data = {
       'user-id': auth.userId,
       token: auth.token,

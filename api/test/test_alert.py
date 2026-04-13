@@ -1,4 +1,5 @@
 import pytest
+from http import HTTPStatus
 
 from db.models.user import UserModel
 
@@ -146,7 +147,7 @@ def test_alert_post_all_types(client, admin_authentication):
         }
 
         response = client.post(_ALERT_URL, json=alert_data)
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.CREATED
 
         data = response.json
         assert f"Test {alert_type} message" in data[alert_type]
@@ -163,11 +164,11 @@ def test_alert_post_duplicate_message(client, admin_authentication):
 
     # Add first message
     response = client.post(_ALERT_URL, json=alert_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.CREATED
 
     # Add same message again
     response = client.post(_ALERT_URL, json=alert_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.CREATED
 
     data = response.json
     # Should only appear once
@@ -247,7 +248,7 @@ def test_alert_delete_success(client, admin_authentication):
     }
 
     response = client.post(_ALERT_URL, json=alert_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.CREATED
 
     # Now delete it
     delete_data = {
@@ -514,7 +515,7 @@ alert:
     }
 
     response = client.post(_ALERT_URL, json=alert_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.CREATED
 
     # Verify the alert was added and old non-list data was converted
     data = response.json
@@ -581,7 +582,7 @@ def test_alert_complex_scenario(client, admin_authentication):
         }
 
         response = client.post(_ALERT_URL, json=alert_data)
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.CREATED
 
     # Verify all alerts are present
     response = client.get(_ALERT_URL)

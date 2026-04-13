@@ -3,6 +3,7 @@ import * as Constants from '../../Constants/constants'
 import { Dropdown, DropdownItem, DropdownList, Flex, FlexItem, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 import { ActionButtons } from '@app/Common/Actions/ActionButtons'
+import { useAuth } from '@app/User/AuthProvider'
 
 export interface SwRequirementMenuKebabProps {
   indirect
@@ -44,6 +45,7 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
   mappingOffset
 }: SwRequirementMenuKebabProps) => {
   const [isOpen, setIsOpen] = React.useState(false)
+  const auth = useAuth()
 
   const onToggleClick = () => {
     setIsOpen(!isOpen)
@@ -66,7 +68,7 @@ export const SwRequirementMenuKebab: React.FunctionComponent<SwRequirementMenuKe
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {api?.permissions.indexOf('w') >= 0 ? (
+        {auth.isLogged() && Constants.hasWritePermission(api) ? (
           <React.Fragment>
             <DropdownItem
               value={0}

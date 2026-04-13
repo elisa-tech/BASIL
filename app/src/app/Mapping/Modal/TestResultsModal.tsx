@@ -75,7 +75,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [searchValue, setSearchValue] = React.useState('')
   const [pluginValue, setPluginValue] = React.useState('')
   const [pluginPresetValue, setPluginPresetValue] = React.useState('')
-  const [pluginPresetsValue, setPluginPresetsValue] = React.useState([])
+  const [pluginPresetsValue, setPluginPresetsValue] = React.useState<string[]>([])
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
   const [filterKey, setFilterKey] = React.useState('')
   const [filterValue, setFilterValue] = React.useState('')
@@ -167,7 +167,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
   const [LAVAFilter, setLAVAFilter] = React.useState(LAVAFilterTemplate)
 
   const load_plugin_presets = (_plugin) => {
-    let url = Constants.API_BASE_URL + '/mapping/api/test-run-plugins-presets?plugin=' + _plugin
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUN_PLUGINS_PRESETS_ENDPOINT + '?plugin=' + _plugin
     url += '&api-id=' + api.id
 
     if (auth.isLogged()) {
@@ -177,9 +177,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     }
 
     fetch(url)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return []
+        }
+        return res.json()
+      })
       .then((data) => {
-        setPluginPresetsValue(data)
+        setPluginPresetsValue(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
         console.log(err.message)
@@ -324,13 +329,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           // Move to the BASIL internal test results page
@@ -348,14 +353,14 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     setTestResults([]) // clean the list before showing it again
     setSearchEnabled(false)
     const filter = searchValue
-    if (api?.permissions.indexOf('r') < 0) {
+    if (!Constants.hasReadPermission(api)) {
       return
     }
     if (api == null) {
       return
     }
     const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
-    let url = Constants.API_BASE_URL + '/mapping/api/test-runs'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&token=' + auth.token
     url += '&api-id=' + api.id
@@ -388,7 +393,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     setMessageValue('')
     setExternalTestResults([]) // clean the list
     setExternalSearchEnabled(false)
-    if (api?.permissions.indexOf('r') < 0) {
+    if (!Constants.hasReadPermission(api)) {
       return
     }
     if (api == null) {
@@ -416,7 +421,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
     }
 
     const mapping_to = Constants._TC_ + Constants._M_ + parentType.replaceAll('-', '_')
-    let url = Constants.API_BASE_URL + '/mapping/api/test-runs/external'
+    let url = Constants.API_BASE_URL + Constants.API_TEST_RUNS_EXTERNAL_ENDPOINT
     url += '?user-id=' + auth.userId
     url += '&params=' + params.join(';')
     url += '&plugin=' + pluginValue
@@ -473,13 +478,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadTestResults()
@@ -522,13 +527,13 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'DELETE',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadTestResults()
@@ -686,7 +691,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                       </Td>
                       <Td dataLabel={columnNames.actions}>
                         {(() => {
-                          if (api?.permissions.indexOf('w') >= 0) {
+                          if (auth.isLogged() && Constants.hasWritePermission(api)) {
                             for (let iPlugin = 0; iPlugin < Constants.test_run_plugins.length; iPlugin++) {
                               if (Constants.test_run_plugins[iPlugin].value == testResult.config.plugin) {
                                 if (Constants.test_run_plugins[iPlugin].trigger == true) {
@@ -718,7 +723,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                         })()}
 
                         {(() => {
-                          if (api?.permissions.indexOf('w') >= 0) {
+                          if (auth.isLogged() && Constants.hasWritePermission(api)) {
                             return (
                               <>
                                 <Button
@@ -745,7 +750,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                         })()}
 
                         {(() => {
-                          if (api?.permissions.indexOf('r') >= 0) {
+                          if (Constants.hasReadPermission(api)) {
                             return (
                               <>
                                 <Button
@@ -975,7 +980,7 @@ export const TestResultsModal: React.FunctionComponent<TestResultsModalProps> = 
                       <Td dataLabel={externalColumnNames.date}>{testResult?.created_at || ''}</Td>
 
                       <Td dataLabel={externalColumnNames.actions}>
-                        {api?.permissions.indexOf('w') >= 0 ? (
+                        {auth.isLogged() && Constants.hasWritePermission(api) ? (
                           <>
                             <Button
                               variant='plain'

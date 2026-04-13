@@ -123,7 +123,7 @@ def document_file():
 
 def test_login(user_authentication):
     """ Just ensure we are logged in """
-    assert user_authentication.status_code == 200
+    assert user_authentication.status_code == HTTPStatus.OK
 
 
 def test_api_document_post_ok(client, user_authentication, unmapped_api_db, document_file):
@@ -152,7 +152,7 @@ def test_api_document_post_ok(client, user_authentication, unmapped_api_db, docu
         }
     }
     response = client.post(_MAPPING_API_DOCUMENTS_URL, json=mapping_data)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.CREATED
 
     # ensure document is added
     mapped_sections = _get_sections_mapped_by_docs(client, api_id)

@@ -46,13 +46,13 @@ export const MappingDeleteModal: React.FunctionComponent<MappingDeleteModalProps
   const deleteMapping = () => {
     const data = { 'api-id': api.id, 'relation-id': relationData.relation_id, 'user-id': auth.userId, token: auth.token }
 
-    fetch(Constants.API_BASE_URL + '/mapping/' + parentType + '/' + workItemType + 's', {
+    fetch(Constants.API_BASE_URL + Constants.buildMappingDeletePath(parentType, workItemType), {
       method: 'DELETE',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadMappingData(Constants.force_reload)

@@ -128,7 +128,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   }
 
   const loadCurrentTestRunLog = () => {
-    if (api?.permissions.indexOf('r') < 0) {
+    if (!Constants.hasReadPermission(api)) {
       return
     }
     if (Object.keys(currentTestResult).length == 0 || currentTestResult == null) {
@@ -185,7 +185,7 @@ export const TestResultDetailsModal: React.FunctionComponent<TestResultDetailsMo
   }
 
   const loadArtifactContent = () => {
-    if (!artifactViewing || api?.permissions.indexOf('r') < 0) return
+    if (!artifactViewing || !Constants.hasReadPermission(api)) return
     setArtifactContentLoading(true)
     setArtifactContentError(null)
     fetch(getArtifactContentUrl())

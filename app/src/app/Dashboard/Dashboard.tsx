@@ -48,7 +48,7 @@ const Dashboard: React.FunctionComponent = () => {
   }
 
   const loadLibraries = (current) => {
-    fetch(Constants.API_BASE_URL + '/libraries')
+    fetch(Constants.API_BASE_URL + Constants.API_LIBRARIES_ENDPOINT)
       .then((res) => res.json())
       .then((data) => {
         setLibraries(data)
@@ -67,7 +67,7 @@ const Dashboard: React.FunctionComponent = () => {
       return
     }
 
-    const base_url = Constants.API_BASE_URL + '/apis?field1=library&filter1='
+    const base_url = Constants.API_BASE_URL + Constants.API_APIS_ENDPOINT + '?field1=library&filter1='
     let url = ''
     if (searchValue.trim().length > 0) {
       url = base_url + currentLibrary + '&search=' + searchValue.trim()

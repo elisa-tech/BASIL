@@ -9,6 +9,7 @@ export interface ApiMenuKebabProps {
   setModalInfo
   setModalCheckSpecInfo
   setModalDeleteInfo
+  setModalNewVersionInfo
   setModalManageUserPermissionsInfo
   setModalNotificationInfo
   apiData
@@ -18,6 +19,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
   setModalInfo,
   setModalCheckSpecInfo,
   setModalDeleteInfo,
+  setModalNewVersionInfo,
   setModalManageUserPermissionsInfo,
   apiData,
   setModalNotificationInfo
@@ -68,7 +70,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
     //let response_status
     let response_data
 
-    const url = Constants.API_BASE_URL + '/user/notifications'
+    const url = Constants.API_BASE_URL + Constants.API_USER_NOTIFICATIONS_ENDPOINT
     const data = { 'api-id': api_id, notifications: 1 - apiData.notifications, 'user-id': auth.userId, token: auth.token }
     fetch(url, {
       method: 'PUT',
@@ -78,7 +80,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
       .then((response) => {
         //response_status = response.status
         response_data = response.json()
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           return
         } else {
           location.reload()
@@ -104,7 +106,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {auth.isLogged() && apiData['permissions'].indexOf('e') > 0 ? (
+        {auth.isLogged() && Constants.hasEditPermission(apiData) ? (
           <DropdownItem
             value={0}
             id={'btn-menu-api-check-spec-' + apiData.id}
@@ -117,7 +119,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
           ''
         )}
 
-        {auth.isLogged() && apiData['permissions'].indexOf('e') > 0 ? (
+        {auth.isLogged() && Constants.hasEditPermission(apiData) ? (
           <DropdownItem
             value={1}
             id={'btn-menu-api-delete-' + apiData.id}
@@ -138,7 +140,7 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
           ''
         )}
 
-        {auth.isLogged() && apiData['permissions'].indexOf('m') > 0 ? (
+        {auth.isLogged() && Constants.hasManagePermission(apiData) ? (
           <DropdownItem
             value={0}
             id={'btn-menu-api-manage-permissions-' + apiData.id}
@@ -151,33 +153,51 @@ export const ApiMenuKebab: React.FunctionComponent<ApiMenuKebabProps> = ({
           ''
         )}
 
-        {auth.isLogged() && apiData['permissions'].indexOf('e') > 0 ? (
-          <DropdownItem
-            value={2}
-            id={'btn-menu-api-new-version-' + apiData.id}
-            key='action new version'
-            onClick={() =>
-              setModalInfo(
-                apiData,
-                true,
-                'api',
-                'POST',
-                'fork',
-                'Create a new Version of "' + apiData.api + '" from "' + apiData.library + '"',
-                'Information are prepopulated with the current version'
-              )
-            }
-          >
-            New Version
-          </DropdownItem>
+        {auth.isLogged() && Constants.hasReadPermission(apiData) ? (
+          <>
+            <DropdownItem
+              value={2}
+              id={'btn-menu-api-new-version-' + apiData.id}
+              key='action new version'
+              onClick={() =>
+                setModalNewVersionInfo(
+                  apiData,
+                  true,
+                  'Create a new version of "' + apiData.api + '"',
+                  'Specify the new library version for the software component. Name and library stay the same as the source.'
+                )
+              }
+            >
+              New Version (with mapping)
+            </DropdownItem>
+
+            <DropdownItem
+              value={2}
+              id={'btn-menu-api-new-version-' + apiData.id}
+              key='action new version'
+              onClick={() =>
+                setModalInfo(
+                  apiData,
+                  true,
+                  'api',
+                  'POST',
+                  'fork',
+                  'Create a new Version of "' + apiData.api + '" from "' + apiData.library + '"',
+                  'Information are prepopulated with the current version'
+                )
+              }
+            >
+              New Software Component (without mapping)
+            </DropdownItem>
+          </>
         ) : (
           ''
         )}
 
         {!auth.isGuest() &&
         apiData?.['write_permission_request'] === 0 &&
-        apiData?.['permissions'].indexOf('m') < 0 &&
-        apiData?.['permissions'].indexOf('w') < 0 ? (
+        !Constants.hasManagePermission(apiData) &&
+        !Constants.hasWritePermission(apiData) ? (
           <DropdownItem
             value={0}
             id={'btn-menu-api-write-premission-request-' + apiData.id}

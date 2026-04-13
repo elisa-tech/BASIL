@@ -45,13 +45,13 @@ export const MappingForkModal: React.FunctionComponent<MappingForkModalProps> = 
 
   const fork = () => {
     const data = { 'api-id': api.id, 'relation-id': relationData.relation_id, 'user-id': auth.userId, token: auth.token }
-    fetch(Constants.API_BASE_URL + '/fork/' + parentType + '/' + workItemType, {
+    fetch(Constants.API_BASE_URL + Constants.buildForkPath(parentType, workItemType), {
       method: 'POST',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadMappingData(Constants.force_reload)

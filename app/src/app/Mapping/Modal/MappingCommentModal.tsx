@@ -74,7 +74,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   }, [comments])
 
   const loadComments = (parent_table, parent_id) => {
-    let url = Constants.API_BASE_URL + '/comments'
+    let url = Constants.API_BASE_URL + Constants.API_COMMENTS_ENDPOINT
     url += '?parent_table=' + parent_table
     url += '&parent_id=' + parent_id
     url += '&api-id=' + api.id

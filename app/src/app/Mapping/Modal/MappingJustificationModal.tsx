@@ -40,7 +40,7 @@ export const MappingJustificationModal: React.FunctionComponent<MappingModalProp
   }, [modalShowState])
 
   const loadJustifications = (searchValue) => {
-    let url = Constants.API_BASE_URL + '/justifications'
+    let url = Constants.API_BASE_URL + Constants.API_JUSTIFICATIONS_ROOT_ENDPOINT
     if (searchValue != undefined) {
       url = url + '?search=' + searchValue
     }

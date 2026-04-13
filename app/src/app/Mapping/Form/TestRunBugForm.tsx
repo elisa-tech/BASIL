@@ -41,7 +41,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
   }, [modalTestRun])
 
   const handleSubmit = () => {
-    if (api?.permissions.indexOf('w') < 0) {
+    if (!auth.isLogged() || !Constants.hasWritePermission(api)) {
       return
     }
     if (modalTestRun.id == null) {
@@ -65,13 +65,13 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       mapped_to_id: mapping_id
     }
 
-    fetch(Constants.API_BASE_URL + '/mapping/api/test-runs', {
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_RUNS_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           setMessageValue('SAVED')
@@ -86,7 +86,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
     <Form>
       <FormGroup label='Bugs' fieldId={`input-test-run-bugs`}>
         <TextInput
-          isDisabled={api?.permissions.indexOf('w') < 0}
+          isDisabled={!auth.isLogged() || !Constants.hasWritePermission(api)}
           aria-label='Test Run Bugs field'
           id={`input-test-run-bugs`}
           name={`input-test-run-bugs`}
@@ -96,7 +96,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       </FormGroup>
       <FormGroup label='Fixes' fieldId={`input-test-run-fixes`}>
         <TextInput
-          isDisabled={api?.permissions.indexOf('w') < 0}
+          isDisabled={!auth.isLogged() || !Constants.hasWritePermission(api)}
           aria-label='Test Run Fixes'
           id={`input-test-run-fixes`}
           name={`input-test-run-fixes`}
@@ -106,7 +106,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
       </FormGroup>
       <FormGroup label='Notes' fieldId={`input-test-run-notes`}>
         <TextArea
-          isDisabled={api?.permissions.indexOf('w') < 0}
+          isDisabled={!auth.isLogged() || !Constants.hasWritePermission(api)}
           resizeOrientation='vertical'
           aria-label='Test Run Notes field'
           id={`input-test-run-notes`}
@@ -116,7 +116,7 @@ export const TestRunBugForm: React.FunctionComponent<TestRunBugFormProps> = ({
         />
       </FormGroup>
 
-      {api?.permissions.indexOf('w') >= 0 ? (
+      {auth.isLogged() && Constants.hasWritePermission(api) ? (
         <ActionGroup>
           <Button id='btn-test-run-bug-submit' variant='primary' onClick={() => handleSubmit()}>
             Save

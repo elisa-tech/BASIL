@@ -34,7 +34,7 @@ export const TestCaseImplementationModal: React.FunctionComponent<TestCaseImplem
     if (!api?.id || !testCase?.id || !relationTo || relationId == null) {
       return
     }
-    if (api == null || api.permissions == null || api.permissions.indexOf('r') < 0) {
+    if (api == null || api.permissions == null || !Constants.hasReadPermission(api)) {
       return
     }
     setLoading(true)

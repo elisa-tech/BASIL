@@ -53,13 +53,13 @@ const CommentCard = ({
         token: auth.token
       }
 
-      fetch(Constants.API_BASE_URL + '/comments', {
+      fetch(Constants.API_BASE_URL + Constants.API_COMMENTS_ENDPOINT, {
         method: 'DELETE',
         headers: Constants.JSON_HEADER,
         body: JSON.stringify(data)
       })
         .then((response) => {
-          if (response.status !== 200) {
+          if (!Constants.isHttpSuccessStatus(response.status)) {
             setMessageValue(response.statusText)
           } else {
             loadComments(parent_table, parent_id)
@@ -90,13 +90,13 @@ const CommentCard = ({
       token: auth.token
     }
 
-    fetch(Constants.API_BASE_URL + '/comments', {
+    fetch(Constants.API_BASE_URL + Constants.API_COMMENTS_ENDPOINT, {
       method: 'PUT',
       headers: Constants.JSON_HEADER,
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
           loadComments(parent_table, parent_id)

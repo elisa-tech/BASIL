@@ -47,7 +47,7 @@ export const UserFilesMenuKebab: React.FunctionComponent<UserFilesMenuKebabProps
       body: JSON.stringify(data)
     })
       .then((response) => {
-        if (response.status !== 200) {
+        if (!Constants.isHttpSuccessStatus(response.status)) {
           console.log(response.status)
         } else {
           location.reload()

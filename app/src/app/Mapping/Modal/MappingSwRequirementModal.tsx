@@ -63,7 +63,7 @@ export const MappingSwRequirementModal: React.FunctionComponent<MappingSwRequire
   }, [modalShowState])
 
   const loadSwRequirements = (searchValue) => {
-    const url = Constants.API_BASE_URL + '/sw-requirements?search=' + searchValue
+    const url = Constants.API_BASE_URL + Constants.API_SW_REQUIREMENTS_ROOT_ENDPOINT + '?search=' + searchValue
     fetch(url)
       .then((res) => res.json())
       .then((data) => {

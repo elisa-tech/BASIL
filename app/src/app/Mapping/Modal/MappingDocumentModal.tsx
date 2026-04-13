@@ -43,7 +43,7 @@ export const MappingDocumentModal: React.FunctionComponent<MappingModalProps> = 
   }, [modalShowState])
 
   const loadDocuments = (searchValue) => {
-    let url = Constants.API_BASE_URL + '/' + Constants._Ds
+    let url = Constants.API_BASE_URL + Constants.API_DOCUMENTS_ROOT_ENDPOINT
     if (searchValue != undefined) {
       url = url + '?search=' + searchValue
     }

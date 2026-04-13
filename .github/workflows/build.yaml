@@ -40,7 +40,15 @@ jobs:
         run: npm install --no-save prettier
 
       - name: Run Prettier
-        run: npx prettier --check app/src/app
+        run: |
+          echo "Prettier $(npx prettier --version)"
+          if ! npx prettier --check app/src/app; then
+            echo "::error::Prettier check failed — diff shows required formatting (run: npx prettier --write app/src/app)"
+            npx prettier --write app/src/app
+            git diff --stat
+            git diff -- app/src/app
+            exit 1
+          fi
 
   apache_deployment:
     runs-on: ubuntu-latest

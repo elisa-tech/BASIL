@@ -1,7 +1,7 @@
 [project]
 # Project inception: 2023-10-02
 name = "BASIL"
-version = "1.8.9"
+version = "1.8.10"
 description = "open source software quality management tool"
 authors = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"},
@@ -23,6 +23,7 @@ dependencies = [
     "psycopg2-binary==2.9.10",
     "pyaml-env==1.2.1",
     "pytest==8.0.1",
+    "pytest-cov==5.0.0",
     "python-gitlab==3.15.0",
     "requests==2.28.2",
     "spdx3-validate==0.0.5",
@@ -50,7 +51,7 @@ verify_ssl = true
 
 [tool.pdm.dev-dependencies]
 lint = ["flake8"]
-test = ["pytest"]
+test = ["pytest", "pytest-cov"]
 
 [tool.basil]
 project-created = "2023-10-02"
@@ -59,7 +60,8 @@ project-created = "2023-10-02"
 minversion = "8.0"
 addopts = "-ra -q"
 pythonpath = [
-  "api"
+  "api",
+  "api/test",
 ]
 testpaths = [
     "api/test"

@@ -63,6 +63,8 @@ def admin_authentication(client, ut_admin_user_db):
 
 @pytest.fixture(autouse=True)
 def _clean_preset_file():
+    if os.path.exists(_PRESET_FILEPATH):
+        os.remove(_PRESET_FILEPATH)
     yield
     if os.path.exists(_PRESET_FILEPATH):
         os.remove(_PRESET_FILEPATH)

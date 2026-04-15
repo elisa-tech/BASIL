@@ -150,15 +150,44 @@ class ApiModel(Base):
         return _dict
 
     def to_html(self, exported_on: str = "", exported_by: str = ""):
-        html = f"<div id='api-{self.id}'>"
-        html += f"<h1>{self.library} - {self.api}</h1>"
-        html += f"<p><b>Library version</b>: {self.library_version}</p>"
+        import html as _h
+        lib = _h.escape(str(self.library))
+        api_name = _h.escape(str(self.api))
+        lib_ver = _h.escape(str(self.library_version))
+        ref_url = _h.escape(str(self.raw_specification_url))
+
+        html = f"<div id='api-{self.id}' style='margin-bottom:24px;'>"
+        html += (
+            "<div style='background:#f0f4f8;padding:24px 20px;border-radius:4px;"
+            "border-left:4px solid #0066cc;'>"
+        )
+        html += f"<h1 style='margin:0 0 16px;'>{lib} - {api_name}</h1>"
+        html += "<table style='border-collapse:collapse;width:100%;'>"
+        html += (
+            f"<tr><td style='padding:6px 10px;white-space:nowrap;width:1%;"
+            f"color:#6a6e73;font-weight:600;'>Library version</td>"
+            f"<td style='padding:6px 10px;'>{lib_ver}</td></tr>"
+        )
         if exported_on:
-            html += f"<p><b>Exported on</b>: {exported_on}</p>"
+            html += (
+                f"<tr><td style='padding:6px 10px;white-space:nowrap;width:1%;"
+                f"color:#6a6e73;font-weight:600;'>Exported on</td>"
+                f"<td style='padding:6px 10px;'>{_h.escape(exported_on)}</td></tr>"
+            )
         if exported_by:
-            html += f"<p><b>Exported by</b>: {exported_by}</p>"
-        html += f"<p><b>Reference document</b>: {self.raw_specification_url}</p>"
-        html += "</div>"
+            html += (
+                f"<tr><td style='padding:6px 10px;white-space:nowrap;width:1%;"
+                f"color:#6a6e73;font-weight:600;'>Exported by</td>"
+                f"<td style='padding:6px 10px;'>{_h.escape(exported_by)}</td></tr>"
+            )
+        html += (
+            f"<tr><td style='padding:6px 10px;white-space:nowrap;width:1%;"
+            f"color:#6a6e73;font-weight:600;'>Reference document</td>"
+            f"<td style='padding:6px 10px;word-break:break-all;'>{ref_url}</td></tr>"
+        )
+        html += "</table>"
+        html += "</div></div>"
+        html += "<div style='page-break-after:always;break-after:page;'></div>"
         return html
 
 

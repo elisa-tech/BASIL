@@ -70,6 +70,12 @@ from api_utils import (
     add_html_link_to_email_body,
     async_email_notification,
     bool_from_string,
+    BORDER_COLOR_DOCUMENT,
+    BORDER_COLOR_JUSTIFICATION,
+    BORDER_COLOR_SW_REQUIREMENT,
+    BORDER_COLOR_TEST_CASE,
+    BORDER_COLOR_TEST_SPECIFICATION,
+    code_to_html,
     document_to_html,
     extend_unmapped_sections_for_auto_fix,
     get_api_specification,
@@ -95,7 +101,7 @@ from api_utils import (
     test_run_to_html,
     tools_to_html,
 )
-from pandoc import ConvertRequest, convert_to_pdf
+from pdf_converter import ConvertRequest, convert_to_pdf
 from testrun import TestRunner
 import db.models.init_db as init_db
 
@@ -1589,6 +1595,25 @@ def add_test_run_config(dbi, request_data, user, api_response: ApiResponse = Non
         ssh_key,
         user,
     )
+
+    # Avoid duplicate test run configurations
+    existing_config = dbi.session.query(TestRunConfigModel).filter(
+        TestRunConfigModel.title == config_title,
+        TestRunConfigModel.plugin == plugin,
+        TestRunConfigModel.plugin_preset == plugin_preset,
+        TestRunConfigModel.plugin_vars == plugin_vars,
+        TestRunConfigModel.git_repo_ref == git_repo_ref,
+        TestRunConfigModel.context_vars == context_vars,
+        TestRunConfigModel.environment_vars == environment_vars,
+        TestRunConfigModel.provision_type == provision_type,
+        TestRunConfigModel.provision_guest == provision_guest,
+        TestRunConfigModel.provision_guest_port == provision_guest_port,
+        TestRunConfigModel.ssh_key_id == (ssh_key.id if ssh_key else None),
+    ).first()
+    if existing_config:
+        api_response.set_message(f"Test Run Configuration already exists at id {existing_config.id}")
+        return api_response.return_conflict()
+
     dbi.session.add(test_config)
     dbi.session.commit()
     ret = test_config
@@ -1909,11 +1934,18 @@ class SPDXApi(Resource):
 class HTMLApi(Resource):
     route = "/html/apis"
     fields = ["filename"]
-    div_open_html = "<div style='border-left: 1px solid #DDD; padding-left: 20px; padding-right: 20px;'>"
+    div_open_html = "<div style='border-left: 1px solid #DDD; padding-left: 10px;'>"
     div_close_html = "</div>"
 
+    SECTION_HEADING_STYLE = (
+        "font-size:18px;font-weight:700;margin:28px 0 12px;padding:6px 0;"
+        "border-bottom:2px solid {color};color:{color};page-break-after:avoid;"
+        "letter-spacing:.03em;"
+    )
+
     def get_sw_requirements_html(self, sw_requirements: list = None, dbi: db_orm.DbInterface = None,
-                                 test_run_config_ids: list = None, config={}) -> tuple[list, str]:
+                                 test_run_config_ids: list = None, config={},
+                                 _nested: bool = False) -> tuple[list, str]:
         if not isinstance(sw_requirements, list):
             return [], ""
 
@@ -1925,7 +1957,11 @@ class HTMLApi(Resource):
         include_test_cases = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
 
         test_run_configs = []
-        html = self.div_open_html
+        html = ""
+        if not _nested:
+            heading_style = self.SECTION_HEADING_STYLE.format(color=BORDER_COLOR_SW_REQUIREMENT)
+            html = f"<h2 style='{heading_style}'>Software Requirements</h2>"
+        html += self.div_open_html
 
         for sw_requirement in sw_requirements:
             comments = []
@@ -1968,7 +2004,8 @@ class HTMLApi(Resource):
                     sw_requirements=sw_requirement[_SRs],
                     dbi=dbi,
                     test_run_config_ids=test_run_config_ids,
-                    config=config
+                    config=config,
+                    _nested=True
                 )
                 test_run_configs.extend(nested_test_run_configs)
                 html += nested_html
@@ -1988,7 +2025,9 @@ class HTMLApi(Resource):
         include_test_cases = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_CASES, "true"))
 
         test_run_configs = []
-        html = self.div_open_html
+        heading_style = self.SECTION_HEADING_STYLE.format(color=BORDER_COLOR_TEST_SPECIFICATION)
+        html = f"<h2 style='{heading_style}'>Test Specifications</h2>"
+        html += self.div_open_html
 
         for test_specification in test_specifications:
             comments = []
@@ -2014,7 +2053,7 @@ class HTMLApi(Resource):
                         mapping_to="test_case_mapping_test_specification",
                         config=config
                     )
-                html += test_cases_html
+                    html += test_cases_html
 
         html += self.div_close_html
         return test_run_configs, html
@@ -2031,7 +2070,9 @@ class HTMLApi(Resource):
         include_test_runs = bool_from_string(config.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
 
         test_run_configs = []
-        html = self.div_open_html
+        heading_style = self.SECTION_HEADING_STYLE.format(color=BORDER_COLOR_TEST_CASE)
+        html = f"<h2 style='{heading_style}'>Test Cases</h2>"
+        html += self.div_open_html
 
         for test_case in test_cases:
             comments = []
@@ -2087,7 +2128,8 @@ class HTMLApi(Resource):
         html += self.div_close_html
         return html
 
-    def get_documents_html(self, documents: list = None, dbi: db_orm.DbInterface = None, config={}) -> str:
+    def get_documents_html(self, documents: list = None, dbi: db_orm.DbInterface = None,
+                           config={}, _nested: bool = False) -> str:
         if not isinstance(documents, list):
             return ""
 
@@ -2096,7 +2138,11 @@ class HTMLApi(Resource):
 
         include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
 
-        html = self.div_open_html
+        html = ""
+        if not _nested:
+            heading_style = self.SECTION_HEADING_STYLE.format(color=BORDER_COLOR_DOCUMENT)
+            html = f"<h2 style='{heading_style}'>Documents</h2>"
+        html += self.div_open_html
 
         for document in documents:
             comments = []
@@ -2117,7 +2163,8 @@ class HTMLApi(Resource):
                 html += self.get_documents_html(
                     documents=document[_Ds],
                     dbi=dbi,
-                    config=config
+                    config=config,
+                    _nested=True
                 )
 
         html += self.div_close_html
@@ -2130,7 +2177,9 @@ class HTMLApi(Resource):
         if not len(justifications):
             return ""
 
-        html = self.div_open_html
+        heading_style = self.SECTION_HEADING_STYLE.format(color=BORDER_COLOR_JUSTIFICATION)
+        html = f"<h2 style='{heading_style}'>Justifications</h2>"
+        html += self.div_open_html
 
         include_comments = bool_from_string(config.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
 
@@ -2201,30 +2250,36 @@ class HTMLApi(Resource):
         export_date = datetime.datetime.now().strftime(HTML_EXPORT_DATE_FORMAT)
 
         html = "<html><head><meta charset='utf-8'><style>" \
-               "@page {size: A4; margin: 0 !important;}" \
-               "html, body {margin: 0 !important; padding: 0 !important; width: 100% !important;}" \
+               "html, body {margin: 0; padding: 0; width: 100%;}" \
                "body {color:#242424;font-size:13px;line-height:1.6;}" \
                "body > * {max-width: 100% !important;}" \
                "h1{font-size:28px;margin:0 0 12px;}" \
-               "h2{font-size:20px;margin:24px 0 8px;border-bottom:1px solid #d2d2d2;padding-bottom:4px;}" \
-               "h3{font-size:16px;margin:16px 0 8px;color:#3c3f42;}" \
+               "h2{font-size:20px;margin:24px 0 8px;border-bottom:1px solid #d2d2d2;" \
+               "padding-bottom:4px;page-break-after:avoid;}" \
+               "h3{font-size:16px;margin:16px 0 6px;color:#3c3f42;page-break-after:avoid;}" \
+               "h4{page-break-after:avoid;}" \
                "table, th, td {vertical-align: top !important;}" \
                "table{border-collapse:collapse; width:100%;}" \
-               "td{padding:8px 10px;}" \
-               "tr+tr td{border-top:1px solid #e0e0e0;}" \
-               "td:first-child{white-space:nowrap;width:20%;color:#6a6e73;font-weight:600;}" \
+               "td{padding:6px 8px;vertical-align:top;}" \
                ".muted{color:#6a6e73;font-size:12px;}" \
                "*, .pf-c-label, .code-block, " \
                ".code-block__content{-webkit-print-color-adjust:exact;print-color-adjust:exact;}" \
-               ".code-block{border:1px solid #d2d2d2;border-radius:3px;background:#f5f5f5;margin:8px 0 16px;}" \
-               ".code-block__content{padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas," \
-               "\"Liberation Mono\",\"Courier New\",monospace;font-size:13px;line-height:1.5;color:#151515;" \
-               "overflow:auto;white-space:pre-wrap;word-break:break-word;background:#f5f5f5;}" \
-               ".code-block--nowrap .code-block__content{white-space:pre;word-break:normal;overflow-x:auto;}" \
-               ".pf-c-label{display:inline-flex;align-items:center;gap:6px;border:1px solid #d2d2d2;" \
-               "border-radius:16px;background:#f5f5f5;color:#151515;font-size:12px;line-height:1.5;}" \
-               ".pf-c-label__content{padding:2px 8px;font-weight:600;letter-spacing:.02em;}" \
+               ".code-block{border:1px solid #d2d2d2;border-radius:3px;background:#f5f5f5;" \
+               "margin:8px 0 16px;page-break-inside:avoid;}" \
+               ".code-block__content{padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas," \
+               "\"Liberation Mono\",\"Courier New\",monospace;font-size:11px;line-height:1.45;color:#151515;" \
+               "overflow-x:auto;white-space:pre;word-break:normal;background:#f5f5f5;margin:0;}" \
+               ".pf-c-label{display:inline-flex;align-items:center;gap:4px;border:1px solid #d2d2d2;" \
+               "border-radius:16px;background:#f5f5f5;color:#151515;font-size:10px;line-height:1.5;" \
+               "margin-bottom:2px;}" \
+               ".pf-c-label__content{padding:1px 6px;font-weight:600;letter-spacing:.03em;}" \
                ".uppercase{text-transform:uppercase;}" \
+               "#toc{page-break-after:always;break-after:page;}" \
+               "#toc ul{list-style:none;padding-left:16px;}" \
+               "#toc > ul{padding-left:0;}" \
+               "#toc li{margin:3px 0;}" \
+               "#toc a{color:#0066cc;text-decoration:none;}" \
+               "#toc a:hover{text-decoration:underline;}" \
                "</style></head><body style='font-family: \"Roboto\", \"Helvetica\", \"Arial\", sans-serif;'>"
         html += api.to_html(exported_on=export_date, exported_by=user.username)
 
@@ -2238,11 +2293,38 @@ class HTMLApi(Resource):
             api_response.set_message("Invalid mapping view")
             return api_response.return_bad_request()
 
+        # Build Table of Contents
+        toc_html = "<div id='toc'><h2>Table of Contents</h2><ul>"
+        for i_ms, ms in enumerate(mapped_sections["mapped"]):
+            snippet_num = i_ms + 1
+            toc_html += (
+                f"<li><a href='#reference_document_snippet-{snippet_num}'>"
+                f"Reference document snippet {snippet_num}</a>"
+            )
+            children = []
+            for sr in (ms.get(_SRs) or []):
+                sr_data = sr.get(_SR, {})
+                children.append(
+                    f"<li><a href='#sw_requirement-{sr_data.get('id', '')}'>"
+                    f"{get_safe_str(sr_data.get('title', ''))}</a></li>"
+                )
+            if children:
+                toc_html += "<ul>" + "".join(children) + "</ul>"
+            toc_html += "</li>"
+        toc_html += "</ul></div>"
+        html += toc_html
+
         for i_mapped_section, mapped_section in enumerate(mapped_sections["mapped"]):
-            html += f"<div id='reference_document_snippet-{i_mapped_section+1}'>"
+            anchor = f"reference_document_snippet-{i_mapped_section+1}"
+            html += f"<a name='{anchor}'></a>"
+            html += f"<div id='{anchor}'>"
             html += f"<h2>Reference document snippet {i_mapped_section+1}</h2>"
             html += "<div class='code-block'>"
-            html += f"<div class='code-block__content'>{string_to_html(mapped_section['section'])}</div></div>"
+            html += (
+                f"<pre class='code-block__content'><code>"
+                f"{code_to_html(mapped_section['section'])}"
+                f"</code></pre></div>"
+            )
             html += "</div>"
 
             # Sw Requirements
@@ -2371,23 +2453,29 @@ class HTMLExportDownload(Resource):
             with open(html_filepath, "r") as f:
                 html_content = f.read()
 
+            api_obj = dbi.session.query(ApiModel).filter(ApiModel.id == api_id).first()
+            footer_left_text = ""
+            if api_obj:
+                footer_left_text = f"{api_obj.library} - {api_obj.api}"
+
             try:
                 response_content = convert_to_pdf(
                     ConvertRequest(
                         html=html_content,
                         margin_top_mm=10,
                         margin_bottom_mm=20,
-                        margin_left_mm=0,
-                        margin_right_mm=0,
+                        margin_left_mm=8,
+                        margin_right_mm=8,
                         page_size="A4",
-                        footer_center="Page [page] / [toPage]",
+                        footer_left=footer_left_text,
+                        footer_right="Page [page] / [toPage]",
                         footer_font_size=8,
                         footer_spacing_mm=4,
                         footer_line=True
                     )
                 )
             except Exception as e:
-                api_response.set_message(f"Pandoc convert error: {e}")
+                api_response.set_message(f"PDF convert error: {e}")
                 return api_response.return_server_error()
 
             # Save PDF to target location

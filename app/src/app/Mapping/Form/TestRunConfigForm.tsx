@@ -193,106 +193,51 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }
 
   React.useEffect(() => {
-    // Inject data to the js object in case of existing data
     if (testRunConfig?.id == 0 || testRunConfig?.id == undefined) {
       return
     }
-    if (testRunConfig?.title != null) {
-      setTitleValue(testRunConfig.title)
-    }
+    setTitleValue(testRunConfig?.title ?? '')
+    setPluginValue(testRunConfig?.plugin ?? 'tmt')
     if (testRunConfig?.plugin != null) {
-      setPluginValue(testRunConfig.plugin)
       load_plugin_presets(testRunConfig.plugin)
     }
-    if (testRunConfig?.plugin_preset != null) {
-      setPluginPresetValue(testRunConfig.plugin_preset)
-    }
-    if (testRunConfig?.plugin_vars != null) {
-      setPluginVarsValue(testRunConfig.plugin_vars)
-    }
-    if (testRunConfig?.provision_type != null) {
-      setProvisionTypeValue(testRunConfig.provision_type)
-    }
-    if (testRunConfig?.provision_guest != null) {
-      setGuestValue(testRunConfig.provision_guest)
-    }
-    if (testRunConfig?.provision_guest_port != null) {
-      setGuestPortValue(testRunConfig.provision_guest_port)
-    }
-    if (testRunConfig?.ssh_key != null) {
-      setSshKeyValue(testRunConfig.ssh_key)
-    }
-    if (testRunConfig?.environment_vars != null) {
-      setEnvVarsValue(testRunConfig.environment_vars)
-    }
-    if (testRunConfig?.context_vars != null) {
-      setContextVarsValue(testRunConfig.context_vars)
-    }
-    if (testRunConfig?.git_repo_ref != null) {
-      setRefValue(testRunConfig.git_repo_ref)
-    }
-    //gitlab_ci
+    setPluginPresetValue(testRunConfig?.plugin_preset ?? '')
+    setPluginVarsValue(testRunConfig?.plugin_vars ?? '')
+    setProvisionTypeValue(testRunConfig?.provision_type ?? '')
+    setGuestValue(testRunConfig?.provision_guest ?? '')
+    setGuestPortValue(testRunConfig?.provision_guest_port ?? '')
+    setSshKeyValue(testRunConfig?.ssh_key ?? '')
+    setEnvVarsValue(testRunConfig?.environment_vars ?? '')
+    setContextVarsValue(testRunConfig?.context_vars ?? '')
+    setRefValue(testRunConfig?.git_repo_ref ?? '')
+
     if (testRunConfig?.plugin == Constants.gitlab_ci_plugin) {
-      if (testRunConfig?.url != null) {
-        setGitlabCIUrlValue(testRunConfig.url)
-      }
-      if (testRunConfig?.project_id != null) {
-        setGitlabCIProjectIdValue(testRunConfig.project_id)
-      }
-      if (testRunConfig?.trigger_token != null) {
-        setGitlabCITriggerTokenValue(testRunConfig.trigger_token)
-      }
-      if (testRunConfig?.private_token != null) {
-        setGitlabCIPrivateTokenValue(testRunConfig.private_token)
-      }
-      if (testRunConfig?.stage != null) {
-        setGitlabCIStageValue(testRunConfig.stage)
-      }
-      if (testRunConfig?.job != null) {
-        setGitlabCIJobValue(testRunConfig.job)
-      }
+      setGitlabCIUrlValue(testRunConfig?.url ?? '')
+      setGitlabCIProjectIdValue(testRunConfig?.project_id ?? '')
+      setGitlabCITriggerTokenValue(testRunConfig?.trigger_token ?? '')
+      setGitlabCIPrivateTokenValue(testRunConfig?.private_token ?? '')
+      setGitlabCIStageValue(testRunConfig?.stage ?? '')
+      setGitlabCIJobValue(testRunConfig?.job ?? '')
     } else if (testRunConfig?.plugin == Constants.github_actions_plugin) {
-      if (testRunConfig?.job != null) {
-        setGithubActionsJobValue(testRunConfig.job)
-      }
-      if (testRunConfig?.url != null) {
-        setGithubActionsUrlValue(testRunConfig.url)
-      }
-      if (testRunConfig?.workflow_id != null) {
-        setGithubActionsWorkflowIdValue(testRunConfig.workflow_id)
-      }
-      if (testRunConfig?.private_token != null) {
-        setGithubActionsPrivateTokenValue(testRunConfig.private_token)
-      }
+      setGithubActionsJobValue(testRunConfig?.job ?? '')
+      setGithubActionsUrlValue(testRunConfig?.url ?? '')
+      setGithubActionsWorkflowIdValue(testRunConfig?.workflow_id ?? '')
+      setGithubActionsPrivateTokenValue(testRunConfig?.private_token ?? '')
     } else if (testRunConfig?.plugin == Constants.testing_farm_plugin) {
       if (testingFarmComposes.length == 0) {
         loadTestingFarmCompose()
       }
-      if (testRunConfig?.compose != null) {
-        setTestingFarmComposes(testRunConfig.compose)
-      }
-      if (testRunConfig?.arch != null) {
-        setTestingFarmArchValue(testRunConfig.arch)
-      }
-      if (testRunConfig?.private_token != null) {
-        setTestingFarmPrivateTokenValue(testRunConfig.private_token)
-      }
-      if (testRunConfig?.url != null) {
-        setTestingFarmUrlValue(testRunConfig.url)
-      }
+      setTestingFarmComposeValue(testRunConfig?.compose ?? '')
+      setTestingFarmArchValue(testRunConfig?.arch ?? '')
+      setTestingFarmPrivateTokenValue(testRunConfig?.private_token ?? '')
+      setTestingFarmUrlValue(testRunConfig?.url ?? '')
     } else if (testRunConfig?.plugin == Constants.LAVA_plugin) {
       if (userFiles.length == 0) {
         Constants.loadUserFiles(auth, setUserFiles, '.yaml')
       }
-      if (testRunConfig?.private_token != null) {
-        setLavaPrivateTokenValue(testRunConfig.private_token)
-      }
-      if (testRunConfig?.url != null) {
-        setLavaUrlValue(testRunConfig.url)
-      }
-      if (testRunConfig?.job != null) {
-        setLavaJobValue(testRunConfig.job)
-      }
+      setLavaPrivateTokenValue(testRunConfig?.private_token ?? '')
+      setLavaUrlValue(testRunConfig?.url ?? '')
+      setLavaJobValue(testRunConfig?.job ?? '')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testRunConfig])
@@ -463,7 +408,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
   }, [lavaJobValue, lavaPrivateTokenValue, lavaUrlValue])
 
   const set_test_run_config_forked = () => {
-    const tmpConfig = testRunConfig
+    const tmpConfig = _.cloneDeep(testRunConfig)
     tmpConfig['id'] = 0
     setTestRunConfig(tmpConfig)
     setInfoLabel('new')

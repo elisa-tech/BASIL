@@ -4,19 +4,11 @@ import * as Constants from '@app/Constants/constants'
 import {
   Button,
   Checkbox,
-  ClipboardCopyButton,
-  CodeBlock,
-  CodeBlockAction,
-  CodeBlockCode,
   Flex,
   FlexItem,
   Modal,
   ModalVariant,
-  Tab,
-  TabContent,
-  TabContentBody,
-  Tabs,
-  TabTitleText
+  Spinner,
 } from '@patternfly/react-core'
 
 export interface APIExportHTMLModalProps {
@@ -50,6 +42,7 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
   const [exportTestRuns, setExportTestRuns] = React.useState<boolean>(true)
   const [exportComments, setExportComments] = React.useState<boolean>(true)
   const [exportTools, setExportTools] = React.useState<boolean>(true)
+  const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setIsModalOpen(modalShowState)
@@ -129,9 +122,11 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
   }
 
   const downloadFile = (file_type: string = 'html') => {
-    if (!auth.isLogged()) {
+    if (!auth.isLogged() || isDownloading) {
       return
     }
+
+    setIsDownloading(file_type)
 
     const curr_date = new Date()
     const file_name = HTMLFilename.replace(/\.[^/.]+$/, '.' + file_type)
@@ -143,7 +138,6 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
     query_string += '&filename=' + file_name
     query_string += '&mapping-view=' + mappingView
 
-    // for each key of the config add to the query string
     const configExport = {
       include_justifications: exportJustifications,
       include_documents: exportDocuments,
@@ -178,6 +172,9 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
       .catch((error) => {
         console.error('Download error:', error)
       })
+      .finally(() => {
+        setIsDownloading(null)
+      })
   }
 
   return (
@@ -197,13 +194,25 @@ export const APIExportHTMLModal: React.FunctionComponent<APIExportHTMLModalProps
           <FlexItem>
             <Flex>
               <FlexItem>
-                <Button variant='link' onClick={() => downloadFile('html')} id='btn-download-html-file'>
-                  Download HTML
+                <Button
+                  variant='link'
+                  onClick={() => downloadFile('html')}
+                  id='btn-download-html-file'
+                  isDisabled={isDownloading !== null}
+                  icon={isDownloading === 'html' ? <Spinner size='sm' /> : undefined}
+                >
+                  {isDownloading === 'html' ? 'Generating HTML…' : 'Download HTML'}
                 </Button>
               </FlexItem>
               <FlexItem>
-                <Button variant='link' onClick={() => downloadFile('pdf')} id='btn-download-pdf-file'>
-                  Download PDF
+                <Button
+                  variant='link'
+                  onClick={() => downloadFile('pdf')}
+                  id='btn-download-pdf-file'
+                  isDisabled={isDownloading !== null}
+                  icon={isDownloading === 'pdf' ? <Spinner size='sm' /> : undefined}
+                >
+                  {isDownloading === 'pdf' ? 'Generating PDF…' : 'Download PDF'}
                 </Button>
               </FlexItem>
               <FlexItem>

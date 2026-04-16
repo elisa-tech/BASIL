@@ -93,7 +93,6 @@ from api_utils import (
     parse_int,
     read_file,
     justification_to_html,
-    string_to_html,
     sw_requirement_to_html,
     test_specification_to_html,
     test_case_to_html,

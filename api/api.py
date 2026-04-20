@@ -5690,7 +5690,7 @@ class Justification(Resource):
         dbi = get_db()
         query = dbi.session.query(JustificationModel)
         query = filter_query(query, request_data, JustificationModel, False)
-        jus = [ju.as_dict() for ju in query.all()]
+        jus = [ju.as_dict(db_session=dbi.session) for ju in query.all()]
 
         if "mode" in request_data.keys():
             if request_data["mode"] == "minimal":
@@ -5698,6 +5698,40 @@ class Justification(Resource):
                 jus = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in jus]
 
         api_response.set_data(jus)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["id", "user-id", "token"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return api_response.return_unauthorized()
+
+        # Justification
+        justification = dbi.session.query(JustificationModel).filter(JustificationModel.id == request_data["id"]).one()
+        if not justification:
+            return api_response.return_not_found()
+
+        if justification.is_used(dbi.session):
+            api_response.set_message("Justification is used and cannot be deleted")
+            return api_response.return_bad_request()
+
+        dbi.session.delete(justification)
+        dbi.session.commit()
         return api_response.return_ok()
 
 

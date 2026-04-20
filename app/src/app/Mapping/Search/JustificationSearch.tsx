@@ -12,9 +12,11 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
-  TextInput
+  TextInput,
+  Tooltip
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { TrashIcon } from '@patternfly/react-icons'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface JustificationSearchProps {
@@ -54,11 +56,48 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
   const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || '100')
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null)
 
   const resetForm = () => {
     setSelectedDataListItemId('')
     setCoverageValue('100')
     setSearchValue('')
+  }
+
+  const handleDeleteJustification = (justificationId: number) => {
+    if (confirmDeleteId !== justificationId) {
+      setConfirmDeleteId(justificationId)
+      return
+    }
+    setConfirmDeleteId(null)
+
+    const data = {
+      id: justificationId,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_JUSTIFICATIONS_ROOT_ENDPOINT, {
+      method: 'DELETE',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        const status = response.status
+        const status_text = response.statusText
+        if (Constants.isHttpSuccessStatus(status)) {
+          setMessageValue('Justification deleted with success.')
+          loadJustifications(searchValue)
+          return
+        } else {
+          return response.text().then((text) => {
+            setMessageValue(Constants.getResponseErrorMessage(status, status_text, text))
+          })
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
   }
 
   const onChangeSearchValue = (value) => {
@@ -67,10 +106,12 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
 
   const onSelectDataListItem = (_event: React.MouseEvent | React.KeyboardEvent, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const handleInputChange = (_event: React.FormEvent<HTMLInputElement>, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   React.useEffect(() => {
@@ -111,7 +152,41 @@ export const JustificationSearch: React.FunctionComponent<JustificationSearchPro
                 <span id={'clickable-action-item-' + justification.id}>
                   {justification.id} - {justification.description}
                 </span>
-              </DataListCell>
+              </DataListCell>,
+              ...(auth.isLogged() && !auth.isGuest()
+                ? [
+                    <DataListCell key={`delete-${justification.id}`} alignRight isFilled={false}>
+                      {justification.used ? (
+                        <Tooltip content='Cannot delete: justification is in use'>
+                          <div>
+                            <Button
+                              id={`btn-delete-justification-${justification.id}`}
+                              variant='plain'
+                              aria-label='Cannot delete justification'
+                              isDisabled
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip content={confirmDeleteId === justification.id ? 'Click again to confirm' : 'Delete justification'}>
+                          <Button
+                            id={`btn-delete-justification-${justification.id}`}
+                            variant={confirmDeleteId === justification.id ? 'danger' : 'plain'}
+                            aria-label='Delete justification'
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteJustification(justification.id)
+                            }}
+                          >
+                            <TrashIcon /> {confirmDeleteId === justification.id ? ' Confirm?' : ''}
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </DataListCell>
+                  ]
+                : [])
             ]}
           />
         </DataListItemRow>

@@ -48,6 +48,14 @@ class JustificationModel(Base):
                      JustificationHistoryModel.version.desc()).limit(1).all()[0]
         return f'{last_item.version}'
 
+    def is_used(self, db_session) -> bool:
+        if db_session is None:
+            return True
+        from db.models.api_justification import ApiJustificationModel
+        api_justifications = db_session.query(ApiJustificationModel).filter(
+            ApiJustificationModel.justification_id == self.id).all()
+        return len(api_justifications) > 0
+
     def as_dict(self, full_data=False, db_session=None):
         _dict = {"id": self.id,
                  "description": self.description,
@@ -57,6 +65,7 @@ class JustificationModel(Base):
 
         if db_session:
             _dict['version'] = self.current_version(db_session)
+            _dict['used'] = self.is_used(db_session)
 
         if full_data:
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)

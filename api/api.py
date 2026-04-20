@@ -5834,7 +5834,7 @@ class TestSpecification(Resource):
 
         query = dbi.session.query(TestSpecificationModel)
         query = filter_query(query, request_data, TestSpecificationModel, False)
-        tss = [ts.as_dict() for ts in query.all()]
+        tss = [ts.as_dict(db_session=dbi.session) for ts in query.all()]
 
         if "mode" in request_data.keys():
             if request_data["mode"] == "minimal":
@@ -5842,6 +5842,41 @@ class TestSpecification(Resource):
                 tss = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in tss]
 
         api_response.set_data(tss)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["id", "user-id", "token"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return api_response.return_unauthorized()
+
+        # Test Specification
+        test_specification = dbi.session.query(TestSpecificationModel).filter(
+            TestSpecificationModel.id == request_data["id"]).one()
+        if not test_specification:
+            return api_response.return_not_found()
+
+        if test_specification.is_used(dbi.session):
+            api_response.set_message("Test Specification is used and cannot be deleted")
+            return api_response.return_bad_request()
+
+        dbi.session.delete(test_specification)
+        dbi.session.commit()
         return api_response.return_ok()
 
 

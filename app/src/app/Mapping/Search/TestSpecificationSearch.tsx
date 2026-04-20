@@ -12,9 +12,11 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
-  TextInput
+  TextInput,
+  Tooltip
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { TrashIcon } from '@patternfly/react-icons'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestSpecificationSearchProps {
@@ -62,11 +64,48 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
   const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState('error')
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null)
 
   const resetForm = () => {
     setSelectedDataListItemId('')
     setCoverageValue(0)
     setSearchValue('')
+  }
+
+  const handleDeleteTestSpecification = (testSpecificationId: number) => {
+    if (confirmDeleteId !== testSpecificationId) {
+      setConfirmDeleteId(testSpecificationId)
+      return
+    }
+    setConfirmDeleteId(null)
+
+    const data = {
+      id: testSpecificationId,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_SPECIFICATIONS_ROOT_ENDPOINT, {
+      method: 'DELETE',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        const status = response.status
+        const status_text = response.statusText
+        if (Constants.isHttpSuccessStatus(status)) {
+          setMessageValue('Test Specification deleted with success.')
+          loadTestSpecifications(searchValue)
+          return
+        } else {
+          return response.text().then((text) => {
+            setMessageValue(Constants.getResponseErrorMessage(status, status_text, text))
+          })
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
   }
 
   React.useEffect(() => {
@@ -83,10 +122,12 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
 
   const onSelectDataListItem = (_event: React.MouseEvent | React.KeyboardEvent, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const handleInputChange = (_event: React.FormEvent<HTMLInputElement>, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const getTestSpecificationsTable = (test_specifications) => {
@@ -104,7 +145,43 @@ export const TestSpecificationSearch: React.FunctionComponent<TestSpecificationS
                 <span id={'clickable-action-item-' + test_specification.id}>
                   {test_specification.id} - {test_specification.title}
                 </span>
-              </DataListCell>
+              </DataListCell>,
+              ...(auth.isLogged() && !auth.isGuest()
+                ? [
+                    <DataListCell key={`delete-${test_specification.id}`} alignRight isFilled={false}>
+                      {test_specification.used ? (
+                        <Tooltip content='Cannot delete: test specification is in use'>
+                          <div>
+                            <Button
+                              id={`btn-delete-test-specification-${test_specification.id}`}
+                              variant='plain'
+                              aria-label='Cannot delete test specification'
+                              isDisabled
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip
+                          content={confirmDeleteId === test_specification.id ? 'Click again to confirm' : 'Delete test specification'}
+                        >
+                          <Button
+                            id={`btn-delete-test-specification-${test_specification.id}`}
+                            variant={confirmDeleteId === test_specification.id ? 'danger' : 'plain'}
+                            aria-label='Delete test specification'
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteTestSpecification(test_specification.id)
+                            }}
+                          >
+                            <TrashIcon /> {confirmDeleteId === test_specification.id ? ' Confirm?' : ''}
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </DataListCell>
+                  ]
+                : [])
             ]}
           />
         </DataListItemRow>

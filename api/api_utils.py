@@ -1,4 +1,5 @@
 import datetime
+import html as html_module
 import tarfile
 import logging
 import os
@@ -22,10 +23,43 @@ LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
 CONFIGS_FOLDER = "configs"
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
 
-ROW_LABEL_TD_STYLE = "padding:10px; white-space: nowrap; width: 1%;"
-ROW_VALUE_TD_STYLE = (
-    "padding:10px; width: 99%; word-break: break-word; overflow-wrap: anywhere;"
+ROW_LABEL_TD_STYLE = (
+    "padding:8px 10px;white-space:nowrap;width:1%;"
+    "vertical-align:top;border-bottom:1px solid #e0e0e0;"
 )
+ROW_VALUE_TD_STYLE = (
+    "padding:8px 10px;width:99%;word-break:break-all;"
+    "overflow-wrap:break-word;vertical-align:top;border-bottom:1px solid #e0e0e0;"
+)
+
+BORDER_COLOR_SW_REQUIREMENT = "#0066cc"
+BORDER_COLOR_TEST_SPECIFICATION = "#008060"
+BORDER_COLOR_TEST_CASE = "#6a4c93"
+BORDER_COLOR_DOCUMENT = "#8a6d3b"
+BORDER_COLOR_JUSTIFICATION = "#c9190b"
+BORDER_COLOR_TEST_RUN = "#4a90d9"
+BORDER_COLOR_COMMENT = "#6c757d"
+
+_BACKTICK_RE = re.compile(r'`([^`]+)`')
+_INLINE_CODE_STYLE = (
+    "background:#f0f0f0;padding:1px 4px;border-radius:3px;"
+    "font-family:monospace;font-size:12px;"
+)
+
+
+def _render_inline_code(text: str) -> str:
+    return _BACKTICK_RE.sub(
+        rf'<code style="{_INLINE_CODE_STYLE}">\1</code>',
+        text
+    )
+
+
+def _section_type_style(border_color: str) -> str:
+    return (
+        f"border-left:3px solid {border_color};padding-left:12px;"
+        "border-bottom:1px solid #CCC;page-break-inside:avoid;"
+        "margin-top:14px;"
+    )
 
 
 def tr(label_html: str, value_html: str) -> str:
@@ -321,21 +355,112 @@ def get_user_traceability_scanner_config(user: UserModel):
 
 def string_to_html(text: str) -> str:
     text = get_safe_str(text)
+    text = html_module.escape(text)
     return text.replace("\n", "<br/>")
 
 
+def code_to_html(text: str) -> str:
+    """Escape HTML for rendering inside <pre><code> blocks, preserving whitespace."""
+    return html_module.escape(get_safe_str(text, trim=False))
+
+
+def description_to_html(text: str) -> str:
+    """Render description text with + bullet lists and inline code from backticks."""
+    text = get_safe_str(text)
+    text = html_module.escape(text)
+    lines = text.split("\n")
+    result = []
+    in_list = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("+ "):
+            if not in_list:
+                result.append("<ul style='margin:4px 0;padding-left:20px;'>")
+                in_list = True
+            item_text = _render_inline_code(stripped[2:])
+            result.append(f"<li>{item_text}</li>")
+        elif stripped == "":
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+        else:
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+            escaped = _render_inline_code(stripped)
+            result.append(f"{escaped}<br/>")
+    if in_list:
+        result.append("</ul>")
+    return "".join(result)
+
+
+def section_to_html(text: str) -> str:
+    """Lightweight markdown-to-HTML for Document section fields."""
+    text = get_safe_str(text)
+    lines = text.split("\n")
+    result = []
+    in_list = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+            heading_text = html_module.escape(stripped[3:])
+            result.append(
+                f"<h4 style='margin:12px 0 4px;font-size:14px;'>{heading_text}</h4>"
+            )
+        elif stripped.startswith("# "):
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+            heading_text = html_module.escape(stripped[2:])
+            result.append(
+                f"<h4 style='margin:12px 0 4px;font-size:15px;font-weight:700;'>"
+                f"{heading_text}</h4>"
+            )
+        elif stripped.startswith("- "):
+            if not in_list:
+                result.append("<ul style='margin:4px 0;padding-left:20px;'>")
+                in_list = True
+            item_text = html_module.escape(stripped[2:])
+            item_text = _render_inline_code(item_text)
+            result.append(f"<li>{item_text}</li>")
+        elif stripped == "":
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+        else:
+            if in_list:
+                result.append("</ul>")
+                in_list = False
+            escaped = html_module.escape(stripped)
+            escaped = _render_inline_code(escaped)
+            result.append(f"<p style='margin:4px 0;'>{escaped}</p>")
+    if in_list:
+        result.append("</ul>")
+    return "".join(result)
+
+
 def sw_requirement_to_html(sw_requirement: dict, comments: list[dict]) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='sw_requirement-{sw_requirement['id']}'>"
-    html += f"<h3>Sw Requirement {sw_requirement['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_SW_REQUIREMENT)
+    anchor = f"sw_requirement-{sw_requirement['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>SW REQUIREMENT</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Sw Requirement {sw_requirement['id']}</h3>"
     html += f"<div id='sw_requirement-details-{sw_requirement['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
-    html += f"<b>Version</b>: {sw_requirement['version']} &nbsp; • &nbsp;"
-    html += f"<b>Status</b>: {sw_requirement['status']} &nbsp; • &nbsp; "
-    html += f"<b>Created by</b>: {sw_requirement['created_by']}"
+    html += f"<b>Version</b>: {string_to_html(sw_requirement['version'])} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {string_to_html(sw_requirement['status'])} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {string_to_html(sw_requirement['created_by'])}"
     html += "</td></tr>"
     html += tr("<b>Title</b>:", string_to_html(sw_requirement['title']))
-    html += tr("<b>Description</b>:", string_to_html(sw_requirement['description']))
+    html += tr("<b>Description</b>:", description_to_html(sw_requirement['description']))
     html += "</table>"
     html += "</div>"
 
@@ -347,19 +472,26 @@ def sw_requirement_to_html(sw_requirement: dict, comments: list[dict]) -> str:
 
 
 def test_specification_to_html(test_specification: dict, comments: list[dict]) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='test_specification-{test_specification['id']}'>"
-    html += f"<h3>Test Specification {test_specification['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_TEST_SPECIFICATION)
+    anchor = f"test_specification-{test_specification['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>TEST SPECIFICATION</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Test Specification {test_specification['id']}</h3>"
     html += f"<div id='test_specification-details-{test_specification['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
-    html += f"<b>Version</b>: {test_specification['version']} &nbsp; • &nbsp;"
-    html += f"<b>Status</b>: {test_specification['status']} &nbsp; • &nbsp; "
-    html += f"<b>Created by</b>: {test_specification['created_by']}"
+    html += f"<b>Version</b>: {string_to_html(test_specification['version'])} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {string_to_html(test_specification['status'])} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {string_to_html(test_specification['created_by'])}"
     html += "</td></tr>"
     html += tr("<b>Title</b>:", string_to_html(test_specification['title']))
-    html += tr("<b>Preconditions</b>:", string_to_html(test_specification['preconditions']))
-    html += tr("<b>Test Description</b>:", string_to_html(test_specification['test_description']))
-    html += tr("<b>Expected behavior</b>:", string_to_html(test_specification['expected_behavior']))
+    html += tr("<b>Preconditions</b>:", description_to_html(test_specification['preconditions']))
+    html += tr("<b>Test Description</b>:", description_to_html(test_specification['test_description']))
+    html += tr("<b>Expected behavior</b>:", description_to_html(test_specification['expected_behavior']))
     html += "</table>"
     html += "</div>"
 
@@ -371,17 +503,24 @@ def test_specification_to_html(test_specification: dict, comments: list[dict]) -
 
 
 def test_case_to_html(test_case: dict, comments: list[dict]) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='test_case-{test_case['id']}'>"
-    html += f"<h3>Test Case {test_case['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_TEST_CASE)
+    anchor = f"test_case-{test_case['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>TEST CASE</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Test Case {test_case['id']}</h3>"
     html += f"<div id='test_case-details-{test_case['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
-    html += f"<b>Version</b>: {test_case['version']} &nbsp; • &nbsp;"
-    html += f"<b>Status</b>: {test_case['status']} &nbsp; • &nbsp; "
-    html += f"<b>Created by</b>: {test_case['created_by']}"
+    html += f"<b>Version</b>: {string_to_html(test_case['version'])} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {string_to_html(test_case['status'])} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {string_to_html(test_case['created_by'])}"
     html += "</td></tr>"
     html += tr("<b>Title</b>:", string_to_html(test_case['title']))
-    html += tr("<b>Description</b>:", string_to_html(test_case['description']))
+    html += tr("<b>Description</b>:", description_to_html(test_case['description']))
     html += tr("<b>Repository</b>:", string_to_html(test_case['repository']))
     html += tr("<b>Relative Path</b>:", string_to_html(test_case['relative_path']))
     html += "</table>"
@@ -395,8 +534,15 @@ def test_case_to_html(test_case: dict, comments: list[dict]) -> str:
 
 
 def test_run_to_html(test_run: dict) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='test_run-{test_run['id']}'>"
-    html += f"<h3>Test Run {test_run['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_TEST_RUN)
+    anchor = f"test_run-{test_run['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>TEST RUN</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Test Run {test_run['id']}</h3>"
     html += f"<div id='test_run-details-{test_run['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += tr("<b>Test Run Config ID</b>:", string_to_html(test_run['config']['id']))
@@ -418,8 +564,15 @@ def test_run_to_html(test_run: dict) -> str:
 
 
 def test_run_config_to_html(test_run_config: dict) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='test_run_config-{test_run_config['id']}'>"
-    html += f"<h3>Test Run Config {test_run_config['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_TEST_RUN)
+    anchor = f"test_run_config-{test_run_config['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>TEST RUN CONFIG</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Test Run Config {test_run_config['id']}</h3>"
     html += f"<div id='test_run_config-details-{test_run_config['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += tr("<b>Title</b>:", string_to_html(test_run_config['title']))
@@ -440,22 +593,30 @@ def test_run_config_to_html(test_run_config: dict) -> str:
 
 
 def document_to_html(document: dict, comments: list[dict]) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='document-{document['id']}'>"
-    html += f"<h3>Document {document['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_DOCUMENT)
+    anchor = f"document-{document['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>DOCUMENT</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Document {document['id']}</h3>"
     html += f"<div id='document-details-{document['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
-    html += f"<b>Version</b>: {document['version']} &nbsp; • &nbsp;"
-    html += f"<b>Status</b>: {document['status']} &nbsp; • &nbsp; "
-    html += f"<b>Created by</b>: {document['created_by']}"
+    html += f"<b>Version</b>: {string_to_html(document['version'])} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {string_to_html(document['status'])} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {string_to_html(document['created_by'])}"
     html += "</td></tr>"
     html += tr("<b>Title</b>:", string_to_html(document['title']))
-    html += tr("<b>Description</b>:", string_to_html(document['description']))
-    html += tr("<b>Url</b>:", string_to_html(document['url']))
+    html += tr("<b>Description</b>:", description_to_html(document['description']))
+    url_escaped = string_to_html(document['url'])
+    html += tr("<b>Url</b>:", f"<a href='{html_module.escape(document['url'])}'>{url_escaped}</a>")
     html += tr("<b>Type</b>:", string_to_html(document['document_type']))
     html += tr("<b>SPDX Relationship</b>:", string_to_html(document['spdx_relation']))
     if document['document_type'] == 'text':
-        html += tr("<b>Section</b>:", string_to_html(document['section']))
+        html += tr("<b>Section</b>:", section_to_html(document['section']))
         html += tr("<b>Offset</b>:", string_to_html(str(document['offset'])))
     html += "</table>"
     html += "</div>"
@@ -468,16 +629,23 @@ def document_to_html(document: dict, comments: list[dict]) -> str:
 
 
 def justification_to_html(justification: dict, comments: list[dict]) -> str:
-    html = f"<div style='border-bottom:1px solid #CCC;' id='justification-{justification['id']}'>"
-    html += f"<h3>Justification {justification['id']}</h3>"
+    style = _section_type_style(BORDER_COLOR_JUSTIFICATION)
+    anchor = f"justification-{justification['id']}"
+    html = f"<a name='{anchor}'></a>"
+    html += f"<div style='{style}' id='{anchor}'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>JUSTIFICATION</span></span>"
+    )
+    html += f"<h3 style='page-break-after:avoid;'>Justification {justification['id']}</h3>"
     html += f"<div id='justification-details-{justification['id']}'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     html += "<tr><td colspan='2' style='padding:10px; font-size: 12px;'>"
-    html += f"<b>Version</b>: {justification['version']} &nbsp; • &nbsp;"
-    html += f"<b>Status</b>: {justification['status']} &nbsp; • &nbsp; "
-    html += f"<b>Created by</b>: {justification['created_by']}"
+    html += f"<b>Version</b>: {string_to_html(justification['version'])} &nbsp; • &nbsp;"
+    html += f"<b>Status</b>: {string_to_html(justification['status'])} &nbsp; • &nbsp; "
+    html += f"<b>Created by</b>: {string_to_html(justification['created_by'])}"
     html += "</td></tr>"
-    html += tr("<b>Title</b>:", string_to_html(justification['description']))
+    html += tr("<b>Title</b>:", description_to_html(justification['description']))
     html += "</table>"
     html += "</div>"
 
@@ -489,15 +657,26 @@ def justification_to_html(justification: dict, comments: list[dict]) -> str:
 
 
 def comments_to_html(comments: list[dict]) -> str:
-    html = "<div style='border-bottom:1px solid #CCC;' id='comments'>"
-    html += "<h3>Comments</h3>"
+    style = _section_type_style(BORDER_COLOR_COMMENT)
+    html = f"<div style='{style}' id='comments'>"
+    html += (
+        "<span class='pf-c-label'>"
+        "<span class='pf-c-label__content uppercase'>COMMENTS</span></span>"
+    )
+    html += "<h3 style='page-break-after:avoid;'>Comments</h3>"
     html += "<div id='comments-details'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
     for comment in comments:
-        html += f"""<tr>
-        <td width='30%'>{comment['created_by_username']}<br><small>{comment['updated_at']}</small></td>
-        <td width='70%'>{comment['comment']}</td>
-        </tr>"""
+        username = html_module.escape(str(comment['created_by_username']))
+        updated = html_module.escape(str(comment['updated_at']))
+        body = string_to_html(comment['comment'])
+        html += (
+            f"<tr><td style='vertical-align:top;padding:8px 10px;width:30%;"
+            f"border-bottom:1px solid #e0e0e0;white-space:nowrap;'>"
+            f"{username}<br><small>{updated}</small></td>"
+            f"<td style='vertical-align:top;padding:8px 10px;width:70%;"
+            f"border-bottom:1px solid #e0e0e0;'>{body}</td></tr>"
+        )
     html += "</table>"
     html += "</div></div>"
     return html

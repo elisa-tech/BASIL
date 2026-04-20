@@ -12,9 +12,11 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
-  TextInput
+  TextInput,
+  Tooltip
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { TrashIcon } from '@patternfly/react-icons'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface TestCaseSearchProps {
@@ -62,11 +64,48 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
   const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState('error')
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null)
 
   const resetForm = () => {
     setSelectedDataListItemId('')
     setCoverageValue(0)
     setSearchValue('')
+  }
+
+  const handleDeleteTestCase = (testCaseId: number) => {
+    if (confirmDeleteId !== testCaseId) {
+      setConfirmDeleteId(testCaseId)
+      return
+    }
+    setConfirmDeleteId(null)
+
+    const data = {
+      id: testCaseId,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_TEST_CASES_ROOT_ENDPOINT, {
+      method: 'DELETE',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        const status = response.status
+        const status_text = response.statusText
+        if (Constants.isHttpSuccessStatus(status)) {
+          setMessageValue('Test Case deleted with success.')
+          loadTestCases(searchValue)
+          return
+        } else {
+          return response.text().then((text) => {
+            setMessageValue(Constants.getResponseErrorMessage(status, status_text, text))
+          })
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
   }
 
   React.useEffect(() => {
@@ -83,10 +122,12 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
 
   const onSelectDataListItem = (_event: React.MouseEvent | React.KeyboardEvent, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const handleInputChange = (_event: React.FormEvent<HTMLInputElement>, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const getTestCasesTable = (test_cases) => {
@@ -104,7 +145,41 @@ export const TestCaseSearch: React.FunctionComponent<TestCaseSearchProps> = ({
                 <span id={'clickable-action-item-' + test_case.id}>
                   {test_case.id} - {test_case.title}
                 </span>
-              </DataListCell>
+              </DataListCell>,
+              ...(auth.isLogged() && !auth.isGuest()
+                ? [
+                    <DataListCell key={`delete-${test_case.id}`} alignRight isFilled={false}>
+                      {test_case.used ? (
+                        <Tooltip content='Cannot delete: test case is in use'>
+                          <div>
+                            <Button
+                              id={`btn-delete-test-case-${test_case.id}`}
+                              variant='plain'
+                              aria-label='Cannot delete test case'
+                              isDisabled
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip content={confirmDeleteId === test_case.id ? 'Click again to confirm' : 'Delete test case'}>
+                          <Button
+                            id={`btn-delete-test-case-${test_case.id}`}
+                            variant={confirmDeleteId === test_case.id ? 'danger' : 'plain'}
+                            aria-label='Delete test case'
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteTestCase(test_case.id)
+                            }}
+                          >
+                            <TrashIcon /> {confirmDeleteId === test_case.id ? ' Confirm?' : ''}
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </DataListCell>
+                  ]
+                : [])
             ]}
           />
         </DataListItemRow>

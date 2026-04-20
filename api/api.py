@@ -5886,7 +5886,7 @@ class TestCase(Resource):
         dbi = get_db()
         query = dbi.session.query(TestCaseModel)
         query = filter_query(query, request_data, TestCaseModel, False)
-        tcs = [tc.as_dict() for tc in query.all()]
+        tcs = [tc.as_dict(db_session=dbi.session) for tc in query.all()]
 
         if "mode" in request_data.keys():
             if request_data["mode"] == "minimal":
@@ -5894,6 +5894,40 @@ class TestCase(Resource):
                 tcs = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in tcs]
 
         api_response.set_data(tcs)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["id", "user-id", "token"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return api_response.return_unauthorized()
+
+        # Test Case
+        test_case = dbi.session.query(TestCaseModel).filter(TestCaseModel.id == request_data["id"]).one()
+        if not test_case:
+            return api_response.return_not_found()
+
+        if test_case.is_used(dbi.session):
+            api_response.set_message("Test Case is used and cannot be deleted")
+            return api_response.return_bad_request()
+
+        dbi.session.delete(test_case)
+        dbi.session.commit()
         return api_response.return_ok()
 
 

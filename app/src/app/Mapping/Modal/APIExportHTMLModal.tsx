@@ -1,15 +1,7 @@
 import React from 'react'
 import { useAuth } from '@app/User/AuthProvider'
 import * as Constants from '@app/Constants/constants'
-import {
-  Button,
-  Checkbox,
-  Flex,
-  FlexItem,
-  Modal,
-  ModalVariant,
-  Spinner,
-} from '@patternfly/react-core'
+import { Button, Checkbox, Flex, FlexItem, Modal, ModalVariant, Spinner } from '@patternfly/react-core'
 
 export interface APIExportHTMLModalProps {
   api

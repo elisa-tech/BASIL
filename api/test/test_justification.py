@@ -8,7 +8,6 @@ from db.models.api import ApiModel
 
 from conftest import (
     UT_USER_EMAIL,
-    UT_USER_PASSWORD,
     AuthActions,
 )
 

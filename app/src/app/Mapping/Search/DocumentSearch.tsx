@@ -12,9 +12,11 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
-  TextInput
+  TextInput,
+  Tooltip
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { TrashIcon } from '@patternfly/react-icons'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface DocumentSearchProps {
@@ -62,11 +64,48 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
   const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null)
 
   const resetForm = () => {
     setSelectedDataListItemId('')
     setCoverageValue('0')
     setSearchValue('')
+  }
+
+  const handleDeleteDocument = (documentId: number) => {
+    if (confirmDeleteId !== documentId) {
+      setConfirmDeleteId(documentId)
+      return
+    }
+    setConfirmDeleteId(null)
+
+    const data = {
+      id: documentId,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_DOCUMENTS_ROOT_ENDPOINT, {
+      method: 'DELETE',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        const status = response.status
+        const status_text = response.statusText
+        if (Constants.isHttpSuccessStatus(status)) {
+          setMessageValue('Document deleted with success.')
+          loadDocuments(searchValue)
+          return
+        } else {
+          return response.text().then((text) => {
+            setMessageValue(Constants.getResponseErrorMessage(status, status_text, text))
+          })
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
   }
 
   const onChangeSearchValue = (value) => {
@@ -75,10 +114,12 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
 
   const onSelectDataListItem = (_event: React.MouseEvent | React.KeyboardEvent, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const handleInputChange = (_event: React.FormEvent<HTMLInputElement>, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   React.useEffect(() => {
@@ -119,7 +160,41 @@ export const DocumentSearch: React.FunctionComponent<DocumentSearchProps> = ({
                 <span id={'clickable-action-item-' + curr_document.id}>
                   {curr_document.id} - {curr_document.title} - {curr_document.document_type} - {curr_document.spdx_relation}
                 </span>
-              </DataListCell>
+              </DataListCell>,
+              ...(auth.isLogged() && !auth.isGuest()
+                ? [
+                    <DataListCell key={`delete-${curr_document.id}`} alignRight isFilled={false}>
+                      {curr_document.used ? (
+                        <Tooltip content='Cannot delete: document is in use'>
+                          <div>
+                            <Button
+                              id={`btn-delete-document-${curr_document.id}`}
+                              variant='plain'
+                              aria-label='Cannot delete document'
+                              isDisabled
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip content={confirmDeleteId === curr_document.id ? 'Click again to confirm' : 'Delete document'}>
+                          <Button
+                            id={`btn-delete-document-${curr_document.id}`}
+                            variant={confirmDeleteId === curr_document.id ? 'danger' : 'plain'}
+                            aria-label='Delete document'
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteDocument(curr_document.id)
+                            }}
+                          >
+                            <TrashIcon /> {confirmDeleteId === curr_document.id ? ' Confirm?' : ''}
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </DataListCell>
+                  ]
+                : [])
             ]}
           />
         </DataListItemRow>

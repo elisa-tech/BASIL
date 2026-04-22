@@ -108,7 +108,7 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
       setCurrentView(SELECT_USER_FILE_VIEW)
     }
     if (userFiles.length == 0) {
-      Constants.loadUserFiles(auth, setUserFiles)
+      Constants.loadUserFiles(auth, setUserFiles, '', '', true)
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -401,7 +401,11 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
               >
                 <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
                 {userFiles.map((userFile, index) => (
-                  <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+                  <FormSelectOption
+                    key={index + 1}
+                    value={userFile['filepath']}
+                    label={userFile['relative_path'] || userFile['filename']}
+                  />
                 ))}
               </FormSelect>
             </GridItem>
@@ -411,7 +415,7 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
                   <Button
                     id={`btn-test-case-import-refresh-user-files`}
                     variant='secondary'
-                    onClick={() => Constants.loadUserFiles(auth, setUserFiles)}
+                    onClick={() => Constants.loadUserFiles(auth, setUserFiles, '', '', true)}
                   >
                     Refresh Files List
                   </Button>

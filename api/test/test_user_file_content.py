@@ -94,6 +94,33 @@ def test_user_file_content_get_ok(client, user_authentication, utilities):
         remove_if_exists(path)
 
 
+def test_user_file_content_get_nested_file(client, user_authentication, utilities):
+    """Content of a file in a nested folder should be accessible via relative path."""
+    auth = user_authentication.json
+    suffix = utilities.generate_random_hex_string8()
+    nested = f"{UT_PREFIX}cnt_{suffix}/sub/deep.txt"
+    base = user_files_dir(auth["id"])
+    top_dir = os.path.join(base, f"{UT_PREFIX}cnt_{suffix}")
+
+    try:
+        post_file(client, auth, nested, "deep content")
+        response = get_content(client, auth, nested)
+        assert response.status_code == HTTPStatus.OK
+        assert response.get_json()["filecontent"] == "deep content"
+    finally:
+        remove_if_exists(top_dir)
+
+
+def test_user_file_content_get_path_traversal_blocked(client, user_authentication):
+    auth = user_authentication.json
+    response = get_content(client, auth, "../../etc/passwd")
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+# ---------------------------------------------------------------------------
+# PUT /user/files/content
+# ---------------------------------------------------------------------------
+
 @pytest.mark.parametrize("mandatory_field", ["filename", "filecontent"])
 def test_user_file_content_put_missing_mandatory_fields(client, user_authentication, mandatory_field):
     auth = user_authentication.json
@@ -168,3 +195,34 @@ def test_user_file_content_put_updates_content(client, user_authentication, util
             assert f.read() == "updated"
     finally:
         remove_if_exists(path)
+
+
+def test_user_file_content_put_nested_file(client, user_authentication, utilities):
+    """PUT should work for files in nested directories."""
+    auth = user_authentication.json
+    suffix = utilities.generate_random_hex_string8()
+    nested = f"{UT_PREFIX}putcnt_{suffix}/sub/deep.txt"
+    base = user_files_dir(auth["id"])
+    top_dir = os.path.join(base, f"{UT_PREFIX}putcnt_{suffix}")
+
+    try:
+        post_file(client, auth, nested, "original")
+        response = put_content(client, auth, nested, "updated-deep")
+        assert response.status_code == HTTPStatus.OK
+        assert response.get_json()["filecontent"] == "updated-deep"
+    finally:
+        remove_if_exists(top_dir)
+
+
+def test_user_file_content_put_path_traversal_blocked(client, user_authentication, utilities):
+    auth = user_authentication.json
+    suffix = utilities.generate_random_hex_string8()
+    name = f"{UT_PREFIX}tr_{suffix}.txt"
+    base = user_files_dir(auth["id"])
+
+    try:
+        post_file(client, auth, name, "x")
+        response = put_content(client, auth, f"../../{name}", "hacked")
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+    finally:
+        remove_if_exists(os.path.join(base, name))

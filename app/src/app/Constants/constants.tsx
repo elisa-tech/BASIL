@@ -1,5 +1,5 @@
 export const API_BASE_URL = 'http://localhost:5000'
-export const BASIL_VERSION = '1.8.10'
+export const BASIL_VERSION = '1.8.11'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
@@ -42,6 +42,7 @@ export const API_USER_APIS_ENDPOINT = '/user/apis'
 export const API_USER_PERMISSIONS_API_ENDPOINT = '/user/permissions/api'
 export const API_USER_PERMISSIONS_API_COPY_ENDPOINT = '/user/permissions/copy'
 export const API_USER_FILES_ENDPOINT = '/user/files'
+export const API_USER_FILES_FOLDER_ENDPOINT = '/user/files/folder'
 export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
 export const API_USER_RESET_PASSWORD_ENDPOINT = '/user/reset-password'
 export const API_USER_SIGNIN_ENDPOINT = '/user/signin'
@@ -285,16 +286,20 @@ export const getFilenameFromFilepath = (filepath: string) => {
   return filepath.split(PATH_SEP).pop()
 }
 
-export const loadUserFiles = (_auth, _setFiles, _filter = '') => {
-  // _set is a useState Set variable used to populate the useState
+export const loadUserFiles = (_auth, _setFiles, _filter = '', _path = '', _recursive = false) => {
   if (!_auth.isLogged()) {
     return
   }
-  let url
-  url = API_BASE_URL + API_USER_FILES_ENDPOINT
+  let url = API_BASE_URL + API_USER_FILES_ENDPOINT
   url += '?user-id=' + _auth.userId
   url += '&token=' + _auth.token
   url += '&filter=' + (_filter ? _filter : '')
+  if (_path) {
+    url += '&path=' + encodeURIComponent(_path)
+  }
+  if (_recursive) {
+    url += '&recursive=true'
+  }
   fetch(url, {
     method: 'GET',
     headers: JSON_HEADER
@@ -302,13 +307,86 @@ export const loadUserFiles = (_auth, _setFiles, _filter = '') => {
     .then((res) => res.json())
     .then((data) => {
       for (let i = 0; i < data.length; i++) {
-        data[i]['filename'] = getFilenameFromFilepath(data[i]['filepath'])
+        data[i]['filename'] = data[i]['name'] || getFilenameFromFilepath(data[i]['filepath'])
       }
       _setFiles(data)
     })
     .catch((err) => {
       console.log(err.message)
     })
+}
+
+export const createUserFolder = (_auth, _foldername, _onSuccess, _onError) => {
+  const data = {
+    'user-id': _auth.userId,
+    token: _auth.token,
+    foldername: _foldername
+  }
+  fetch(API_BASE_URL + API_USER_FILES_FOLDER_ENDPOINT, {
+    method: 'POST',
+    headers: JSON_HEADER,
+    body: JSON.stringify(data)
+  })
+    .then((response) => {
+      if (!isHttpSuccessStatus(response.status)) {
+        response
+          .json()
+          .then((body) => _onError(body?.message || response.statusText))
+          .catch(() => _onError(response.statusText))
+      } else {
+        _onSuccess()
+      }
+    })
+    .catch((err) => _onError(err.toString()))
+}
+
+export const moveUserFile = (_auth, _source, _destination, _onSuccess, _onError) => {
+  const data = {
+    'user-id': _auth.userId,
+    token: _auth.token,
+    source: _source,
+    destination: _destination
+  }
+  fetch(API_BASE_URL + API_USER_FILES_ENDPOINT, {
+    method: 'PUT',
+    headers: JSON_HEADER,
+    body: JSON.stringify(data)
+  })
+    .then((response) => {
+      if (!isHttpSuccessStatus(response.status)) {
+        response
+          .json()
+          .then((body) => _onError(body?.message || response.statusText))
+          .catch(() => _onError(response.statusText))
+      } else {
+        _onSuccess()
+      }
+    })
+    .catch((err) => _onError(err.toString()))
+}
+
+export const deleteUserFile = (_auth, _filename, _onSuccess, _onError) => {
+  const data = {
+    'user-id': _auth.userId,
+    token: _auth.token,
+    filename: _filename
+  }
+  fetch(API_BASE_URL + API_USER_FILES_ENDPOINT, {
+    method: 'DELETE',
+    headers: JSON_HEADER,
+    body: JSON.stringify(data)
+  })
+    .then((response) => {
+      if (!isHttpSuccessStatus(response.status)) {
+        response
+          .json()
+          .then((body) => _onError(body?.message || response.statusText))
+          .catch(() => _onError(response.statusText))
+      } else {
+        _onSuccess()
+      }
+    })
+    .catch((err) => _onError(err.toString()))
 }
 
 export const loadFileContent = (_auth, _filename, _setMessage, _setContent) => {
@@ -326,7 +404,7 @@ export const loadFileContent = (_auth, _filename, _setMessage, _setContent) => {
   let url = API_BASE_URL + API_USER_FILES_CONTENT_ENDPOINT
   url += '?user-id=' + _auth.userId
   url += '&token=' + _auth.token
-  url += '&filename=' + _filename
+  url += '&filename=' + encodeURIComponent(_filename)
   fetch(url)
     .then((res) => {
       if (!res.ok) {

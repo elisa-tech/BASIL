@@ -1,8 +1,8 @@
 --- steps/provision/podman.py
 +++ steps/provision/podman_modified.py
-@@ -15,7 +15,7 @@ from tmt.utils import Command, OnProcessStartCallback, Path, ShellScript, field,
+@@ -34,7 +34,7 @@
  CONNECTION_TIMEOUT = 60
-
+ 
  # Defaults
 -DEFAULT_IMAGE = "fedora"
 +DEFAULT_IMAGE = "debian"

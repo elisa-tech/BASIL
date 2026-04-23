@@ -1,11 +1,11 @@
 --- steps/provision/podman.py
 +++ steps/provision/podman_modified.py
-@@ -151,7 +151,7 @@
+@@ -195,7 +195,7 @@
              else:
                  raise err
-
+ 
 -        return ['--network', self.network]
 +        return ['--network=host']
-
-     def start(self) -> None:
-         """ Start provisioned guest """
+ 
+     def _setup_environment(self) -> list[str]:
+         """

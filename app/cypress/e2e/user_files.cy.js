@@ -27,7 +27,7 @@ describe('User Files - Nested Folder Support', () => {
   })
 
   it('Navigate into folder via click', () => {
-    cy.get('#table-user-files').find('tbody').contains('test_folder_' + UNIQUE).click()
+    cy.get('#table-user-files').find('tbody').contains('test_folder_' + UNIQUE).click({ force: true })
     cy.wait(const_data.mid_wait)
     cy.get('#breadcrumb-0').should('contain.text', 'test_folder_' + UNIQUE)
     cy.get('#table-user-files').find('tbody').should('contain.text', 'empty')
@@ -36,15 +36,22 @@ describe('User Files - Nested Folder Support', () => {
   it('Upload file inside nested folder', () => {
     cy.get('#btn-add-user-file').click()
     cy.wait(const_data.fast_wait)
-    cy.get('#user-file-upload-filename').type('nested_file_' + UNIQUE + '.yaml')
-    cy.get('#user-file-upload').find('textarea').type('key: value', { force: true })
+    cy.get('.pf-v5-c-file-upload input[type="file"]').selectFile(
+      {
+        contents: Cypress.Buffer.from('key: value'),
+        fileName: 'nested_file_' + UNIQUE + '.yaml',
+        mimeType: 'text/yaml'
+      },
+      { force: true }
+    )
+    cy.wait(const_data.mid_wait)
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files').find('tbody').contains('nested_file_' + UNIQUE + '.yaml').should('exist')
   })
 
   it('Navigate back to root via breadcrumb', () => {
-    cy.get('#breadcrumb-root').click()
+    cy.get('#breadcrumb-root').click({ force: true })
     cy.wait(const_data.mid_wait)
     cy.get('#table-user-files').find('tbody').contains('test_folder_' + UNIQUE).should('exist')
   })
@@ -61,8 +68,15 @@ describe('User Files - Nested Folder Support', () => {
   it('Upload a file at root for move test', () => {
     cy.get('#btn-add-user-file').click()
     cy.wait(const_data.fast_wait)
-    cy.get('#user-file-upload-filename').type('movable_' + UNIQUE + '.txt')
-    cy.get('#user-file-upload').find('textarea').type('to be moved', { force: true })
+    cy.get('.pf-v5-c-file-upload input[type="file"]').selectFile(
+      {
+        contents: Cypress.Buffer.from('to be moved'),
+        fileName: 'movable_' + UNIQUE + '.txt',
+        mimeType: 'text/plain'
+      },
+      { force: true }
+    )
+    cy.wait(const_data.mid_wait)
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files').find('tbody').contains('movable_' + UNIQUE + '.txt').should('exist')
@@ -83,10 +97,10 @@ describe('User Files - Nested Folder Support', () => {
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files').find('tbody').contains('movable_' + UNIQUE + '.txt').should('not.exist')
 
-    cy.get('#table-user-files').find('tbody').contains('move_dest_' + UNIQUE).click()
+    cy.get('#table-user-files').find('tbody').contains('move_dest_' + UNIQUE).click({ force: true })
     cy.wait(const_data.mid_wait)
     cy.get('#table-user-files').find('tbody').contains('movable_' + UNIQUE + '.txt').should('exist')
-    cy.get('#breadcrumb-root').click()
+    cy.get('#breadcrumb-root').click({ force: true })
     cy.wait(const_data.mid_wait)
   })
 

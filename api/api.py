@@ -2856,8 +2856,42 @@ class Document(Resource):
         dbi = get_db()
         query = dbi.session.query(DocumentModel)
         query = filter_query(query, request_data, DocumentModel, False)
-        docs = [doc.as_dict() for doc in query.all()]
+        docs = [doc.as_dict(db_session=dbi.session) for doc in query.all()]
         api_response.set_data(docs)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["id", "user-id", "token"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return api_response.return_unauthorized()
+
+        # Document
+        document = dbi.session.query(DocumentModel).filter(DocumentModel.id == request_data["id"]).one()
+        if not document:
+            return api_response.return_not_found()
+
+        if document.is_used(dbi.session):
+            api_response.set_message("Document is used and cannot be deleted")
+            return api_response.return_bad_request()
+
+        dbi.session.delete(document)
+        dbi.session.commit()
         return api_response.return_ok()
 
 

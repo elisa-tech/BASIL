@@ -56,6 +56,20 @@ class TestCaseModel(Base):
                      TestCaseHistoryModel.version.desc()).limit(1).all()[0]
         return f'{last_item.version}'
 
+    def is_used(self, db_session) -> bool:
+        if db_session is None:
+            return True
+        from db.models.api_test_case import ApiTestCaseModel
+        from db.models.sw_requirement_test_case import SwRequirementTestCaseModel
+        from db.models.test_specification_test_case import TestSpecificationTestCaseModel
+        api_tcs = db_session.query(ApiTestCaseModel).filter(
+            ApiTestCaseModel.test_case_id == self.id).all()
+        sr_tcs = db_session.query(SwRequirementTestCaseModel).filter(
+            SwRequirementTestCaseModel.test_case_id == self.id).all()
+        ts_tcs = db_session.query(TestSpecificationTestCaseModel).filter(
+            TestSpecificationTestCaseModel.test_case_id == self.id).all()
+        return len(api_tcs) + len(sr_tcs) + len(ts_tcs) > 0
+
     def as_dict(self, full_data=False, db_session=None):
         _dict = {"id": self.id,
                  "repository": self.repository,
@@ -68,6 +82,7 @@ class TestCaseModel(Base):
 
         if db_session:
             _dict['version'] = self.current_version(db_session)
+            _dict['used'] = self.is_used(db_session)
 
         if full_data:
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)

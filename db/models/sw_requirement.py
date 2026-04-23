@@ -52,6 +52,19 @@ class SwRequirementModel(Base):
                      SwRequirementHistoryModel.version.desc()).limit(1).all()[0]
         return f'{last_item.version}'
 
+    def is_used(self, db_session) -> bool:
+        if db_session is None:
+            return True
+        from db.models.api_sw_requirement import ApiSwRequirementModel
+        from db.models.sw_requirement_sw_requirement import SwRequirementSwRequirementModel
+        api_sw_requirements = db_session.query(ApiSwRequirementModel).filter(
+            ApiSwRequirementModel.sw_requirement_id == self.id).all()
+        if len(api_sw_requirements) > 0:
+            return True
+        sr_sw_requirements = db_session.query(SwRequirementSwRequirementModel).filter(
+            SwRequirementSwRequirementModel.sw_requirement_id == self.id).all()
+        return len(sr_sw_requirements) > 0
+
     def as_dict(self, full_data=False, db_session=None):
         _dict = {"id": self.id,
                  "title": self.title,
@@ -62,6 +75,7 @@ class SwRequirementModel(Base):
 
         if db_session:
             _dict['version'] = self.current_version(db_session)
+            _dict['used'] = self.is_used(db_session)
 
         if full_data:
             _dict["created_at"] = self.created_at.strftime(Base.dt_format_str)

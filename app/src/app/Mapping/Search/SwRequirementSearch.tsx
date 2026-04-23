@@ -12,9 +12,11 @@ import {
   HelperTextItem,
   Hint,
   HintBody,
-  TextInput
+  TextInput,
+  Tooltip
 } from '@patternfly/react-core'
 import { DataList, DataListCell, DataListItem, DataListItemCells, DataListItemRow, SearchInput } from '@patternfly/react-core'
+import { TrashIcon } from '@patternfly/react-icons'
 import { useAuth } from '@app/User/AuthProvider'
 
 export interface SwRequirementSearchProps {
@@ -62,11 +64,48 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
   const [initializedValue, setInitializedValue] = React.useState(false)
   const [coverageValue, setCoverageValue] = React.useState(formData?.coverage || 0)
   const [validatedCoverageValue, setValidatedCoverageValue] = React.useState<Constants.validate>('error')
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null)
 
   const resetForm = () => {
     setSelectedDataListItemId('')
     setCoverageValue(0)
     setSearchValue('')
+  }
+
+  const handleDeleteSwRequirement = (swRequirementId: number) => {
+    if (confirmDeleteId !== swRequirementId) {
+      setConfirmDeleteId(swRequirementId)
+      return
+    }
+    setConfirmDeleteId(null)
+
+    const data = {
+      id: swRequirementId,
+      'user-id': auth.userId,
+      token: auth.token
+    }
+
+    fetch(Constants.API_BASE_URL + Constants.API_SW_REQUIREMENTS_ROOT_ENDPOINT, {
+      method: 'DELETE',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        const status = response.status
+        const status_text = response.statusText
+        if (Constants.isHttpSuccessStatus(status)) {
+          setMessageValue('Software Requirement deleted with success.')
+          loadSwRequirements(searchValue)
+          return
+        } else {
+          return response.text().then((text) => {
+            setMessageValue(Constants.getResponseErrorMessage(status, status_text, text))
+          })
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
   }
 
   React.useEffect(() => {
@@ -83,10 +122,12 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
 
   const onSelectDataListItem = (_event: React.MouseEvent | React.KeyboardEvent, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   const handleInputChange = (_event: React.FormEvent<HTMLInputElement>, id: string) => {
     setSelectedDataListItemId(id)
+    setConfirmDeleteId(null)
   }
 
   React.useEffect(() => {
@@ -119,7 +160,41 @@ export const SwRequirementSearch: React.FunctionComponent<SwRequirementSearchPro
                 <span id={'clickable-action-item-' + sw_requirement.id}>
                   {sw_requirement.id} - {sw_requirement.title}
                 </span>
-              </DataListCell>
+              </DataListCell>,
+              ...(auth.isLogged() && !auth.isGuest()
+                ? [
+                    <DataListCell key={`delete-${sw_requirement.id}`} alignRight isFilled={false}>
+                      {sw_requirement.used ? (
+                        <Tooltip content='Cannot delete: software requirement is in use'>
+                          <div>
+                            <Button
+                              id={`btn-delete-sw-requirement-${sw_requirement.id}`}
+                              variant='plain'
+                              aria-label='Cannot delete software requirement'
+                              isDisabled
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip content={confirmDeleteId === sw_requirement.id ? 'Click again to confirm' : 'Delete software requirement'}>
+                          <Button
+                            id={`btn-delete-sw-requirement-${sw_requirement.id}`}
+                            variant={confirmDeleteId === sw_requirement.id ? 'danger' : 'plain'}
+                            aria-label='Delete software requirement'
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteSwRequirement(sw_requirement.id)
+                            }}
+                          >
+                            <TrashIcon /> {confirmDeleteId === sw_requirement.id ? ' Confirm?' : ''}
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </DataListCell>
+                  ]
+                : [])
             ]}
           />
         </DataListItemRow>

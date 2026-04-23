@@ -5930,7 +5930,7 @@ class SwRequirement(Resource):
 
         query = dbi.session.query(SwRequirementModel)
         query = filter_query(query, request_data, SwRequirementModel, False)
-        srs = [sr.as_dict() for sr in query.all()]
+        srs = [sr.as_dict(db_session=dbi.session) for sr in query.all()]
 
         if "mode" in request_data.keys():
             if request_data["mode"] == "minimal":
@@ -5938,6 +5938,42 @@ class SwRequirement(Resource):
                 srs = [{key: val for key, val in sub.items() if key in minimal_keys} for sub in srs]
 
         api_response.set_data(srs)
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        request_data = request.get_json(force=True)
+        mandatory_fields = ["id", "user-id", "token"]
+
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # User
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        # Permissions
+        if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            return api_response.return_unauthorized()
+
+        # Software Requirement
+        sw_requirement = (
+            dbi.session.query(SwRequirementModel).filter(SwRequirementModel.id == request_data["id"]).one()
+        )
+        if not sw_requirement:
+            return api_response.return_not_found()
+
+        if sw_requirement.is_used(dbi.session):
+            api_response.set_message("Software Requirement is used and cannot be deleted")
+            return api_response.return_bad_request()
+
+        dbi.session.delete(sw_requirement)
+        dbi.session.commit()
         return api_response.return_ok()
 
 

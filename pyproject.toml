@@ -1,7 +1,7 @@
 [project]
 # Project inception: 2023-10-02
 name = "BASIL"
-version = "1.8.10"
+version = "1.8.11"
 description = "open source software quality management tool"
 authors = [
     {name = "Luigi Pellecchia", email = "lpellecc@redhat.com"},

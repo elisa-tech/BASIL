@@ -233,7 +233,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
       setTestingFarmUrlValue(testRunConfig?.url ?? '')
     } else if (testRunConfig?.plugin == Constants.LAVA_plugin) {
       if (userFiles.length == 0) {
-        Constants.loadUserFiles(auth, setUserFiles, '.yaml')
+        Constants.loadUserFiles(auth, setUserFiles, '.yaml', '', true)
       }
       setLavaPrivateTokenValue(testRunConfig?.private_token ?? '')
       setLavaUrlValue(testRunConfig?.url ?? '')
@@ -429,7 +429,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
     }
     if (value == Constants.LAVA_plugin) {
       if (userFiles.length == 0) {
-        Constants.loadUserFiles(auth, setUserFiles, '.yaml')
+        Constants.loadUserFiles(auth, setUserFiles, '.yaml', '', true)
       }
     }
     set_test_run_config_forked()
@@ -903,7 +903,7 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
             >
               <FormSelectOption key={0} value='' label='default' />
               {userFiles.map((userFile, index) => (
-                <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+                <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
               ))}
             </FormSelect>
           </FormGroup>

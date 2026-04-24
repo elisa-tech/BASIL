@@ -1,4 +1,4 @@
-"""Shared helpers for user-files HTTP tests (UserFiles, UserFileContent)."""
+"""Shared helpers for user-files HTTP tests (UserFiles, UserFileContent, UserFileFolder)."""
 import os
 import shutil
 
@@ -6,6 +6,7 @@ import api as basil_api
 
 USER_FILES_URL = "/user/files"
 USER_FILE_CONTENT_URL = "/user/files/content"
+USER_FILE_FOLDER_URL = "/user/files/folder"
 UT_PREFIX = "ut_user_files_"
 
 
@@ -42,6 +43,16 @@ def delete_file(client, auth_json, filename):
     return client.delete(USER_FILES_URL, json=body)
 
 
+def move_file(client, auth_json, source, destination):
+    body = {**auth_json_body(auth_json), "source": source, "destination": destination}
+    return client.put(USER_FILES_URL, json=body)
+
+
+def create_folder(client, auth_json, foldername):
+    body = {**auth_json_body(auth_json), "foldername": foldername}
+    return client.post(USER_FILE_FOLDER_URL, json=body)
+
+
 def get_content(client, auth_json, filename):
     qs = {**auth_query(auth_json), "filename": filename}
     return client.get(USER_FILE_CONTENT_URL, query_string=qs)
@@ -59,6 +70,8 @@ def put_content(client, auth_json, filename, filecontent):
 def remove_if_exists(path):
     if os.path.isfile(path):
         os.remove(path)
+    elif os.path.isdir(path):
+        shutil.rmtree(path)
 
 
 def remove_user_files_dir_if_exists(user_id):

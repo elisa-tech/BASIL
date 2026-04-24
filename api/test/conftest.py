@@ -113,6 +113,7 @@ def reader_authentication(client, ut_reader_user_db):
 @pytest.fixture(scope="module")
 def ut_user_files_dir(ut_user_db):
     """Ensure the UT user has a clean user-files directory for this test."""
+    import shutil
     from user_files_test_helpers import user_files_dir
 
     base = user_files_dir(ut_user_db.id)
@@ -124,3 +125,5 @@ def ut_user_files_dir(ut_user_db):
         p = os.path.join(base, name)
         if os.path.isfile(p):
             os.remove(p)
+        elif os.path.isdir(p):
+            shutil.rmtree(p)

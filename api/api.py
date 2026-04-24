@@ -88,6 +88,7 @@ from api_utils import (
     get_user_pdf_folder_path,
     get_user_traceability_scanner_config,
     is_safe_local_user_file_path,
+    is_safe_user_path,
     is_testing_enabled_by_env,
     load_settings,
     parse_int,
@@ -145,6 +146,7 @@ if not os.path.exists(TEST_RUNS_BASE_DIR):
 
 if not os.path.exists(USER_FILES_BASE_DIR):
     os.makedirs(USER_FILES_BASE_DIR, exist_ok=True)
+
 
 # Read API Version once
 # API Version is not supposed to change runtime
@@ -956,6 +958,8 @@ def get_query_string_args(args):
         "test-case-id",
         "test_run_config_id",
         "test_runs_limit",
+        "path",
+        "recursive",
         "token",
         "url",
         "user-id",
@@ -9846,27 +9850,68 @@ class UserFiles(Resource):
             api_response.set_data(ret)
             return api_response.return_ok()
 
-        i = 0
-        for user_file in os.listdir(user_files_path):
+        sub_path = request_data.get("path", "")
+        recursive = str(request_data.get("recursive", "")).lower() == "true"
 
-            # Skip hidden files
-            if user_file.startswith("."):
-                continue
+        if sub_path:
+            listing_path = os.path.join(user_files_path, sub_path)
+        else:
+            listing_path = user_files_path
 
-            tmp = {
-                "index": i,
-                "filepath": os.path.join(user_files_path, user_file),
-                "updated_at": time.ctime(os.path.getmtime(os.path.join(user_files_path, user_file))),
-            }
+        if not is_safe_user_path(user_files_path, listing_path):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
 
-            if "filter" in request_data.keys():
-                if str(request_data["filter"]).lower() not in user_file.lower():
+        if not os.path.isdir(listing_path):
+            api_response.set_message("Directory not found")
+            return api_response.return_not_found()
+
+        if recursive:
+            i = 0
+            for root, _dirs, files in os.walk(listing_path):
+                _dirs[:] = [d for d in _dirs if not d.startswith(".")]
+                for fname in sorted(files):
+                    if fname.startswith("."):
+                        continue
+                    full = os.path.join(root, fname)
+                    rel = os.path.relpath(full, user_files_path)
+                    if "filter" in request_data:
+                        if str(request_data["filter"]).lower() not in fname.lower():
+                            continue
+                    ret.append({
+                        "index": i,
+                        "filepath": full,
+                        "relative_path": rel,
+                        "name": fname,
+                        "type": "file",
+                        "updated_at": time.ctime(os.path.getmtime(full)),
+                    })
+                    i += 1
+        else:
+            i = 0
+            for entry_name in os.listdir(listing_path):
+                if entry_name.startswith("."):
                     continue
 
-            ret.append(tmp)
-            i += 1
+                full = os.path.join(listing_path, entry_name)
+                rel = os.path.relpath(full, user_files_path)
+                entry_type = "directory" if os.path.isdir(full) else "file"
 
-        ret = sorted(ret, key=lambda f: f["filepath"], reverse=False)  # sort by filename
+                if "filter" in request_data:
+                    if str(request_data["filter"]).lower() not in entry_name.lower():
+                        continue
+
+                ret.append({
+                    "index": i,
+                    "filepath": full,
+                    "relative_path": rel,
+                    "name": entry_name,
+                    "type": entry_type,
+                    "updated_at": time.ctime(os.path.getmtime(full)),
+                })
+                i += 1
+
+        ret = sorted(ret, key=lambda f: (f["type"] != "directory", f["name"].lower()))
         api_response.set_data(ret)
         return api_response.return_ok()
 
@@ -9885,7 +9930,10 @@ class UserFiles(Resource):
             api_response.set_missing_fields(wrong_fields)
             return api_response.return_bad_request_missing_fields()
 
-        if request_data["filename"].startswith("."):
+        filename = request_data["filename"]
+        basename = os.path.basename(filename)
+
+        if basename.startswith("."):
             api_response.set_message("Filename cannot start with a dot")
             return api_response.return_bad_request()
 
@@ -9902,9 +9950,12 @@ class UserFiles(Resource):
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
 
-        filename = request_data["filename"]
         filecontent = request_data["filecontent"]
         filepath = os.path.join(user_files_path, filename)
+
+        if not is_safe_user_path(user_files_path, filepath):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
 
         if filename == "":
             api_response.set_message("Missing filename value")
@@ -9917,6 +9968,9 @@ class UserFiles(Resource):
             api_response.set_message("File already exists")
             return api_response.return_conflict()
 
+        parent_dir = os.path.dirname(filepath)
+        os.makedirs(parent_dir, exist_ok=True)
+
         f = open(filepath, "w")
         f.write(filecontent)
         f.close()
@@ -9928,15 +9982,88 @@ class UserFiles(Resource):
         ret = {
             "index": 0,
             "filepath": filepath,
+            "relative_path": os.path.relpath(filepath, user_files_path),
+            "name": os.path.basename(filepath),
+            "type": "file",
             "updated_at": time.ctime(os.path.getmtime(filepath))
         }
         api_response.set_data(ret)
         return api_response.return_created()
 
     @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        move or rename a user file or directory
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["source", "destination"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user_id = get_user_id_from_request(request_data, dbi.session)
+        if user_id == 0:
+            return api_response.return_unauthorized()
+
+        dbi.close()
+
+        user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
+        if not os.path.exists(user_files_path):
+            os.makedirs(user_files_path, exist_ok=True)
+
+        source = request_data["source"]
+        destination = request_data["destination"]
+
+        if source == "" or destination == "":
+            api_response.set_message("Source and destination must not be empty")
+            return api_response.return_bad_request()
+
+        src_path = os.path.join(user_files_path, source)
+        dst_path = os.path.join(user_files_path, destination)
+
+        if not is_safe_user_path(user_files_path, src_path):
+            api_response.set_message("Invalid source path")
+            return api_response.return_bad_request()
+
+        if not is_safe_user_path(user_files_path, dst_path):
+            api_response.set_message("Invalid destination path")
+            return api_response.return_bad_request()
+
+        if not os.path.exists(src_path):
+            api_response.set_message("Source not found")
+            return api_response.return_not_found()
+
+        if os.path.exists(dst_path):
+            api_response.set_message("Destination already exists")
+            return api_response.return_conflict()
+
+        dst_parent = os.path.dirname(dst_path)
+        os.makedirs(dst_parent, exist_ok=True)
+
+        shutil.move(src_path, dst_path)
+
+        entry_type = "directory" if os.path.isdir(dst_path) else "file"
+        ret = {
+            "index": 0,
+            "filepath": dst_path,
+            "relative_path": os.path.relpath(dst_path, user_files_path),
+            "name": os.path.basename(dst_path),
+            "type": entry_type,
+            "updated_at": time.ctime(os.path.getmtime(dst_path)),
+        }
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+    @api_response_decorator
     def delete(self, api_response: ApiResponse = None):
         """
-        delete user file
+        delete user file or directory
         """
         request_data = request.get_json(force=True)
         api_response.set_logger(logger)
@@ -9960,6 +10087,7 @@ class UserFiles(Resource):
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
             os.makedirs(user_files_path, exist_ok=True)
+            api_response.set_message("File not found")
             return api_response.return_not_found()
 
         filename = request_data["filename"]
@@ -9969,20 +10097,95 @@ class UserFiles(Resource):
             api_response.set_message("Missing filename value")
             return api_response.return_bad_request()
 
+        if not is_safe_user_path(user_files_path, filepath):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
+
         if not os.path.exists(filepath):
             api_response.set_message("File not found")
             return api_response.return_not_found()
 
-        os.remove(filepath)
+        if os.path.isdir(filepath):
+            shutil.rmtree(filepath)
+        else:
+            os.remove(filepath)
 
         if os.path.exists(filepath):
-            api_response.set_message("File not found")
+            api_response.set_message("Failed to delete")
             return api_response.return_not_found()
 
-        ret = {"index": 0,
-               "filepath": filepath,
-               "updated_at": ""}
-        return ret
+        ret = {
+            "index": 0,
+            "filepath": filepath,
+            "relative_path": os.path.relpath(filepath, user_files_path),
+            "name": os.path.basename(filepath),
+            "updated_at": "",
+        }
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+
+class UserFileFolder(Resource):
+    route = "/user/files/folder"
+
+    @api_response_decorator
+    def post(self, api_response: ApiResponse = None):
+        """
+        create a user folder
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["foldername"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user_id = get_user_id_from_request(request_data, dbi.session)
+        if user_id == 0:
+            return api_response.return_unauthorized()
+
+        dbi.close()
+
+        user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
+        if not os.path.exists(user_files_path):
+            os.makedirs(user_files_path, exist_ok=True)
+
+        foldername = request_data["foldername"]
+        if foldername == "":
+            api_response.set_message("Missing foldername value")
+            return api_response.return_bad_request()
+
+        if os.path.basename(foldername).startswith("."):
+            api_response.set_message("Folder name cannot start with a dot")
+            return api_response.return_bad_request()
+
+        folderpath = os.path.join(user_files_path, foldername)
+
+        if not is_safe_user_path(user_files_path, folderpath):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
+
+        if os.path.exists(folderpath):
+            api_response.set_message("Folder already exists")
+            return api_response.return_conflict()
+
+        os.makedirs(folderpath, exist_ok=True)
+
+        ret = {
+            "index": 0,
+            "filepath": folderpath,
+            "relative_path": os.path.relpath(folderpath, user_files_path),
+            "name": os.path.basename(folderpath),
+            "type": "directory",
+            "updated_at": time.ctime(os.path.getmtime(folderpath)),
+        }
+        api_response.set_data(ret)
+        return api_response.return_created()
 
 
 class UserFileContent(Resource):
@@ -10020,6 +10223,11 @@ class UserFileContent(Resource):
             return api_response.return_not_found()
 
         filepath = os.path.join(user_files_path, request_data["filename"])
+
+        if not is_safe_user_path(user_files_path, filepath):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
+
         if not os.path.exists(filepath):
             return api_response.return_not_found()
 
@@ -10068,6 +10276,10 @@ class UserFileContent(Resource):
         filename = request_data["filename"]
         filecontent = request_data["filecontent"]
         filepath = os.path.join(user_files_path, filename)
+
+        if not is_safe_user_path(user_files_path, filepath):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
 
         if filename == "" or filecontent == "":
             return api_response.return_bad_request()
@@ -11850,6 +12062,7 @@ api.add_resource(UserRole, UserRole.route)
 api.add_resource(UserSignin, UserSignin.route)
 api.add_resource(UserSshKey, UserSshKey.route)
 api.add_resource(UserFiles, UserFiles.route)
+api.add_resource(UserFileFolder, UserFileFolder.route)
 api.add_resource(UserFileContent, UserFileContent.route)
 api.add_resource(Alert, Alert.route)
 api.add_resource(Testing, Testing.route)

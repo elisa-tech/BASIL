@@ -11,6 +11,9 @@ export interface UserFilesAddFormProps {
   fileContent
   setFileName
   setFileContent
+  currentPath: string
+  loadFiles: () => void
+  closeModal: () => void
 }
 
 export const UserFilesAddForm: React.FunctionComponent<UserFilesAddFormProps> = ({
@@ -19,12 +22,13 @@ export const UserFilesAddForm: React.FunctionComponent<UserFilesAddFormProps> = 
   fileName,
   fileContent,
   setFileName,
-  setFileContent
+  setFileContent,
+  currentPath,
+  loadFiles,
+  closeModal
 }: UserFilesAddFormProps) => {
   const auth = useAuth()
   const [messageValue, setMessageValue] = React.useState('')
-
-  // File Upload
   const [isLoading, setIsLoading] = React.useState(false)
 
   /* eslint-disable  @typescript-eslint/no-explicit-any */
@@ -65,10 +69,12 @@ export const UserFilesAddForm: React.FunctionComponent<UserFilesAddFormProps> = 
     setModalSubmit('waiting')
     setMessageValue('')
 
+    const fullFilename = currentPath ? currentPath + '/' + fileName : fileName
+
     const data = {
       'user-id': auth.userId,
       token: auth.token,
-      filename: fileName,
+      filename: fullFilename,
       filecontent: fileContent
     }
 
@@ -81,7 +87,8 @@ export const UserFilesAddForm: React.FunctionComponent<UserFilesAddFormProps> = 
         if (!Constants.isHttpSuccessStatus(response.status)) {
           setMessageValue(response.statusText)
         } else {
-          window.location.reload()
+          loadFiles()
+          closeModal()
         }
       })
       .catch((err) => {
@@ -91,6 +98,11 @@ export const UserFilesAddForm: React.FunctionComponent<UserFilesAddFormProps> = 
 
   return (
     <Form>
+      {currentPath && (
+        <Hint>
+          <HintBody>Uploading to: {currentPath}/</HintBody>
+        </Hint>
+      )}
       <FileUpload
         id='user-file-upload'
         type='text'

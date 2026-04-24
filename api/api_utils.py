@@ -779,6 +779,13 @@ def get_custom_actions(user: UserModel) -> list:
     return actions
 
 
+def is_safe_user_path(user_root, requested_path):
+    """Return True only if *requested_path* resolves under *user_root*."""
+    abs_root = os.path.realpath(user_root)
+    abs_target = os.path.realpath(requested_path)
+    return abs_target == abs_root or abs_target.startswith(abs_root + os.sep)
+
+
 def is_safe_local_user_file_path(path: str) -> bool:
     from api import USER_FILES_BASE_DIR
     return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)

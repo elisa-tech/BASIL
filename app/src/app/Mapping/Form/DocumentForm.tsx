@@ -153,7 +153,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
   React.useEffect(() => {
     if (documentSource == 'user-files') {
       if (userFiles.length == 0) {
-        Constants.loadUserFiles(auth, setUserFiles)
+        Constants.loadUserFiles(auth, setUserFiles, '', '', true)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -515,7 +515,7 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
           >
             <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
             {userFiles.map((userFile, index) => (
-              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['filename']} />
+              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
             ))}
           </FormSelect>
         )}

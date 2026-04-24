@@ -5,7 +5,7 @@ import const_data from '../fixtures/consts.json'
 
 const UNIQUE = Date.now().toString()
 
-describe('User Files - Nested Folder Support', () => {
+describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
   before(() => {
     cy.login_admin()
   })

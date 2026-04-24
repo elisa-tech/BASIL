@@ -20,6 +20,7 @@ dependencies = [
     "graphviz==0.21",
     "gunicorn==21.2.0",
     "openai==1.90.0",
+    "pydantic>=2.0",
     "psycopg2-binary==2.9.10",
     "pyaml-env==1.2.1",
     "pytest==8.0.1",
@@ -28,6 +29,7 @@ dependencies = [
     "requests==2.28.2",
     "spdx3-validate==0.0.5",
     "tmt==1.67.0",
+    "weasyprint>=62.0",
     "tmt[provision-container]"
 ]
 requires-python = ">=3.9"

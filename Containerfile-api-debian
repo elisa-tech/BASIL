@@ -19,6 +19,9 @@ RUN apt install --assume-yes \
     wkhtmltopdf \
     fontconfig \
     fonts-roboto \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libharfbuzz-subset0 \
     libxrender1 \
     libxext6 \
     libx11-6 \

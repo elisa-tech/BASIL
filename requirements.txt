@@ -6,6 +6,7 @@ SQLAlchemy==2.0.19
 graphviz==0.21
 gunicorn==21.2.0
 openai==1.90.0
+pydantic>=2.0
 psycopg2-binary==2.9.10
 pyaml-env==1.2.1
 pytest==8.0.1
@@ -15,4 +16,5 @@ requests==2.28.2
 spdx3-validate==0.0.5
 tmt==1.67.0
 tmt[provision-container]
+weasyprint>=62.0
 Werkzeug==2.2.2

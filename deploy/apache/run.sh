@@ -26,7 +26,7 @@ sudo apt update
 packages="python3 python3-pip python3-venv"
 packages="$packages curl gnupg libapache2-mod-wsgi-py3 rsync git jq"
 packages="$packages postgresql postgresql-contrib"
-packages="$packages pandoc wkhtmltopdf fontconfig fonts-roboto libxrender1 libxext6 libx11-6 libstdc++6 ca-certificates"
+packages="$packages pandoc wkhtmltopdf fontconfig fonts-roboto libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 libxrender1 libxext6 libx11-6 libstdc++6 ca-certificates"
 for package in $packages; do
     install_package $package
 done

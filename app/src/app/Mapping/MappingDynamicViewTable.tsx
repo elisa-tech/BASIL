@@ -117,7 +117,10 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       return (
         <Flex>
           <FlexItem>
-            <Icon iconSize='sm'><MigrationIcon /></Icon> &nbsp;
+            <Icon iconSize='sm'>
+              <MigrationIcon />
+            </Icon>{' '}
+            &nbsp;
             <Icon iconSize='lg'>{icon}</Icon>
           </FlexItem>
         </Flex>
@@ -146,11 +149,7 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
   }
 
   const handleWorkItemClick = (_e: React.MouseEvent, workItemGroup, workItemType) => {
-    if (
-      selectedWorkItem &&
-      selectedWorkItemType === workItemType &&
-      selectedWorkItem === workItemGroup
-    ) {
+    if (selectedWorkItem && selectedWorkItemType === workItemType && selectedWorkItem === workItemGroup) {
       setSelectedWorkItem(null)
       setSelectedWorkItemType('')
     } else {
@@ -201,16 +200,18 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       const mergedSnippets = getAllMappedSnippets()
       if (mergedSnippets.length === 0) {
         return (
-          <pre style={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
-            fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
-            padding: '16px',
-            margin: 0,
-            backgroundColor: '#f6f8fa',
-            color: '#57606a'
-          }}>
+          <pre
+            style={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
+              fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+              padding: '16px',
+              margin: 0,
+              backgroundColor: '#f6f8fa',
+              color: '#57606a'
+            }}
+          >
             {specification}
           </pre>
         )
@@ -230,15 +231,17 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       }
 
       return (
-        <pre style={{
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
-          fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
-          padding: '16px',
-          margin: 0,
-          backgroundColor: '#f6f8fa'
-        }}>
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
+            fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+            padding: '16px',
+            margin: 0,
+            backgroundColor: '#f6f8fa'
+          }}
+        >
           {segments.map((seg, idx) => (
             <span
               key={idx}
@@ -285,16 +288,18 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
 
     if (selectedRanges.length === 0) {
       return (
-        <pre style={{
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
-          fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
-          padding: '16px',
-          margin: 0,
-          backgroundColor: '#f6f8fa',
-          color: '#57606a'
-        }}>
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
+            fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+            padding: '16px',
+            margin: 0,
+            backgroundColor: '#f6f8fa',
+            color: '#57606a'
+          }}
+        >
           {specification}
         </pre>
       )
@@ -322,15 +327,17 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
             </Button>
           </FlexItem>
         </Flex>
-        <pre style={{
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
-          fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
-          padding: '16px',
-          margin: 0,
-          backgroundColor: '#f6f8fa'
-        }}>
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'var(--pf-v5-global--FontFamily--monospace, monospace)',
+            fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+            padding: '16px',
+            margin: 0,
+            backgroundColor: '#f6f8fa'
+          }}
+        >
           {segments.map((seg, idx) => (
             <span
               key={idx}
@@ -425,11 +432,7 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       if (!tcData) return null
       return (
         <React.Fragment key={`nested-tc-${tcData.id}-${idx}`}>
-          <Card
-            isSelectable
-            onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)}
-            style={{ cursor: 'pointer' }}
-          >
+          <Card isSelectable onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)} style={{ cursor: 'pointer' }}>
             <CardBody>
               <div style={indentStyle}>
                 <Flex direction={{ default: 'column' }}>
@@ -502,11 +505,7 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       if (!tsData) return null
       return (
         <React.Fragment key={`nested-ts-${tsData.id}-${idx}`}>
-          <Card
-            isSelectable
-            onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)}
-            style={{ cursor: 'pointer' }}
-          >
+          <Card isSelectable onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)} style={{ cursor: 'pointer' }}>
             <CardBody>
               <div style={indentStyle}>
                 <Flex direction={{ default: 'column' }}>
@@ -574,7 +573,15 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
             {tsData[Constants._TCs_] && tsData[Constants._TCs_].length > 0 && (
               <CardBody>
                 <div style={indentStyle}>
-                  {renderNestedTestCases(tsData[Constants._TCs_], section, offset, 'test-specification', parentType, parentGroup, parentGroupType)}
+                  {renderNestedTestCases(
+                    tsData[Constants._TCs_],
+                    section,
+                    offset,
+                    'test-specification',
+                    parentType,
+                    parentGroup,
+                    parentGroupType
+                  )}
                 </div>
               </CardBody>
             )}
@@ -592,11 +599,7 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       if (!srData) return null
       return (
         <React.Fragment key={`nested-sr-${srData.id}-${idx}`}>
-          <Card
-            isSelectable
-            onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)}
-            style={{ cursor: 'pointer' }}
-          >
+          <Card isSelectable onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)} style={{ cursor: 'pointer' }}>
             <CardBody>
               <div style={indentStyle}>
                 <Flex direction={{ default: 'column' }}>
@@ -667,11 +670,7 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       if (!docData) return null
       return (
         <React.Fragment key={`nested-doc-${docData.id}-${idx}`}>
-          <Card
-            isSelectable
-            onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)}
-            style={{ cursor: 'pointer' }}
-          >
+          <Card isSelectable onClick={(e) => handleWorkItemClick(e, parentGroup, parentGroupType)} style={{ cursor: 'pointer' }}>
             <CardBody>
               <div style={indentStyle}>
                 <Flex direction={{ default: 'column' }}>
@@ -832,13 +831,40 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
               </Flex>
             </Flex>
           </CardBody>
-          {firstSnippet && (firstSnippet[Constants._SRs_]?.length > 0 || firstSnippet[Constants._TSs_]?.length > 0 || firstSnippet[Constants._TCs_]?.length > 0) && (
-            <CardBody>
-              {renderNestedSwRequirements(firstSnippet[Constants._SRs_], firstSnippet.section, firstSnippet.offset, Constants._SR, '', srGroup, Constants._SR)}
-              {renderNestedTestSpecifications(firstSnippet[Constants._TSs_], firstSnippet.section, firstSnippet.offset, Constants._SR, '', srGroup, Constants._SR)}
-              {renderNestedTestCases(firstSnippet[Constants._TCs_], firstSnippet.section, firstSnippet.offset, Constants._SR, '', srGroup, Constants._SR)}
-            </CardBody>
-          )}
+          {firstSnippet &&
+            (firstSnippet[Constants._SRs_]?.length > 0 ||
+              firstSnippet[Constants._TSs_]?.length > 0 ||
+              firstSnippet[Constants._TCs_]?.length > 0) && (
+              <CardBody>
+                {renderNestedSwRequirements(
+                  firstSnippet[Constants._SRs_],
+                  firstSnippet.section,
+                  firstSnippet.offset,
+                  Constants._SR,
+                  '',
+                  srGroup,
+                  Constants._SR
+                )}
+                {renderNestedTestSpecifications(
+                  firstSnippet[Constants._TSs_],
+                  firstSnippet.section,
+                  firstSnippet.offset,
+                  Constants._SR,
+                  '',
+                  srGroup,
+                  Constants._SR
+                )}
+                {renderNestedTestCases(
+                  firstSnippet[Constants._TCs_],
+                  firstSnippet.section,
+                  firstSnippet.offset,
+                  Constants._SR,
+                  '',
+                  srGroup,
+                  Constants._SR
+                )}
+              </CardBody>
+            )}
         </Card>
         <Divider />
       </React.Fragment>
@@ -1262,7 +1288,15 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
           </CardBody>
           {firstSnippet && firstSnippet[Constants._Ds]?.length > 0 && (
             <CardBody>
-              {renderNestedDocuments(firstSnippet[Constants._Ds], firstSnippet.section, firstSnippet.offset, Constants._D, '', docGroup, Constants._D)}
+              {renderNestedDocuments(
+                firstSnippet[Constants._Ds],
+                firstSnippet.section,
+                firstSnippet.offset,
+                Constants._D,
+                '',
+                docGroup,
+                Constants._D
+              )}
             </CardBody>
           )}
         </Card>
@@ -1271,8 +1305,7 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
     )
   }
 
-  const hasWorkItems =
-    srGroups.length > 0 || tsGroups.length > 0 || tcGroups.length > 0 || jGroups.length > 0 || docGroups.length > 0
+  const hasWorkItems = srGroups.length > 0 || tsGroups.length > 0 || tcGroups.length > 0 || jGroups.length > 0 || docGroups.length > 0
 
   const renderSelectedCard = () => {
     if (!selectedWorkItem) return null

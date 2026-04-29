@@ -232,10 +232,7 @@ export const MappingSnippetsModal: React.FunctionComponent<MappingSnippetsModalP
                   </FlexItem>
                   <FlexItem>
                     <CodeBlock>
-                      <CodeBlockCode
-                        className='pf-v5-u-text-wrap'
-                        style={{ maxHeight: '100px', overflow: 'auto', whiteSpace: 'pre-wrap' }}
-                      >
+                      <CodeBlockCode className='pf-v5-u-text-wrap' style={{ maxHeight: '100px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
                         {Constants.getLimitedText(snippet.section, 300)}
                       </CodeBlockCode>
                     </CodeBlock>
@@ -276,10 +273,7 @@ export const MappingSnippetsModal: React.FunctionComponent<MappingSnippetsModalP
             </Title>
             <FormGroup label='Selected Section'>
               <CodeBlock>
-                <CodeBlockCode
-                  className='pf-v5-u-text-wrap'
-                  style={{ maxHeight: '80px', overflow: 'auto', whiteSpace: 'pre-wrap' }}
-                >
+                <CodeBlockCode className='pf-v5-u-text-wrap' style={{ maxHeight: '80px', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
                   {newSection || '(highlight text in the document below to select)'}
                 </CodeBlockCode>
               </CodeBlock>
@@ -290,11 +284,7 @@ export const MappingSnippetsModal: React.FunctionComponent<MappingSnippetsModalP
             <FormGroup label='Reference Document'>
               <CodeBlock className='code-block-bg-green code-fixed-height'>
                 <CodeBlockCode>
-                  <div
-                    onMouseUp={handleSelectionFromSpec}
-                    id='snippets-modal-raw-specification'
-                    data-offset={newOffset}
-                  >
+                  <div onMouseUp={handleSelectionFromSpec} id='snippets-modal-raw-specification' data-offset={newOffset}>
                     {api?.raw_specification || ''}
                   </div>
                 </CodeBlockCode>

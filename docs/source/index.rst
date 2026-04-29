@@ -30,6 +30,7 @@ It comes also with a REST web api to simplify the integration in other toolchain
    user_management
    work_items
    work_items_import
+   mapping_views
    custom_actions
 
 

@@ -43,11 +43,13 @@ export const DocumentMenuKebab: React.FunctionComponent<DocumentMenuKebabProps> 
   const [isOpen, setIsOpen] = React.useState(false)
   const auth = useAuth()
 
-  const onToggleClick = () => {
+  const onToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setIsOpen(!isOpen)
   }
 
-  const onSelect = () => {
+  const onSelect = (_e?: React.MouseEvent) => {
+    _e?.stopPropagation()
     setIsOpen(false)
   }
 

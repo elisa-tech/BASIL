@@ -4656,6 +4656,136 @@ class ApiSpecificationsMapping(Resource):
         return api_response.return_ok()
 
 
+class ApiDynamicViewMapping(Resource):
+    route = "/mapping/api/dynamic-view"
+
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        """
+        Dynamic view: returns full specification + all direct work items
+        deduplicated by work item ID, each with a list of snippet mappings.
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        api_specification = get_api_specification(api.raw_specification_url)
+        if api_specification is None:
+            api_response.set_message("Unable to find the Api Specification")
+            return api_response.return_not_found()
+
+        def _group_mappings(mapping_rows, work_item_key, work_item_id_field):
+            """Group mapping rows by work item ID, collecting snippets."""
+            groups = {}
+            for row in mapping_rows:
+                row_dict = row.as_dict(db_session=dbi.session)
+                current_offset = row_dict["offset"]
+                current_section = row_dict["section"]
+                match = (
+                    api_specification[current_offset: current_offset + len(current_section)]
+                    == current_section
+                )
+                wi_id = row_dict[work_item_key]["id"]
+                snippet = {
+                    "section": row_dict["section"],
+                    "offset": row_dict["offset"],
+                    "relation_id": row_dict["relation_id"],
+                    "coverage": row_dict["coverage"],
+                    "covered": row_dict.get("covered", row_dict["coverage"]),
+                    "match": match,
+                    "__tablename__": row_dict["__tablename__"],
+                }
+                if wi_id not in groups:
+                    groups[wi_id] = {
+                        work_item_key: row_dict[work_item_key],
+                        "snippets": [],
+                        "created_by": row_dict.get("created_by", ""),
+                    }
+                    if "version" in row_dict:
+                        groups[wi_id]["version"] = row_dict["version"]
+                groups[wi_id]["snippets"].append(snippet)
+            return list(groups.values())
+
+        sr_rows = (
+            dbi.session.query(ApiSwRequirementModel)
+            .filter(ApiSwRequirementModel.api_id == api.id)
+            .order_by(ApiSwRequirementModel.offset.asc())
+            .all()
+        )
+        grouped_srs = _group_mappings(sr_rows, _SR, "sw_requirement_id")
+        for sr_group in grouped_srs:
+            for snippet in sr_group["snippets"]:
+                if snippet["match"]:
+                    dummy_srm = {
+                        "relation_id": snippet["relation_id"],
+                        "__tablename__": snippet["__tablename__"],
+                    }
+                    children = get_sw_requirement_children(dbi, dummy_srm)
+                    snippet[_SRs] = children.get(_SRs, [])
+                    snippet[_TSs] = children.get(_TSs, [])
+                    snippet[_TCs] = children.get(_TCs, [])
+
+        ts_rows = (
+            dbi.session.query(ApiTestSpecificationModel)
+            .filter(ApiTestSpecificationModel.api_id == api.id)
+            .order_by(ApiTestSpecificationModel.offset.asc())
+            .all()
+        )
+        grouped_tss = _group_mappings(ts_rows, _TS, "test_specification_id")
+
+        tc_rows = (
+            dbi.session.query(ApiTestCaseModel)
+            .filter(ApiTestCaseModel.api_id == api.id)
+            .order_by(ApiTestCaseModel.offset.asc())
+            .all()
+        )
+        grouped_tcs = _group_mappings(tc_rows, _TC, "test_case_id")
+
+        j_rows = (
+            dbi.session.query(ApiJustificationModel)
+            .filter(ApiJustificationModel.api_id == api.id)
+            .order_by(ApiJustificationModel.offset.asc())
+            .all()
+        )
+        grouped_js = _group_mappings(j_rows, _J, "justification_id")
+
+        doc_rows = (
+            dbi.session.query(ApiDocumentModel)
+            .filter(ApiDocumentModel.api_id == api.id)
+            .order_by(ApiDocumentModel.offset.asc())
+            .all()
+        )
+        grouped_docs = _group_mappings(doc_rows, _D, "document_id")
+        for doc_group in grouped_docs:
+            for snippet in doc_group["snippets"]:
+                if snippet["match"]:
+                    dummy_dm = {
+                        "relation_id": snippet["relation_id"],
+                        "__tablename__": snippet["__tablename__"],
+                    }
+                    children = get_document_children(dbi, dummy_dm)
+                    snippet[_Ds] = children.get(_Ds, [])
+
+        ret = {
+            "specification": api_specification,
+            _SRs: grouped_srs,
+            _TSs: grouped_tss,
+            _TCs: grouped_tcs,
+            _Js: grouped_js,
+            _Ds: grouped_docs,
+        }
+
+        api_response.set_data(ret)
+        return api_response.return_ok()
+
+
 class ApiJustificationsMapping(Resource):
     route = "/mapping/api/justifications"
     fields = ["api-id", "justification", "section", "offset", "coverage"]
@@ -11994,6 +12124,7 @@ api.add_resource(TestCaseLocalFileImplementation, TestCaseLocalFileImplementatio
 # Mapping
 # - Direct
 api.add_resource(ApiSpecificationsMapping, ApiSpecificationsMapping.route)
+api.add_resource(ApiDynamicViewMapping, ApiDynamicViewMapping.route)
 api.add_resource(ApiDocumentsMapping, ApiDocumentsMapping.route)
 api.add_resource(ApiJustificationsMapping, ApiJustificationsMapping.route)
 api.add_resource(ApiLastCoverage, ApiLastCoverage.route)

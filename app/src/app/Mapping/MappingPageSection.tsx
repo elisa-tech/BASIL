@@ -5,6 +5,8 @@ import { Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@pat
 import { APIExportSPDXModal } from './Modal/APIExportSPDXModal'
 import { APIExportHTMLModal } from './Modal/APIExportHTMLModal'
 import { MappingListingTable } from './MappingListingTable'
+import { MappingDynamicViewTable } from './MappingDynamicViewTable'
+import { MappingSnippetsModal } from './Modal/MappingSnippetsModal'
 import { MappingSwRequirementModal } from './Modal/MappingSwRequirementModal'
 import { MappingTestSpecificationModal } from './Modal/MappingTestSpecificationModal'
 import { MappingTestCaseModal } from './Modal/MappingTestCaseModal'
@@ -26,6 +28,7 @@ import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 export interface MappingPageSectionProps {
   mappingData
   unmappingData
+  dynamicViewData
   loadMappingData
   mappingViewSelectValue
   setMappingViewSelectValue
@@ -40,6 +43,7 @@ export interface MappingPageSectionProps {
 const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   mappingData = [],
   unmappingData = [],
+  dynamicViewData = null,
   loadMappingData,
   mappingViewSelectValue,
   setMappingViewSelectValue,
@@ -86,6 +90,10 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [testResultsModalShowState, setTestResultsModalShowState] = React.useState<boolean>(false)
   const [testResultDetailsModalShowState, setTestResultDetailsModalShowState] = React.useState<boolean>(false)
   const [testRunModalShowState, setTestRunModalShowState] = React.useState<boolean>(false)
+  const [snippetsModalShowState, setSnippetsModalShowState] = React.useState<boolean>(false)
+  const [snippetsModalWorkItem, setSnippetsModalWorkItem] = React.useState<any>(null)
+  const [snippetsModalWorkItemType, setSnippetsModalWorkItemType] = React.useState('')
+
   const [implementationModalShowState, setImplementationModalShowState] = React.useState<boolean>(false)
   const [implementationModalData, setImplementationModalData] = React.useState<{
     testCase: { id: number }
@@ -290,6 +298,12 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     setModalNotificationShowState(show)
     setModalNotificationTitle(title)
     setModalNotificationMessage(message)
+  }
+
+  const setSnippetsModalInfo = (show, workItemGroup, workItemType) => {
+    setSnippetsModalShowState(show)
+    setSnippetsModalWorkItem(workItemGroup)
+    setSnippetsModalWorkItemType(workItemType)
   }
 
   const setDocModalInfo = (
@@ -606,39 +620,55 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         </Card>
       </PageSection>
 
-      <MappingListingTable
-        mappingData={mappingData}
-        unmappingData={unmappingData}
-        api={api}
-        srModalShowState={srModalShowState}
-        //setSrModalShowState={setSrModalShowState}
-        //tsModalShowState={tsModalShowState}
-        //setTsModalShowState={setTsModalShowState}
-        //tcModalShowState={tcModalShowState}
-        //setTcModalShowState={setTcModalShowState}
-        //jModalShowState={jModalShowState}
-        //testRunModalShowState={testRunModalShowState}
-        //setTestRunModalShowState={setTestRunModalShowState}
-        //setJModalShowState={setJModalShowState}
-        setDocModalInfo={setDocModalInfo}
-        setTsModalInfo={setTsModalInfo}
-        setTcModalInfo={setTcModalInfo}
-        setSrModalInfo={setSrModalInfo}
-        setJModalInfo={setJModalInfo}
-        setCommentModalInfo={setCommentModalInfo}
-        setDeleteModalInfo={setDeleteModalInfo}
-        setTestRunModalInfo={setTestRunModalInfo}
-        setTestResultsModalInfo={setTestResultsModalInfo}
-        setDetailsModalInfo={setDetailsModalInfo}
-        setForkModalInfo={setForkModalInfo}
-        setHistoryModalInfo={setHistoryModalInfo}
-        setImplementationModalInfo={setImplementationModalInfo}
-        setUsageModalInfo={setUsageModalInfo}
-        mappingViewSelectValue={mappingViewSelectValue}
-        showIndirectTestCases={showIndirectTestCases}
-        showIndirectTestSpecifications={showIndirectTestSpecifications}
-        setModalNotificationInfo={setModalNotificationInfo}
-      />
+      {mappingViewSelectValue === Constants._DV ? (
+        <MappingDynamicViewTable
+          api={api}
+          dynamicViewData={dynamicViewData}
+          setDocModalInfo={setDocModalInfo}
+          setTsModalInfo={setTsModalInfo}
+          setTcModalInfo={setTcModalInfo}
+          setSrModalInfo={setSrModalInfo}
+          setJModalInfo={setJModalInfo}
+          setCommentModalInfo={setCommentModalInfo}
+          setDeleteModalInfo={setDeleteModalInfo}
+          setDetailsModalInfo={setDetailsModalInfo}
+          setForkModalInfo={setForkModalInfo}
+          setHistoryModalInfo={setHistoryModalInfo}
+          setImplementationModalInfo={setImplementationModalInfo}
+          setTestResultsModalInfo={setTestResultsModalInfo}
+          setTestRunModalInfo={setTestRunModalInfo}
+          setUsageModalInfo={setUsageModalInfo}
+          setModalNotificationInfo={setModalNotificationInfo}
+          setSnippetsModalInfo={setSnippetsModalInfo}
+          showIndirectTestCases={showIndirectTestCases}
+          showIndirectTestSpecifications={showIndirectTestSpecifications}
+        />
+      ) : (
+        <MappingListingTable
+          mappingData={mappingData}
+          unmappingData={unmappingData}
+          api={api}
+          srModalShowState={srModalShowState}
+          setDocModalInfo={setDocModalInfo}
+          setTsModalInfo={setTsModalInfo}
+          setTcModalInfo={setTcModalInfo}
+          setSrModalInfo={setSrModalInfo}
+          setJModalInfo={setJModalInfo}
+          setCommentModalInfo={setCommentModalInfo}
+          setDeleteModalInfo={setDeleteModalInfo}
+          setTestRunModalInfo={setTestRunModalInfo}
+          setTestResultsModalInfo={setTestResultsModalInfo}
+          setDetailsModalInfo={setDetailsModalInfo}
+          setForkModalInfo={setForkModalInfo}
+          setHistoryModalInfo={setHistoryModalInfo}
+          setImplementationModalInfo={setImplementationModalInfo}
+          setUsageModalInfo={setUsageModalInfo}
+          mappingViewSelectValue={mappingViewSelectValue}
+          showIndirectTestCases={showIndirectTestCases}
+          showIndirectTestSpecifications={showIndirectTestSpecifications}
+          setModalNotificationInfo={setModalNotificationInfo}
+        />
+      )}
       <MappingSwRequirementModal
         api={api}
         modalAction={modalAction}
@@ -825,6 +855,14 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
           relationId={implementationModalData.relationId}
         />
       )}
+      <MappingSnippetsModal
+        api={api}
+        modalShowState={snippetsModalShowState}
+        setModalShowState={setSnippetsModalShowState}
+        workItemGroup={snippetsModalWorkItem}
+        workItemType={snippetsModalWorkItemType}
+        loadMappingData={loadMappingData}
+      />
       <APIExportSPDXModal
         api={api}
         SPDXContent={SPDXContent}

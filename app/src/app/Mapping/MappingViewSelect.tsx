@@ -23,6 +23,7 @@ export const MappingViewSelect: React.FunctionComponent<MappingViewSelectProps> 
     { value: Constants._TSs, label: 'Test Specifications', disabled: false },
     { value: Constants._TCs, label: 'Test Cases', disabled: false },
     { value: Constants._Js, label: 'Justifications Only', disabled: false },
+    { value: Constants._DV, label: 'Dynamic View', disabled: false },
     { value: Constants._RS, label: 'Raw Specification', disabled: false }
   ]
 

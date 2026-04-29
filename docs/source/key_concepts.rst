@@ -65,13 +65,15 @@ Mapping Views
 -------------
 
 BASIL provides different mapping views. A user can select the desired view from the Mapping page using the combo box in the top section of the page.
-You will see a value for each work item types and an additional view named Raw Specification.
+You will see a value for each work item types, a Dynamic View and an additional view named Raw Specification.
 The key concept is that selecting a particular view from that combo box you will focus on Work items with direct mapping to the Software Specification Document (or Source Code).
 A user can create a direct mapping of a Test Case against a section of the Specification and to be able to see it a user have to select the **Test Cases** view.
 A user can have the same Test Case in the Software Requirements view if the Test Case is nested under a Software Requirement.
 Why that is possible?
 Because not all the companies/users want to create all those work items.
 So if a user just want to create Test Cases and map them to sections of the specification document that will be possible.
+
+See :doc:`mapping_views` for a detailed description of each view.
 
 
 

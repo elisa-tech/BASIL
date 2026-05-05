@@ -1,6 +1,5 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import {
   Badge,
   Button,
@@ -11,7 +10,6 @@ import {
   FlexItem,
   Icon,
   Label,
-  PageSection,
   Text,
   TextContent,
   TextVariants,
@@ -85,7 +83,51 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
   const auth = useAuth()
   const [selectedWorkItem, setSelectedWorkItem] = React.useState<any>(null)
   const [selectedWorkItemType, setSelectedWorkItemType] = React.useState('')
-  const tableRef = React.useRef<HTMLDivElement>(null)
+  const workItemsPanelRef = React.useRef<HTMLDivElement>(null)
+  const specPanelRef = React.useRef<HTMLDivElement>(null)
+  const panelsRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    const panels = panelsRef.current
+    if (!panels) return
+
+    const scrollParent = document.getElementById('primary-app-container') as HTMLElement
+    if (!scrollParent) return
+
+    let maxScroll = 0
+
+    const computeMax = () => {
+      const panelsRect = panels.getBoundingClientRect()
+      const scrollParentRect = scrollParent.getBoundingClientRect()
+      maxScroll = panelsRect.top - scrollParentRect.top + scrollParent.scrollTop
+    }
+
+    const rafId = requestAnimationFrame(() => {
+      computeMax()
+    })
+
+    const handleScroll = () => {
+      if (maxScroll <= 0) computeMax()
+      if (maxScroll > 0 && scrollParent.scrollTop > maxScroll) {
+        scrollParent.scrollTop = maxScroll
+      }
+    }
+
+    const handleWheel = (e: WheelEvent) => {
+      if (maxScroll <= 0) computeMax()
+      if (maxScroll > 0 && e.deltaY > 0 && scrollParent.scrollTop >= maxScroll) {
+        e.preventDefault()
+      }
+    }
+
+    scrollParent.addEventListener('scroll', handleScroll)
+    scrollParent.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      cancelAnimationFrame(rafId)
+      scrollParent.removeEventListener('scroll', handleScroll)
+      scrollParent.removeEventListener('wheel', handleWheel)
+    }
+  }, [dynamicViewData])
 
   if (!dynamicViewData) {
     return null
@@ -156,10 +198,15 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       setSelectedWorkItem(workItemGroup)
       setSelectedWorkItemType(workItemType)
       requestAnimationFrame(() => {
-        if (tableRef.current) {
-          tableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        } else {
-          window.scrollTo({ top: 0, behavior: 'smooth' })
+        if (workItemsPanelRef.current) {
+          workItemsPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+        if (specPanelRef.current) {
+          specPanelRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+        const scrollParent = document.getElementById('primary-app-container')
+        if (scrollParent) {
+          scrollParent.scrollTo({ top: 0, behavior: 'smooth' })
         }
       })
     }
@@ -1379,41 +1426,78 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
   }
 
   return (
-    <PageSection isFilled>
-      <div ref={tableRef}>
-        <Table id='table-dynamic-view' aria-label='Dynamic View Table'>
-          <Thead>
-            <Tr>
-              <Th width={50}>{columnNames.specification}</Th>
-              <Th width={50}>{columnNames.work_items}</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            <Tr>
-              <Td width={50} dataLabel={columnNames.specification} style={{ verticalAlign: 'top' }}>
-                {renderSpecificationContent()}
-              </Td>
-              <Td width={50} dataLabel={columnNames.work_items} style={{ verticalAlign: 'top' }}>
-                {!hasWorkItems && (
-                  <TextContent>
-                    <Text component={TextVariants.p}>No work items mapped to this specification.</Text>
-                  </TextContent>
-                )}
-
-                {selectedWorkItem && (
-                  <React.Fragment>
-                    {renderSelectedCard()}
-                    <Divider style={{ borderBottomWidth: '3px', margin: '16px 0' }} />
-                  </React.Fragment>
-                )}
-
-                {renderWorkItemsGrouped(!!selectedWorkItem)}
-              </Td>
-            </Tr>
-          </Tbody>
-        </Table>
+    <div
+      ref={panelsRef}
+      id='table-dynamic-view'
+      style={{
+        display: 'flex',
+        height: '100vh',
+        borderTop: '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)'
+      }}
+    >
+      <div
+        ref={specPanelRef}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          borderRight: '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)'
+        }}
+      >
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            backgroundColor: 'var(--pf-v5-global--BackgroundColor--100, #fff)',
+            padding: '8px 16px',
+            fontWeight: 700,
+            fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+            borderBottom: '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)'
+          }}
+        >
+          {columnNames.specification}
+        </div>
+        <div style={{ padding: '16px' }}>{renderSpecificationContent()}</div>
       </div>
-    </PageSection>
+      <div
+        ref={workItemsPanelRef}
+        style={{
+          flex: 1,
+          overflowY: 'auto'
+        }}
+      >
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 1,
+            backgroundColor: 'var(--pf-v5-global--BackgroundColor--100, #fff)',
+            padding: '8px 16px',
+            fontWeight: 700,
+            fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+            borderBottom: '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)'
+          }}
+        >
+          {columnNames.work_items}
+        </div>
+        <div style={{ padding: '16px' }}>
+          {!hasWorkItems && (
+            <TextContent>
+              <Text component={TextVariants.p}>No work items mapped to this specification.</Text>
+            </TextContent>
+          )}
+
+          {selectedWorkItem && (
+            <React.Fragment>
+              {renderSelectedCard()}
+              <Divider style={{ borderBottomWidth: '3px', margin: '16px 0' }} />
+            </React.Fragment>
+          )}
+
+          {renderWorkItemsGrouped(!!selectedWorkItem)}
+        </div>
+      </div>
+    </div>
   )
 }
 

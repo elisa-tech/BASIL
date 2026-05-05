@@ -158,7 +158,7 @@ const Mapping: React.FunctionComponent = () => {
 
   return (
     <React.Fragment>
-      <PageGroup stickyOnBreakpoint={{ default: 'top' }} hasShadowBottom>
+      <PageGroup stickyOnBreakpoint={mappingViewSelectValue === Constants._DV ? undefined : { default: 'top' }} hasShadowBottom>
         <AlertBanner />
         <PageSection variant={PageSectionVariants.light}>
           <Flex>

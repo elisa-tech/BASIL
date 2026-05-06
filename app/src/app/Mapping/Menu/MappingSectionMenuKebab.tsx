@@ -32,19 +32,16 @@ export const MappingSectionMenuKebab: React.FunctionComponent<MappingSectionMenu
   const [snippetSection, setSnippetSection] = React.useState('')
 
   React.useEffect(() => {
-    // on load calculate the offset and section based on user selection
-    // inside the current snippet
-    if (isOpen) {
-      if (snippetOffset == -1) {
-        setSnippetOffset(getOffset())
-        setSnippetSection(getSection())
-      }
-    } else {
+    if (!isOpen) {
       setSnippetOffset(-1)
     }
   }, [isOpen])
 
   const onToggleClick = () => {
+    if (!isOpen) {
+      setSnippetOffset(getOffset())
+      setSnippetSection(getSection())
+    }
     setIsOpen(!isOpen)
   }
 

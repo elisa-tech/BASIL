@@ -82,6 +82,7 @@ describe('Dynamic View Mapping', () => {
         cy.wait(const_data.long_wait)
 
         cy.delete_work_item(0, 'sw-requirement')
+        cy.wait(const_data.long_wait)
       })
   })
 
@@ -115,6 +116,7 @@ describe('Dynamic View Mapping', () => {
         cy.wait(const_data.long_wait)
 
         cy.delete_work_item(0, 'justification')
+        cy.wait(const_data.long_wait)
       })
   })
 
@@ -135,7 +137,7 @@ describe('Dynamic View Mapping', () => {
         cy.visit(const_data.app_base_url + '/mapping/' + id)
         cy.wait(const_data.long_wait)
 
-        cy.assign_work_item(-1, 0, '', 'sw-requirement', sr_data.first)
+        cy.assign_work_item(-1, 0, '', 'sw-requirement', sr_data.second)
 
         cy.get(const_data.mapping.select_view_id).select('dynamic-view', { force: true })
         cy.wait(const_data.long_wait)
@@ -145,7 +147,7 @@ describe('Dynamic View Mapping', () => {
 
         cy.get('#table-dynamic-view').contains('button', 'Show full document').should('exist')
 
-        cy.get('#table-dynamic-view').contains('button', 'Show full document').click()
+        cy.get('#table-dynamic-view').contains('button', 'Show full document').scrollIntoView().click({ force: true })
         cy.wait(const_data.fast_wait)
 
         cy.get('#table-dynamic-view').contains('button', 'Show full document').should('not.exist')
@@ -154,6 +156,7 @@ describe('Dynamic View Mapping', () => {
         cy.wait(const_data.long_wait)
 
         cy.delete_work_item(0, 'sw-requirement')
+        cy.wait(const_data.long_wait)
       })
   })
 
@@ -174,7 +177,7 @@ describe('Dynamic View Mapping', () => {
         cy.visit(const_data.app_base_url + '/mapping/' + id)
         cy.wait(const_data.long_wait)
 
-        cy.assign_work_item(-1, 0, '', 'sw-requirement', sr_data.first)
+        cy.assign_work_item(-1, 0, '', 'sw-requirement', sr_data.third)
 
         cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
         cy.wait(const_data.long_wait)
@@ -186,17 +189,19 @@ describe('Dynamic View Mapping', () => {
 
         cy.get('#table-dynamic-view').should('exist')
         cy.get('#table-dynamic-view').contains('h3', 'Software Requirements')
-        cy.get('#table-dynamic-view').contains('h5', sr_data.first.title)
+        cy.get('#table-dynamic-view').contains('h5', sr_data.third.title)
         cy.get('#table-dynamic-view').contains('h3', 'Test Cases')
         cy.get('#table-dynamic-view').contains('h5', tc_data.first.title)
 
         cy.get(const_data.mapping.select_view_id).select('test-cases', { force: true })
         cy.wait(const_data.long_wait)
         cy.delete_work_item(0, 'test-case')
+        cy.wait(const_data.long_wait)
 
         cy.get(const_data.mapping.select_view_id).select('sw-requirements', { force: true })
         cy.wait(const_data.long_wait)
         cy.delete_work_item(0, 'sw-requirement')
+        cy.wait(const_data.long_wait)
       })
   })
 

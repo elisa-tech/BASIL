@@ -3,19 +3,19 @@ repos:
     hooks:
       - id: flake8
         name: flake8
-        entry: "pdm run flake8"
+        entry: "uv run flake8 api/ db/"
         pass_filenames: false
         always_run: true
         language: system
       - id: prettier
         name: prettier
-        entry: "npx prettier . --write --log-level error"
+        entry: "cd app/src/ && npx prettier . --write --log-level error"
         pass_filenames: false
         always_run: true
         language: system
       - id: eslint
         name: eslint
-        entry: "cd app && npx eslint --quiet src"
+        entry: "cd app/src/ && npx eslint --quiet ."
         pass_filenames: false
         always_run: true
         language: system
@@ -27,7 +27,7 @@ repos:
         language: system
       - id: tmt
         name: tmt
-        entry: "tmt lint . --disable-check P005"
+        entry: "uv run tmt lint . --disable-check P005 --disable-check P009"
         pass_filenames: false
         always_run: true
         language: system

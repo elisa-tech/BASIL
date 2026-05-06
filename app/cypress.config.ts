@@ -6,6 +6,6 @@ export default defineConfig({
     setupNodeEvents(on, config) {
       failFastPlugin(on, config)
       return config
-    },
-  },
+    }
+  }
 })

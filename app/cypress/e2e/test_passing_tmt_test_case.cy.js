@@ -43,7 +43,7 @@ const test_case_data = {
   title: 'Passing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy passing TMT test',
   repository: 'https://github.com/elisa-tech/BASIL.git',
-  relative_path: 'examples/tmt/local/tmt-dummy-test.fmf',
+  relative_path: 'examples/tmt/local/tmt-dummy-test.fmf'
 }
 
 // Test run data

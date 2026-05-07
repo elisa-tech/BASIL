@@ -86,6 +86,12 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
   const workItemsPanelRef = React.useRef<HTMLDivElement>(null)
   const specPanelRef = React.useRef<HTMLDivElement>(null)
   const panelsRef = React.useRef<HTMLDivElement>(null)
+  const specContentPreRef = React.useRef<HTMLPreElement>(null)
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number
+    y: number
+    items: { group: any; type: string; label: string; icon: React.ReactNode }[]
+  } | null>(null)
 
   React.useEffect(() => {
     const panels = panelsRef.current
@@ -128,6 +134,26 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       scrollParent.removeEventListener('wheel', handleWheel)
     }
   }, [dynamicViewData])
+
+  React.useEffect(() => {
+    if (!contextMenu) return
+    const dismiss = () => setContextMenu(null)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismiss()
+    }
+    document.addEventListener('click', dismiss)
+    document.addEventListener('keydown', handleKeyDown)
+    const specPanel = specPanelRef.current
+    const workPanel = workItemsPanelRef.current
+    if (specPanel) specPanel.addEventListener('scroll', dismiss)
+    if (workPanel) workPanel.addEventListener('scroll', dismiss)
+    return () => {
+      document.removeEventListener('click', dismiss)
+      document.removeEventListener('keydown', handleKeyDown)
+      if (specPanel) specPanel.removeEventListener('scroll', dismiss)
+      if (workPanel) workPanel.removeEventListener('scroll', dismiss)
+    }
+  }, [contextMenu])
 
   if (!dynamicViewData) {
     return null
@@ -217,6 +243,115 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
     setSelectedWorkItemType('')
   }
 
+  const getContextMenuWorkItemLabel = (group, type) => {
+    const keyMap = {
+      [Constants._SR]: Constants._SR_,
+      [Constants._TS]: Constants._TS_,
+      [Constants._TC]: Constants._TC_,
+      [Constants._J]: Constants._J,
+      [Constants._D]: Constants._D
+    }
+    const typeLabels = {
+      [Constants._SR]: 'SW Requirement',
+      [Constants._TS]: 'Test Specification',
+      [Constants._TC]: 'Test Case',
+      [Constants._J]: 'Justification',
+      [Constants._D]: 'Document'
+    }
+    const wi = group[keyMap[type]]
+    const typeLabel = typeLabels[type] || type
+    if (!wi) return typeLabel
+    const title = wi.title || wi.description || ''
+    const titleStr = title ? ` - ${Constants.getLimitedText(title, 40)}` : ''
+    return `${typeLabel} ${wi.id}${titleStr}`
+  }
+
+  const getContextMenuWorkItemIcon = (work_item_type) => {
+    const iconMap = {
+      [Constants._D]: <FileIcon />,
+      [Constants._J]: <BalanceScaleIcon />,
+      [Constants._SR]: <CatalogIcon />,
+      [Constants._TS]: <TaskIcon />,
+      [Constants._TC]: <CodeIcon />
+    }
+    return iconMap[work_item_type] || null
+  }
+
+  const handleSpecContextMenu = (e: React.MouseEvent<HTMLPreElement>) => {
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed) return
+
+    const preEl = specContentPreRef.current
+    if (!preEl) return
+    if (!preEl.contains(selection.anchorNode) || !preEl.contains(selection.focusNode)) return
+
+    const selRange = selection.getRangeAt(0)
+
+    const startRange = document.createRange()
+    startRange.selectNodeContents(preEl)
+    startRange.setEnd(selRange.startContainer, selRange.startOffset)
+    const selStartInPre = startRange.toString().length
+
+    const endRange = document.createRange()
+    endRange.selectNodeContents(preEl)
+    endRange.setEnd(selRange.endContainer, selRange.endOffset)
+    const selEndInPre = endRange.toString().length
+
+    const baseOffset = parseInt(preEl.getAttribute('data-spec-base-offset') || '0', 10)
+    const specSelStart = baseOffset + selStartInPre
+    const specSelEnd = baseOffset + selEndInPre
+
+    if (specSelStart >= specSelEnd) return
+
+    const allGroupsByType: { groups: any[]; type: string }[] = [
+      { groups: srGroups, type: Constants._SR },
+      { groups: tsGroups, type: Constants._TS },
+      { groups: tcGroups, type: Constants._TC },
+      { groups: jGroups, type: Constants._J },
+      { groups: docGroups, type: Constants._D }
+    ]
+
+    const matchingItems: { group: any; type: string; label: string; icon: React.ReactNode }[] = []
+    const seen = new Set<string>()
+
+    for (const { groups, type } of allGroupsByType) {
+      for (const group of groups) {
+        if (!group.snippets) continue
+        for (const s of group.snippets) {
+          if (!s.match || s.offset == null || !s.section) continue
+          const snippetStart = s.offset
+          const snippetEnd = s.offset + s.section.length
+          if (snippetStart < specSelEnd && specSelStart < snippetEnd) {
+            const wiKey = {
+              [Constants._SR]: Constants._SR_,
+              [Constants._TS]: Constants._TS_,
+              [Constants._TC]: Constants._TC_,
+              [Constants._J]: Constants._J,
+              [Constants._D]: Constants._D
+            }[type]
+            const wi = wiKey ? group[wiKey] : null
+            const key = `${type}-${wi?.id}`
+            if (!seen.has(key)) {
+              seen.add(key)
+              matchingItems.push({
+                group,
+                type,
+                label: getContextMenuWorkItemLabel(group, type),
+                icon: getContextMenuWorkItemIcon(type)
+              })
+            }
+            break
+          }
+        }
+      }
+    }
+
+    if (matchingItems.length === 0) return
+
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, items: matchingItems })
+  }
+
   const getAllMappedSnippets = () => {
     const allGroups = [...srGroups, ...tsGroups, ...tcGroups, ...jGroups, ...docGroups]
     const rawSnippets: { offset: number; end: number }[] = []
@@ -248,6 +383,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
       if (mergedSnippets.length === 0) {
         return (
           <pre
+            ref={specContentPreRef}
+            data-spec-base-offset='0'
+            onContextMenu={handleSpecContextMenu}
             style={{
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
@@ -279,6 +417,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
 
       return (
         <pre
+          ref={specContentPreRef}
+          data-spec-base-offset='0'
+          onContextMenu={handleSpecContextMenu}
           style={{
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
@@ -336,6 +477,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
     if (selectedRanges.length === 0) {
       return (
         <pre
+          ref={specContentPreRef}
+          data-spec-base-offset='0'
+          onContextMenu={handleSpecContextMenu}
           style={{
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
@@ -375,6 +519,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
           </FlexItem>
         </Flex>
         <pre
+          ref={specContentPreRef}
+          data-spec-base-offset={String(firstStart)}
+          onContextMenu={handleSpecContextMenu}
           style={{
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
@@ -1497,6 +1644,69 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
           {renderWorkItemsGrouped(!!selectedWorkItem)}
         </div>
       </div>
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 9999,
+            backgroundColor: '#fff',
+            border: '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            maxHeight: '320px',
+            overflowY: 'auto',
+            minWidth: '240px',
+            maxWidth: '400px'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div
+            style={{
+              padding: '6px 12px',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: 'var(--pf-v5-global--Color--200, #6a6e73)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              borderBottom: '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)'
+            }}
+          >
+            Mapped Work Items
+          </div>
+          {contextMenu.items.map((item, idx) => (
+            <div
+              key={idx}
+              role='menuitem'
+              tabIndex={0}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: 'var(--pf-v5-global--FontSize--sm, 0.875rem)',
+                borderBottom: idx < contextMenu.items.length - 1 ? '1px solid var(--pf-v5-global--BorderColor--100, #d2d2d2)' : 'none'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--pf-v5-global--BackgroundColor--200, #f0f0f0)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#fff'
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleWorkItemClick(e as any, item.group, item.type)
+                setContextMenu(null)
+              }}
+            >
+              <Icon iconSize='sm'>{item.icon}</Icon>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

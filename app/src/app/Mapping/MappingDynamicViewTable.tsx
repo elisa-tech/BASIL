@@ -348,6 +348,11 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
 
     if (matchingItems.length === 0) return
 
+    matchingItems.sort((a, b) => {
+      if (a.type !== b.type) return a.type.localeCompare(b.type)
+      return a.label.localeCompare(b.label)
+    })
+
     e.preventDefault()
     setContextMenu({ x: e.clientX, y: e.clientY, items: matchingItems })
   }

@@ -51,7 +51,7 @@ const test_case_data = {
   title: 'Failing TMT Test ' + new Date().getTime(),
   description: 'Test case for dummy failing TMT test',
   repository: deployment_base_path,
-  relative_path: '/api/user-files/1/tmt-dummy-failing-test.fmf',
+  relative_path: '/api/user-files/1/tmt-dummy-failing-test.fmf'
 }
 
 // Test run data

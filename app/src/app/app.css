@@ -15,7 +15,7 @@ body,
 }
 
 .code-block-bg-green {
-  background-color: var(--pf-v5-global--palette--green-50);
+  background-color: #dbeafe;
 }
 
 .code-block-bg-red {
@@ -28,11 +28,11 @@ body,
 }
 
 .code-block-bg-gold {
-  background-color: var(--pf-v5-global--palette--gold-50);
+  background-color: #fef3c7;
 }
 
 .code-block-bg-gray {
-  background-color: var(--pf-v5-global--palette--black-200);
+  background-color: #e5e7eb;
 }
 
 .leaf-padding {

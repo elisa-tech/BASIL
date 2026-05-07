@@ -94,17 +94,21 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
     const radio_dv_sr = document.getElementById('radio-default-view-sw-requirements') as HTMLInputElement
     const radio_dv_tc = document.getElementById('radio-default-view-test-cases') as HTMLInputElement
     const radio_dv_ts = document.getElementById('radio-default-view-test-specifications') as HTMLInputElement
+    const radio_dv_j = document.getElementById('radio-default-view-justifications') as HTMLInputElement
+    const radio_dv_dv = document.getElementById('radio-default-view-dynamic-view') as HTMLInputElement
 
-    if (radio_dv_rs != null && radio_dv_sr != null && radio_dv_tc != null && radio_dv_ts != null) {
-      if (radio_dv_rs.checked) {
-        setDefaultViewValue(Constants._RS)
-      } else if (radio_dv_sr.checked) {
-        setDefaultViewValue(Constants._SRs)
-      } else if (radio_dv_tc.checked) {
-        setDefaultViewValue(Constants._TCs)
-      } else if (radio_dv_ts.checked) {
-        setDefaultViewValue(Constants._TSs)
-      }
+    if (radio_dv_rs?.checked) {
+      setDefaultViewValue(Constants._RS)
+    } else if (radio_dv_sr?.checked) {
+      setDefaultViewValue(Constants._SRs)
+    } else if (radio_dv_tc?.checked) {
+      setDefaultViewValue(Constants._TCs)
+    } else if (radio_dv_ts?.checked) {
+      setDefaultViewValue(Constants._TSs)
+    } else if (radio_dv_j?.checked) {
+      setDefaultViewValue(Constants._Js)
+    } else if (radio_dv_dv?.checked) {
+      setDefaultViewValue(Constants._DV)
     }
   }
 
@@ -622,6 +626,20 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
                 onChange={handleDefaultViewChange}
                 label='Test Specifications'
                 id='radio-default-view-test-specifications'
+              ></Radio>
+              <Radio
+                isChecked={defaultViewValue == Constants._Js}
+                name='radio-default-view'
+                onChange={handleDefaultViewChange}
+                label='Justifications Only'
+                id='radio-default-view-justifications'
+              ></Radio>
+              <Radio
+                isChecked={defaultViewValue == Constants._DV}
+                name='radio-default-view'
+                onChange={handleDefaultViewChange}
+                label='Dynamic View'
+                id='radio-default-view-dynamic-view'
               ></Radio>
             </FlexItem>
           </Flex>

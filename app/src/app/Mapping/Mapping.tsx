@@ -16,6 +16,7 @@ const Mapping: React.FunctionComponent = () => {
   const [apiData, setApiData] = React.useState(null)
   const [mappingData, setMappingData] = React.useState([])
   const [unmappingData, setUnmappingData] = React.useState([])
+  const [dynamicViewData, setDynamicViewData] = React.useState(null)
   const [totalCoverage, setTotalCoverage] = React.useState(-1)
   const { api_id } = useParams<{ api_id: string }>()
 
@@ -51,8 +52,15 @@ const Mapping: React.FunctionComponent = () => {
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        setMappingData(data['mapped'])
-        setUnmappingData(data['unmapped'])
+        if (mappingViewSelectValue === Constants._DV) {
+          setDynamicViewData(data)
+          setMappingData([])
+          setUnmappingData([])
+        } else {
+          setDynamicViewData(null)
+          setMappingData(data['mapped'])
+          setUnmappingData(data['unmapped'])
+        }
       })
       .catch((err) => {
         console.log(err.message)
@@ -150,7 +158,7 @@ const Mapping: React.FunctionComponent = () => {
 
   return (
     <React.Fragment>
-      <PageGroup stickyOnBreakpoint={{ default: 'top' }} hasShadowBottom>
+      <PageGroup stickyOnBreakpoint={mappingViewSelectValue === Constants._DV ? undefined : { default: 'top' }} hasShadowBottom>
         <AlertBanner />
         <PageSection variant={PageSectionVariants.light}>
           <Flex>
@@ -169,6 +177,7 @@ const Mapping: React.FunctionComponent = () => {
         <MappingPageSection
           mappingData={mappingData}
           unmappingData={unmappingData}
+          dynamicViewData={dynamicViewData}
           loadMappingData={loadMappingData}
           mappingViewSelectValue={mappingViewSelectValue}
           setMappingViewSelectValue={setMappingViewSelectValue}

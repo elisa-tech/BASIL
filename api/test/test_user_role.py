@@ -184,7 +184,7 @@ def test_put_rotates_target_user_token(
     response = _put_user_role(client, uid, token, ut_reader_user_db.id, "GUEST")
     assert response.status_code == HTTPStatus.OK
 
-    client_db.session.expire(ut_reader_user_db)
+    client_db.session.expire_all()
     token_after = _get_user_token(client_db, ut_reader_user_db.id)
     assert token_after != token_before
 

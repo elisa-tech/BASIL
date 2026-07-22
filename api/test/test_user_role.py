@@ -56,6 +56,11 @@ def _get_user_role(client_db, user_id):
     return user.role
 
 
+def _get_user_token(client_db, user_id):
+    user = client_db.session.query(UserModel).filter(UserModel.id == user_id).one()
+    return user.token
+
+
 def test_put_ok_change_role_to_admin(
     client, admin_authentication, ut_reader_user_db, client_db
 ):
@@ -167,3 +172,20 @@ def test_put_not_found_target_user(client, admin_authentication):
     uid, token = _auth_fields(admin_authentication)
     response = _put_user_role(client, uid, token, 999_999, "USER")
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_put_rotates_target_user_token(
+    client, admin_authentication, ut_reader_user_db, client_db
+):
+    """Role change rotates the target user's session token to force re-login."""
+    uid, token = _auth_fields(admin_authentication)
+    token_before = _get_user_token(client_db, ut_reader_user_db.id)
+
+    response = _put_user_role(client, uid, token, ut_reader_user_db.id, "GUEST")
+    assert response.status_code == HTTPStatus.OK
+
+    client_db.session.expire_all()
+    token_after = _get_user_token(client_db, ut_reader_user_db.id)
+    assert token_after != token_before
+
+    _put_user_role(client, uid, token, ut_reader_user_db.id, "USER")

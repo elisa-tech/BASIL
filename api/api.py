@@ -9593,6 +9593,7 @@ class UserRole(Resource):
             return api_response.return_not_found_user()
 
         target_user.role = target_user_role
+        target_user.token = str(uuid4())
         dbi.session.commit()
 
         # Notification

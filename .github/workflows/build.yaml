@@ -37,7 +37,8 @@ jobs:
           node-version: '20'
 
       - name: Install Prettier
-        run: npm install --no-save prettier
+        run: npm install --no-save prettier@$(node -p "require('./app/package-lock.json').packages['node_modules/prettier'].version")
+
 
       - name: Run Prettier
         run: |

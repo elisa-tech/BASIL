@@ -310,6 +310,7 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
     )
 
     # Create SW Requirement-Test Specification mappings
+    # sr_ts_mapping: sw_req_2 -> test_spec_1 (via api_sw_requirement mapping)
     sr_ts_mapping = SwRequirementTestSpecificationModel(api_sr_mapping_2, None, test_spec_1, 87, user)
 
     # Create Test Specification-Test Case mappings
@@ -318,6 +319,27 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
 
     # Create SW Requirement-Test Case mappings
     sr_tc_mapping = SwRequirementTestCaseModel(api_sr_mapping_1, None, test_case_3, 89, user)
+
+    # Add all mappings to session first so sr_sr_mapping gets an id before being used below
+    pre_mappings = [
+        api_sr_mapping_1,
+        api_sr_mapping_auth_dup,
+        api_sr_mapping_2,
+        sr_sr_mapping,
+        api_ts_mapping_1,
+        api_ts_mapping_2,
+        sr_ts_mapping,
+        ts_tc_mapping_1,
+        ts_tc_mapping_2,
+        sr_tc_mapping,
+    ]
+    for mapping in pre_mappings:
+        client_db.session.add(mapping)
+    client_db.session.flush()
+
+    # Create sub-requirement -> test specification mapping (via sw_requirement_sw_requirement mapping)
+    # This tests that nested SW requirements also export their child test specifications
+    sr_sr_ts_mapping = SwRequirementTestSpecificationModel(None, sr_sr_mapping, test_spec_2, 75, user)
 
     # Create API-Test Case mappings
     api_tc_mapping = ApiTestCaseModel(
@@ -360,18 +382,9 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
         ut_api, document_2, "API Specification", _UT_API_SPEC_CONTENT.find("API Specification"), 98, user
     )
 
-    # Add all mappings to session
+    # Add remaining mappings and commit
     mappings = [
-        api_sr_mapping_1,
-        api_sr_mapping_auth_dup,
-        api_sr_mapping_2,
-        sr_sr_mapping,
-        api_ts_mapping_1,
-        api_ts_mapping_2,
-        sr_ts_mapping,
-        ts_tc_mapping_1,
-        ts_tc_mapping_2,
-        sr_tc_mapping,
+        sr_sr_ts_mapping,
         api_tc_mapping,
         api_j_mapping_1,
         api_j_mapping_2,
@@ -409,6 +422,7 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
             "sr_sr": [sr_sr_mapping],
             "api_ts": [api_ts_mapping_1, api_ts_mapping_2],
             "sr_ts": [sr_ts_mapping],
+            "sr_sr_ts": [sr_sr_ts_mapping],
             "ts_tc": [ts_tc_mapping_1, ts_tc_mapping_2],
             "sr_tc": [sr_tc_mapping],
             "api_tc": [api_tc_mapping],
@@ -582,6 +596,82 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     assert work_item_patterns["Snippet"] == 9, "Should have 3 Snippets in SPDX"
 
     print("✓ Work item coverage validation passed")
+
+
+def test_spdx_sw_requirement_children_exported(client, user_authentication, comprehensive_spdx_test_data):
+    """Verify that test specifications and test cases linked to SW requirements
+    are exported as SPDX relationships (regression test for bug where
+    requirement -> test specification children were missing from the SPDX output)."""
+
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    sw_req_2 = test_data["sw_requirements"][1]
+    sw_req_1 = test_data["sw_requirements"][0]
+    sw_req_3 = test_data["sw_requirements"][2]
+    test_spec_1 = test_data["test_specifications"][0]
+    test_spec_2 = test_data["test_specifications"][1]
+    test_case_3 = test_data["test_cases"][2]
+
+    response = client.get(
+        _SPDX_API_URL,
+        query_string={
+            "api-id": api.id,
+            "user-id": user_authentication.json["id"],
+            "token": user_authentication.json["token"],
+            "filename": "latest.jsonld",
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+
+    spdx_data = json.loads(response.data)
+    graph = spdx_data["@graph"]
+
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+
+    def spdx_id_for_sr(sr):
+        return f"spdx:file:basil:software-requirement:{sr.id}"
+
+    def spdx_id_for_ts(ts):
+        return f"spdx:file:basil:test-specification:{ts.id}"
+
+    def spdx_id_for_tc(tc):
+        return f"spdx:file:basil:test-case:{tc.id}"
+
+    def has_relationship(from_id, to_id, rel_type):
+        for rel in relationships:
+            if rel.get("from") == from_id and rel.get("relationshipType") == rel_type:
+                if to_id in rel.get("to", []):
+                    return True
+        return False
+
+    # Bug 2 regression: sw_req_2 -> test_spec_1 (via api_sw_requirement mapping sr_ts_mapping)
+    assert has_relationship(
+        spdx_id_for_sr(sw_req_2), spdx_id_for_ts(test_spec_1), "hasSpecification"
+    ), (
+        f"Missing hasSpecification relationship: SW Requirement {sw_req_2.id} -> "
+        f"Test Specification {test_spec_1.id}. "
+        "SW requirements directly mapped to the API must export their child test specifications."
+    )
+
+    # Bug 2 regression: sw_req_1 -> test_case_3 (via api_sw_requirement mapping sr_tc_mapping)
+    assert has_relationship(
+        spdx_id_for_sr(sw_req_1), spdx_id_for_tc(test_case_3), "hasTest"
+    ), (
+        f"Missing hasTest relationship: SW Requirement {sw_req_1.id} -> "
+        f"Test Case {test_case_3.id}. "
+        "SW requirements directly mapped to the API must export their child test cases."
+    )
+
+    # Bug 1 regression: sw_req_3 (sub-requirement) -> test_spec_2 (via sw_requirement_sw_requirement mapping)
+    assert has_relationship(
+        spdx_id_for_sr(sw_req_3), spdx_id_for_ts(test_spec_2), "hasSpecification"
+    ), (
+        f"Missing hasSpecification relationship: sub-SW Requirement {sw_req_3.id} -> "
+        f"Test Specification {test_spec_2.id}. "
+        "Nested (sub) SW requirements must export their child test specifications."
+    )
+
+    print("✓ SW Requirement -> Test Specification/Case relationship export regression test passed")
 
 
 if __name__ == "__main__":

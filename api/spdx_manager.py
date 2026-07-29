@@ -1142,12 +1142,18 @@ class SPDXManager:
 
             # SwRequirementTestSpecification
             self.addSwRequirementTestSpecifications(
-                spdx_sr=spdx_sr_sr, mapping_to=mapping_field, mapping_id=xsr.id, dbsession=dbsession
+                spdx_sr=spdx_sr_sr,
+                mapping_to=SwRequirementSwRequirementModel.__tablename__,
+                mapping_id=sr_sr.id,
+                dbsession=dbsession,
             )
 
             # SwRequirementTestCases
             self.addSwRequirementTestCases(
-                spdx_sr=spdx_sr_sr, mapping_to=mapping_field, mapping_id=xsr.id, dbsession=dbsession
+                spdx_sr=spdx_sr_sr,
+                mapping_to=SwRequirementSwRequirementModel.__tablename__,
+                mapping_id=sr_sr.id,
+                dbsession=dbsession,
             )
 
             self.addSoftwareRequirementNestedElements(api=api, xsr=sr_sr, spdx_sr=spdx_sr_sr, dbsession=dbsession)
@@ -1171,6 +1177,22 @@ class SPDXManager:
                 to=[spdx_sr],
                 relationship_type="hasRequirement",
                 completeness_percentage=asr.coverage,
+            )
+
+            # SwRequirementTestSpecifications for this SW Requirement
+            self.addSwRequirementTestSpecifications(
+                spdx_sr=spdx_sr,
+                mapping_to=ApiSwRequirementModel.__tablename__,
+                mapping_id=asr.id,
+                dbsession=dbsession,
+            )
+
+            # SwRequirementTestCases for this SW Requirement
+            self.addSwRequirementTestCases(
+                spdx_sr=spdx_sr,
+                mapping_to=ApiSwRequirementModel.__tablename__,
+                mapping_id=asr.id,
+                dbsession=dbsession,
             )
 
             self.addSoftwareRequirementNestedElements(api=api, xsr=asr, spdx_sr=spdx_sr, dbsession=dbsession)

@@ -546,6 +546,32 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         f"{len(relationships)} relationships, {len(snippets)} snippets"
     )
 
+    # Verify beginIntegerRange correctness (regression for issue #290)
+    # Every snippet byte range must respect the SPDX PositiveIntegerRange minimum of 1
+    for snippet in snippets:
+        byte_range = snippet.get("software_byteRange", {})
+        begin = byte_range.get("beginIntegerRange")
+        end = byte_range.get("endIntegerRange")
+        assert begin is not None, f"Snippet {snippet.get('spdxId')} is missing beginIntegerRange"
+        assert end is not None, f"Snippet {snippet.get('spdxId')} is missing endIntegerRange"
+        assert begin >= 1, (
+            f"Snippet {snippet.get('spdxId')} has beginIntegerRange={begin}, "
+            "must be >= 1 per SPDX PositiveIntegerRange spec"
+        )
+        assert end >= begin, (
+            f"Snippet {snippet.get('spdxId')} has endIntegerRange={end} < beginIntegerRange={begin}"
+        )
+
+    # The test fixture maps sections at different offsets in the spec, so the
+    # resulting beginIntegerRange values must NOT all be identical (if they were
+    # all 1, the bug from issue #290 would be present again).
+    begin_values = {s["software_byteRange"]["beginIntegerRange"] for s in snippets}
+    assert len(begin_values) > 1, (
+        f"All snippets share the same beginIntegerRange={begin_values}; "
+        "expected distinct values for sections at different offsets (issue #290 regression)"
+    )
+    print(f"✓ Snippet byteRange validation passed: beginIntegerRange values = {sorted(begin_values)}")
+
     """Test that all types of work items are represented in the SPDX output"""
 
     # Extract all spdxId values to check for our work items

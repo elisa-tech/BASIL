@@ -459,7 +459,7 @@ class SPDXDocument:
     def to_dict(self):
         return {
             "type": "SpdxDocument",
-            "spdxId": f"spdx:document:{self.spdx_id}",
+            "spdxId": self.spdx_id,
             "dataLicense": self.data_license.spdx_id,
             "rootElement": self.root_element,
             "name": self.name,

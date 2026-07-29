@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+from enum import Enum
 from graphviz import Digraph
 from pathlib import Path
 from typing import List, Optional, Union
@@ -93,76 +94,85 @@ class SPDXCreationInfo:
         }
 
 
-class SPDXRelationship:
+class SpdxRelationshipType(str, Enum):
+    """Valid SPDX 3.0.1 relationship types.
 
-    relationships = [
-        "affects",
-        "amendedBy",
-        "ancestorOf",
-        "availableFrom",
-        "configures",
-        "contains",
-        "coordinatedBy",
-        "copiedTo",
-        "delegatedTo",
-        "dependsOn",
-        "descendantOf",
-        "describes",
-        "doesNotAffect",
-        "expandsTo",
-        "exploitCreatedBy",
-        "fixedBy",
-        "fixedIn",
-        "foundBy",
-        "generates",
-        "hasAddedFile",
-        "hasAssessmentFor",
-        "hasAssociatedVulnerability",
-        "hasConcludedLicense",
-        "hasDataFile",
-        "hasDeclaredLicense",
-        "hasDeletedFile",
-        "hasDependencyManifest",
-        "hasDistributionArtifact",
-        "hasDocumentation",
-        "hasDynamicLink",
-        "hasEvidence",
-        "hasExample",
-        "hasHost",
-        "hasInput",
-        "hasMetadata",
-        "hasOptionalComponent",
-        "hasOptionalDependency",
-        "hasOutput",
-        "hasPrerequisite",
-        "hasProvidedDependency",
-        "hasRequirement",
-        "hasSpecification",
-        "hasStaticLink",
-        "hasTest",
-        "hasTestCase",
-        "hasVariant",
-        "invokedBy",
-        "modifiedBy",
-        "other",
-        "packagedBy",
-        "patchedBy",
-        "publishedBy",
-        "reportedBy",
-        "republishedBy",
-        "serializedInArtifact",
-        "testedOn",
-        "trainedOn",
-        "underInvestigationFor",
-        "usesTool",
-    ]
+    Values are the camelCase strings expected in the serialized JSON-LD output.
+    Because this class inherits from ``str``, enum members can be used
+    anywhere a plain string is accepted and will serialize correctly.
+
+    Reference: https://spdx.github.io/spdx-spec/v3.0.1/rdf/schema.json
+    """
+
+    AFFECTS = "affects"
+    AMENDED_BY = "amendedBy"
+    ANCESTOR_OF = "ancestorOf"
+    AVAILABLE_FROM = "availableFrom"
+    CONFIGURES = "configures"
+    CONTAINS = "contains"
+    COORDINATED_BY = "coordinatedBy"
+    COPIED_TO = "copiedTo"
+    DELEGATED_TO = "delegatedTo"
+    DEPENDS_ON = "dependsOn"
+    DESCENDANT_OF = "descendantOf"
+    DESCRIBES = "describes"
+    DOES_NOT_AFFECT = "doesNotAffect"
+    EXPANDS_TO = "expandsTo"
+    EXPLOIT_CREATED_BY = "exploitCreatedBy"
+    FIXED_BY = "fixedBy"
+    FIXED_IN = "fixedIn"
+    FOUND_BY = "foundBy"
+    GENERATES = "generates"
+    HAS_ADDED_FILE = "hasAddedFile"
+    HAS_ASSESSMENT_FOR = "hasAssessmentFor"
+    HAS_ASSOCIATED_VULNERABILITY = "hasAssociatedVulnerability"
+    HAS_CONCLUDED_LICENSE = "hasConcludedLicense"
+    HAS_DATA_FILE = "hasDataFile"
+    HAS_DECLARED_LICENSE = "hasDeclaredLicense"
+    HAS_DELETED_FILE = "hasDeletedFile"
+    HAS_DEPENDENCY_MANIFEST = "hasDependencyManifest"
+    HAS_DISTRIBUTION_ARTIFACT = "hasDistributionArtifact"
+    HAS_DOCUMENTATION = "hasDocumentation"
+    HAS_DYNAMIC_LINK = "hasDynamicLink"
+    HAS_EVIDENCE = "hasEvidence"
+    HAS_EXAMPLE = "hasExample"
+    HAS_HOST = "hasHost"
+    HAS_INPUT = "hasInput"
+    HAS_METADATA = "hasMetadata"
+    HAS_OPTIONAL_COMPONENT = "hasOptionalComponent"
+    HAS_OPTIONAL_DEPENDENCY = "hasOptionalDependency"
+    HAS_OUTPUT = "hasOutput"
+    HAS_PREREQUISITE = "hasPrerequisite"
+    HAS_PROVIDED_DEPENDENCY = "hasProvidedDependency"
+    HAS_REQUIREMENT = "hasRequirement"
+    HAS_SPECIFICATION = "hasSpecification"
+    HAS_STATIC_LINK = "hasStaticLink"
+    HAS_TEST = "hasTest"
+    HAS_TEST_CASE = "hasTestCase"
+    HAS_VARIANT = "hasVariant"
+    INVOKED_BY = "invokedBy"
+    MODIFIED_BY = "modifiedBy"
+    OTHER = "other"
+    PACKAGED_BY = "packagedBy"
+    PATCHED_BY = "patchedBy"
+    PUBLISHED_BY = "publishedBy"
+    REPORTED_BY = "reportedBy"
+    REPUBLISHED_BY = "republishedBy"
+    SERIALIZED_IN_ARTIFACT = "serializedInArtifact"
+    TESTED_ON = "testedOn"
+    TRAINED_ON = "trainedOn"
+    UNDER_INVESTIGATION_FOR = "underInvestigationFor"
+    USES_TOOL = "usesTool"
+
+
+class SPDXRelationship:
 
     def __init__(
         self,
         spdx_id: str = "",
         from_element=None,  # SPDX object
         to=[],  # list of SPDX objects
-        relationship_type: str = "",
+        relationship_type: SpdxRelationshipType = None,
         completeness: int = 0,
         creation_info: SPDXCreationInfo = None,
     ):
@@ -554,9 +564,10 @@ class SPDXManager:
             added_apis.append(spdx_api)
 
         if added_apis:
-            self.addRelationship(from_element=library, to=added_apis, relationship_type="contains")
+            self.addRelationship(from_element=library, to=added_apis, relationship_type=SpdxRelationshipType.CONTAINS)
 
         self.add_to_sbom(document)
+        self.addRelationship(from_element=document, to=[library], relationship_type=SpdxRelationshipType.DESCRIBES)
 
     def add_to_sbom(self, element):
         """
@@ -720,7 +731,7 @@ class SPDXManager:
         self.addRelationship(
             from_element=spdx_api_file,
             to=[sbom_snippet],
-            relationship_type="contains",
+            relationship_type=SpdxRelationshipType.CONTAINS,
             completeness_percentage=mapping.coverage,
         )
 
@@ -786,7 +797,9 @@ class SPDXManager:
         self.add_to_sbom(file_api_ref_doc)
         self.add_to_sbom(file_api_ref_doc_annotation)
 
-        self.addRelationship(from_element=file_api, to=[file_api_ref_doc], relationship_type="hasDocumentation")
+        self.addRelationship(
+            from_element=file_api, to=[file_api_ref_doc], relationship_type=SpdxRelationshipType.HAS_DOCUMENTATION
+        )
 
         self.addApiSwRequirements(spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
 
@@ -802,7 +815,11 @@ class SPDXManager:
         return (creation_info, person, file_api)
 
     def addRelationship(
-        self, from_element: str = "", to: List[str] = [], relationship_type: str = "", completeness_percentage: int = 0
+        self,
+        from_element=None,
+        to: list = [],
+        relationship_type: SpdxRelationshipType = None,
+        completeness_percentage: int = 0,
     ):
         relationship = SPDXRelationship(
             spdx_id=f"spdx:relationship:{self.getRelationshipIndex()}",
@@ -1017,7 +1034,9 @@ class SPDXManager:
             added_test_runs.append(tmp)
 
         if added_test_runs:
-            self.addRelationship(from_element=spdx_tc, to=added_test_runs, relationship_type="hasEvidence")
+            self.addRelationship(
+                from_element=spdx_tc, to=added_test_runs, relationship_type=SpdxRelationshipType.HAS_EVIDENCE
+            )
 
     def addTestRun(self, test_run: TestRunModel = None, dbsession=None):
         """This function create SPDX File class describing a BASIL Test Run"""
@@ -1090,7 +1109,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_doc,
                 to=[spdx_doc_doc],
-                relationship_type="hasDocument",
+                relationship_type=SpdxRelationshipType.HAS_DOCUMENTATION,
                 completeness_percentage=doc_doc.coverage,
             )
 
@@ -1136,7 +1155,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_sr,
                 to=[spdx_sr_sr],
-                relationship_type="hasRequirement",
+                relationship_type=SpdxRelationshipType.HAS_REQUIREMENT,
                 completeness_percentage=xsr.coverage,
             )
 
@@ -1169,7 +1188,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_asr_snippet,
                 to=[spdx_sr],
-                relationship_type="hasRequirement",
+                relationship_type=SpdxRelationshipType.HAS_REQUIREMENT,
                 completeness_percentage=asr.coverage,
             )
 
@@ -1191,7 +1210,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_ats_snippet,
                 to=[spdx_ts],
-                relationship_type="hasSpecification",
+                relationship_type=SpdxRelationshipType.HAS_SPECIFICATION,
                 completeness_percentage=ats.coverage,
             )
 
@@ -1221,7 +1240,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_sr,
                 to=[spdx_ts],
-                relationship_type="hasSpecification",
+                relationship_type=SpdxRelationshipType.HAS_SPECIFICATION,
                 completeness_percentage=sr_ts.coverage,
             )
 
@@ -1244,7 +1263,10 @@ class SPDXManager:
         for sr_tc in sw_requirement_test_cases:
             spdx_tc = self.addTestCase(test_case=sr_tc.test_case, dbsession=dbsession)
             self.addRelationship(
-                from_element=spdx_sr, to=[spdx_tc], relationship_type="hasTest", completeness_percentage=sr_tc.coverage
+                from_element=spdx_sr,
+                to=[spdx_tc],
+                relationship_type=SpdxRelationshipType.HAS_TEST_CASE,
+                completeness_percentage=sr_tc.coverage
             )
 
             # Test Runs
@@ -1274,7 +1296,10 @@ class SPDXManager:
         for ts_tc in test_specification_test_cases:
             spdx_tc = self.addTestCase(test_case=ts_tc.test_case, dbsession=dbsession)
             self.addRelationship(
-                from_element=spdx_ts, to=[spdx_tc], relationship_type="hasTest", completeness_percentage=ts_tc.coverage
+                from_element=spdx_ts,
+                to=[spdx_tc],
+                relationship_type=SpdxRelationshipType.HAS_TEST_CASE,
+                completeness_percentage=ts_tc.coverage
             )
 
             # Test Runs
@@ -1297,7 +1322,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_atc_snippet,
                 to=[spdx_tc],
-                relationship_type="hasTest",
+                relationship_type=SpdxRelationshipType.HAS_TEST_CASE,
                 completeness_percentage=atc.coverage,
             )
 
@@ -1318,7 +1343,8 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_adoc_snippet,
                 to=[spdx_doc],
-                relationship_type="hasDocumentation",  # TODO: Read the relationship from the document mapping
+                # TODO: Read the relationship from the document mapping
+                relationship_type=SpdxRelationshipType.HAS_DOCUMENTATION,
                 completeness_percentage=adoc.coverage,
             )
 
@@ -1338,7 +1364,7 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_ajs_snippet,
                 to=[spdx_js],
-                relationship_type="hasEvidence",
+                relationship_type=SpdxRelationshipType.HAS_EVIDENCE,
                 completeness_percentage=ajs.coverage,
             )
 

@@ -326,7 +326,7 @@ class PositiveIntegerRange:
     def to_dict(self):
         return {
             "type": "PositiveIntegerRange",
-            "beginIntegerRange": min(self.beginIntegerRange, 1),
+            "beginIntegerRange": max(self.beginIntegerRange, 1),
             "endIntegerRange": self.endIntegerRange,
         }
 

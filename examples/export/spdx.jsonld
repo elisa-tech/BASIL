@@ -316,7 +316,7 @@
       "description": "",
       "software_byteRange": {
         "type": "PositiveIntegerRange",
-        "beginIntegerRange": 1,
+        "beginIntegerRange": 95,
         "endIntegerRange": 261
       },
       "software_snippetFromFile": "spdx:file:basil:api:reference-document:2",
@@ -330,7 +330,7 @@
       "description": "",
       "software_byteRange": {
         "type": "PositiveIntegerRange",
-        "beginIntegerRange": 1,
+        "beginIntegerRange": 444,
         "endIntegerRange": 597
       },
       "software_snippetFromFile": "spdx:file:basil:api:reference-document:2",

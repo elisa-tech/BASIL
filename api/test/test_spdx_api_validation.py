@@ -681,9 +681,9 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
 
     # Bug 2 regression: sw_req_1 -> test_case_3 (via api_sw_requirement mapping sr_tc_mapping)
     assert has_relationship(
-        spdx_id_for_sr(sw_req_1), spdx_id_for_tc(test_case_3), "hasTest"
+        spdx_id_for_sr(sw_req_1), spdx_id_for_tc(test_case_3), "hasTestCase"
     ), (
-        f"Missing hasTest relationship: SW Requirement {sw_req_1.id} -> "
+        f"Missing hasTestCase relationship: SW Requirement {sw_req_1.id} -> "
         f"Test Case {test_case_3.id}. "
         "SW requirements directly mapped to the API must export their child test cases."
     )

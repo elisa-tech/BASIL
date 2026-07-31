@@ -42,6 +42,7 @@ BASIL_TOOL_URL = "https://github.com/elisa-tech/BASIL"
 SPDX_CONTEXT_URL = "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
 DATETIME_STR_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 SPDX_SPEC_VERSION = "3.0.1"
+BASIL_ANNOTATION_VERSION = "2.0"
 
 
 class SPDXMD5Hash:
@@ -54,6 +55,40 @@ class SPDXMD5Hash:
             "algorithm": "md5",
             "hashValue": self.hash_value,
         }
+
+
+class SPDXExternalIdentifier:
+    """Represents a SPDX 3.0.1 ExternalIdentifier inline object.
+
+    Used to expose BASIL entity IDs to standard SPDX-aware tooling without
+    relying on opaque Annotation.statement JSON.
+
+    The identifier follows the convention:
+        basil:<db_table_name>:<db_row_id>
+
+    where <db_table_name> is the SQLAlchemy __tablename__ of the originating
+    model (e.g. "sw_requirements", "test_cases") and <db_row_id> is the
+    integer primary key.  Using the table name directly keeps the identifier
+    in sync with the database schema and avoids a separate mapping layer.
+
+    Example:
+        identifier = "basil:sw_requirements:42"
+        comment    = "BASIL Software Requirement 'My Title' with ID 42"
+    """
+
+    def __init__(self, identifier: str = "", comment: str = ""):
+        self.identifier = identifier
+        self.comment = comment
+
+    def to_dict(self):
+        result = {
+            "type": "ExternalIdentifier",
+            "externalIdentifierType": "other",
+            "identifier": self.identifier,
+        }
+        if self.comment:
+            result["comment"] = self.comment
+        return result
 
 
 class SPDXCreationInfo:
@@ -217,7 +252,8 @@ class SPDXAnnotation:
         self.spdx_id = f"{spdx_id}"
         self.name = name
         self.subject = subject
-        self.statement = json.dumps(object)
+        versioned_object = {**object, "basil:annotationVersion": BASIL_ANNOTATION_VERSION}
+        self.statement = json.dumps(versioned_object)
         self.creation_info = creation_info
 
     def to_dict(self):
@@ -289,6 +325,7 @@ class SPDXFile:
         purpose: str = "",
         copyright_text: str = "",
         verified_using: List[SPDXMD5Hash] = [],
+        external_identifiers: List["SPDXExternalIdentifier"] = [],
         creation_info: SPDXCreationInfo = None,
     ):
 
@@ -299,6 +336,7 @@ class SPDXFile:
         self._purpose = purpose if purpose in self.supported_puposes else "other"
         self.copyright_text = copyright_text
         self.verified_using = verified_using
+        self.external_identifiers = external_identifiers
         self.creation_info = creation_info
 
     @property
@@ -310,7 +348,7 @@ class SPDXFile:
         self._purpose = purpose if purpose in self.supported_puposes else "other"
 
     def to_dict(self):
-        return {
+        result = {
             "type": "software_File",
             "spdxId": self.spdx_id,
             "software_copyrightText": "",
@@ -321,6 +359,9 @@ class SPDXFile:
             "verifiedUsing": [item.to_dict() for item in self.verified_using],
             "creationInfo": self.creation_info.spdx_id,
         }
+        if self.external_identifiers:
+            result["externalIdentifier"] = [ei.to_dict() for ei in self.external_identifiers]
+        return result
 
 
 class PositiveIntegerRange:
@@ -633,6 +674,23 @@ class SPDXManager:
                 relation_dict.pop(key, None)
         return relation_dict
 
+    def clean_snippet_annotation_dict(self, relation_dict):
+        """Remove fields from a snippet mapping dict that are already represented in
+        SPDX properties: offset/section are encoded in software_byteRange; coverage
+        is encoded in Relationship.completeness."""
+        redundant_keys = ["offset", "section", "coverage"]
+        for key in redundant_keys:
+            relation_dict.pop(key, None)
+        return relation_dict
+
+    @staticmethod
+    def clean_entity_annotation_dict(entity_dict):
+        """Remove id and title fields that are now represented as ExternalIdentifier
+        on the SPDX element, avoiding duplication with opaque annotation JSON."""
+        for key in ["id", "title"]:
+            entity_dict.pop(key, None)
+        return entity_dict
+
     def getSnippetIndex(self) -> int:
         """Get next id of a relationship"""
         relationships = [item for item in self.sbom if isinstance(item, SPDXSnippet)]
@@ -696,6 +754,11 @@ class SPDXManager:
         relation_id = mapping_dict["relation_id"]
         mapping_dict = self.clean_api_relation_dict(mapping_dict)
 
+        # Read byte range values before stripping redundant fields
+        byte_range_begin = mapping_dict["offset"] + 1
+        byte_range_end = mapping_dict["offset"] + len(mapping_dict["section"]) + 1
+        snippet_annotation_dict = self.clean_snippet_annotation_dict(dict(mapping_dict))
+
         snippet_id = f"spdx:snippet:api:{api_id}:{self.getSnippetIndex()}"
 
         creation_info, person = self.getCreationInfoAndPerson(
@@ -707,9 +770,7 @@ class SPDXManager:
             from_file=spdx_api_ref_doc_file,
             name=mapping.api.raw_specification_url,
             comment=f"Snippet of api {api} reference document",
-            byte_range=PositiveIntegerRange(
-                mapping_dict["offset"] + 1, mapping_dict["offset"] + len(mapping_dict["section"]) + 1
-            ),
+            byte_range=PositiveIntegerRange(byte_range_begin, byte_range_end),
             creation_info=creation_info,
         )
 
@@ -718,7 +779,7 @@ class SPDXManager:
             f"{api_id}:{mapping_to_id_prefix}:{mapping_to_id}:relation-id:{relation_id}",
             name=f"Annotation for BASIL API {api} snippet",
             subject=snippet,
-            object=mapping_dict,
+            object=snippet_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -757,14 +818,21 @@ class SPDXManager:
             purpose="module",
             copyright_text="",
             verified_using=[file_api_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{api.__tablename__}:{api.id}",
+                    comment=f"BASIL Software Component '{api.api}' with ID {api.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        api_annotation_dict = self.clean_entity_annotation_dict(dict(api_dict))
         file_api_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:api:{api_dict['id']}",
             name=f"Annotation for BASIL API {api.api} with ID {api.id}",
             subject=file_api,
-            object=api_dict,
+            object=api_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -854,14 +922,21 @@ class SPDXManager:
             purpose="requirement",
             copyright_text="",
             verified_using=[sr_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{software_requirement.__tablename__}:{software_requirement.id}",
+                    comment=f"BASIL Software Requirement '{software_requirement.title}' with ID {software_requirement.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        sr_annotation_dict = self.clean_entity_annotation_dict(dict(sr_dict))
         sr_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:software-requirement:{software_requirement.id}",
             name=f"Annotation for BASIL Software Requirement {software_requirement.id}",
             subject=sr_file,
-            object=sr_dict,
+            object=sr_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -891,14 +966,21 @@ class SPDXManager:
             purpose="specification",
             copyright_text="",
             verified_using=[ts_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{test_specification.__tablename__}:{test_specification.id}",
+                    comment=f"BASIL Test Specification '{test_specification.title}' with ID {test_specification.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        ts_annotation_dict = self.clean_entity_annotation_dict(dict(ts_dict))
         ts_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:test-specification:{test_specification.id}",
             name=f"Annotation for BASIL Test Specification {test_specification.id}",
             subject=ts_file,
-            object=ts_dict,
+            object=ts_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -925,14 +1007,21 @@ class SPDXManager:
             purpose="test",
             copyright_text="",
             verified_using=[tc_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{test_case.__tablename__}:{test_case.id}",
+                    comment=f"BASIL Test Case '{test_case.title}' with ID {test_case.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        tc_annotation_dict = self.clean_entity_annotation_dict(dict(tc_dict))
         tc_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:test-case:{test_case.id}",
             name=f"Annotation for BASIL Test Case {test_case.id}",
             subject=tc_file,
-            object=tc_dict,
+            object=tc_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -959,14 +1048,21 @@ class SPDXManager:
             purpose="documentation",
             copyright_text="",
             verified_using=[doc_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{document.__tablename__}:{document.id}",
+                    comment=f"BASIL Document '{document.title}' with ID {document.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        doc_annotation_dict = self.clean_entity_annotation_dict(dict(doc_dict))
         doc_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:document:{document.id}",
             name=f"Annotation for BASIL Document {document.id}",
             subject=doc_file,
-            object=doc_dict,
+            object=doc_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -996,14 +1092,21 @@ class SPDXManager:
             purpose="evidence",
             copyright_text="",
             verified_using=[js_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{justification.__tablename__}:{justification.id}",
+                    comment=f"BASIL Justification with ID {justification.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        js_annotation_dict = self.clean_entity_annotation_dict(dict(js_dict))
         js_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:justification:{justification.id}",
             name=f"Annotation for BASIL Justification {justification.id}",
             subject=js_file,
-            object=js_dict,
+            object=js_annotation_dict,
             creation_info=creation_info,
         )
 
@@ -1057,14 +1160,21 @@ class SPDXManager:
             purpose="evidence",
             copyright_text="",
             verified_using=[tr_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{test_run.__tablename__}:{test_run.id}",
+                    comment=f"BASIL Test Run '{test_run.title}' with ID {test_run.id}",
+                )
+            ],
             creation_info=creation_info,
         )
 
+        tr_annotation_dict = self.clean_entity_annotation_dict(dict(tr_dict))
         tr_annotation = SPDXAnnotation(
             spdx_id=f"spdx:annotation:basil:test-run:{test_run.id}",
             name=f"Annotation for BASIL Test Run {test_run.id}",
             subject=tr_file,
-            object=tr_dict,
+            object=tr_annotation_dict,
             creation_info=creation_info,
         )
 

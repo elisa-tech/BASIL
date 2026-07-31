@@ -925,7 +925,10 @@ class SPDXManager:
             external_identifiers=[
                 SPDXExternalIdentifier(
                     identifier=f"basil:{software_requirement.__tablename__}:{software_requirement.id}",
-                    comment=f"BASIL Software Requirement '{software_requirement.title}' with ID {software_requirement.id}",
+                    comment=(
+                        f"BASIL Software Requirement '{software_requirement.title}'"
+                        f" with ID {software_requirement.id}"
+                    ),
                 )
             ],
             creation_info=creation_info,

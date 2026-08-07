@@ -681,9 +681,9 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
 
     # Bug 2 regression: sw_req_1 -> test_case_3 (via api_sw_requirement mapping sr_tc_mapping)
     assert has_relationship(
-        spdx_id_for_sr(sw_req_1), spdx_id_for_tc(test_case_3), "hasTest"
+        spdx_id_for_sr(sw_req_1), spdx_id_for_tc(test_case_3), "hasTestCase"
     ), (
-        f"Missing hasTest relationship: SW Requirement {sw_req_1.id} -> "
+        f"Missing hasTestCase relationship: SW Requirement {sw_req_1.id} -> "
         f"Test Case {test_case_3.id}. "
         "SW requirements directly mapped to the API must export their child test cases."
     )
@@ -698,6 +698,256 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
     )
 
     print("✓ SW Requirement -> Test Specification/Case relationship export regression test passed")
+
+
+def _export_and_parse(client, user_authentication, api):
+    """Shared helper: trigger an SPDX export and return the parsed @graph list."""
+    response = client.get(
+        _SPDX_API_URL,
+        query_string={
+            "api-id": api.id,
+            "user-id": user_authentication.json["id"],
+            "token": user_authentication.json["token"],
+            "filename": "latest.jsonld",
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+    return json.loads(response.data)["@graph"]
+
+
+def _external_identifiers_for(graph, spdx_id):
+    """Return the externalIdentifier list for the element with the given spdxId."""
+    for element in graph:
+        if element.get("spdxId") == spdx_id:
+            return element.get("externalIdentifier", [])
+    return []
+
+
+def _assert_external_identifier(graph, spdx_id, expected_identifier, expected_comment_fragment):
+    """Assert that the SPDX element carries the expected ExternalIdentifier."""
+    ext_ids = _external_identifiers_for(graph, spdx_id)
+    assert len(ext_ids) == 1, (
+        f"Element {spdx_id} should have exactly 1 externalIdentifier, got {ext_ids}"
+    )
+    ei = ext_ids[0]
+    assert ei["type"] == "ExternalIdentifier"
+    assert ei["externalIdentifierType"] == "other"
+    assert ei["identifier"] == expected_identifier, (
+        f"Expected identifier '{expected_identifier}', got '{ei['identifier']}'"
+    )
+    assert expected_comment_fragment in ei.get("comment", ""), (
+        f"Expected comment containing '{expected_comment_fragment}', got '{ei.get('comment')}'"
+    )
+
+
+def test_spdx_external_identifier_api(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on the software_File element for each API uses
+    basil:<tablename>:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    spdx_id = f"spdx:file:basil:api:{api.id}"
+    _assert_external_identifier(
+        graph,
+        spdx_id,
+        expected_identifier=f"basil:{api.__tablename__}:{api.id}",
+        expected_comment_fragment=str(api.id),
+    )
+    print(f"✓ ExternalIdentifier for API {api.id} validated")
+
+
+def test_spdx_external_identifier_sw_requirements(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on each SW Requirement software_File uses
+    basil:sw_requirements:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    for sr in test_data["sw_requirements"]:
+        spdx_id = f"spdx:file:basil:software-requirement:{sr.id}"
+        _assert_external_identifier(
+            graph,
+            spdx_id,
+            expected_identifier=f"basil:{sr.__tablename__}:{sr.id}",
+            expected_comment_fragment=str(sr.id),
+        )
+    print(f"✓ ExternalIdentifier for {len(test_data['sw_requirements'])} SW Requirements validated")
+
+
+def test_spdx_external_identifier_test_specifications(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on each Test Specification software_File uses
+    basil:test_specifications:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    for ts in test_data["test_specifications"]:
+        spdx_id = f"spdx:file:basil:test-specification:{ts.id}"
+        _assert_external_identifier(
+            graph,
+            spdx_id,
+            expected_identifier=f"basil:{ts.__tablename__}:{ts.id}",
+            expected_comment_fragment=str(ts.id),
+        )
+    print(f"✓ ExternalIdentifier for {len(test_data['test_specifications'])} Test Specifications validated")
+
+
+def test_spdx_external_identifier_test_cases(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on each Test Case software_File uses
+    basil:test_cases:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    for tc in test_data["test_cases"]:
+        spdx_id = f"spdx:file:basil:test-case:{tc.id}"
+        _assert_external_identifier(
+            graph,
+            spdx_id,
+            expected_identifier=f"basil:{tc.__tablename__}:{tc.id}",
+            expected_comment_fragment=str(tc.id),
+        )
+    print(f"✓ ExternalIdentifier for {len(test_data['test_cases'])} Test Cases validated")
+
+
+def test_spdx_external_identifier_justifications(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on each Justification software_File uses
+    basil:justifications:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    for js in test_data["justifications"]:
+        spdx_id = f"spdx:file:basil:justification:{js.id}"
+        _assert_external_identifier(
+            graph,
+            spdx_id,
+            expected_identifier=f"basil:{js.__tablename__}:{js.id}",
+            expected_comment_fragment=str(js.id),
+        )
+    print(f"✓ ExternalIdentifier for {len(test_data['justifications'])} Justifications validated")
+
+
+def test_spdx_external_identifier_documents(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on each Document software_File uses
+    basil:documents:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    for doc in test_data["documents"]:
+        spdx_id = f"spdx:file:basil:document:{doc.id}"
+        _assert_external_identifier(
+            graph,
+            spdx_id,
+            expected_identifier=f"basil:{doc.__tablename__}:{doc.id}",
+            expected_comment_fragment=str(doc.id),
+        )
+    print(f"✓ ExternalIdentifier for {len(test_data['documents'])} Documents validated")
+
+
+def test_spdx_external_identifier_test_runs(client, user_authentication, comprehensive_spdx_test_data):
+    """ExternalIdentifier on each Test Run software_File uses
+    basil:test_runs:<id> as identifier."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    for tr in test_data["test_runs"]:
+        spdx_id = f"spdx:file:basil:test-run:{tr.id}"
+        _assert_external_identifier(
+            graph,
+            spdx_id,
+            expected_identifier=f"basil:{tr.__tablename__}:{tr.id}",
+            expected_comment_fragment=str(tr.id),
+        )
+    print(f"✓ ExternalIdentifier for {len(test_data['test_runs'])} Test Runs validated")
+
+
+def test_spdx_annotation_version_injected(client, user_authentication, comprehensive_spdx_test_data):
+    """Every Annotation.statement in the SPDX output must carry
+    'basil:annotationVersion': '2.0'."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    annotations = [e for e in graph if e.get("type") == "Annotation"]
+    assert len(annotations) > 0, "Expected at least one Annotation in the SPDX output"
+
+    for annotation in annotations:
+        statement_raw = annotation.get("statement", "{}")
+        try:
+            statement = json.loads(statement_raw)
+        except json.JSONDecodeError:
+            pytest.fail(f"Annotation {annotation.get('spdxId')} has non-JSON statement: {statement_raw}")
+
+        assert statement.get("basil:annotationVersion") == "2.0", (
+            f"Annotation {annotation.get('spdxId')} is missing 'basil:annotationVersion': '2.0'. "
+            f"Statement keys: {list(statement.keys())}"
+        )
+    print(f"✓ basil:annotationVersion validated on {len(annotations)} annotations")
+
+
+def test_spdx_entity_annotations_have_no_id_or_title(client, user_authentication, comprehensive_spdx_test_data):
+    """Entity Annotation.statement must not contain 'id' or 'title' fields —
+    those are now represented via ExternalIdentifier on the element."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    entity_annotation_id_prefixes = (
+        "spdx:annotation:basil:api:",
+        "spdx:annotation:basil:software-requirement:",
+        "spdx:annotation:basil:test-specification:",
+        "spdx:annotation:basil:test-case:",
+        "spdx:annotation:basil:document:",
+        "spdx:annotation:basil:justification:",
+        "spdx:annotation:basil:test-run:",
+    )
+
+    entity_annotations = [
+        e for e in graph
+        if e.get("type") == "Annotation"
+        and any(e.get("spdxId", "").startswith(p) for p in entity_annotation_id_prefixes)
+    ]
+    assert len(entity_annotations) > 0, "Expected at least one entity Annotation in the SPDX output"
+
+    for annotation in entity_annotations:
+        statement = json.loads(annotation.get("statement", "{}"))
+        assert "id" not in statement, (
+            f"Annotation {annotation.get('spdxId')} still contains 'id' in statement. "
+            "It should have been moved to ExternalIdentifier."
+        )
+        assert "title" not in statement, (
+            f"Annotation {annotation.get('spdxId')} still contains 'title' in statement. "
+            "It should have been moved to ExternalIdentifier."
+        )
+    print(f"✓ No 'id'/'title' in {len(entity_annotations)} entity annotation statements")
+
+
+def test_spdx_snippet_annotations_stripped(client, user_authentication, comprehensive_spdx_test_data):
+    """Snippet Annotation.statement must not contain 'offset', 'section', or 'coverage' —
+    offset/section are encoded in software_byteRange; coverage in Relationship.completeness."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    snippet_annotations = [
+        e for e in graph
+        if e.get("type") == "Annotation"
+        and e.get("spdxId", "").startswith("spdx:annotation:snippet:")
+    ]
+    assert len(snippet_annotations) > 0, "Expected at least one snippet Annotation in the SPDX output"
+
+    for annotation in snippet_annotations:
+        statement = json.loads(annotation.get("statement", "{}"))
+        for redundant_key in ("offset", "section", "coverage"):
+            assert redundant_key not in statement, (
+                f"Snippet annotation {annotation.get('spdxId')} still contains '{redundant_key}'. "
+                "This field is already represented in a dedicated SPDX property."
+            )
+    print(f"✓ No redundant fields in {len(snippet_annotations)} snippet annotation statements")
 
 
 if __name__ == "__main__":

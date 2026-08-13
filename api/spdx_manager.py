@@ -14,6 +14,7 @@ from sqlalchemy import desc
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
 
+from api.api_utils import is_http_url, parse_comma_separated_list  # noqa E402
 from db.db_orm import DbInterface  # noqa E402
 from db.models.api import ApiModel  # noqa E402
 from db.models.api_document import ApiDocumentModel  # noqa E402
@@ -60,10 +61,10 @@ class SPDXMD5Hash:
 class SPDXExternalIdentifier:
     """Represents a SPDX 3.0.1 ExternalIdentifier inline object.
 
-    Used to expose BASIL entity IDs to standard SPDX-aware tooling without
-    relying on opaque Annotation.statement JSON.
+    Used to expose BASIL entity IDs and external tracker URLs to SPDX-aware
+    tooling without relying on opaque Annotation.statement JSON.
 
-    The identifier follows the convention:
+    BASIL entity IDs follow the convention:
         basil:<db_table_name>:<db_row_id>
 
     where <db_table_name> is the SQLAlchemy __tablename__ of the originating
@@ -71,23 +72,37 @@ class SPDXExternalIdentifier:
     integer primary key.  Using the table name directly keeps the identifier
     in sync with the database schema and avoids a separate mapping layer.
 
+    Bug/Fix tracker links use the URL (or free-text reference) as
+    ``identifier`` and, when the value is an http(s) URL, also set
+    ``identifierLocator``.
+
     Example:
         identifier = "basil:sw_requirements:42"
         comment    = "BASIL Software Requirement 'My Title' with ID 42"
     """
 
-    def __init__(self, identifier: str = "", comment: str = ""):
+    def __init__(
+        self,
+        identifier: str = "",
+        comment: str = "",
+        identifier_locator: Optional[List[str]] = None,
+        external_identifier_type: str = "other",
+    ):
         self.identifier = identifier
         self.comment = comment
+        self.identifier_locator = identifier_locator or []
+        self.external_identifier_type = external_identifier_type
 
     def to_dict(self):
         result = {
             "type": "ExternalIdentifier",
-            "externalIdentifierType": "other",
+            "externalIdentifierType": self.external_identifier_type,
             "identifier": self.identifier,
         }
         if self.comment:
             result["comment"] = self.comment
+        if self.identifier_locator:
+            result["identifierLocator"] = self.identifier_locator
         return result
 
 
@@ -1183,7 +1198,82 @@ class SPDXManager:
 
         self.add_to_sbom(tr_file)
         self.add_to_sbom(tr_annotation)
+        self.addTestRunBugAndFixOutputs(spdx_tr=tr_file, test_run=test_run, creation_info=creation_info)
         return tr_file
+
+    def addTestRunBugOrFix(
+        self,
+        test_run: TestRunModel = None,
+        kind: str = "bug",
+        ref: str = "",
+        index: int = 1,
+        creation_info: SPDXCreationInfo = None,
+    ):
+        """Create an SPDX File for one Bug or Fix reference from a Test Run.
+
+        The Element carries an ExternalIdentifier whose ``identifier`` is the
+        reference string (typically a tracker URL). http(s) URLs also set
+        ``identifierLocator``.
+        """
+        kind_label = "Bug" if kind == "bug" else "Fix"
+        purpose = "other" if kind == "bug" else "patch"
+        spdx_id = f"spdx:file:basil:test-run:{test_run.id}:{kind}:{index}"
+        data_dict = {
+            "kind": kind,
+            "ref": ref,
+            "test_run_id": test_run.id,
+            "index": index,
+        }
+        ref_hash = self.make_hash_object(data_dict=data_dict)
+        locator = [ref] if is_http_url(ref) else []
+
+        ref_file = SPDXFile(
+            spdx_id=spdx_id,
+            name=ref,
+            comment=f"BASIL {kind_label}",
+            description=f"{kind_label} linked from BASIL Test Run {test_run.id}",
+            purpose=purpose,
+            copyright_text="",
+            verified_using=[ref_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=ref,
+                    comment=f"BASIL Test Run {test_run.id} {kind_label}",
+                    identifier_locator=locator,
+                )
+            ],
+            creation_info=creation_info,
+        )
+        self.add_to_sbom(ref_file)
+        return ref_file
+
+    def addTestRunBugAndFixOutputs(
+        self,
+        spdx_tr: SPDXFile = None,
+        test_run: TestRunModel = None,
+        creation_info: SPDXCreationInfo = None,
+    ):
+        """Emit Bug/Fix Elements from test_runs.bugs / test_runs.fixes.
+
+        Each reference becomes its own SPDX File with an ExternalIdentifier.
+        Each is linked from the Test Run with a dedicated 1-to-1 ``hasOutput``
+        relationship.
+        """
+        for kind, column_value in (("bug", test_run.bugs), ("fix", test_run.fixes)):
+            refs = parse_comma_separated_list(column_value)
+            for index, ref in enumerate(refs, start=1):
+                spdx_ref = self.addTestRunBugOrFix(
+                    test_run=test_run,
+                    kind=kind,
+                    ref=ref,
+                    index=index,
+                    creation_info=creation_info,
+                )
+                self.addRelationship(
+                    from_element=spdx_tr,
+                    to=[spdx_ref],
+                    relationship_type=SpdxRelationshipType.HAS_OUTPUT,
+                )
 
     def addDocumentsNestedElements(
         self,
@@ -1537,11 +1627,14 @@ class SPDXManager:
                 "test specification": "blue",
                 "test case": "orange",
                 "test run": "purple",
+                "bug": "salmon",
+                "fix": "olivedrab",
             }
 
             if hasattr(node, "comment"):
+                comment_lower = node.comment.lower()
                 for cKey in purpose_colors.keys():
-                    if cKey in node.comment.lower():
+                    if cKey in comment_lower:
                         return purpose_colors[cKey]
             return "white"
 
@@ -1649,6 +1742,8 @@ class SPDXManager:
         legend.node("test_specification", label="Test Specification", shape="box", style="filled", fillcolor="blue")
         legend.node("test_case", label="Test Case", shape="box", style="filled", fillcolor="orange")
         legend.node("test_run", label="Test Run", shape="box", style="filled", fillcolor="purple")
+        legend.node("bug", label="Bug", shape="box", style="filled", fillcolor="salmon")
+        legend.node("fix", label="Fix", shape="box", style="filled", fillcolor="olivedrab")
 
         # Stack legend nodes vertically
         legend.edge("library", "software_component", style="invis", weight="100")
@@ -1660,6 +1755,8 @@ class SPDXManager:
         legend.edge("software_requirement", "test_specification", style="invis", weight="100")
         legend.edge("test_specification", "test_case", style="invis", weight="100")
         legend.edge("test_case", "test_run", style="invis", weight="100")
+        legend.edge("test_run", "bug", style="invis", weight="100")
+        legend.edge("bug", "fix", style="invis", weight="100")
 
         dot.subgraph(legend)
 

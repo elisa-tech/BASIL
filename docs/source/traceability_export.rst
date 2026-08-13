@@ -78,6 +78,7 @@ BASIL exports the following types of traceability relationships:
 - **hasSpecification**: e.g.:API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
 - **hasTest**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case ...
 - **generates**: e.g.: Test Cases <- Test Runs
+- **hasOutput**: e.g.: Test Run <- Bug or Fix (tracker URL / reference)
 - **hasEvidence**: e.g.: API Reference document Snippet <- Justification
 - **contains**: e.g.: Library <- API
 
@@ -103,7 +104,7 @@ Graph Structure
 ~~~~~~~~~~~~~~~
 
 The generated graph shows:
-- Work items as nodes (requirements, specifications, test cases, test runs)
+- Work items as nodes (requirements, specifications, test cases, test runs, bugs, fixes)
 - Relationships as directed edges
 - Color coding for different work item types
 - Hierarchical layout from requirements to test runs
@@ -119,6 +120,13 @@ Test Run Integration
 - Test runs are linked to test cases via ``generates`` relationships
 - Test run data includes execution results, timestamps
 - Test runs are ordered by ID (most recent first)
+- Bugs and fixes stored on the Test Run (``bugs`` / ``fixes`` columns) are
+  split on commas into individual references
+- Each Bug/Fix reference is exported as its own SPDX File with an
+  ``ExternalIdentifier`` (the reference string; http(s) URLs also set
+  ``identifierLocator``)
+- Each Test Run is linked to each Bug/Fix with a dedicated 1-to-1
+  ``hasOutput`` relationship
 
 Test Run Limitations
 ~~~~~~~~~~~~~~~~~~~~

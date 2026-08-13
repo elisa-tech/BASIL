@@ -77,7 +77,8 @@ BASIL exports the following types of traceability relationships:
 - **hasRequirement**: e.g.:API Reference document Snippet <- Software Requirements or Sw Requirement <- Sw Requirement
 - **hasSpecification**: e.g.:API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
 - **hasTest**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case ...
-- **hasEvidence**: e.g.: Test Cases <- Test Runs
+- **generates**: e.g.: Test Cases <- Test Runs
+- **hasEvidence**: e.g.: API Reference document Snippet <- Justification
 - **contains**: e.g.: Library <- API
 
 Each relationship includes:
@@ -115,7 +116,7 @@ BASIL extends traceability to include test runs with specific limitations:
 Test Run Integration
 ~~~~~~~~~~~~~~~~~~~~
 
-- Test runs are linked to test cases via ``hasEvidence`` relationships
+- Test runs are linked to test cases via ``generates`` relationships
 - Test run data includes execution results, timestamps
 - Test runs are ordered by ID (most recent first)
 

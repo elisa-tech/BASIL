@@ -1141,7 +1141,7 @@ class SPDXManager:
 
         if added_test_runs:
             self.addRelationship(
-                from_element=spdx_tc, to=added_test_runs, relationship_type=SpdxRelationshipType.HAS_EVIDENCE
+                from_element=spdx_tc, to=added_test_runs, relationship_type=SpdxRelationshipType.GENERATES
             )
 
     def addTestRun(self, test_run: TestRunModel = None, dbsession=None):

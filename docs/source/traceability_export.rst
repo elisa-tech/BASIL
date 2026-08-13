@@ -78,8 +78,8 @@ BASIL exports the following types of traceability relationships:
 - **hasSpecification**: e.g.:API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
 - **hasTest**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case ...
 - **generates**: e.g.: Test Cases <- Test Runs
-- **hasOutput**: e.g.: Test Run <- Bug or Fix (tracker URL / reference)
-- **hasEvidence**: e.g.: API Reference document Snippet <- Justification
+- **hasOutput**: e.g.: Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
+- **hasEvidence**: e.g.: API Reference document Snippet <- Justification; Test Run <- Artifacts
 - **contains**: e.g.: Library <- API
 
 Each relationship includes:
@@ -104,7 +104,7 @@ Graph Structure
 ~~~~~~~~~~~~~~~
 
 The generated graph shows:
-- Work items as nodes (requirements, specifications, test cases, test runs, bugs, fixes)
+- Work items as nodes (requirements, specifications, test cases, test runs, bugs, fixes, artifacts)
 - Relationships as directed edges
 - Color coding for different work item types
 - Hierarchical layout from requirements to test runs
@@ -127,6 +127,15 @@ Test Run Integration
   ``identifierLocator``)
 - Each Test Run is linked to each Bug/Fix with a dedicated 1-to-1
   ``hasOutput`` relationship
+- Artifacts stored under the Test Run artifacts directory
+  (``TEST_RUNS_BASE_DIR/<uid>/api/tmt-plan/data/``) are each exported as an
+  SPDX File with ``purpose="evidence"``
+- Each artifact File carries an ``ExternalIdentifier`` of the form
+  ``basil:test_runs:<id>:artifact:<filename>`` and a content MD5 when the
+  file is readable
+- Each Test Run is linked to its artifacts with 1-to-many ``hasOutput`` and
+  ``hasEvidence`` relationships (both relationship types target the same
+  artifact list)
 
 Test Run Limitations
 ~~~~~~~~~~~~~~~~~~~~

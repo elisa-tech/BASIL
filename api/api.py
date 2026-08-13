@@ -83,6 +83,7 @@ from api_utils import (
     get_html_email_body_from_template,
     get_mapping_comments,
     get_safe_str,
+    get_test_run_artifacts_dir,
     get_user_config_folder_path,
     get_user_html_folder_path,
     get_user_pdf_folder_path,
@@ -90,6 +91,7 @@ from api_utils import (
     is_safe_local_user_file_path,
     is_safe_user_path,
     is_testing_enabled_by_env,
+    list_test_run_artifacts,
     load_settings,
     parse_int,
     read_file,
@@ -10924,13 +10926,8 @@ class TestRunLog(Resource):
         else:
             log_exec = "File not found."
 
-        # List files in the TMT_PLAN_DATA dir
-        artifacts = []
-        if os.path.exists(os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data")):
-            artifacts = os.listdir(os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data"))
-
         ret = run.as_dict()
-        ret["artifacts"] = artifacts
+        ret["artifacts"] = list_test_run_artifacts(run.uid)
         ret["log_exec"] = log_exec
         api_response.set_data(ret)
         return api_response.return_ok()
@@ -10974,9 +10971,8 @@ class TestRunArtifacts(Resource):
             api_response.set_message(f"Unable to find the test run id {request_data['id']}")
             return api_response.return_not_found()
 
-        # List files in the TMT_PLAN_DATA dir
-        artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data")
-        artifacts = os.listdir(artifacts_path)
+        artifacts_path = get_test_run_artifacts_dir(run.uid)
+        artifacts = list_test_run_artifacts(run.uid)
         if request_data["artifact"] not in artifacts:
             api_response.set_message(f"Unable to find the artifact {request_data['artifact']}")
             return api_response.return_not_found()
@@ -11022,8 +11018,8 @@ class TestRunArtifactContent(Resource):
             api_response.set_message(f"Unable to find the test run id {request_data['id']}")
             return api_response.return_not_found()
 
-        artifacts_path = os.path.join(TEST_RUNS_BASE_DIR, run.uid, "api", "tmt-plan", "data")
-        artifacts = os.listdir(artifacts_path)
+        artifacts_path = get_test_run_artifacts_dir(run.uid)
+        artifacts = list_test_run_artifacts(run.uid)
         if request_data["artifact"] not in artifacts:
             api_response.set_message(f"Unable to find the artifact {request_data['artifact']}")
             return api_response.return_not_found()

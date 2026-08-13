@@ -14,7 +14,12 @@ from sqlalchemy import desc
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
 
-from api.api_utils import is_http_url, parse_comma_separated_list  # noqa E402
+from api.api_utils import (  # noqa E402
+    get_test_run_artifacts_dir,
+    is_http_url,
+    list_test_run_artifacts,
+    parse_comma_separated_list,
+)
 from db.db_orm import DbInterface  # noqa E402
 from db.models.api import ApiModel  # noqa E402
 from db.models.api_document import ApiDocumentModel  # noqa E402
@@ -75,6 +80,9 @@ class SPDXExternalIdentifier:
     Bug/Fix tracker links use the URL (or free-text reference) as
     ``identifier`` and, when the value is an http(s) URL, also set
     ``identifierLocator``.
+
+    Test Run artifacts use:
+        basil:test_runs:<id>:artifact:<filename>
 
     Example:
         identifier = "basil:sw_requirements:42"
@@ -1135,6 +1143,7 @@ class SPDXManager:
     def addTestRuns(self, spdx_tc: SPDXFile = None, mapping_to: str = "", mapping_id: int = 0, dbsession=None):
         if not self.include_test_runs:
             logger.warning("Skip Test Runs as per export configuration")
+            return
 
         added_test_runs = []
         test_runs_query = (
@@ -1199,6 +1208,7 @@ class SPDXManager:
         self.add_to_sbom(tr_file)
         self.add_to_sbom(tr_annotation)
         self.addTestRunBugAndFixOutputs(spdx_tr=tr_file, test_run=test_run, creation_info=creation_info)
+        self.addTestRunArtifacts(spdx_tr=tr_file, test_run=test_run, creation_info=creation_info)
         return tr_file
 
     def addTestRunBugOrFix(
@@ -1274,6 +1284,101 @@ class SPDXManager:
                     to=[spdx_ref],
                     relationship_type=SpdxRelationshipType.HAS_OUTPUT,
                 )
+
+    def addTestRunArtifact(
+        self,
+        test_run: TestRunModel = None,
+        artifact_name: str = "",
+        index: int = 1,
+        creation_info: SPDXCreationInfo = None,
+    ):
+        """Create an SPDX File for one Test Run artifact on disk.
+
+        Artifacts live under ``TEST_RUNS_BASE_DIR/<uid>/api/tmt-plan/data/``.
+        ``verifiedUsing`` prefers an MD5 of the file contents when readable;
+        otherwise a metadata hash is used.
+        """
+        artifacts_dir = get_test_run_artifacts_dir(test_run.uid)
+        artifact_path = os.path.join(artifacts_dir, artifact_name)
+        spdx_id = f"spdx:file:basil:test-run:{test_run.id}:artifact:{index}"
+
+        content_hash = None
+        if os.path.isfile(artifact_path):
+            try:
+                dhash = hashlib.md5()
+                with open(artifact_path, "rb") as artifact_file:
+                    for chunk in iter(lambda: artifact_file.read(1024 * 1024), b""):
+                        dhash.update(chunk)
+                content_hash = SPDXMD5Hash(hash_value=dhash.hexdigest())
+            except OSError as e:
+                logger.warning(f"Unable to hash artifact {artifact_path}: {e}")
+
+        if content_hash is None:
+            content_hash = self.make_hash_object(
+                data_dict={
+                    "artifact_name": artifact_name,
+                    "test_run_id": test_run.id,
+                    "index": index,
+                }
+            )
+
+        artifact_file = SPDXFile(
+            spdx_id=spdx_id,
+            name=artifact_name,
+            comment="BASIL Artifact",
+            description=f"Artifact '{artifact_name}' from BASIL Test Run {test_run.id}",
+            purpose="evidence",
+            copyright_text="",
+            verified_using=[content_hash],
+            external_identifiers=[
+                SPDXExternalIdentifier(
+                    identifier=f"basil:{test_run.__tablename__}:{test_run.id}:artifact:{artifact_name}",
+                    comment=f"BASIL Test Run {test_run.id} Artifact '{artifact_name}'",
+                )
+            ],
+            creation_info=creation_info,
+        )
+        self.add_to_sbom(artifact_file)
+        return artifact_file
+
+    def addTestRunArtifacts(
+        self,
+        spdx_tr: SPDXFile = None,
+        test_run: TestRunModel = None,
+        creation_info: SPDXCreationInfo = None,
+    ):
+        """Emit SPDX Files for Test Run artifacts and link them 1-to-many.
+
+        Each on-disk artifact becomes an SPDX File (purpose ``evidence``).
+        The Test Run is linked to all artifacts with both ``hasOutput`` and
+        ``hasEvidence`` relationships (one relationship of each type covering
+        the full artifact list).
+        """
+        artifact_names = list_test_run_artifacts(test_run.uid)
+        if not artifact_names:
+            return
+
+        added_artifacts = []
+        for index, artifact_name in enumerate(artifact_names, start=1):
+            added_artifacts.append(
+                self.addTestRunArtifact(
+                    test_run=test_run,
+                    artifact_name=artifact_name,
+                    index=index,
+                    creation_info=creation_info,
+                )
+            )
+
+        self.addRelationship(
+            from_element=spdx_tr,
+            to=added_artifacts,
+            relationship_type=SpdxRelationshipType.HAS_OUTPUT,
+        )
+        self.addRelationship(
+            from_element=spdx_tr,
+            to=added_artifacts,
+            relationship_type=SpdxRelationshipType.HAS_EVIDENCE,
+        )
 
     def addDocumentsNestedElements(
         self,
@@ -1629,6 +1734,7 @@ class SPDXManager:
                 "test run": "purple",
                 "bug": "salmon",
                 "fix": "olivedrab",
+                "artifact": "khaki",
             }
 
             if hasattr(node, "comment"):
@@ -1744,6 +1850,7 @@ class SPDXManager:
         legend.node("test_run", label="Test Run", shape="box", style="filled", fillcolor="purple")
         legend.node("bug", label="Bug", shape="box", style="filled", fillcolor="salmon")
         legend.node("fix", label="Fix", shape="box", style="filled", fillcolor="olivedrab")
+        legend.node("artifact", label="Artifact", shape="box", style="filled", fillcolor="khaki")
 
         # Stack legend nodes vertically
         legend.edge("library", "software_component", style="invis", weight="100")
@@ -1757,6 +1864,7 @@ class SPDXManager:
         legend.edge("test_case", "test_run", style="invis", weight="100")
         legend.edge("test_run", "bug", style="invis", weight="100")
         legend.edge("bug", "fix", style="invis", weight="100")
+        legend.edge("fix", "artifact", style="invis", weight="100")
 
         dot.subgraph(legend)
 

@@ -842,3 +842,46 @@ def get_mapping_comments(dbi: DbInterface, relation_id: int, tablename: str) -> 
         }
         for c in comments
     ]
+
+
+def parse_comma_separated_list(value=None):
+    """Split a comma-separated string into stripped non-empty tokens.
+
+    Empty input returns an empty list. Consecutive commas collapse.
+    """
+    if not value:
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def is_http_url(value: str) -> bool:
+    """Return True if value looks like an http(s) URL."""
+    return bool(value) and value.lower().startswith(("http://", "https://"))
+
+
+def get_test_run_artifacts_dir(test_run_uid: str) -> str:
+    """Return the on-disk directory where BASIL stores Test Run artifacts."""
+    # Same default as TEST_RUNS_BASE_DIR in api.py / testrun_tmt.py
+    test_runs_base_dir = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
+    return os.path.join(test_runs_base_dir, test_run_uid, "api", "tmt-plan", "data")
+
+
+def list_test_run_artifacts(test_run_uid: str) -> list:
+    """List artifact file names for a Test Run (sorted, files only).
+
+    Returns an empty list when the artifacts directory is missing or
+    unreadable. Directories inside the artifacts path are ignored.
+    """
+    artifacts_dir = get_test_run_artifacts_dir(test_run_uid)
+    if not os.path.isdir(artifacts_dir):
+        return []
+    try:
+        names = [
+            name
+            for name in os.listdir(artifacts_dir)
+            if os.path.isfile(os.path.join(artifacts_dir, name))
+        ]
+    except OSError as e:
+        logger.warning(f"Unable to list artifacts for test run {test_run_uid}: {e}")
+        return []
+    return sorted(names)

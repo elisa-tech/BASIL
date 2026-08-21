@@ -14,7 +14,7 @@ from sqlalchemy import desc
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
 
-from api.api_utils import (  # noqa E402
+from api_utils import (  # noqa E402
     get_test_run_artifacts_dir,
     is_http_url,
     list_test_run_artifacts,

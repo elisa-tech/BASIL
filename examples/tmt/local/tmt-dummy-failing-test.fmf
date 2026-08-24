@@ -7,4 +7,4 @@ test: |
   echo "dummy test end"
   exit 1
 framework: shell
-duration: 1m
+duration: 5m

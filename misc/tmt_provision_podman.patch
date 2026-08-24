@@ -1,6 +1,15 @@
 --- steps/provision/podman.py
 +++ steps/provision/podman_modified.py
-@@ -195,7 +195,7 @@
+@@ -34,7 +34,7 @@
+ CONNECTION_TIMEOUT = 60
+ 
+ # Defaults
+-DEFAULT_IMAGE = "fedora"
++DEFAULT_IMAGE = "fedora:39"
+ DEFAULT_USER = "root"
+ DEFAULT_PULL_ATTEMPTS = 5
+ DEFAULT_PULL_INTERVAL = 5
+@@ -210,7 +210,7 @@
              else:
                  raise err
  

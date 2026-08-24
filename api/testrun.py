@@ -31,6 +31,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info("Starting BASIL Test Run")
 
+# PostgreSQL text/varchar cannot store NUL (0x00). Plugin subprocess output
+# (e.g. nested podman/conmon) can include that byte; committing it fails and
+# leaves the test run stuck in "running".
+_NUL = "\x00"
+
+
+def sanitize_db_text(value):
+    """Return a value that can be stored in a PostgreSQL text column."""
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    if not isinstance(value, str):
+        return value
+    if _NUL not in value:
+        return value
+    return value.replace(_NUL, "")
+
 
 class TestRunner:
     """
@@ -260,8 +278,15 @@ class TestRunner:
 
     def publish(self):
         """
-        Update the database with the current version of the TestRunModel instance
+        Update the database with the current version of the TestRunModel instance.
+
+        Logs and reports are sanitized here so every plugin (and the runner
+        exception path) can persist status even when subprocess output contains
+        characters PostgreSQL rejects.
         """
+        if self.db_test_run is not None:
+            self.db_test_run.log = sanitize_db_text(self.db_test_run.log)
+            self.db_test_run.report = sanitize_db_text(self.db_test_run.report)
         self.dbi.session.add(self.db_test_run)
         self.dbi.session.commit()
 

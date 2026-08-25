@@ -306,7 +306,7 @@ if [ -n "$environment_file" ] && [ -f "$environment_file" ]; then
 fi
 
 podman_cmd="$podman_cmd --name ${BASIL_API_CONTAINER}"
-podman_cmd="$podman_cmd --detach --privileged --pod=${BASIL_POD}"
+podman_cmd="$podman_cmd --detach --privileged --cgroupns=host --pod=${BASIL_POD}"
 podman_cmd="$podman_cmd -v basil-configs-vol:/BASIL-API/api/configs"
 podman_cmd="$podman_cmd -v basil-ssh-keys-vol:/BASIL-API/api/ssh_keys"
 podman_cmd="$podman_cmd -v basil-user-files-vol:/BASIL-API/api/user-files"

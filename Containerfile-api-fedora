@@ -55,6 +55,12 @@ RUN mkdir -p /var/tmp && \
 # Write permission to db
 RUN chmod a+rw /BASIL-API/db
 
+# Nested Podman (TMT container provision) has no systemd in this image
+RUN mkdir -p /etc/containers/containers.conf.d && \
+    cp /BASIL-API/misc/nested-podman/99-basil-nested.conf /etc/containers/containers.conf.d/ && \
+    cp /BASIL-API/misc/nested-podman/storage.conf /etc/containers/storage.conf && \
+    mkdir -p /run/containers/storage /var/lib/containers/storage
+
 # Apply patches
 RUN patch -u /BASIL-API/penv/lib/python3.12/site-packages/tmt/steps/provision/podman.py < /BASIL-API/misc/tmt_provision_podman.patch  && \
     . /BASIL-API/penv/bin/activate && tmt init

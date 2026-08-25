@@ -160,6 +160,7 @@ jobs:
         run: chmod +x ./run_demo.sh
 
       - name: Run demo environment
+        timeout-minutes: 20
         run: |
           sudo ./run_demo.sh \
           -b $BASIL_API_PORT \

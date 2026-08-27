@@ -25,6 +25,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 import const_data from '../fixtures/consts.json'
+import { splitUserFileToTmtPath } from '../../src/app/Constants/constants'
 
 export function registerCommands() {
   Cypress.Commands.add('clear_db', () => {
@@ -503,6 +504,146 @@ export function registerCommands() {
         cy.check_work_item(_index, _type, _obj)
       } else {
         // do something else
+      }
+    })
+  })
+
+  Cypress.Commands.add('fill_test_case_from_user_file', (_action, _obj, _filename) => {
+    cy.get('[id*="input-test-case-' + _action + '-title-"]')
+      .clear()
+      .type(_obj.title)
+      .should('have.value', _obj.title)
+    cy.get('[id*="input-test-case-' + _action + '-description-"]')
+      .clear()
+      .type(_obj.description)
+    cy.get('[id*="input-test-case-' + _action + '-coverage-"]')
+      .clear()
+      .type(String(_obj.coverage))
+      .should('have.value', String(_obj.coverage))
+
+    cy.get('#btn-mapping-test-case-from-user-files').click()
+    cy.get('[id*="select-test-case-' + _action + '-file-"]', { timeout: 15000 }).should('be.visible')
+    cy.get('[id*="select-test-case-' + _action + '-file-"] option', { timeout: 15000 }).should(($opts) => {
+      expect($opts.length).to.be.greaterThan(1)
+      const texts = [...$opts].map((o) => o.textContent || '')
+      expect(
+        texts.some((t) => t.includes(_filename)),
+        'user file ' + _filename + ' in select options'
+      ).to.eq(true)
+    })
+    cy.get('[id*="select-test-case-' + _action + '-file-"] option').then(($opts) => {
+      const match = [...$opts].find((o) => (o.textContent || '').includes(_filename))
+      expect(match, 'option for ' + _filename).to.exist
+      cy.get('[id*="select-test-case-' + _action + '-file-"]').select(match.value)
+    })
+  })
+
+  Cypress.Commands.add('submit_test_case_from_user_file', (_action, _method) => {
+    const alias = 'saveTestCaseFromUserFile'
+    cy.intercept({ method: _method, url: '**/mapping/**/test-cases' }).as(alias)
+    cy.get('[id*="select-test-case-' + _action + '-file-"]')
+      .invoke('val')
+      .then((filepath) => {
+        expect(filepath, 'selected user-file filepath').to.be.a('string').and.not.equal('')
+        cy.get('#btn-mapping-test-case-submit').click()
+        cy.wait('@' + alias).then((interception) => {
+          expect(interception.response.statusCode).to.be.oneOf([200, 201])
+          const body =
+            typeof interception.request.body === 'string'
+              ? JSON.parse(interception.request.body)
+              : interception.request.body
+          const expected = splitUserFileToTmtPath(filepath)
+          const tc = body['test-case']
+          expect(tc.repository, 'repository from splitUserFileToTmtPath').to.eq(expected.repository)
+          expect(tc['relative-path'], 'relative-path from splitUserFileToTmtPath').to.eq(expected.relativePath)
+        })
+      })
+  })
+
+  Cypress.Commands.add('assign_test_case_from_user_file', (_parent_index, _index, _parent_type, _obj, _filename) => {
+    const tableOptions = { timeout: 15000 }
+    let card
+
+    if (_parent_index > -1) {
+      card = cy
+        .get(const_data.mapping.table_matching_id, tableOptions)
+        .find('tbody')
+        .find('tr')
+        .eq(0)
+        .find('td')
+        .eq(1)
+        .find('.pf-v5-c-card', tableOptions)
+
+      card.find('button[class*="pf-v5-c-menu-toggle"]').each(($el, index) => {
+        if (index == _parent_index) {
+          cy.wrap($el).click()
+        }
+      })
+
+      card = cy
+        .get(const_data.mapping.table_matching_id, tableOptions)
+        .find('tbody')
+        .find('tr')
+        .eq(0)
+        .find('td')
+        .eq(1)
+        .find('.pf-v5-c-card', tableOptions)
+
+      card.each(($el, index) => {
+        if (index == _parent_index) {
+          cy.wrap($el)
+            .find('button[id*="btn-menu-' + _parent_type + '-assign-test-case-"]')
+            .click()
+        }
+      })
+    } else {
+      cy.get(const_data.mapping.table_matching_id).find('tbody').find('tr').eq(0).find('td').eq(0).find('button').click()
+      cy.get('#btn-mapping-section-test-case-0').click()
+    }
+
+    cy.fill_test_case_from_user_file('add', _obj, _filename)
+    cy.wait(const_data.long_wait)
+    cy.submit_test_case_from_user_file('add', 'POST')
+    cy.wait(const_data.long_wait * 3)
+    cy.check_work_item(_index, 'test-case', _obj)
+  })
+
+  Cypress.Commands.add('edit_test_case_from_user_file', (_index, _obj, _filename) => {
+    const tableOptions = { timeout: 15000 }
+
+    let card = cy
+      .get(const_data.mapping.table_matching_id, tableOptions)
+      .find('tbody')
+      .find('tr')
+      .eq(0)
+      .find('td')
+      .eq(1)
+      .find('.pf-v5-c-card', tableOptions)
+
+    card.find('button[class*="pf-v5-c-menu-toggle"]').each(($el, index) => {
+      if (index == _index) {
+        cy.wrap($el).click()
+      }
+    })
+
+    card = cy
+      .get(const_data.mapping.table_matching_id, tableOptions)
+      .find('tbody')
+      .find('tr')
+      .eq(0)
+      .find('td')
+      .eq(1)
+      .find('.pf-v5-c-card', tableOptions)
+
+    card.each(($el, index) => {
+      if (index == _index) {
+        cy.wrap($el)
+          .find('button[id^="btn-menu-test-case-edit"]')
+          .click()
+        cy.fill_test_case_from_user_file('edit', _obj, _filename)
+        cy.submit_test_case_from_user_file('edit', 'PUT')
+        cy.wait(const_data.long_wait)
+        cy.check_work_item(_index, 'test-case', _obj)
       }
     })
   })

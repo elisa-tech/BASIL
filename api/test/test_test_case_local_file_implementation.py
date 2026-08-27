@@ -443,6 +443,35 @@ def test_get_ok_api_relation_local_file(
         _remove_if_exists(path)
 
 
+def test_get_ok_api_relation_local_file_ui_style_relative_path(
+    client, client_db, user_authentication, mapped_api_tc_db, utilities
+):
+    """UI stores repository as BASIL root and relative_path as /api/user-files/<id>/file."""
+    api, test_case, api_tc_mapping = mapped_api_tc_db
+    auth = user_authentication.json
+    user_id = auth["id"]
+    content = "ui-style-path\n"
+    base = os.path.join(os.path.abspath(basil_api.USER_FILES_BASE_DIR), str(user_id))
+    os.makedirs(base, exist_ok=True)
+    filename = f"ut_tclocal_{utilities.generate_random_hex_string8()}.txt"
+    path = os.path.join(base, filename)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+    basil_root = os.path.dirname(os.path.dirname(os.path.abspath(basil_api.USER_FILES_BASE_DIR)))
+    test_case.repository = basil_root
+    test_case.relative_path = f"/api/user-files/{user_id}/{filename}"
+    client_db.session.add(test_case)
+    client_db.session.commit()
+    try:
+        response = _get_local_file_impl(
+            client, auth, api.id, test_case.id, api_tc_mapping.id, "api"
+        )
+        assert response.status_code == HTTPStatus.OK
+        assert response.get_data(as_text=True) == content
+    finally:
+        _remove_if_exists(path)
+
+
 def test_get_bad_request_unsafe_local_path(
     client, client_db, user_authentication, mapped_api_tc_db, utilities
 ):

@@ -76,6 +76,7 @@ from api_utils import (
     BORDER_COLOR_TEST_CASE,
     BORDER_COLOR_TEST_SPECIFICATION,
     code_to_html,
+    combine_tmt_path,
     document_to_html,
     extend_unmapped_sections_for_auto_fix,
     get_api_specification,
@@ -4118,7 +4119,7 @@ class ApiTestCasesMapping(Resource):
                 )
                 return api_response.return_conflict()
 
-            test_case_path = os.path.join(repository, relative_path)
+            test_case_path = combine_tmt_path(repository, relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
@@ -4216,10 +4217,7 @@ class ApiTestCasesMapping(Resource):
                     setattr(test_case, field, request_data["test-case"][field.replace("_", "-")])
 
         if modified_tc:
-            test_case_path = os.path.join(
-                test_case.repository,
-                str(test_case.relative_path).lstrip(os.path.sep),
-            )
+            test_case_path = combine_tmt_path(test_case.repository, test_case.relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
@@ -6291,7 +6289,7 @@ class TestCaseLocalFileImplementation(Resource):
 
         # if repository is a local path, return the file content
         if test_case_mapping.test_case.repository.startswith("/"):
-            test_case_path = os.path.join(
+            test_case_path = combine_tmt_path(
                 test_case_mapping.test_case.repository, test_case_mapping.test_case.relative_path
             )
 
@@ -7204,7 +7202,7 @@ class SwRequirementTestCasesMapping(Resource):
                 )
                 return api_response.return_conflict()
 
-            test_case_path = os.path.join(repository, relative_path)
+            test_case_path = combine_tmt_path(repository, relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
@@ -7321,7 +7319,7 @@ class SwRequirementTestCasesMapping(Resource):
                     setattr(test_case, field, request_data["test-case"][field.replace("_", "-")])
 
         if modified_tc:
-            test_case_path = os.path.join(
+            test_case_path = combine_tmt_path(
                 request_data["test-case"]["repository"], request_data["test-case"]["relative-path"]
             )
             # In case of local file
@@ -7585,7 +7583,7 @@ class TestSpecificationTestCasesMapping(Resource):
                 )
                 return api_response.return_conflict()
 
-            test_case_path = os.path.join(repository, relative_path)
+            test_case_path = combine_tmt_path(repository, relative_path)
             # In case of local file
             if test_case_path.startswith(os.path.sep):
                 if not is_safe_local_user_file_path(test_case_path):
@@ -7698,7 +7696,7 @@ class TestSpecificationTestCasesMapping(Resource):
                     setattr(test_case, field, request_data["test-case"][field.replace("_", "-")])
 
         if modified_tc:
-            test_case_path = os.path.join(
+            test_case_path = combine_tmt_path(
                 request_data["test-case"]["repository"], request_data["test-case"]["relative-path"]
             )
             # In case of local file

@@ -588,6 +588,28 @@ export const removeExtension = (filename: string, extension: string) => {
   return filename.endsWith(extension) ? filename.slice(0, -extension.length) : filename
 }
 
+export const USER_FILES_API_PATH_MARKER = '/api/'
+export const TMT_TEST_FILE_EXTENSION = '.fmf'
+
+/**
+ * Split a user-file absolute path into the Test Case repository + relative path
+ * pair stored by BASIL and consumed by TMT.
+ *
+ * Example:
+ *   /BASIL-API/api/user-files/2/tmt/tmt-dummy-test.fmf
+ *     repository:    /BASIL-API
+ *     relativePath:  /api/user-files/2/tmt/tmt-dummy-test
+ *
+ * The leading slash on relativePath is intentional. The API joins the two
+ * parts with combine_tmt_path(), which strips it before os.path.join.
+ */
+export const splitUserFileToTmtPath = (filepath: string): { repository: string; relativePath: string } => {
+  const safePath = filepath || ''
+  const repository = safePath.split(USER_FILES_API_PATH_MARKER)[0]
+  const relativePath = removeExtension(safePath.slice(repository.length), TMT_TEST_FILE_EXTENSION)
+  return { repository, relativePath }
+}
+
 export const isValidId = (id_str: string) => {
   return /^\d+$/.test(id_str) && Number(id_str) > 0 && Number.isSafeInteger(Number(id_str))
 }

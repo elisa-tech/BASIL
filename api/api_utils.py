@@ -786,6 +786,24 @@ def is_safe_user_path(user_root, requested_path):
     return abs_target == abs_root or abs_target.startswith(abs_root + os.sep)
 
 
+def combine_tmt_path(repository: str, relative_path: str) -> str:
+    """Join a TMT test repository path with a relative path.
+
+    User-file relative paths from the UI often start with a leading separator
+    (for example ``/api/user-files/<id>/tmt-dummy-test``). ``os.path.join``
+    treats a later absolute segment as a new root and would discard
+    *repository*. This helper strips leading separators from *relative_path*
+    before joining so the result stays under *repository*.
+    """
+    repo = str(repository or "")
+    rel = str(relative_path or "").lstrip("/" + os.sep)
+    if not repo:
+        return rel
+    if not rel:
+        return repo
+    return os.path.join(repo, rel)
+
+
 def is_safe_local_user_file_path(path: str) -> bool:
     from api import USER_FILES_BASE_DIR
     return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)

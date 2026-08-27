@@ -9,9 +9,7 @@ describe('splitUserFileToTmtPath', () => {
   })
 
   test('splits a local checkout user-file path and strips .fmf', () => {
-    expect(
-      splitUserFileToTmtPath('/Users/dev/BASIL/api/user-files/2/tmt/tmt-dummy-test.fmf')
-    ).toEqual({
+    expect(splitUserFileToTmtPath('/Users/dev/BASIL/api/user-files/2/tmt/tmt-dummy-test.fmf')).toEqual({
       repository: '/Users/dev/BASIL',
       relativePath: '/api/user-files/2/tmt/tmt-dummy-test'
     })

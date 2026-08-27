@@ -168,9 +168,9 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
         if execution_return_code in [0, 1]:
             self.execution_result = self.runner.RESULT_PASS
 
-        self.log += f'out: {out.decode("utf-8")}\n'
+        self.log += f'out: {out.decode("utf-8", errors="replace")}\n'
         self.log += "--------------------------------------\n"
-        self.log += f'err: {err.decode("utf-8")}\n'
+        self.log += f'err: {err.decode("utf-8", errors="replace")}\n'
         self.log += "\n\n"
         self.log += "--------------------------------------\n"
         self.log += f"EXECUTION RESULT: {self.execution_result}\n"

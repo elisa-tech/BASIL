@@ -8,7 +8,7 @@ import traceback
 
 import requests
 import yaml
-from api_utils import get_api_specification
+from api_utils import combine_tmt_path, get_api_specification
 from testrun_base import TestRunnerBasePlugin
 
 logger = logging.getLogger(__name__)
@@ -117,8 +117,8 @@ class TestRunnerLAVAPlugin(TestRunnerBasePlugin):
             }
         else:
             # read the file
-            test_file_path = os.path.join(
-                self.runner.mapping.test_case.repository, self.runner.mapping.test_case.relative_path.lstrip("/")
+            test_file_path = combine_tmt_path(
+                self.runner.mapping.test_case.repository, self.runner.mapping.test_case.relative_path
             )
 
             if os.path.exists(test_file_path):

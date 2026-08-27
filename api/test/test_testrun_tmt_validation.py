@@ -179,6 +179,34 @@ class TestTMTValidation:
         except SystemExit:
             pytest.fail("User should be able to access their own folder")
 
+    def test_user_can_access_own_folder_with_ui_style_path(self, basil_root_path, user_x):
+        """UI stores repository as BASIL root and relative_path as /api/user-files/<id>/..."""
+
+        test_case = MockTestCase(
+            repository=basil_root_path,
+            relative_path=f"/api/user-files/{user_x.id}/tmt/tmt-dummy-test",
+        )
+
+        config = {
+            "id": 1,
+            "title": "Test Config",
+            "provision_type": "container",
+            "context": {"plan_type": "local"},
+            "git_repo_ref": "",
+            "env": {
+                "basil_test_repo_path": test_case.repository,
+                "basil_test_relative_path": test_case.relative_path,
+            },
+        }
+
+        runner = MockRunner(user_x, test_case, config)
+
+        try:
+            plugin = TestRunnerTmtPlugin(runner=runner)
+            assert plugin is not None
+        except SystemExit:
+            pytest.fail("User should be able to access their own folder via UI-style TMT path")
+
     def test_user_can_access_basil_examples(self, basil_root_path, user_x):
         """Test that any user can access BASIL example files"""
 

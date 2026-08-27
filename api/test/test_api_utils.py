@@ -17,6 +17,7 @@ sys.path.insert(1, os.path.dirname(currentdir))
 from api_utils import (
     LINK_BASIL_INSTANCE_HTML_MESSAGE,
     add_html_link_to_email_body,
+    combine_tmt_path,
     load_settings
 )
 
@@ -83,3 +84,41 @@ app_url: "https://www.google.com"
     body = add_html_link_to_email_body(settings=settings, body=initial_body)
     assert body != ""
     assert LINK_BASIL_INSTANCE_HTML_MESSAGE in body
+
+
+@pytest.mark.parametrize(
+    "repository, relative_path, expected",
+    [
+        (
+            "/BASIL-API",
+            "/api/user-files/2/tmt/tmt-dummy-test",
+            "/BASIL-API/api/user-files/2/tmt/tmt-dummy-test",
+        ),
+        (
+            "/BASIL-API",
+            "api/user-files/2/tmt/tmt-dummy-test",
+            "/BASIL-API/api/user-files/2/tmt/tmt-dummy-test",
+        ),
+        (
+            "/opt/basil",
+            "examples/tmt/local/tmt-dummy-test.fmf",
+            "/opt/basil/examples/tmt/local/tmt-dummy-test.fmf",
+        ),
+        ("/repo", "", "/repo"),
+        ("", "tests/foo.fmf", "tests/foo.fmf"),
+        ("/repo/", "/nested/test", "/repo/nested/test"),
+        (None, "/api/user-files/2/test", "api/user-files/2/test"),
+    ],
+)
+def test_combine_tmt_path(repository, relative_path, expected):
+    assert combine_tmt_path(repository, relative_path) == expected
+
+
+def test_combine_tmt_path_does_not_drop_repository_when_relative_is_absolute():
+    """os.path.join discards repository when relative_path is absolute; combine_tmt_path must not."""
+    repository = "/BASIL-API"
+    relative_path = "/api/user-files/2/tmt/tmt-dummy-test"
+    assert os.path.join(repository, relative_path) == relative_path
+    assert combine_tmt_path(repository, relative_path) == (
+        "/BASIL-API/api/user-files/2/tmt/tmt-dummy-test"
+    )

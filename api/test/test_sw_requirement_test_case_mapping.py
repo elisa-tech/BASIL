@@ -515,6 +515,36 @@ def test_put_ok(client, client_db, user_authentication, mapped_api_sr_tc_db, uti
     assert response.status_code == HTTPStatus.OK
 
 
+def test_put_user_file_relative_path(client, client_db, user_authentication, mapped_api_sr_tc_db):
+    """Edit Test Case from user files sends repository=BASIL root and /api/user-files/... relative-path."""
+    import api as basil_api
+
+    api, sw_requirement, api_sr_mapping, sr_tc_mapping = mapped_api_sr_tc_db
+    auth = user_authentication.json
+    user_id = auth["id"]
+    basil_root = os.path.dirname(os.path.dirname(os.path.abspath(basil_api.USER_FILES_BASE_DIR)))
+    relative_path = f"/api/user-files/{user_id}/tmt/tmt-dummy-test"
+
+    ut_test_case_dict = sr_tc_mapping.test_case.as_dict()
+    ut_test_case_dict = {k.replace("_", "-"): v for k, v in ut_test_case_dict.items()}
+    ut_test_case_dict["repository"] = basil_root
+    ut_test_case_dict["relative-path"] = relative_path
+
+    mapping_data = {
+        "api-id": api.id,
+        "coverage": sr_tc_mapping.coverage,
+        "relation-id": sr_tc_mapping.id,
+        "sw-requirement": {"id": sw_requirement.id},
+        "test-case": ut_test_case_dict,
+        "user-id": auth["id"],
+        "token": auth["token"],
+    }
+    response = client.put(_MAPPING_SW_REQUIREMENT_TEST_CASES_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.OK
+    assert response.json["test_case"]["repository"] == basil_root
+    assert response.json["test_case"]["relative_path"] == relative_path
+
+
 # Test DELETE
 
 

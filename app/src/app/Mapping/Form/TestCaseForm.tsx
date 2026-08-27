@@ -256,19 +256,18 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
 
     setMessageValue('')
 
-    const tc_repository: string = implementationSource == 'url' ? repositoryValue : implementationFilePath.split('/api/')[0]
-    const tc_relative_path: string =
+    const tcPath =
       implementationSource == 'url'
-        ? relativePathValue
-        : Constants.removeExtension(implementationFilePath.slice(tc_repository.length), '.fmf')
+        ? { repository: repositoryValue, relativePath: relativePathValue }
+        : Constants.splitUserFileToTmtPath(implementationFilePath)
 
     const data = {
       'api-id': api.id,
       'test-case': {
         title: titleValue,
         description: descriptionValue,
-        repository: tc_repository,
-        'relative-path': tc_relative_path
+        repository: tcPath.repository,
+        'relative-path': tcPath.relativePath
       },
       section: modalSection,
       offset: modalOffset,

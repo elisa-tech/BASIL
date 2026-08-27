@@ -6,6 +6,7 @@ import shutil
 import subprocess
 
 import yaml
+from api_utils import combine_tmt_path
 from testrun_base import TestRunnerBasePlugin
 
 logger = logging.getLogger(__name__)
@@ -108,7 +109,7 @@ class TestRunnerTmtPlugin(TestRunnerBasePlugin):
                 # Calculate the user folder path
                 user_folder_path = os.path.join(basil_path, "api", "user-files", user_id_str)
                 # Calculate resulting test path considering also possible ../ (or multiple ../)
-                test_path = os.path.join(
+                test_path = combine_tmt_path(
                     self.config["env"]["basil_test_repo_path"], self.config["env"]["basil_test_relative_path"]
                 )
 

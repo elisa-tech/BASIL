@@ -45,6 +45,24 @@ def test_wrong_settings():
 
     ai_prompter = AIPrompter(settings=None, settings_last_modified=None)
     assert not ai_prompter.validate_settings()
+    assert ai_prompter.ai_health_check() is False
+
+
+def test_placeholder_settings_are_invalid():
+    """Default settings.yaml uses empty host/model and port 0 as placeholders."""
+    delete_env_variables()
+
+    settings, settings_last_modified = load_settings(None, None)
+    settings[AIPrompter.SETTINGS_AI_SECTION] = {
+        AIPrompter.SETTINGS_AI_FIELD_HOST: "",
+        AIPrompter.SETTINGS_AI_FIELD_PORT: 0,
+        AIPrompter.SETTINGS_AI_FIELD_MODEL: "",
+        AIPrompter.SETTINGS_AI_FIELD_TOKEN: "",
+    }
+    ai_prompter = AIPrompter(settings=settings, settings_last_modified=settings_last_modified)
+    assert not ai_prompter.validate_settings()
+    assert ai_prompter._base_url is None
+    assert ai_prompter.ai_health_check() is False
 
 
 @pytest.mark.parametrize('mandatory_field', [

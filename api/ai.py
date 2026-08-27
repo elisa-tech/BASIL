@@ -158,8 +158,11 @@ class AIPrompter():
         else:
             self._max_tokens = self.DEFAULT_AI_MAX_TOKENS
 
-        self._host = str(self._host).rstrip("/")
-        self._api_version = str(self._api_version).rstrip("/")
+        # Avoid str(None) == "None", which looks like a configured host.
+        if self._host:
+            self._host = str(self._host).rstrip("/")
+        if self._api_version:
+            self._api_version = str(self._api_version).rstrip("/")
 
         if self._host and self._port:
             self._base_url = f"{self._host}:{self._port}/{self._api_version}"
@@ -167,20 +170,24 @@ class AIPrompter():
     def validate_settings(self) -> bool:
         """Validate mandatory fields"""
 
-        if self._host is None:
+        if not self._host:
             logger.warning("Error. `AI host` is not configured")
             return False
 
-        if self._port is None:
+        if not self._port:
             logger.warning("Error. `AI port` is not configured")
             return False
 
-        if self._api_version is None:
+        if not self._api_version:
             logger.warning("Error. `AI api version` is not configured")
             return False
 
-        if self._model is None:
+        if not self._model:
             logger.warning("Error. `AI model` is not configured")
+            return False
+
+        if not self._base_url:
+            logger.warning("Error. `AI base url` is not configured")
             return False
 
         logger.info("AIPromter settings are valid")
@@ -207,15 +214,20 @@ class AIPrompter():
         return text.strip()
 
     def ai_health_check(self):
+        if not self._base_url:
+            logger.warning("AIPrompter ai_health_check - base URL is not configured")
+            return False
+
         url = f"{self._base_url}/models"
-        req = urllib.request.Request(url, method="GET")
-
-        if self._base_url.startswith(self.GEMINI_BASE_URL):
-            req.add_header("x-goog-api-key", self._token)
-
-        req.add_header("Content-Type", "application/json")
 
         try:
+            req = urllib.request.Request(url, method="GET")
+
+            if self._base_url.startswith(self.GEMINI_BASE_URL):
+                req.add_header("x-goog-api-key", self._token)
+
+            req.add_header("Content-Type", "application/json")
+
             with urllib.request.urlopen(req, timeout=1) as resp:
                 status = resp.getcode()
                 if status == 200:
@@ -228,8 +240,8 @@ class AIPrompter():
             logger.error(f"❌ AIPrompter ai_health_check - HTTP error: {e.code}")
             return False
         except Exception:
-            # Network error, timeout, connection refused, etc.
-            logger.error("❌ AIPrompter ai_health_check - Connection failed",)
+            # Network error, timeout, connection refused, invalid URL, etc.
+            logger.error("❌ AIPrompter ai_health_check - Connection failed")
             return False
 
     def strip_outer_quotes(self, value: str) -> str:

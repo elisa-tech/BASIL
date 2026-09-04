@@ -222,6 +222,17 @@ jobs:
         with:
           name: api-coverage-html-report
           path: api-htmlcov.tar.gz
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload SPDX comprehensive traceability JSON-LD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spdx-comprehensive-traceability
+          path: api/public/spdx_export/ci-artifacts/basil-comprehensive-traceability.jsonld
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Init clean db after API Testing
         run: |

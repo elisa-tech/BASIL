@@ -21,11 +21,15 @@ from db.models.justification import JustificationModel
 from db.models.api_justification import ApiJustificationModel
 from db.models.document import DocumentModel
 from db.models.api_document import ApiDocumentModel
+from db.models.document_document import DocumentDocumentModel
 from db.models.test_run import TestRunModel
 from db.models.test_run_config import TestRunConfigModel
+from api_utils import get_test_run_artifacts_dir
 from conftest import UT_USER_EMAIL
 
 _SPDX_API_URL = "/spdx/apis"
+_SPDX_CI_ARTIFACT_DIRNAME = "ci-artifacts"
+_SPDX_CI_ARTIFACT_FILENAME = "basil-comprehensive-traceability.jsonld"
 
 _UT_API_NAME = "ut_spdx_api"
 _UT_API_LIBRARY = "ut_spdx_library"
@@ -70,6 +74,10 @@ _UT_JUSTIFICATION_DESCRIPTION = "Justification for SPDX test requirements"
 _UT_DOCUMENT_TITLE = "SPDX Reference Document"
 _UT_DOCUMENT_DESCRIPTION = "Reference documentation for SPDX compliance"
 _UT_DOCUMENT_URL = "https://spdx.dev/specification"
+
+_UT_TEST_RUN_BUG = "https://bugs.example.com/spdx-1"
+_UT_TEST_RUN_FIX = "https://fixes.example.com/spdx-1"
+_UT_TEST_RUN_ARTIFACT = "spdx-artifact.log"
 
 
 logger = logging.getLogger(__name__)
@@ -167,6 +175,73 @@ def get_test_run_model(client_db, utilities, test_run_config, api_id, mapping_to
     )
 
 
+def attach_test_run_bug_fix_artifact(test_run, artifact_name=_UT_TEST_RUN_ARTIFACT):
+    """Attach sibling Bug, Fix, and Artifact outputs to a Test Run.
+
+    Bugs and Fixes are stored as comma-separated references on the Test Run row.
+    Artifacts are files under TEST_RUNS_BASE_DIR/<uid>/api/tmt-plan/data/.
+    """
+    test_run.bugs = _UT_TEST_RUN_BUG
+    test_run.fixes = _UT_TEST_RUN_FIX
+    artifacts_dir = get_test_run_artifacts_dir(test_run.uid)
+    os.makedirs(artifacts_dir, exist_ok=True)
+    with open(os.path.join(artifacts_dir, artifact_name), "w", encoding="utf-8") as artifact_file:
+        artifact_file.write(f"SPDX validation artifact for test run uid={test_run.uid}\n")
+
+
+def _has_spdx_relationship(relationships, from_id, to_id, rel_type):
+    """Return True if SPDX graph has a Relationship from_id --rel_type--> to_id."""
+    for rel in relationships:
+        if rel.get("from") == from_id and rel.get("relationshipType") == rel_type:
+            if to_id in rel.get("to", []):
+                return True
+    return False
+
+
+def _has_incoming_spdx_relationship(relationships, to_id, rel_type):
+    """Return True if any Relationship of rel_type points at to_id."""
+    for rel in relationships:
+        if rel.get("relationshipType") == rel_type and to_id in rel.get("to", []):
+            return True
+    return False
+
+
+def _spdx_id_for_sr(sr):
+    return f"spdx:file:basil:software-requirement:{sr.id}"
+
+
+def _spdx_id_for_ts(ts):
+    return f"spdx:file:basil:test-specification:{ts.id}"
+
+
+def _spdx_id_for_tc(tc):
+    return f"spdx:file:basil:test-case:{tc.id}"
+
+
+def _spdx_id_for_document(doc):
+    return f"spdx:file:basil:document:{doc.id}"
+
+
+def _spdx_id_for_justification(js):
+    return f"spdx:file:basil:justification:{js.id}"
+
+
+def _spdx_id_for_test_run(tr):
+    return f"spdx:file:basil:test-run:{tr.id}"
+
+
+def _spdx_id_for_test_run_bug(tr, index=1):
+    return f"spdx:file:basil:test-run:{tr.id}:bug:{index}"
+
+
+def _spdx_id_for_test_run_fix(tr, index=1):
+    return f"spdx:file:basil:test-run:{tr.id}:fix:{index}"
+
+
+def _spdx_id_for_test_run_artifact(tr, index=1):
+    return f"spdx:file:basil:test-run:{tr.id}:artifact:{index}"
+
+
 def check_latest_jsonld_file(user_id: int = 0):
     """Helper to check the latest jsonld file"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -176,6 +251,25 @@ def check_latest_jsonld_file(user_id: int = 0):
         logger.info(f"Latest jsonld file found: {jsonld_file}")
         return jsonld_file
     return None
+
+
+def get_spdx_ci_artifact_path():
+    """Stable path for the comprehensive SPDX JSON-LD CI artifact."""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    artifact_dir = os.path.join(
+        current_dir, "..", "public", "spdx_export", _SPDX_CI_ARTIFACT_DIRNAME
+    )
+    os.makedirs(artifact_dir, exist_ok=True)
+    return os.path.abspath(os.path.join(artifact_dir, _SPDX_CI_ARTIFACT_FILENAME))
+
+
+def write_spdx_ci_artifact(spdx_content: bytes) -> str:
+    """Persist the exported SPDX JSON-LD so CI can upload it as an artifact."""
+    artifact_path = get_spdx_ci_artifact_path()
+    with open(artifact_path, "wb") as artifact_file:
+        artifact_file.write(spdx_content)
+    logger.info(f"Wrote SPDX CI artifact: {artifact_path}")
+    return artifact_path
 
 
 @pytest.fixture()
@@ -188,8 +282,13 @@ def clear_latest_jsonld_file(user_authentication):
 
 
 @pytest.fixture()
-def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
-    """Create comprehensive test data with all types of work items"""
+def comprehensive_spdx_test_data(client_db, ut_user_db, utilities, tmp_path, monkeypatch):
+    """Create at least one instance of every BASIL work-item mapping chain.
+
+    See test_spdx_api_export_and_validation for the full list of chains.
+    """
+
+    monkeypatch.setenv("TEST_RUNS_BASE_DIR", str(tmp_path / "test-runs"))
 
     user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
 
@@ -217,6 +316,7 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
     sw_req_1 = get_sw_requirement_model(client_db, utilities, "Authentication")
     sw_req_2 = get_sw_requirement_model(client_db, utilities, "DataProcessing")
     sw_req_3 = get_sw_requirement_model(client_db, utilities, "ErrorHandling")
+    sw_req_4 = get_sw_requirement_model(client_db, utilities, "NestedNested")
 
     # Create Test Specifications
     test_spec_1 = get_test_specification_model(client_db, utilities, "Auth")
@@ -226,14 +326,19 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
     test_case_1 = get_test_case_model(client_db, utilities, "AuthTest")
     test_case_2 = get_test_case_model(client_db, utilities, "DataTest")
     test_case_3 = get_test_case_model(client_db, utilities, "ErrorTest")
+    test_case_4 = get_test_case_model(client_db, utilities, "SrTsTc")
+    test_case_5 = get_test_case_model(client_db, utilities, "SrSrTsTc")
+    test_case_6 = get_test_case_model(client_db, utilities, "SrSrTc")
 
     # Create Justifications
     justification_1 = get_justification_model(client_db, utilities, "Compliance")
     justification_2 = get_justification_model(client_db, utilities, "Performance")
 
-    # Create Documents
+    # Create Documents (direct + two nested levels)
     document_1 = get_document_model(client_db, utilities, "AuthDoc")
     document_2 = get_document_model(client_db, utilities, "APIDoc")
+    document_3 = get_document_model(client_db, utilities, "NestedDoc")
+    document_4 = get_document_model(client_db, utilities, "NestedNestedDoc")
 
     # Create Test Run Config and Test Runs
     test_run_config = get_test_run_config_model(client_db, utilities)
@@ -244,15 +349,21 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
         sw_req_1,
         sw_req_2,
         sw_req_3,
+        sw_req_4,
         test_spec_1,
         test_spec_2,
         test_case_1,
         test_case_2,
         test_case_3,
+        test_case_4,
+        test_case_5,
+        test_case_6,
         justification_1,
         justification_2,
         document_1,
         document_2,
+        document_3,
+        document_4,
         test_run_config,
     ]
 
@@ -337,9 +448,14 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
         client_db.session.add(mapping)
     client_db.session.flush()
 
-    # Create sub-requirement -> test specification mapping (via sw_requirement_sw_requirement mapping)
-    # This tests that nested SW requirements also export their child test specifications
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification
     sr_sr_ts_mapping = SwRequirementTestSpecificationModel(None, sr_sr_mapping, test_spec_2, 75, user)
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Sw Requirement
+    sr_sr_sr_mapping = SwRequirementSwRequirementModel(None, sr_sr_mapping, sw_req_4, 70, user)
+    # API Snippet -> Sw Requirement -> Test Specification -> Test Case
+    sr_ts_tc_mapping = TestSpecificationTestCaseModel(None, sr_ts_mapping, test_case_4, 86, user)
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Test Case
+    sr_sr_tc_mapping = SwRequirementTestCaseModel(None, sr_sr_mapping, test_case_6, 82, user)
 
     # Create API-Test Case mappings
     api_tc_mapping = ApiTestCaseModel(
@@ -382,9 +498,11 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
         ut_api, document_2, "API Specification", _UT_API_SPEC_CONTENT.find("API Specification"), 98, user
     )
 
-    # Add remaining mappings and commit
     mappings = [
         sr_sr_ts_mapping,
+        sr_sr_sr_mapping,
+        sr_ts_tc_mapping,
+        sr_sr_tc_mapping,
         api_tc_mapping,
         api_j_mapping_1,
         api_j_mapping_2,
@@ -394,40 +512,95 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
 
     for mapping in mappings:
         client_db.session.add(mapping)
+    client_db.session.flush()
+
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case
+    sr_sr_ts_tc_mapping = TestSpecificationTestCaseModel(None, sr_sr_ts_mapping, test_case_5, 84, user)
+    # API Snippet -> Document -> Document
+    doc_doc_mapping = DocumentDocumentModel(
+        document_mapping_document=None,
+        document_mapping_api=api_doc_mapping_1,
+        document=document_3,
+        section="Nested document section",
+        offset=0,
+        coverage=80,
+        created_by=user,
+    )
+    client_db.session.add(sr_sr_ts_tc_mapping)
+    client_db.session.add(doc_doc_mapping)
+    client_db.session.flush()
+
+    # API Snippet -> Document -> Document -> Document
+    doc_doc_doc_mapping = DocumentDocumentModel(
+        document_mapping_document=doc_doc_mapping,
+        document_mapping_api=None,
+        document=document_4,
+        section="Nested nested document section",
+        offset=0,
+        coverage=70,
+        created_by=user,
+    )
+    client_db.session.add(doc_doc_doc_mapping)
     client_db.session.commit()
 
-    # Create Test Runs for different mappings
-    test_run_1 = get_test_run_model(
+    # One Test Run per Test Case mapping path, each with sibling Artifact / Bug / Fix
+    test_run_api_ts_tc = get_test_run_model(
         client_db, utilities, test_run_config, ut_api.id, ts_tc_mapping_1.__tablename__, ts_tc_mapping_1.id
     )
-    test_run_2 = get_test_run_model(
+    test_run_api_sr_tc = get_test_run_model(
         client_db, utilities, test_run_config, ut_api.id, sr_tc_mapping.__tablename__, sr_tc_mapping.id
     )
-
-    client_db.session.add(test_run_1)
-    client_db.session.add(test_run_2)
+    test_run_api_tc = get_test_run_model(
+        client_db, utilities, test_run_config, ut_api.id, api_tc_mapping.__tablename__, api_tc_mapping.id
+    )
+    test_run_sr_ts_tc = get_test_run_model(
+        client_db, utilities, test_run_config, ut_api.id, sr_ts_tc_mapping.__tablename__, sr_ts_tc_mapping.id
+    )
+    test_run_sr_sr_tc = get_test_run_model(
+        client_db, utilities, test_run_config, ut_api.id, sr_sr_tc_mapping.__tablename__, sr_sr_tc_mapping.id
+    )
+    test_run_sr_sr_ts_tc = get_test_run_model(
+        client_db, utilities, test_run_config, ut_api.id, sr_sr_ts_tc_mapping.__tablename__, sr_sr_ts_tc_mapping.id
+    )
+    test_runs = [
+        test_run_api_ts_tc,
+        test_run_api_sr_tc,
+        test_run_api_tc,
+        test_run_sr_ts_tc,
+        test_run_sr_sr_tc,
+        test_run_sr_sr_ts_tc,
+    ]
+    for test_run in test_runs:
+        attach_test_run_bug_fix_artifact(test_run)
+        client_db.session.add(test_run)
     client_db.session.commit()
 
     test_data = {
         "api": ut_api,
-        "sw_requirements": [sw_req_1, sw_req_2, sw_req_3],
+        "sw_requirements": [sw_req_1, sw_req_2, sw_req_3, sw_req_4],
         "test_specifications": [test_spec_1, test_spec_2],
-        "test_cases": [test_case_1, test_case_2, test_case_3],
+        "test_cases": [test_case_1, test_case_2, test_case_3, test_case_4, test_case_5, test_case_6],
         "justifications": [justification_1, justification_2],
-        "documents": [document_1, document_2],
-        "test_runs": [test_run_1, test_run_2],
+        "documents": [document_1, document_2, document_3, document_4],
+        "test_runs": test_runs,
         "test_run_config": test_run_config,
         "mappings": {
             "api_sr": [api_sr_mapping_1, api_sr_mapping_2],
             "sr_sr": [sr_sr_mapping],
+            "sr_sr_sr": [sr_sr_sr_mapping],
             "api_ts": [api_ts_mapping_1, api_ts_mapping_2],
             "sr_ts": [sr_ts_mapping],
             "sr_sr_ts": [sr_sr_ts_mapping],
             "ts_tc": [ts_tc_mapping_1, ts_tc_mapping_2],
+            "sr_ts_tc": [sr_ts_tc_mapping],
+            "sr_sr_ts_tc": [sr_sr_ts_tc_mapping],
             "sr_tc": [sr_tc_mapping],
+            "sr_sr_tc": [sr_sr_tc_mapping],
             "api_tc": [api_tc_mapping],
             "api_j": [api_j_mapping_1, api_j_mapping_2],
             "api_doc": [api_doc_mapping_1, api_doc_mapping_2],
+            "doc_doc": [doc_doc_mapping],
+            "doc_doc_doc": [doc_doc_doc_mapping],
         },
     }
 
@@ -439,7 +612,58 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities):
 
 
 def test_spdx_api_export_and_validation(client, user_authentication, comprehensive_spdx_test_data):
-    """Test SPDX API export with comprehensive work items and validate using spdx3-validate"""
+    """Export SPDX for a Software Component that includes every BASIL mapping chain
+    and validate the JSON-LD against the upstream SPDX 3 data model (spdx3-validate).
+
+    Mapping chains instantiated by comprehensive_spdx_test_data (at least one of each):
+
+    API Snippet -> Justification
+
+    API Snippet -> Document
+    API Snippet -> Document -> Document
+    API Snippet -> Document -> Document -> Document
+
+    API Snippet -> Sw Requirement
+    API Snippet -> Sw Requirement -> Sw Requirement
+    API Snippet -> Sw Requirement -> Sw Requirement -> Sw Requirement
+
+    API Snippet -> Sw Requirement -> Test Specification
+    API Snippet -> Sw Requirement -> Test Specification -> Test Case
+    API Snippet -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Artifact
+    API Snippet -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Bug
+    API Snippet -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Fix
+
+    API Snippet -> Sw Requirement -> Test Case
+    API Snippet -> Sw Requirement -> Test Case -> Test Run -> Artifact
+    API Snippet -> Sw Requirement -> Test Case -> Test Run -> Bug
+    API Snippet -> Sw Requirement -> Test Case -> Test Run -> Fix
+
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Artifact
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Bug
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Fix
+
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Case
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Case -> Test Run -> Artifact
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Case -> Test Run -> Bug
+    API Snippet -> Sw Requirement -> Sw Requirement -> Test Case -> Test Run -> Fix
+
+    API Snippet -> Test Specification
+    API Snippet -> Test Specification -> Test Case
+    API Snippet -> Test Specification -> Test Case -> Test Run -> Artifact
+    API Snippet -> Test Specification -> Test Case -> Test Run -> Bug
+    API Snippet -> Test Specification -> Test Case -> Test Run -> Fix
+
+    API Snippet -> Test Case
+    API Snippet -> Test Case -> Test Run -> Artifact
+    API Snippet -> Test Case -> Test Run -> Bug
+    API Snippet -> Test Case -> Test Run -> Fix
+
+    The exported JSON-LD is written to
+    ``api/public/spdx_export/ci-artifacts/basil-comprehensive-traceability.jsonld``
+    so GitHub Actions can upload it as a CI artifact.
+    """
 
     test_data = comprehensive_spdx_test_data
     api = test_data["api"]
@@ -474,16 +698,15 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     except json.JSONDecodeError:
         pytest.fail("Generated SPDX is not valid JSON")
 
-    # Save to temporary file for spdx3-validate
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonld", delete=False) as temp_file:
-        temp_file.write(spdx_content.decode("utf-8"))
-        temp_file_path = temp_file.name
+    # Persist JSON-LD for GitHub Actions (and local inspection), then validate that file
+    artifact_path = write_spdx_ci_artifact(spdx_content)
+    print(f"Wrote SPDX CI artifact: {artifact_path}")
+    assert os.path.isfile(artifact_path), f"SPDX CI artifact was not written: {artifact_path}"
 
     try:
-        # Run spdx3-validate on the generated file
-        print(f"Running spdx3-validate on {temp_file_path}")
+        print(f"Running spdx3-validate on {artifact_path}")
         result = subprocess.run(
-            ["spdx3-validate", "--json", temp_file_path, "--spdx-version", "auto"],
+            ["spdx3-validate", "--json", artifact_path, "--spdx-version", "auto"],
             capture_output=True,
             text=True,
             timeout=60,  # 60 second timeout
@@ -495,28 +718,19 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         if result.stderr:
             print(f"STDERR: {result.stderr}")
 
-        # Check validation results
         if result.returncode == 0:
             print("✓ SPDX validation passed successfully")
             assert True, "SPDX validation successful"
         else:
             print("✗ SPDX validation failed")
-            # Don't fail the test immediately - let's analyze what went wrong
             validation_errors = result.stderr or result.stdout
             print(f"Validation errors: {validation_errors}")
-
-            # You can add specific assertions here based on expected validation issues
-            # For now, we'll record the failure but continue
             pytest.fail(f"SPDX validation failed with errors: {validation_errors}")
 
     except subprocess.TimeoutExpired:
         pytest.fail("spdx3-validate timed out after 60 seconds")
     except FileNotFoundError:
         pytest.skip("spdx3-validate not found - skipping validation test")
-    finally:
-        # Cleanup temporary file
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
 
     """Test that the generated SPDX contains expected elements from our test data"""
 
@@ -601,6 +815,9 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         "Test Run": 0,
         "Software Component id": 0,
         "Snippet": 0,
+        "BASIL Bug": 0,
+        "BASIL Fix": 0,
+        "BASIL Artifact": 0,
     }
 
     for spdx_comment in spdx_comments:
@@ -612,14 +829,17 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
 
     # Verify that we have representation of our main work items
     # Note: Actual counts may vary based on SPDX implementation
-    assert work_item_patterns["Software Requirement"] == 3, "Should have 3 SW Requirements in SPDX"
+    assert work_item_patterns["Software Requirement"] == 4, "Should have 4 SW Requirements in SPDX"
     assert work_item_patterns["Test Specification"] == 2, "Should have 2 Test Specifications in SPDX"
-    assert work_item_patterns["Test Case"] == 3, "Should have 3 Test Cases in SPDX"
+    assert work_item_patterns["Test Case"] == 6, "Should have 6 Test Cases in SPDX"
     assert work_item_patterns["Justification"] == 2, "Should have 2 Justifications in SPDX"
-    assert work_item_patterns["Document ID"] == 2, "Should have 2 Documents in SPDX"
-    assert work_item_patterns["Test Run"] == 2, "Should have 1 Test Run in SPDX"
+    assert work_item_patterns["Document ID"] == 4, "Should have 4 Documents in SPDX"
+    assert work_item_patterns["Test Run"] == 6, "Should have 6 Test Runs in SPDX"
     assert work_item_patterns["Software Component id"] == 1, "Should have 1 API representation in SPDX"
-    assert work_item_patterns["Snippet"] == 9, "Should have 3 Snippets in SPDX"
+    assert work_item_patterns["Snippet"] == 9, "Should have 9 Snippets in SPDX"
+    assert work_item_patterns["BASIL Bug"] == 6, "Should have 6 Bugs (one per Test Run) in SPDX"
+    assert work_item_patterns["BASIL Fix"] == 6, "Should have 6 Fixes (one per Test Run) in SPDX"
+    assert work_item_patterns["BASIL Artifact"] == 6, "Should have 6 Artifacts (one per Test Run) in SPDX"
 
     print("✓ Work item coverage validation passed")
 
@@ -654,25 +874,9 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
 
     relationships = [e for e in graph if e.get("type") == "Relationship"]
 
-    def spdx_id_for_sr(sr):
-        return f"spdx:file:basil:software-requirement:{sr.id}"
-
-    def spdx_id_for_ts(ts):
-        return f"spdx:file:basil:test-specification:{ts.id}"
-
-    def spdx_id_for_tc(tc):
-        return f"spdx:file:basil:test-case:{tc.id}"
-
-    def has_relationship(from_id, to_id, rel_type):
-        for rel in relationships:
-            if rel.get("from") == from_id and rel.get("relationshipType") == rel_type:
-                if to_id in rel.get("to", []):
-                    return True
-        return False
-
     # Bug 2 regression: sw_req_2 -> test_spec_1 (via api_sw_requirement mapping sr_ts_mapping)
-    assert has_relationship(
-        spdx_id_for_sr(sw_req_2), spdx_id_for_ts(test_spec_1), "hasSpecification"
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_2), _spdx_id_for_ts(test_spec_1), "hasSpecification"
     ), (
         f"Missing hasSpecification relationship: SW Requirement {sw_req_2.id} -> "
         f"Test Specification {test_spec_1.id}. "
@@ -680,8 +884,8 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
     )
 
     # Bug 2 regression: sw_req_1 -> test_case_3 (via api_sw_requirement mapping sr_tc_mapping)
-    assert has_relationship(
-        spdx_id_for_sr(sw_req_1), spdx_id_for_tc(test_case_3), "hasTestCase"
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_tc(test_case_3), "hasTestCase"
     ), (
         f"Missing hasTestCase relationship: SW Requirement {sw_req_1.id} -> "
         f"Test Case {test_case_3.id}. "
@@ -689,8 +893,8 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
     )
 
     # Bug 1 regression: sw_req_3 (sub-requirement) -> test_spec_2 (via sw_requirement_sw_requirement mapping)
-    assert has_relationship(
-        spdx_id_for_sr(sw_req_3), spdx_id_for_ts(test_spec_2), "hasSpecification"
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_ts(test_spec_2), "hasSpecification"
     ), (
         f"Missing hasSpecification relationship: sub-SW Requirement {sw_req_3.id} -> "
         f"Test Specification {test_spec_2.id}. "
@@ -698,6 +902,125 @@ def test_spdx_sw_requirement_children_exported(client, user_authentication, comp
     )
 
     print("✓ SW Requirement -> Test Specification/Case relationship export regression test passed")
+
+
+def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehensive_spdx_test_data):
+    """Assert SPDX edges exist for every BASIL mapping chain in the fixture."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    sw_req_1, sw_req_2, sw_req_3, sw_req_4 = test_data["sw_requirements"]
+    test_spec_1, test_spec_2 = test_data["test_specifications"]
+    test_case_1, test_case_2, test_case_3, test_case_4, test_case_5, test_case_6 = test_data["test_cases"]
+    justification_1 = test_data["justifications"][0]
+    document_1, _document_2, document_3, document_4 = test_data["documents"]
+    (
+        test_run_api_ts_tc,
+        test_run_api_sr_tc,
+        test_run_api_tc,
+        test_run_sr_ts_tc,
+        test_run_sr_sr_tc,
+        test_run_sr_sr_ts_tc,
+    ) = test_data["test_runs"]
+
+    graph = _export_and_parse(client, user_authentication, api)
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+
+    # API Snippet -> Justification / Document / Sw Requirement / Test Specification / Test Case
+    assert _has_incoming_spdx_relationship(
+        relationships, _spdx_id_for_justification(justification_1), "hasEvidence"
+    )
+    assert _has_incoming_spdx_relationship(
+        relationships, _spdx_id_for_document(document_1), "hasDocumentation"
+    )
+    assert _has_incoming_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_1), "hasRequirement"
+    )
+    assert _has_incoming_spdx_relationship(
+        relationships, _spdx_id_for_ts(test_spec_1), "hasSpecification"
+    )
+    assert _has_incoming_spdx_relationship(
+        relationships, _spdx_id_for_tc(test_case_1), "hasTestCase"
+    )
+
+    # API Snippet -> Document -> Document -> Document
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_document(document_1), _spdx_id_for_document(document_3), "hasDocumentation"
+    )
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_document(document_3), _spdx_id_for_document(document_4), "hasDocumentation"
+    )
+
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Sw Requirement
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_sr(sw_req_3), "hasRequirement"
+    )
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_sr(sw_req_4), "hasRequirement"
+    )
+
+    # API Snippet -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Artifact/Bug/Fix
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_2), _spdx_id_for_ts(test_spec_1), "hasSpecification"
+    )
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_ts(test_spec_1), _spdx_id_for_tc(test_case_4), "hasTestCase"
+    )
+    _assert_test_run_outputs(relationships, test_case_4, test_run_sr_ts_tc)
+
+    # API Snippet -> Sw Requirement -> Test Case -> Test Run -> Artifact/Bug/Fix
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_tc(test_case_3), "hasTestCase"
+    )
+    _assert_test_run_outputs(relationships, test_case_3, test_run_api_sr_tc)
+
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case -> Test Run
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_ts(test_spec_2), "hasSpecification"
+    )
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_ts(test_spec_2), _spdx_id_for_tc(test_case_5), "hasTestCase"
+    )
+    _assert_test_run_outputs(relationships, test_case_5, test_run_sr_sr_ts_tc)
+
+    # API Snippet -> Sw Requirement -> Sw Requirement -> Test Case -> Test Run
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_tc(test_case_6), "hasTestCase"
+    )
+    _assert_test_run_outputs(relationships, test_case_6, test_run_sr_sr_tc)
+
+    # API Snippet -> Test Specification -> Test Case -> Test Run
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_ts(test_spec_1), _spdx_id_for_tc(test_case_1), "hasTestCase"
+    )
+    _assert_test_run_outputs(relationships, test_case_1, test_run_api_ts_tc)
+
+    # API Snippet -> Test Case -> Test Run
+    # test_case_1 is also mapped directly to the API; its API-mapping Test Run is test_run_api_tc.
+    _assert_test_run_outputs(relationships, test_case_1, test_run_api_tc)
+
+    print("✓ All BASIL mapping chains are present as SPDX relationships")
+
+
+def _assert_test_run_outputs(relationships, test_case, test_run):
+    """Assert Test Case -> Test Run -> Artifact, Bug, and Fix (siblings under the run)."""
+    tc_id = _spdx_id_for_tc(test_case)
+    tr_id = _spdx_id_for_test_run(test_run)
+    assert _has_spdx_relationship(relationships, tc_id, tr_id, "generates"), (
+        f"Missing generates relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
+    )
+    assert _has_spdx_relationship(
+        relationships, tr_id, _spdx_id_for_test_run_bug(test_run), "hasOutput"
+    ), f"Missing hasOutput relationship: Test Run {test_run.id} -> Bug"
+    assert _has_spdx_relationship(
+        relationships, tr_id, _spdx_id_for_test_run_fix(test_run), "hasOutput"
+    ), f"Missing hasOutput relationship: Test Run {test_run.id} -> Fix"
+    artifact_id = _spdx_id_for_test_run_artifact(test_run)
+    assert _has_spdx_relationship(
+        relationships, tr_id, artifact_id, "hasOutput"
+    ), f"Missing hasOutput relationship: Test Run {test_run.id} -> Artifact"
+    assert _has_spdx_relationship(
+        relationships, tr_id, artifact_id, "hasEvidence"
+    ), f"Missing hasEvidence relationship: Test Run {test_run.id} -> Artifact"
 
 
 def _export_and_parse(client, user_authentication, api):

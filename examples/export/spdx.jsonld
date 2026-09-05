@@ -30,7 +30,7 @@
       "annotationType": "other",
       "spdxId": "spdx:annotation:snippet:api:2:software-requirement:4:relation-id:2",
       "subject": "spdx:snippet:api:2:1",
-      "statement": "{\"relation_id\": 2, \"section\": \"# BASIL\\n\\nA tool developed to manage software related work items, design their traceability towards specifications and source code and ensure completeness of analysis.\", \"offset\": 94, \"direct\": true, \"coverage\": 50, \"created_by\": \"one1\", \"covered\": 50, \"__tablename__\": \"sw_requirement_mapping_api\", \"gap\": 0, \"version\": \"1.1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\"}",
+      "statement": "{\"relation_id\": 2, \"section\": \"A tool developed to manage software related work items, design their traceability towards specifications and source code and ensure completeness of analysis.\", \"offset\": 940, \"direct\": true, \"coverage\": 50, \"created_by\": \"one1\", \"covered\": 50, \"__tablename__\": \"sw_requirement_mapping_api\", \"gap\": 0, \"version\": \"1.1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\"}",
       "creationInfo": "_:creation_info_spdx:snippet:api:2:1"
     },
     {
@@ -46,7 +46,7 @@
       "annotationType": "other",
       "spdxId": "spdx:annotation:snippet:api:2:software-requirement:5:relation-id:3",
       "subject": "spdx:snippet:api:2:2",
-      "statement": "{\"relation_id\": 3, \"section\": \"With BASIL you can decompose a Software Component Specification (or source code directly) in snippets and assign to each one a set of desired work items.\", \"offset\": 443, \"direct\": true, \"coverage\": 75, \"created_by\": \"one1\", \"covered\": 75, \"__tablename__\": \"sw_requirement_mapping_api\", \"gap\": 0, \"version\": \"1.1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\"}",
+      "statement": "{\"relation_id\": 3, \"section\": \"With BASIL you can decompose a Software Component Specification (or source code directly) in snippets and assign to each one a set of desired work items.\", \"offset\": 1280, \"direct\": true, \"coverage\": 75, \"created_by\": \"one1\", \"covered\": 75, \"__tablename__\": \"sw_requirement_mapping_api\", \"gap\": 0, \"version\": \"1.1\", \"created_at\": \"2025-10-02 09:35\", \"updated_at\": \"2025-10-02 09:35\"}",
       "creationInfo": "_:creation_info_spdx:snippet:api:2:2"
     },
     {
@@ -316,8 +316,8 @@
       "description": "",
       "software_byteRange": {
         "type": "PositiveIntegerRange",
-        "beginIntegerRange": 95,
-        "endIntegerRange": 261
+        "beginIntegerRange": 941,
+        "endIntegerRange": 1098
       },
       "software_snippetFromFile": "spdx:file:basil:api:reference-document:2",
       "creationInfo": "_:creation_info_spdx:snippet:api:2:1"
@@ -330,8 +330,8 @@
       "description": "",
       "software_byteRange": {
         "type": "PositiveIntegerRange",
-        "beginIntegerRange": 444,
-        "endIntegerRange": 597
+        "beginIntegerRange": 1281,
+        "endIntegerRange": 1434
       },
       "software_snippetFromFile": "spdx:file:basil:api:reference-document:2",
       "creationInfo": "_:creation_info_spdx:snippet:api:2:2"

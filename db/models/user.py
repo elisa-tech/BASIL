@@ -21,8 +21,22 @@ class UserModel(Base):
     role: Mapped[str] = mapped_column(String(100))
     token: Mapped[str] = mapped_column(String(255))
     api_notifications: Mapped[Optional[str]] = mapped_column(String)
+    spdx_signature: Mapped[str] = mapped_column(
+        String(255), unique=True, default=lambda: UserModel.generate_spdx_signature()
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    @staticmethod
+    def generate_spdx_signature() -> str:
+        """Return a unique default SPDX author signature."""
+        return str(uuid4())
+
+    def get_spdx_author_signature(self) -> str:
+        """Signature used as the SPDX Person name for this user."""
+        if self.spdx_signature:
+            return self.spdx_signature
+        return self.username or ""
 
     def __init__(self, username, email, pwd, role):
         self.username = username
@@ -33,6 +47,7 @@ class UserModel(Base):
         self.role = role
         self.enabled = 1
         self.token = str(uuid4())
+        self.spdx_signature = UserModel.generate_spdx_signature()
         self.created_at = datetime.now()
         self.updated_at = self.created_at
 
@@ -48,7 +63,8 @@ class UserModel(Base):
                  "username": self.username,
                  "enabled": self.enabled,
                  "role": self.role,
-                 "api_notifications": self.api_notifications}
+                 "api_notifications": self.api_notifications,
+                 "spdx_signature": self.spdx_signature}
 
         if full_data:
             _dict["email"] = self.email

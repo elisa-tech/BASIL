@@ -8747,7 +8747,8 @@ class UserLogin(Resource):
             "id": user.id,
             "role": user.role,
             "token": user.token,
-            "username": user.username
+            "username": user.username,
+            "spdx_signature": user.spdx_signature,
         }
         api_response.set_data(ret)
         return api_response.return_ok()
@@ -9296,7 +9297,7 @@ class User(Resource):
 
     @api_response_decorator
     def put(self, api_response: ApiResponse = None):
-        """Edit username or password
+        """Edit username, password, or SPDX author signature
         Note: Need to perform the validation to avoid direct usage of the api
         """
         request_data = request.get_json(force=True)
@@ -9347,6 +9348,45 @@ class User(Resource):
             dbi.session.commit()
             dbi.close()
             ret = {"result": "success", "message": "Your password has been saved. Please login again."}
+            api_response.set_data(ret)
+            return api_response.return_ok()
+
+        # Edit SPDX author signature
+        if "spdx_signature" in request_data.keys():
+            spdx_signature = str(request_data["spdx_signature"]).strip()
+            if len(spdx_signature) < 4:
+                api_response.set_message(
+                    "SPDX signature not valid, it should be at least 4 chars"
+                )
+                return api_response.return_bad_request()
+
+            field_constraints = UserModel.get_field_constraints()
+            max_length = field_constraints.get("spdx_signature", {}).get("max_length")
+            if max_length is not None and len(spdx_signature) > max_length:
+                api_response.set_message(
+                    f"spdx_signature must be less than {max_length} characters"
+                )
+                return api_response.return_bad_request()
+
+            same_signature = (
+                dbi.session.query(UserModel)
+                .filter(UserModel.spdx_signature == spdx_signature)
+                .filter(UserModel.id != user.id)
+                .all()
+            )
+            if len(same_signature) > 0:
+                api_response.set_message("SPDX signature already in use.")
+                return api_response.return_bad_request()
+
+            user.spdx_signature = spdx_signature
+            dbi.session.add(user)
+            dbi.session.commit()
+            dbi.close()
+            ret = {
+                "result": "success",
+                "message": "Your SPDX author signature has been saved.",
+                "spdx_signature": spdx_signature,
+            }
             api_response.set_data(ret)
             return api_response.return_ok()
 

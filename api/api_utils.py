@@ -22,6 +22,7 @@ LINK_BASIL_INSTANCE_HTML_MESSAGE = "Link to BASIL website"
 
 CONFIGS_FOLDER = "configs"
 SETTINGS_FILEPATH = os.path.join(currentdir, CONFIGS_FOLDER, "settings.yaml")
+PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
 
 ROW_LABEL_TD_STYLE = (
     "padding:8px 10px;white-space:nowrap;width:1%;"
@@ -318,6 +319,17 @@ def read_file(filepath):
     except IOError as e:
         logger.error(f"Error: I/O error while reading '{filepath}': {e}")
     return None
+
+
+def read_basil_version() -> str:
+    """Return the BASIL version from pyproject.toml, or an empty string if unavailable."""
+    pyproject_content = read_file(PYPROJECT_FILEPATH)
+    if not pyproject_content:
+        return ""
+    for line in pyproject_content.split("\n"):
+        if line.startswith("version = "):
+            return line.split("=", 1)[1].replace('"', "").strip()
+    return ""
 
 
 def parse_int(value):
@@ -714,8 +726,6 @@ def get_python_version() -> str:
 
 
 def tools_to_html() -> str:
-    from api import API_VERSION
-
     tmt_version = get_tmt_version()
     if tmt_version:
         tmt_version = tr("<b>tmt</b>:", string_to_html(tmt_version))
@@ -732,7 +742,7 @@ def tools_to_html() -> str:
     html += "<h2>Tools</h2>"
     html += "<div id='tools-details'>"
     html += "<table style='table-layout: auto; width: 100%;'>"
-    html += tr("<b>BASIL</b>:", string_to_html(API_VERSION))
+    html += tr("<b>BASIL</b>:", string_to_html(read_basil_version()))
     html += tmt_version
     html += python_version
     html += "</table>"

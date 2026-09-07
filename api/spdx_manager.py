@@ -19,6 +19,7 @@ from api_utils import (  # noqa E402
     is_http_url,
     list_test_run_artifacts,
     parse_comma_separated_list,
+    read_basil_version,
 )
 from db.db_orm import DbInterface  # noqa E402
 from db.models.api import ApiModel  # noqa E402
@@ -45,10 +46,15 @@ logger = logging.getLogger(__name__)
 # Developed and validated with https://spdx.github.io/spdx-spec/v3.0.1/rdf/schema.json
 
 BASIL_TOOL_URL = "https://github.com/elisa-tech/BASIL"
-SPDX_CONTEXT_URL = "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
-DATETIME_STR_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+BASIL_TOOL_NAME = "BASIL"
+BASIL_TOOL_PURL = "pkg:github/elisa-tech/BASIL"
 SPDX_SPEC_VERSION = "3.0.1"
+SPDX_CONTEXT_URL = f"https://spdx.org/rdf/{SPDX_SPEC_VERSION}/spdx-context.jsonld"
+DATETIME_STR_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 BASIL_ANNOTATION_VERSION = "2.0"
+SPDX_PROFILE_CONFORMANCE = ["core", "software"]
+SPDX_SBOM_TYPES = ["design", "source"]
+BASIL_VERSION = read_basil_version()
 
 
 class SPDXMD5Hash:
@@ -254,13 +260,32 @@ class SPDXRelationship:
 
 
 class SPDXTool:
-    def __init__(self, spdx_id: str = "", name: str = "", creation_info: SPDXCreationInfo = None):
+    def __init__(
+        self,
+        spdx_id: str = "",
+        name: str = "",
+        description: str = "",
+        external_identifiers: Optional[List[SPDXExternalIdentifier]] = None,
+        creation_info: SPDXCreationInfo = None,
+    ):
         self.spdx_id = spdx_id
         self.name = name
+        self.description = description
+        self.external_identifiers = external_identifiers or []
         self.creation_info = creation_info
 
     def to_dict(self):
-        return {"type": "Tool", "spdxId": self.spdx_id, "name": self.name, "creationInfo": self.creation_info.spdx_id}
+        result = {
+            "type": "Tool",
+            "spdxId": self.spdx_id,
+            "name": self.name,
+            "creationInfo": self.creation_info.spdx_id,
+        }
+        if self.description:
+            result["description"] = self.description
+        if self.external_identifiers:
+            result["externalIdentifier"] = [ei.to_dict() for ei in self.external_identifiers]
+        return result
 
 
 class SPDXAnnotation:
@@ -511,17 +536,19 @@ class SPDXDocument:
         spdx_id: str = "",
         name: str = "",
         data_license: SPDXLicense = None,
-        root_element: List[str] = [],
+        root_element: Optional[List[str]] = None,
+        profile_conformance: Optional[List[str]] = None,
         creation_info: SPDXCreationInfo = None,
     ):
         self.spdx_id = spdx_id
         self.name = name
         self.data_license = data_license
-        self.root_element = root_element
+        self.root_element = root_element or []
+        self.profile_conformance = profile_conformance or []
         self.creation_info = creation_info
 
     def to_dict(self):
-        return {
+        result = {
             "type": "SpdxDocument",
             "spdxId": self.spdx_id,
             "dataLicense": self.data_license.spdx_id,
@@ -529,6 +556,51 @@ class SPDXDocument:
             "name": self.name,
             "creationInfo": self.creation_info.spdx_id,
         }
+        if self.profile_conformance:
+            result["profileConformance"] = self.profile_conformance
+        return result
+
+
+class SPDXSbom:
+    """SPDX 3.0.1 software_Sbom collection describing one BASIL library export.
+
+    Carries CISA/SPDX sbomType values so consumers can tell this is a
+    design/source traceability BOM rather than a build-time composition SBOM.
+    """
+
+    def __init__(
+        self,
+        spdx_id: str = "",
+        name: str = "",
+        root_element: Optional[List[str]] = None,
+        element: Optional[List[str]] = None,
+        sbom_type: Optional[List[str]] = None,
+        profile_conformance: Optional[List[str]] = None,
+        creation_info: SPDXCreationInfo = None,
+    ):
+        self.spdx_id = spdx_id
+        self.name = name
+        self.root_element = root_element or []
+        self.element = element or []
+        self.sbom_type = sbom_type or []
+        self.profile_conformance = profile_conformance or []
+        self.creation_info = creation_info
+
+    def to_dict(self):
+        result = {
+            "type": "software_Sbom",
+            "spdxId": self.spdx_id,
+            "name": self.name,
+            "rootElement": self.root_element,
+            "creationInfo": self.creation_info.spdx_id,
+        }
+        if self.element:
+            result["element"] = self.element
+        if self.sbom_type:
+            result["software_sbomType"] = self.sbom_type
+        if self.profile_conformance:
+            result["profileConformance"] = self.profile_conformance
+        return result
 
 
 class SPDXManager:
@@ -550,7 +622,10 @@ class SPDXManager:
         self.include_test_runs = include_test_runs
         self.test_runs_limit = test_runs_limit
 
-        spdx_document_id = f"spdx:document:basil:export:{library_name.strip()}"
+        library_name = library_name.strip()
+        export_name = f"BASIL SBOM export for library {library_name}"
+        spdx_document_id = f"spdx:document:basil:export:{library_name}"
+        spdx_sbom_id = f"spdx:sbom:basil:export:{library_name}"
 
         self.sbom_creation_info = SPDXCreationInfo(
             spdx_id=self.make_spdx_id("sbom_creation_info"),
@@ -565,9 +640,22 @@ class SPDXManager:
             creation_info=self.sbom_creation_info,
         )
 
+        tool_external_identifiers = []
+        if BASIL_VERSION:
+            tool_external_identifiers.append(
+                SPDXExternalIdentifier(
+                    identifier=f"{BASIL_TOOL_PURL}@{BASIL_VERSION}",
+                    comment=f"{BASIL_TOOL_NAME} version {BASIL_VERSION}",
+                    identifier_locator=[BASIL_TOOL_URL],
+                    external_identifier_type="packageUrl",
+                )
+            )
+
         self.tool = SPDXTool(
             spdx_id=BASIL_TOOL_URL,
-            name="BASIL",
+            name=f"{BASIL_TOOL_NAME} {BASIL_VERSION}".strip() if BASIL_VERSION else BASIL_TOOL_NAME,
+            description=f"BASIL SPDX {SPDX_SPEC_VERSION} exporter",
+            external_identifiers=tool_external_identifiers,
             creation_info=self.sbom_creation_info,
         )
 
@@ -580,12 +668,21 @@ class SPDXManager:
             creation_info=self.sbom_creation_info,
         )
 
-        # SBOM
         document = SPDXDocument(
             spdx_id=spdx_document_id,
-            name=f"BASIL SBOM export for library {library_name}",
+            name=export_name,
             data_license=spdx_license,
             root_element=[],
+            profile_conformance=list(SPDX_PROFILE_CONFORMANCE),
+            creation_info=self.sbom_creation_info,
+        )
+
+        software_sbom = SPDXSbom(
+            spdx_id=spdx_sbom_id,
+            name=export_name,
+            root_element=[],
+            sbom_type=list(SPDX_SBOM_TYPES),
+            profile_conformance=list(SPDX_PROFILE_CONFORMANCE),
             creation_info=self.sbom_creation_info,
         )
 
@@ -620,18 +717,24 @@ class SPDXManager:
         self.add_to_sbom(spdx_license)
         self.add_to_sbom(library)
         self.add_to_sbom(library_annotation)
-        document.root_element.append(library.spdx_id)
+        software_sbom.root_element.append(library.spdx_id)
+        software_sbom.element.append(library.spdx_id)
+        document.root_element.append(software_sbom.spdx_id)
 
         added_apis = []
         for api in apis:
             api_creation_info, api_person, spdx_api = self.addApi(api, dbi.session)
             added_apis.append(spdx_api)
+            software_sbom.element.append(spdx_api.spdx_id)
 
         if added_apis:
             self.addRelationship(from_element=library, to=added_apis, relationship_type=SpdxRelationshipType.CONTAINS)
 
+        self.add_to_sbom(software_sbom)
         self.add_to_sbom(document)
-        self.addRelationship(from_element=document, to=[library], relationship_type=SpdxRelationshipType.DESCRIBES)
+        self.addRelationship(
+            from_element=document, to=[software_sbom], relationship_type=SpdxRelationshipType.DESCRIBES
+        )
 
     def add_to_sbom(self, element):
         """

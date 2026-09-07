@@ -1337,6 +1337,43 @@ def test_spdx_tool_version_and_sbom_context(client, user_authentication, compreh
     print("✓ Tool version and software_Sbom generation context validated")
 
 
+def test_spdx_author_signature_from_exporting_user(
+    client, user_authentication, comprehensive_spdx_test_data, client_db
+):
+    """Person.name for the exporting user must be that user's spdx_signature."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    uid = user_authentication.json["id"]
+    user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
+    original_signature = user.spdx_signature
+    custom_signature = "Custom SPDX Author Signature"
+
+    try:
+        user.spdx_signature = custom_signature
+        client_db.session.commit()
+
+        graph = _export_and_parse(client, user_authentication, api)
+        person_id = f"spdx:person:basil:user:{uid}"
+        persons = [
+            element
+            for element in graph
+            if element.get("type") == "Person" and element.get("spdxId") == person_id
+        ]
+        assert persons, f"Expected Person {person_id} in the SPDX export"
+        assert all(person.get("name") == custom_signature for person in persons)
+        document_creation_infos = [
+            element
+            for element in graph
+            if element.get("type") == "CreationInfo"
+            and person_id in element.get("createdBy", [])
+        ]
+        assert document_creation_infos, "CreationInfo.createdBy must reference the exporting user"
+    finally:
+        user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
+        user.spdx_signature = original_signature
+        client_db.session.commit()
+
+
 if __name__ == "__main__":
     # For manual testing/debugging
     pytest.main([__file__ + "::test_spdx_api_export_and_validation", "-v", "-s"])

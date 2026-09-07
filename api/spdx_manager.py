@@ -636,7 +636,7 @@ class SPDXManager:
 
         sbom_spdx_person = SPDXPerson(
             spdx_id=f"spdx:person:basil:user:{user.id}",
-            name=user.username,
+            name=user.get_spdx_author_signature(),
             creation_info=self.sbom_creation_info,
         )
 
@@ -770,7 +770,9 @@ class SPDXManager:
         )
         spdx_person_id = f"spdx:person:basil:user:{created_by.id}"
         person = SPDXPerson(
-            spdx_id=f"{spdx_person_id}", name=created_by.username, creation_info=self.sbom_creation_info
+            spdx_id=f"{spdx_person_id}",
+            name=created_by.get_spdx_author_signature(),
+            creation_info=self.sbom_creation_info,
         )
 
         creation_info.created_by = [person]

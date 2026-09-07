@@ -21,6 +21,7 @@ const AuthProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(localStorage.getItem('uRole') || '')
   const [userName, setUserName] = useState(localStorage.getItem('uName') || '')
   const [userEmail, setUserEmail] = useState(localStorage.getItem('uEmail') || '')
+  const [spdxSignature, setSpdxSignature] = useState(localStorage.getItem('uSpdxSignature') || '')
   const [token, setToken] = useState(localStorage.getItem('uToken') || '')
   const [loginMessage, setLoginMessage] = useState('')
 
@@ -29,8 +30,9 @@ const AuthProvider = ({ children }) => {
     localStorage.setItem('uName', userName == null ? '' : userName)
     localStorage.setItem('uEmail', userEmail == null ? '' : userEmail)
     localStorage.setItem('uRole', userRole == null ? '' : userRole)
+    localStorage.setItem('uSpdxSignature', spdxSignature == null ? '' : spdxSignature)
     localStorage.setItem('uToken', token == null ? '' : token)
-  }, [userId, userRole, userEmail, userName, token])
+  }, [userId, userRole, userEmail, userName, spdxSignature, token])
 
   const loginAction = (data) => {
     setLoginMessage('')
@@ -52,6 +54,7 @@ const AuthProvider = ({ children }) => {
               setUserName(response_data['username'])
               setUserId(response_data['id'])
               setUserRole(response_data['role'])
+              setSpdxSignature(response_data['spdx_signature'] || '')
               setToken(response_data['token'])
               setLoginMessage('Logged with success.')
               window.location.href = '/'
@@ -78,12 +81,14 @@ const AuthProvider = ({ children }) => {
     setUserName('')
     setUserId('')
     setUserRole('')
+    setSpdxSignature('')
     setToken('')
     localStorage.removeItem('uEmail')
     localStorage.removeItem('uName')
     localStorage.removeItem('uId')
     localStorage.removeItem('uToken')
     localStorage.removeItem('uRole')
+    localStorage.removeItem('uSpdxSignature')
     window.location.href = '/'
   }
 
@@ -131,7 +136,21 @@ const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ token, userEmail, userName, userId, userRole, loginAction, loginMessage, logOut, isLogged, isAdmin, isGuest }}
+      value={{
+        token,
+        userEmail,
+        userName,
+        userId,
+        userRole,
+        spdxSignature,
+        setSpdxSignature,
+        loginAction,
+        loginMessage,
+        logOut,
+        isLogged,
+        isAdmin,
+        isGuest
+      }}
     >
       {children}
     </AuthContext.Provider>

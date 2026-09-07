@@ -748,6 +748,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         "Person",
         "CreationInfo",
         "SpdxDocument",
+        "software_Sbom",
         "software_File",
         "software_Snippet",
         "Relationship",
@@ -1271,6 +1272,69 @@ def test_spdx_snippet_annotations_stripped(client, user_authentication, comprehe
                 "This field is already represented in a dedicated SPDX property."
             )
     print(f"✓ No redundant fields in {len(snippet_annotations)} snippet annotation statements")
+
+
+def test_spdx_tool_version_and_sbom_context(client, user_authentication, comprehensive_spdx_test_data):
+    """Tool must carry a version identifier; the document must wrap a software_Sbom
+    with sbomType and profileConformance (SPDX generation context)."""
+    from spdx_manager import (
+        BASIL_TOOL_NAME,
+        BASIL_TOOL_PURL,
+        BASIL_TOOL_URL,
+        BASIL_VERSION,
+        SPDX_PROFILE_CONFORMANCE,
+        SPDX_SBOM_TYPES,
+        SPDX_SPEC_VERSION,
+    )
+
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    tools = [e for e in graph if e.get("type") == "Tool"]
+    assert len(tools) == 1, f"Expected exactly one Tool, got {len(tools)}"
+    tool = tools[0]
+    assert tool["spdxId"] == BASIL_TOOL_URL
+    assert BASIL_VERSION, "BASIL version must be readable from pyproject.toml"
+    assert tool["name"] == f"{BASIL_TOOL_NAME} {BASIL_VERSION}"
+    assert tool["description"] == f"BASIL SPDX {SPDX_SPEC_VERSION} exporter"
+    created_using = []
+    for creation_info in graph:
+        if creation_info.get("type") == "CreationInfo":
+            created_using.extend(creation_info.get("createdUsing", []))
+    assert BASIL_TOOL_URL in created_using, "CreationInfo.createdUsing must reference the BASIL Tool"
+
+    purls = [
+        ei
+        for ei in tool.get("externalIdentifier", [])
+        if ei.get("externalIdentifierType") == "packageUrl"
+    ]
+    assert len(purls) == 1, f"Tool should have one packageUrl identifier, got {tool.get('externalIdentifier')}"
+    assert purls[0]["identifier"] == f"{BASIL_TOOL_PURL}@{BASIL_VERSION}"
+
+    documents = [e for e in graph if e.get("type") == "SpdxDocument"]
+    assert len(documents) == 1, f"Expected exactly one SpdxDocument, got {len(documents)}"
+    document = documents[0]
+    assert document["profileConformance"] == SPDX_PROFILE_CONFORMANCE
+
+    sboms = [e for e in graph if e.get("type") == "software_Sbom"]
+    assert len(sboms) == 1, f"Expected exactly one software_Sbom, got {len(sboms)}"
+    sbom = sboms[0]
+    assert sbom["spdxId"] == f"spdx:sbom:basil:export:{_UT_API_LIBRARY}"
+    assert set(sbom["software_sbomType"]) == set(SPDX_SBOM_TYPES)
+    assert sbom["profileConformance"] == SPDX_PROFILE_CONFORMANCE
+    library_id = f"spdx:file:basil:library:{_UT_API_LIBRARY}"
+    assert sbom["rootElement"] == [library_id]
+    assert library_id in sbom.get("element", [])
+    api_id = f"spdx:file:basil:api:{api.id}"
+    assert api_id in sbom.get("element", [])
+
+    assert document["rootElement"] == [sbom["spdxId"]]
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    assert _has_spdx_relationship(relationships, document["spdxId"], sbom["spdxId"], "describes"), (
+        "SpdxDocument must describe the software_Sbom"
+    )
+    print("✓ Tool version and software_Sbom generation context validated")
 
 
 if __name__ == "__main__":

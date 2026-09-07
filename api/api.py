@@ -95,6 +95,7 @@ from api_utils import (
     list_test_run_artifacts,
     load_settings,
     parse_int,
+    read_basil_version,
     read_file,
     justification_to_html,
     sw_requirement_to_html,
@@ -134,7 +135,6 @@ EMAIL_DISCORD_FOOTER_MESSAGE = "<p>Join our <a href='" \
     "'>BASIL Discord channel</a> to discuss about the tool usage and development!</p>"
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
-PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
 HISTORY_DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 HTML_EXPORT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -153,13 +153,7 @@ if not os.path.exists(USER_FILES_BASE_DIR):
 
 # Read API Version once
 # API Version is not supposed to change runtime
-API_VERSION = ""
-if os.path.exists(PYPROJECT_FILEPATH):
-    pyproject_content = read_file(PYPROJECT_FILEPATH)
-    if pyproject_content:
-        version_row = [x for x in pyproject_content.split("\n") if x.startswith("version = ")]
-        if version_row:
-            API_VERSION = version_row[0].split("=")[-1].replace('"', "").strip()
+API_VERSION = read_basil_version()
 
 USER_ROLES_DELETE_PERMISSIONS = ["ADMIN", "USER"]
 USER_ROLES_EDIT_PERMISSIONS = ["ADMIN", "USER"]

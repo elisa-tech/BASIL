@@ -112,7 +112,7 @@ def test_diagraph_uses_jsonld_basename(tmp_path, monkeypatch):
     assert not (tmp_path / "latest.dot").exists()
 
 
-def test_diagraph_collapses_parallel_spdx_relationship_types(tmp_path, monkeypatch):
+def test_diagraph_combines_parallel_relationship_types_on_one_edge(tmp_path, monkeypatch):
     library = _file("spdx:file:basil:library:lib")
     api = _file("spdx:file:basil:api:1")
     manager = _manager_with_sbom(
@@ -128,7 +128,7 @@ def test_diagraph_collapses_parallel_spdx_relationship_types(tmp_path, monkeypat
     edges = _edge_labels(dot)
     pair_edges = [(src, dst) for src, dst in edges if src == lib_id and dst == api_id]
     assert len(pair_edges) == 1
-    assert edges[(lib_id, api_id)] == "contains"
+    assert edges[(lib_id, api_id)] == "contains,hasInput,hasSpecification"
 
 
 def test_diagraph_includes_snippet_relationships(tmp_path, monkeypatch):
@@ -179,13 +179,13 @@ def test_diagraph_reuses_test_run_instance_for_api_has_test(tmp_path, monkeypatc
     tr_instance = f"{tc_instance}__{tr_label}"
     duplicate_tr = f"{api_id}__{tr_label}"
     edges = _edge_labels(dot)
-    assert edges[(tc_instance, tr_instance)] == "generates"
+    assert edges[(tc_instance, tr_instance)] == "generates,hasTest,hasOutput"
     assert (tc_instance, tr_instance) in edges
     assert edges[(api_id, tr_instance)] == "hasTest"
     assert (api_id, duplicate_tr) not in edges
     assert edges[(tr_instance, api_id)] == "testedOn"
     tc_tr_labels = [label for (src, dst), label in edges.items() if src == tc_instance and dst == tr_instance]
-    assert tc_tr_labels == ["generates"]
+    assert tc_tr_labels == ["generates,hasTest,hasOutput"]
 
 
 def test_diagraph_duplicates_work_item_under_each_parent(tmp_path, monkeypatch):
@@ -210,3 +210,35 @@ def test_diagraph_duplicates_work_item_under_each_parent(tmp_path, monkeypatch):
     assert (sr_instance, tc_under_sr) in edges
     assert (api_id, tc_under_api) in edges
     assert tc_under_sr != tc_under_api
+
+
+def test_diagraph_attaches_test_run_outputs_to_mapped_instance(tmp_path, monkeypatch):
+    """SBOM emits TR → bug/artifact before TC → TR; map must not orphan the run."""
+    api = _file("spdx:file:basil:api:1")
+    test_case = _file("spdx:file:basil:test-case:8")
+    test_run = _file("spdx:file:basil:test-run:9")
+    artifact = _file("spdx:file:basil:test-run:9:artifact:1")
+    bug = _file("spdx:file:basil:test-run:9:bug:1")
+    manager = _manager_with_sbom(
+        [
+            _rel(api, test_case, SpdxRelationshipType.HAS_TEST_CASE),
+            _rel(test_run, bug, SpdxRelationshipType.HAS_OUTPUT),
+            _rel(test_run, artifact, SpdxRelationshipType.HAS_OUTPUT),
+            _rel(test_run, artifact, SpdxRelationshipType.HAS_EVIDENCE),
+            _rel(test_case, test_run, SpdxRelationshipType.GENERATES),
+            _rel(api, test_run, SpdxRelationshipType.HAS_TEST),
+        ]
+    )
+    dot = _write_dot(manager, tmp_path, "map", monkeypatch)
+    api_id = graphviz_node_id(api.spdx_id)
+    tc_label = graphviz_node_id(test_case.spdx_id)
+    tr_label = graphviz_node_id(test_run.spdx_id)
+    bug_label = graphviz_node_id(bug.spdx_id)
+    artifact_label = graphviz_node_id(artifact.spdx_id)
+    tr_instance = f"{api_id}__{tc_label}__{tr_label}"
+    orphan_tr = tr_label
+    edges = _edge_labels(dot)
+    assert (f"{api_id}__{tc_label}", tr_instance) in edges
+    assert edges[(tr_instance, f"{tr_instance}__{bug_label}")] == "hasOutput"
+    assert edges[(tr_instance, f"{tr_instance}__{artifact_label}")] == "hasOutput,hasEvidence"
+    assert orphan_tr not in {src for src, _ in edges}

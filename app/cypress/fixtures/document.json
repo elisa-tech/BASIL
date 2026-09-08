@@ -4,7 +4,7 @@
     "title": "DOC.0001",
     "description": "My first document",
     "type": "file",
-    "spdx_relation": "DESCRIBES",
+    "spdx_relation": "describes",
     "url": "https://github.com/elisa-tech/BASIL/raw/main/README.md"
   },
   "first_mod": {
@@ -12,7 +12,7 @@
     "title": "DOC.0001 - mod",
     "description": "My first document mod",
     "type": "file",
-    "spdx_relation": "DESCRIBES",
+    "spdx_relation": "describes",
     "url": "https://github.com/elisa-tech/BASIL/raw/main/README.md"
   },
   "second": {
@@ -20,7 +20,7 @@
     "title": "DOC.0002",
     "description": "My second document",
     "type": "text",
-    "spdx_relation": "DESCRIBES",
+    "spdx_relation": "describes",
     "url": "https://github.com/elisa-tech/BASIL/raw/main/README.md"
   },
   "second_mod": {
@@ -28,7 +28,7 @@
     "title": "DOC.0002 - mod",
     "description": "My second document mod",
     "type": "text",
-    "spdx_relation": "DESCRIBES",
+    "spdx_relation": "describes",
     "url": "https://github.com/elisa-tech/BASIL/raw/main/README.md"
   }
 }

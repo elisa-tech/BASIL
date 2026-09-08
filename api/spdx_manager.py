@@ -790,6 +790,78 @@ class SPDXSbom:
         return result
 
 
+# Traceability map (Graphviz): classify by SPDX id / Python type, not comment text.
+GRAPH_NODE_COLORS = {
+    "library": "brown",
+    "software_component": "gray",
+    "reference_document": "magenta",
+    "snippet": "yellow",
+    "justification": "green",
+    "document": "cyan",
+    "software_requirement": "red",
+    "test_specification": "blue",
+    "test_case": "orange",
+    "test_run": "purple",
+    "bug": "salmon",
+    "fix": "olivedrab",
+    "artifact": "khaki",
+    "other": "white",
+}
+GRAPH_CONTAINER_KINDS = frozenset({"library", "software_component", "reference_document"})
+# When a container (e.g. API) links at a Test Run already created under a Test Case,
+# reuse that instance. Independently mapped work items still get a node per parent.
+GRAPH_CROSSLINK_KINDS = frozenset({"test_run", "bug", "fix", "artifact"})
+_GRAPH_ELEMENT_TYPES = (SPDXFile, SPDXSnippet)
+
+
+def graphviz_node_id(spdx_id: Optional[str]) -> str:
+    """Stable Graphviz node id derived from an SPDX identifier."""
+    return (spdx_id or "").replace(":", "_")
+
+
+def graph_node_kind(node) -> str:
+    """Classify a BASIL SPDX element for the traceability map.
+
+    Uses SPDX identifiers (and ``SPDXSnippet``) so comments cannot mis-label
+    nodes (e.g. a snippet whose comment mentions "reference document").
+    """
+    if isinstance(node, SPDXSnippet):
+        return "snippet"
+    sid = (getattr(node, "spdx_id", None) or "").lower()
+    if sid.startswith("spdx:file:basil:test-run:") and ":bug:" in sid:
+        return "bug"
+    if sid.startswith("spdx:file:basil:test-run:") and ":fix:" in sid:
+        return "fix"
+    if sid.startswith("spdx:file:basil:test-run:") and ":artifact:" in sid:
+        return "artifact"
+    prefixes = (
+        ("spdx:file:basil:library:", "library"),
+        ("spdx:file:basil:api:reference-document:", "reference_document"),
+        ("spdx:file:basil:software-requirement:", "software_requirement"),
+        ("spdx:file:basil:test-specification:", "test_specification"),
+        ("spdx:file:basil:test-case:", "test_case"),
+        ("spdx:file:basil:document:", "document"),
+        ("spdx:file:basil:justification:", "justification"),
+        ("spdx:file:basil:test-run:", "test_run"),
+        ("spdx:file:basil:api:", "software_component"),
+        ("spdx:snippet:", "snippet"),
+    )
+    for prefix, kind in prefixes:
+        if sid.startswith(prefix):
+            return kind
+    return "other"
+
+
+def is_graph_container(node) -> bool:
+    """Library, Software Component, and reference document are unique in the map."""
+    return graph_node_kind(node) in GRAPH_CONTAINER_KINDS
+
+
+def is_graph_element(node) -> bool:
+    """Work items drawn on the map (files and snippets, not Document/Sbom/Person)."""
+    return isinstance(node, _GRAPH_ELEMENT_TYPES)
+
+
 class SPDXManager:
 
     sbom = []
@@ -2069,145 +2141,104 @@ class SPDXManager:
             )
 
     def generate_diagraph(self, output_file: str = ""):
-        """
-        Generate a directed graph from a list of edges and save it as a PNG.
+        """Write a Graphviz traceability map (``.dot`` and ``.png``).
 
-        Parameters:
-        - edges: list of dicts with keys 'from', 'to', and 'type'
-        - output_file: output PNG file name
+        ``output_file`` is the path without suffix; files are
+        ``{output_file}.dot`` and ``{output_file}.png``.
         """
 
-        def is_container_node(node):
-            """
-            Nodes treated as global containers (no per-parent duplication).
-            Examples: files, libraries, software components, reference documents.
-            """
-            comment = (getattr(node, "comment", "") or "").lower()
-            sid = (getattr(node, "spdx_id", "") or "").lower()
-            if any(k in comment for k in ["library", "software component", "reference document"]):
-                return True
-            if any(k in sid for k in ["spdx_file_", "reference-document", "library", "software-component"]):
-                return True
-            return False
+        last_instance = {}
+        added_nodes = {}
+        # One visual edge per node pair; first SPDX type (the BASIL mapping) wins.
+        added_edges = {}
 
-        def get_file_node_color(node):
-            purpose_colors = {
-                "library": "brown",
-                "snippet": "yellow",
-                "reference document": "magenta",
-                "software component": "gray",
-                "software requirement": "red",
-                "justification": "green",
-                "document": "cyan",
-                "test specification": "blue",
-                "test case": "orange",
-                "test run": "purple",
-                "bug": "salmon",
-                "fix": "olivedrab",
-                "artifact": "khaki",
-            }
+        def register_instance(label, instance_id):
+            last_instance[label] = instance_id
 
-            if hasattr(node, "comment"):
-                comment_lower = node.comment.lower()
-                for cKey in purpose_colors.keys():
-                    if cKey in comment_lower:
-                        return purpose_colors[cKey]
-            return "white"
+        def add_node(instance_id, node):
+            if instance_id in added_nodes:
+                return
+            kind = graph_node_kind(node)
+            color = GRAPH_NODE_COLORS.get(kind, "white")
+            dot.node(
+                instance_id,
+                label=graphviz_node_id(node.spdx_id),
+                style="filled",
+                fillcolor=color,
+            )
+            added_nodes[instance_id] = color
 
-        # Track added edges
-        added_edges = set()
+        def resolve_from(node):
+            label = graphviz_node_id(node.spdx_id)
+            if is_graph_container(node):
+                register_instance(label, label)
+                return label
+            return last_instance.get(label, label)
 
-        # Function to safely add edges
-        def add_edge(src, dst, label):
-            key = (src, dst, label)
+        def resolve_to(from_id, from_node, to_node):
+            label = graphviz_node_id(to_node.spdx_id)
+            if is_graph_container(to_node):
+                register_instance(label, label)
+                return label
+            if not is_graph_container(from_node):
+                instance_id = f"{from_id}__{label}"
+                register_instance(label, instance_id)
+                return instance_id
+            # Container → derived artifact already in the mapping tree (API hasTest
+            # Test Run): reuse that instance. Mapped work items still duplicate.
+            if graph_node_kind(to_node) in GRAPH_CROSSLINK_KINDS and label in last_instance:
+                return last_instance[label]
+            instance_id = f"{from_id}__{label}"
+            register_instance(label, instance_id)
+            return instance_id
+
+        def add_edge(src, dst, rel_label):
+            key = (src, dst)
             if key not in added_edges:
-                added_edges.add(key)
+                added_edges[key] = rel_label
 
-        # Create a directed graph
+        def link_snippet_to_source_file(snippet, snippet_instance_id):
+            from_file = getattr(snippet, "from_file", None)
+            if from_file is None or not getattr(from_file, "spdx_id", None):
+                return
+            file_id = graphviz_node_id(from_file.spdx_id)
+            register_instance(file_id, file_id)
+            add_node(file_id, from_file)
+            add_edge(file_id, snippet_instance_id, SpdxRelationshipType.CONTAINS.value)
+
         dot = Digraph(format="png")
         dot.attr(rankdir="TB")
-        added_nodes = {}
-        # Global ids for container nodes
-        global_node_id_by_label = {}
-        # Remember last contextual id used for a given label to propagate when node becomes a parent
-        last_context_id_by_label = {}
 
-        # Add edges with appropriate colors
-        relationships = [item for item in self.sbom if isinstance(item, SPDXRelationship)]
-
-        iRel = 0
-        for relationship in relationships:
-            if not [item for item in relationship.to if isinstance(item, SPDXFile)]:
+        for relationship in self.sbom:
+            if not isinstance(relationship, SPDXRelationship):
                 continue
-
-            iRel += 1
-            for to_relationship in relationship.to:
-                # Allow duplicates nodes for
-                # each work items as using the same node can results into a wrong mapping graph
-                from_node = relationship.from_element
-                from_node_label = from_node.spdx_id.replace(":", "_")
-                # Prefer previously assigned contextual id to keep correct branch when this node becomes a parent
-                from_node_id = last_context_id_by_label.get(from_node_label)
-                if not from_node_id:
-                    # Fallback to global id for containers, or label if not yet seen
-                    if is_container_node(from_node):
-                        from_node_id = global_node_id_by_label.get(from_node_label) or from_node_label
-                        global_node_id_by_label[from_node_label] = from_node_id
-                    else:
-                        from_node_id = from_node_label
-                from_color = get_file_node_color(from_node)
-
-                to_node = to_relationship
-                to_node_label = to_node.spdx_id.replace(":", "_")
-                # Child nodes use per-parent contextual id unless they are containers
-                if is_container_node(to_node):
-                    to_node_id = global_node_id_by_label.get(to_node_label) or to_node_label
-                    global_node_id_by_label[to_node_label] = to_node_id
-                else:
-                    to_node_id = f"{from_node_id}__{to_node_label}"
-                # Remember contextual id for when this child becomes a parent
-                last_context_id_by_label[to_node_label] = to_node_id
-                to_color = get_file_node_color(to_node)
-
-                # Add 'from' node with color based on type
-                if from_node_id not in added_nodes:
-                    dot.node(from_node_id, label=from_node_label, style="filled", fillcolor=from_color)
-                    added_nodes[from_node_id] = from_color
-
-                # Add 'to' node with color based on type
-                if to_node_id not in added_nodes:
-                    dot.node(to_node_id, label=to_node_label, style="filled", fillcolor=to_color)
-                    added_nodes[to_node_id] = to_color
-
+            from_node = relationship.from_element
+            if not is_graph_element(from_node):
+                continue
+            rel_label = (
+                relationship.relationship_type.value
+                if isinstance(relationship.relationship_type, Enum)
+                else str(relationship.relationship_type)
+            )
+            for to_node in relationship.to or []:
+                if not is_graph_element(to_node):
+                    continue
+                from_id = resolve_from(from_node)
+                to_id = resolve_to(from_id, from_node, to_node)
+                add_node(from_id, from_node)
+                add_node(to_id, to_node)
+                add_edge(from_id, to_id, rel_label)
                 if isinstance(to_node, SPDXSnippet):
-                    from_file_label = to_node.from_file.spdx_id.replace(":", "_")
-                    from_file_id = from_file_label
-                    if from_file_id not in added_nodes:
-                        dot.node(from_file_id, label=from_file_label, style="filled", fillcolor="yellow")
-                        added_nodes[from_file_id] = "yellow"
-                    add_edge(from_file_id, to_node_id, "contains")
-
+                    link_snippet_to_source_file(to_node, to_id)
                 if isinstance(from_node, SPDXSnippet):
-                    from_file_label = from_node.from_file.spdx_id.replace(":", "_")
-                    from_file_id = from_file_label
-                    if from_file_id not in added_nodes:
-                        dot.node(from_file_id, label=from_file_label, style="filled", fillcolor="yellow")
-                        added_nodes[from_file_id] = "yellow"
-                    add_edge(from_file_id, from_node_id, "contains")
+                    link_snippet_to_source_file(from_node, from_id)
 
-                # Add edge without special color
-                add_edge(from_node_id, to_node_id, label=relationship.relationship_type)
+        for src, dst in sorted(added_edges):
+            dot.edge(src, dst, label=added_edges[(src, dst)])
 
-        # Populate dot edges
-        for edge in sorted(added_edges):
-            dot.edge(edge[0], edge[1], label=edge[2])
-
-        # --- Legend Subgraph ---
         legend = Digraph(name="cluster_legend")
         legend.attr(label="Legend", fontsize="12", style="dashed")
         legend.attr("node", shape="box", style="filled", width="1")
-
-        # Create legend nodes
         legend.node("library", label="Library", shape="box", style="filled", fillcolor="brown")
         legend.node("software_component", label="Software Component", shape="box", style="filled", fillcolor="gray")
         legend.node("reference_document", label="Reference Document", shape="box", style="filled", fillcolor="magenta")
@@ -2221,8 +2252,6 @@ class SPDXManager:
         legend.node("bug", label="Bug", shape="box", style="filled", fillcolor="salmon")
         legend.node("fix", label="Fix", shape="box", style="filled", fillcolor="olivedrab")
         legend.node("artifact", label="Artifact", shape="box", style="filled", fillcolor="khaki")
-
-        # Stack legend nodes vertically
         legend.edge("library", "software_component", style="invis", weight="100")
         legend.edge("software_component", "reference_document", style="invis", weight="100")
         legend.edge("reference_document", "snippet", style="invis", weight="100")
@@ -2235,7 +2264,6 @@ class SPDXManager:
         legend.edge("test_run", "bug", style="invis", weight="100")
         legend.edge("bug", "fix", style="invis", weight="100")
         legend.edge("fix", "artifact", style="invis", weight="100")
-
         dot.subgraph(legend)
 
         dot_filepath = f"{output_file}.dot"
@@ -2243,8 +2271,10 @@ class SPDXManager:
         with open(dot_filepath, "w") as f:
             f.write(dot.source)
 
-        # Save to file
-        dot.render(filename=output_file, cleanup=True)
+        try:
+            dot.render(filename=str(output_file), cleanup=True)
+        except Exception as e:
+            logger.warning(f"Could not render PNG for {output_file}: {e}")
 
     def _attach_author_signature(self, json_data: dict) -> dict:
         """Attach an SBOM author signature to the JSON-LD document and SpdxDocument."""
@@ -2280,9 +2310,8 @@ class SPDXManager:
             with open(filepath, "w") as f:
                 json.dump(json_data, f, indent=2)
 
-            latest_diagraph_filepath = Path(filepath).with_name("latest")
-
-            self.generate_diagraph(latest_diagraph_filepath)
+            graph_filepath = Path(filepath).with_suffix("")
+            self.generate_diagraph(graph_filepath)
 
         except Exception as e:
             logger.warning(f"Could not write sbom data to {filepath}: {e}")

@@ -686,7 +686,10 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     # Check that SPDX export was successful
     assert response.status_code == HTTPStatus.OK
 
-    assert check_latest_jsonld_file(user_id=user_authentication.json["id"]) is not None
+    jsonld_file = check_latest_jsonld_file(user_id=user_authentication.json["id"])
+    assert jsonld_file is not None
+    dot_file = jsonld_file[: -len(".jsonld")] + ".dot"
+    assert os.path.isfile(dot_file), f"Traceability map should share the JSON-LD basename: {dot_file}"
 
     # Save the SPDX content to a temporary file for validation
     spdx_content = response.data

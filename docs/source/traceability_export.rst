@@ -205,14 +205,16 @@ Parameters:
 File Outputs
 ------------
 
-The export process generates multiple files:
+The export process generates multiple files that share the same basename as
+the ``filename`` argument (``.jsonld`` is appended if omitted):
 
 1. **JSON-LD File**: Main SPDX document (``.jsonld``)
 2. **DOT File**: Graphviz source (``.dot``)
 3. **PNG File**: Rendered graph image (``.png``)
 
-All files are stored in user-specific directories:
-``api/public/spdx_export/<user-id>/<filename>``
+All files are stored in user-specific directories, for example
+``api/public/spdx_export/<user-id>/my_export.jsonld``,
+``my_export.dot``, and ``my_export.png``.
 
 Security Considerations
 -----------------------
@@ -236,5 +238,6 @@ Download exported file:
 .. code-block:: bash
 
     curl -X GET "http://localhost:5000/spdx/apis/export-download?api-id=123&user-id=456&token=abc123&filename=my_export.jsonld"
+    curl -X GET "http://localhost:5000/spdx/apis/export-download?api-id=123&user-id=456&token=abc123&filename=my_export.dot"
 
 The exported SPDX documents provide comprehensive traceability information that can be used for compliance, auditing, and analysis purposes while maintaining full compatibility with the SPDX 3.0.1 specification.

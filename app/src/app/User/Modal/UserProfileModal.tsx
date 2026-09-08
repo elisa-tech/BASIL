@@ -30,7 +30,6 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
 }: UserProfileModalProps) => {
   const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting')
 
   const [profileUsernameValue, setProfileUsernameValue] = React.useState(auth.userName || '')
   const [validatedProfileUsernameValue, setValidatedProfileUsernameValue] = React.useState<Constants.validate>('error')
@@ -65,6 +64,8 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
       setMessageValue('')
       setSpdxSignatureValue(auth.spdxSignature || '')
     }
+    // Only reset when the modal opens so a successful save can keep its feedback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState])
 
   const comparePasswords = () => {
@@ -173,7 +174,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
     }
 
     const url = Constants.API_BASE_URL + Constants.API_USER_ENDPOINT
-    let data = {
+    const data = {
       'user-id': auth.userId,
       token: auth.token
     }
@@ -278,7 +279,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
         if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, responseData))
         } else {
-          setMessageValue(responseData['message'])
+          setMessageValue(responseData['message'] || 'Your SPDX author signature has been saved.')
           if (auth.setSpdxSignature) {
             auth.setSpdxSignature(responseData['spdx_signature'] || trimmedSignature)
           }
@@ -446,8 +447,8 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 <FormHelperText>
                   <HelperText>
                     <HelperTextItem>
-                      Identifies you as the author of SPDX SBOM exports. A unique value is assigned when your account is
-                      created; you can customize it.
+                      Identifies you as the author of SPDX SBOM exports and is used to sign them. A unique value is assigned when your
+                      account is created; you can customize it.
                     </HelperTextItem>
                     {validatedSpdxSignatureValue === 'error' && (
                       <HelperTextItem variant='error'>This field is mandatory and must be 4 to 255 characters</HelperTextItem>

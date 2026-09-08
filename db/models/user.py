@@ -33,7 +33,7 @@ class UserModel(Base):
         return str(uuid4())
 
     def get_spdx_author_signature(self) -> str:
-        """Signature used as the SPDX Person name for this user."""
+        """Secret used to MAC SPDX SBOM exports for this user."""
         if self.spdx_signature:
             return self.spdx_signature
         return self.username or ""

@@ -206,6 +206,15 @@ def _has_incoming_spdx_relationship(relationships, to_id, rel_type):
     return False
 
 
+def _first_relationship_index(relationships, from_id, to_id, rel_type):
+    """Index of the first matching Relationship, or None."""
+    for index, rel in enumerate(relationships):
+        if rel.get("from") == from_id and rel.get("relationshipType") == rel_type:
+            if to_id in rel.get("to", []):
+                return index
+    return None
+
+
 def _spdx_id_for_api(api):
     return f"spdx:file:basil:api:{api.id}"
 
@@ -1076,6 +1085,16 @@ def _assert_test_run_outputs(relationships, test_case, test_run, api):
     assert _has_spdx_relationship(
         relationships, tr_id, artifact_id, "hasEvidence"
     ), f"Missing hasEvidence relationship: Test Run {test_run.id} -> Artifact"
+    generates_idx = _first_relationship_index(relationships, tc_id, tr_id, "generates")
+    bug_idx = _first_relationship_index(relationships, tr_id, _spdx_id_for_test_run_bug(test_run), "hasOutput")
+    artifact_idx = _first_relationship_index(relationships, tr_id, artifact_id, "hasOutput")
+    assert generates_idx is not None and bug_idx is not None and artifact_idx is not None
+    assert generates_idx < bug_idx, (
+        f"Test Case → Test Run must precede Test Run → Bug in JSON-LD (got {generates_idx} >= {bug_idx})"
+    )
+    assert generates_idx < artifact_idx, (
+        f"Test Case → Test Run must precede Test Run → Artifact in JSON-LD (got {generates_idx} >= {artifact_idx})"
+    )
 
 
 def _export_spdx_json(client, user_authentication, api):

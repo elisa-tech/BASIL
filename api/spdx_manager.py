@@ -1532,7 +1532,6 @@ class SPDXManager:
             logger.warning("Skip Test Runs as per export configuration")
             return
 
-        added_test_runs = []
         test_runs_query = (
             dbsession.query(TestRunModel)
             .filter(TestRunModel.mapping_to == mapping_to)
@@ -1546,12 +1545,17 @@ class SPDXManager:
 
         test_runs = test_runs_query.all()
 
+        added_test_runs = []
+        test_run_files = []
         for test_run in test_runs:
-            tmp = self.addTestRun(test_run=test_run, dbsession=dbsession)
-            added_test_runs.append(tmp)
+            tr_file = self.addTestRun(test_run=test_run, dbsession=dbsession)
+            added_test_runs.append(tr_file)
+            test_run_files.append((test_run, tr_file))
 
         if added_test_runs:
-            # Test Case generates the run, treats it as a test artifact, and as an output.
+            # Link the Test Run to its Test Case / Software Component before
+            # attaching bug/fix/artifact outputs so JSON-LD consumers walk
+            # TC → TR → outputs instead of seeing an unparented run.
             for relationship_type in (
                 SpdxRelationshipType.GENERATES,
                 SpdxRelationshipType.HAS_TEST,
@@ -1561,8 +1565,6 @@ class SPDXManager:
                     from_element=spdx_tc, to=added_test_runs, relationship_type=relationship_type
                 )
             if spdx_api:
-                # The Software Component has this execution as a test artifact;
-                # the Test Run was executed against that Software Component.
                 self.addRelationship(
                     from_element=spdx_api,
                     to=added_test_runs,
@@ -1574,6 +1576,13 @@ class SPDXManager:
                         to=[spdx_api],
                         relationship_type=SpdxRelationshipType.TESTED_ON,
                     )
+            for test_run, tr_file in test_run_files:
+                self.addTestRunBugAndFixOutputs(
+                    spdx_tr=tr_file, test_run=test_run, creation_info=tr_file.creation_info
+                )
+                self.addTestRunArtifacts(
+                    spdx_tr=tr_file, test_run=test_run, creation_info=tr_file.creation_info
+                )
 
     def addTestRun(self, test_run: TestRunModel = None, dbsession=None):
         """This function create SPDX File class describing a BASIL Test Run"""
@@ -1614,8 +1623,6 @@ class SPDXManager:
 
         self.add_to_sbom(tr_file)
         self.add_to_sbom(tr_annotation)
-        self.addTestRunBugAndFixOutputs(spdx_tr=tr_file, test_run=test_run, creation_info=creation_info)
-        self.addTestRunArtifacts(spdx_tr=tr_file, test_run=test_run, creation_info=creation_info)
         return tr_file
 
     def addTestRunBugOrFix(
@@ -2145,15 +2152,28 @@ class SPDXManager:
 
         ``output_file`` is the path without suffix; files are
         ``{output_file}.dot`` and ``{output_file}.png``.
+        Multiple SPDX relationship types between the same pair become one
+        edge labeled ``a,b,c``. Test Run outputs are attached after the run
+        is placed under its Test Case so they are not orphaned.
         """
 
         last_instance = {}
         added_nodes = {}
-        # One visual edge per node pair; first SPDX type (the BASIL mapping) wins.
+        # One visual edge per node pair; multiple SPDX types become "a,b,c".
         added_edges = {}
 
         def register_instance(label, instance_id):
             last_instance[label] = instance_id
+
+        def from_is_ready(node):
+            """Defer edges until the source has a mapping-tree instance.
+
+            Test Run → bug/fix/artifact is emitted before Test Case → Test Run,
+            so the run must not become an orphan node.
+            """
+            if is_graph_container(node):
+                return True
+            return graphviz_node_id(node.spdx_id) in last_instance
 
         def add_node(instance_id, node):
             if instance_id in added_nodes:
@@ -2173,7 +2193,7 @@ class SPDXManager:
             if is_graph_container(node):
                 register_instance(label, label)
                 return label
-            return last_instance.get(label, label)
+            return last_instance[label]
 
         def resolve_to(from_id, from_node, to_node):
             label = graphviz_node_id(to_node.spdx_id)
@@ -2194,8 +2214,9 @@ class SPDXManager:
 
         def add_edge(src, dst, rel_label):
             key = (src, dst)
-            if key not in added_edges:
-                added_edges[key] = rel_label
+            labels = added_edges.setdefault(key, [])
+            if rel_label not in labels:
+                labels.append(rel_label)
 
         def link_snippet_to_source_file(snippet, snippet_instance_id):
             from_file = getattr(snippet, "from_file", None)
@@ -2206,15 +2227,8 @@ class SPDXManager:
             add_node(file_id, from_file)
             add_edge(file_id, snippet_instance_id, SpdxRelationshipType.CONTAINS.value)
 
-        dot = Digraph(format="png")
-        dot.attr(rankdir="TB")
-
-        for relationship in self.sbom:
-            if not isinstance(relationship, SPDXRelationship):
-                continue
+        def emit_relationship(relationship):
             from_node = relationship.from_element
-            if not is_graph_element(from_node):
-                continue
             rel_label = (
                 relationship.relationship_type.value
                 if isinstance(relationship.relationship_type, Enum)
@@ -2233,8 +2247,35 @@ class SPDXManager:
                 if isinstance(from_node, SPDXSnippet):
                     link_snippet_to_source_file(from_node, from_id)
 
+        dot = Digraph(format="png")
+        dot.attr(rankdir="TB")
+
+        pending = []
+        for relationship in self.sbom:
+            if not isinstance(relationship, SPDXRelationship):
+                continue
+            from_node = relationship.from_element
+            if not is_graph_element(from_node):
+                continue
+            if from_is_ready(from_node):
+                emit_relationship(relationship)
+            else:
+                pending.append(relationship)
+
+        progress = True
+        while pending and progress:
+            progress = False
+            still_pending = []
+            for relationship in pending:
+                if from_is_ready(relationship.from_element):
+                    emit_relationship(relationship)
+                    progress = True
+                else:
+                    still_pending.append(relationship)
+            pending = still_pending
+
         for src, dst in sorted(added_edges):
-            dot.edge(src, dst, label=added_edges[(src, dst)])
+            dot.edge(src, dst, label=",".join(added_edges[(src, dst)]))
 
         legend = Digraph(name="cluster_legend")
         legend.attr(label="Legend", fontsize="12", style="dashed")

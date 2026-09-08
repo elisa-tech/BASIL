@@ -132,7 +132,7 @@ def get_document_model(client_db, utilities, title_suffix=""):
         f"{_UT_DOCUMENT_TITLE} {title_suffix}#{utilities.generate_random_hex_string8()}",
         _UT_DOCUMENT_DESCRIPTION,
         "file",
-        "DESCRIBES",
+        "describes",
         _UT_DOCUMENT_URL,
         "Document section",
         0,
@@ -204,6 +204,10 @@ def _has_incoming_spdx_relationship(relationships, to_id, rel_type):
         if rel.get("relationshipType") == rel_type and to_id in rel.get("to", []):
             return True
     return False
+
+
+def _spdx_id_for_api(api):
+    return f"spdx:file:basil:api:{api.id}"
 
 
 def _spdx_id_for_sr(sr):
@@ -698,15 +702,34 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     except json.JSONDecodeError:
         pytest.fail("Generated SPDX is not valid JSON")
 
-    # Persist JSON-LD for GitHub Actions (and local inspection), then validate that file
+    assert spdx_data.get("signature", {}).get("algorithm") == "HS256", (
+        "Exported JSON-LD must include a CISA SBOM author signature"
+    )
+    assert spdx_data["signature"].get("value"), "SBOM author signature value is missing"
+    documents = [element for element in graph_elements if element.get("type") == "SpdxDocument"]
+    assert documents, "Expected an SpdxDocument in the SPDX export"
+    assert all(
+        element.get("signature", {}).get("value") == spdx_data["signature"]["value"]
+        for element in documents
+    ), "SpdxDocument must carry the SBOM author signature"
+
+    # Persist the signed JSON-LD for GitHub Actions (and local inspection)
     artifact_path = write_spdx_ci_artifact(spdx_content)
     print(f"Wrote SPDX CI artifact: {artifact_path}")
     assert os.path.isfile(artifact_path), f"SPDX CI artifact was not written: {artifact_path}"
 
+    # SPDX 3.0.1 JSON Schema uses unevaluatedProperties:false, so in-document
+    # CISA/JSF signature fields are stripped before spdx3-validate.
+    from spdx_manager import unsigned_sbom_payload
+
+    unsigned_path = artifact_path + ".unsigned.jsonld"
+    with open(unsigned_path, "w") as unsigned_file:
+        json.dump(unsigned_sbom_payload(spdx_data), unsigned_file, indent=2)
+
     try:
-        print(f"Running spdx3-validate on {artifact_path}")
+        print(f"Running spdx3-validate on unsigned graph {unsigned_path}")
         result = subprocess.run(
-            ["spdx3-validate", "--json", artifact_path, "--spdx-version", "auto"],
+            ["spdx3-validate", "--json", unsigned_path, "--spdx-version", "auto"],
             capture_output=True,
             text=True,
             timeout=60,  # 60 second timeout
@@ -731,6 +754,9 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         pytest.fail("spdx3-validate timed out after 60 seconds")
     except FileNotFoundError:
         pytest.skip("spdx3-validate not found - skipping validation test")
+    finally:
+        if os.path.isfile(unsigned_path):
+            os.remove(unsigned_path)
 
     """Test that the generated SPDX contains expected elements from our test data"""
 
@@ -948,7 +974,13 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
         relationships, _spdx_id_for_document(document_1), _spdx_id_for_document(document_3), "hasDocumentation"
     )
     assert _has_spdx_relationship(
+        relationships, _spdx_id_for_document(document_1), _spdx_id_for_document(document_3), "contains"
+    )
+    assert _has_spdx_relationship(
         relationships, _spdx_id_for_document(document_3), _spdx_id_for_document(document_4), "hasDocumentation"
+    )
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_document(document_3), _spdx_id_for_document(document_4), "contains"
     )
 
     # API Snippet -> Sw Requirement -> Sw Requirement -> Sw Requirement
@@ -956,7 +988,13 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
         relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_sr(sw_req_3), "hasRequirement"
     )
     assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_sr(sw_req_3), "contains"
+    )
+    assert _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_sr(sw_req_4), "hasRequirement"
+    )
+    assert _has_spdx_relationship(
+        relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_sr(sw_req_4), "contains"
     )
 
     # API Snippet -> Sw Requirement -> Test Specification -> Test Case -> Test Run -> Artifact/Bug/Fix
@@ -966,13 +1004,13 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_ts(test_spec_1), _spdx_id_for_tc(test_case_4), "hasTestCase"
     )
-    _assert_test_run_outputs(relationships, test_case_4, test_run_sr_ts_tc)
+    _assert_test_run_outputs(relationships, test_case_4, test_run_sr_ts_tc, api)
 
     # API Snippet -> Sw Requirement -> Test Case -> Test Run -> Artifact/Bug/Fix
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_tc(test_case_3), "hasTestCase"
     )
-    _assert_test_run_outputs(relationships, test_case_3, test_run_api_sr_tc)
+    _assert_test_run_outputs(relationships, test_case_3, test_run_api_sr_tc, api)
 
     # API Snippet -> Sw Requirement -> Sw Requirement -> Test Specification -> Test Case -> Test Run
     assert _has_spdx_relationship(
@@ -981,33 +1019,46 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_ts(test_spec_2), _spdx_id_for_tc(test_case_5), "hasTestCase"
     )
-    _assert_test_run_outputs(relationships, test_case_5, test_run_sr_sr_ts_tc)
+    _assert_test_run_outputs(relationships, test_case_5, test_run_sr_sr_ts_tc, api)
 
     # API Snippet -> Sw Requirement -> Sw Requirement -> Test Case -> Test Run
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_tc(test_case_6), "hasTestCase"
     )
-    _assert_test_run_outputs(relationships, test_case_6, test_run_sr_sr_tc)
+    _assert_test_run_outputs(relationships, test_case_6, test_run_sr_sr_tc, api)
 
     # API Snippet -> Test Specification -> Test Case -> Test Run
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_ts(test_spec_1), _spdx_id_for_tc(test_case_1), "hasTestCase"
     )
-    _assert_test_run_outputs(relationships, test_case_1, test_run_api_ts_tc)
+    _assert_test_run_outputs(relationships, test_case_1, test_run_api_ts_tc, api)
 
     # API Snippet -> Test Case -> Test Run
     # test_case_1 is also mapped directly to the API; its API-mapping Test Run is test_run_api_tc.
-    _assert_test_run_outputs(relationships, test_case_1, test_run_api_tc)
+    _assert_test_run_outputs(relationships, test_case_1, test_run_api_tc, api)
 
     print("✓ All BASIL mapping chains are present as SPDX relationships")
 
 
-def _assert_test_run_outputs(relationships, test_case, test_run):
-    """Assert Test Case -> Test Run -> Artifact, Bug, and Fix (siblings under the run)."""
+def _assert_test_run_outputs(relationships, test_case, test_run, api):
+    """Assert Test Case/API -> Test Run -> Artifact, Bug, and Fix (siblings under the run)."""
     tc_id = _spdx_id_for_tc(test_case)
     tr_id = _spdx_id_for_test_run(test_run)
+    api_id = _spdx_id_for_api(api)
     assert _has_spdx_relationship(relationships, tc_id, tr_id, "generates"), (
         f"Missing generates relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
+    )
+    assert _has_spdx_relationship(relationships, tc_id, tr_id, "hasTest"), (
+        f"Missing hasTest relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
+    )
+    assert _has_spdx_relationship(relationships, tc_id, tr_id, "hasOutput"), (
+        f"Missing hasOutput relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
+    )
+    assert _has_spdx_relationship(relationships, api_id, tr_id, "hasTest"), (
+        f"Missing hasTest relationship: Software Component {api.id} -> Test Run {test_run.id}"
+    )
+    assert _has_spdx_relationship(relationships, tr_id, api_id, "testedOn"), (
+        f"Missing testedOn relationship: Test Run {test_run.id} -> Software Component {api.id}"
     )
     assert _has_spdx_relationship(
         relationships, tr_id, _spdx_id_for_test_run_bug(test_run), "hasOutput"
@@ -1024,8 +1075,8 @@ def _assert_test_run_outputs(relationships, test_case, test_run):
     ), f"Missing hasEvidence relationship: Test Run {test_run.id} -> Artifact"
 
 
-def _export_and_parse(client, user_authentication, api):
-    """Shared helper: trigger an SPDX export and return the parsed @graph list."""
+def _export_spdx_json(client, user_authentication, api):
+    """Shared helper: trigger an SPDX export and return the parsed JSON-LD object."""
     response = client.get(
         _SPDX_API_URL,
         query_string={
@@ -1036,7 +1087,12 @@ def _export_and_parse(client, user_authentication, api):
         },
     )
     assert response.status_code == HTTPStatus.OK
-    return json.loads(response.data)["@graph"]
+    return json.loads(response.data)
+
+
+def _export_and_parse(client, user_authentication, api):
+    """Shared helper: trigger an SPDX export and return the parsed @graph list."""
+    return _export_spdx_json(client, user_authentication, api)["@graph"]
 
 
 def _external_identifiers_for(graph, spdx_id):
@@ -1334,13 +1390,24 @@ def test_spdx_tool_version_and_sbom_context(client, user_authentication, compreh
     assert _has_spdx_relationship(relationships, document["spdxId"], sbom["spdxId"], "describes"), (
         "SpdxDocument must describe the software_Sbom"
     )
+    for rel_type in ("contains", "hasInput", "hasSpecification"):
+        assert _has_spdx_relationship(relationships, library_id, api_id, rel_type), (
+            f"Library must {rel_type} each Software Component (API)"
+        )
+    ref_doc_id = f"spdx:file:basil:api:reference-document:{api.id}"
+    for rel_type in ("hasDocumentation", "hasSpecification"):
+        assert _has_spdx_relationship(relationships, api_id, ref_doc_id, rel_type), (
+            f"Software Component must {rel_type} its reference document"
+        )
     print("✓ Tool version and software_Sbom generation context validated")
 
 
 def test_spdx_author_signature_from_exporting_user(
     client, user_authentication, comprehensive_spdx_test_data, client_db
 ):
-    """Person.name for the exporting user must be that user's spdx_signature."""
+    """SPDX export carries an HMAC author signature keyed by the user's spdx_signature."""
+    from spdx_manager import canonical_sbom_bytes, make_sbom_author_signature, unsigned_sbom_payload
+
     test_data = comprehensive_spdx_test_data
     api = test_data["api"]
     uid = user_authentication.json["id"]
@@ -1351,8 +1418,10 @@ def test_spdx_author_signature_from_exporting_user(
     try:
         user.spdx_signature = custom_signature
         client_db.session.commit()
+        user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
 
-        graph = _export_and_parse(client, user_authentication, api)
+        spdx_json = _export_spdx_json(client, user_authentication, api)
+        graph = spdx_json["@graph"]
         person_id = f"spdx:person:basil:user:{uid}"
         persons = [
             element
@@ -1360,7 +1429,8 @@ def test_spdx_author_signature_from_exporting_user(
             if element.get("type") == "Person" and element.get("spdxId") == person_id
         ]
         assert persons, f"Expected Person {person_id} in the SPDX export"
-        assert all(person.get("name") == custom_signature for person in persons)
+        assert all(person.get("name") == user.username for person in persons)
+
         document_creation_infos = [
             element
             for element in graph
@@ -1368,6 +1438,36 @@ def test_spdx_author_signature_from_exporting_user(
             and person_id in element.get("createdBy", [])
         ]
         assert document_creation_infos, "CreationInfo.createdBy must reference the exporting user"
+
+        assert "signature" in spdx_json, "JSON-LD root must include a CISA/JSF author signature"
+        assert spdx_json["signature"]["algorithm"] == "HS256"
+        assert spdx_json["signature"]["value"]
+
+        assert "signatures" in spdx_json and spdx_json["signatures"], (
+            "JSON-LD root must include SPDX/JSS signatures"
+        )
+        jss = spdx_json["signatures"][0]
+        assert jss["algorithm"] == "HS256"
+        assert jss["hash_algorithm"] == "sha-256"
+        assert jss["value"] == spdx_json["signature"]["value"]
+        assert user.username in jss.get("comment", "")
+
+        documents = [element for element in graph if element.get("type") == "SpdxDocument"]
+        assert documents, "Expected an SpdxDocument in the SPDX export"
+        assert all(
+            element.get("signature", {}).get("value") == spdx_json["signature"]["value"]
+            for element in documents
+        ), "SpdxDocument must carry the SBOM author signature"
+
+        expected = make_sbom_author_signature(spdx_json, user)
+        assert expected is not None
+        assert jss["value"] == expected["value"]
+        assert jss["thumbprint"] == expected["thumbprint"]
+        unsigned = unsigned_sbom_payload(spdx_json)
+        assert "signature" not in unsigned
+        assert "signatures" not in unsigned
+        assert all("signature" not in element for element in unsigned["@graph"])
+        assert canonical_sbom_bytes(unsigned)
     finally:
         user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
         user.spdx_signature = original_signature

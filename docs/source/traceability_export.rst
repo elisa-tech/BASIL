@@ -73,14 +73,17 @@ Traceability Relationships
 
 BASIL exports the following types of traceability relationships:
 
-- **hasDocumentation**: e.g.: API <- Reference document or API Reference document Snippet <- Document
-- **hasRequirement**: e.g.:API Reference document Snippet <- Software Requirements or Sw Requirement <- Sw Requirement
-- **hasSpecification**: e.g.:API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
-- **hasTest**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case ...
+- **hasDocumentation**: e.g.: API <- Reference document or API Reference document Snippet <- Document; Document <- nested Document
+- **hasRequirement**: e.g.: API Reference document Snippet <- Software Requirements or Sw Requirement <- nested Sw Requirement
+- **hasSpecification**: e.g.: Library <- API; API <- Reference document; API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
+- **hasTestCase**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case
+- **hasTest**: e.g.: Test Case <- Test Run; Software Component (API) <- Test Run
 - **generates**: e.g.: Test Cases <- Test Runs
-- **hasOutput**: e.g.: Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
+- **hasOutput**: e.g.: Test Case <- Test Run; Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
 - **hasEvidence**: e.g.: API Reference document Snippet <- Justification; Test Run <- Artifacts
-- **contains**: e.g.: Library <- API
+- **contains**: e.g.: Library <- API; Sw Requirement <- nested Sw Requirement; Document <- nested Document
+- **hasInput**: e.g.: Library <- API
+- **testedOn**: e.g.: Test Run <- Software Component (API)
 
 Each relationship includes:
 - Source and target elements
@@ -117,7 +120,12 @@ BASIL extends traceability to include test runs with specific limitations:
 Test Run Integration
 ~~~~~~~~~~~~~~~~~~~~
 
-- Test runs are linked to test cases via ``generates`` relationships
+- Test runs are linked to test cases via ``generates``, ``hasTest``, and
+  ``hasOutput`` relationships
+- Each Test Run is linked to the Software Component (API) with ``testedOn``
+  (the run was executed against that component)
+- The Software Component is linked to each Test Run with ``hasTest``
+  (the run is a test artifact of the component)
 - Test run data includes execution results, timestamps
 - Test runs are ordered by ID (most recent first)
 - Bugs and fixes stored on the Test Run (``bugs`` / ``fixes`` columns) are

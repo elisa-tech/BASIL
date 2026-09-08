@@ -50,12 +50,24 @@ const AuthProvider = ({ children }) => {
           if (typeof response_data == 'object') {
             //if (response_data.hasOwnProperty('token')) {
             if (Object.prototype.hasOwnProperty.call(response_data, 'token')) {
-              setUserEmail(response_data['email'])
-              setUserName(response_data['username'])
-              setUserId(response_data['id'])
-              setUserRole(response_data['role'])
-              setSpdxSignature(response_data['spdx_signature'] || '')
-              setToken(response_data['token'])
+              const nextEmail = response_data['email'] == null ? '' : String(response_data['email'])
+              const nextName = response_data['username'] == null ? '' : String(response_data['username'])
+              const nextId = response_data['id'] == null ? '' : String(response_data['id'])
+              const nextRole = response_data['role'] == null ? '' : String(response_data['role'])
+              const nextSignature = response_data['spdx_signature'] == null ? '' : String(response_data['spdx_signature'])
+              const nextToken = response_data['token'] == null ? '' : String(response_data['token'])
+              localStorage.setItem('uEmail', nextEmail)
+              localStorage.setItem('uName', nextName)
+              localStorage.setItem('uId', nextId)
+              localStorage.setItem('uRole', nextRole)
+              localStorage.setItem('uSpdxSignature', nextSignature)
+              localStorage.setItem('uToken', nextToken)
+              setUserEmail(nextEmail)
+              setUserName(nextName)
+              setUserId(nextId)
+              setUserRole(nextRole)
+              setSpdxSignature(nextSignature)
+              setToken(nextToken)
               setLoginMessage('Logged with success.')
               window.location.href = '/'
             } else {

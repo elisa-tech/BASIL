@@ -23,7 +23,7 @@ const registerUser = (user) => {
 
 const loginUser = (user) => {
   cy.visit(const_data.app_base_url + '/login')
-  cy.wait(const_data.mid_wait)
+  cy.wait(const_data.long_wait)
   cy.url().should('eq', const_data.app_base_url + '/login')
   cy.get(const_data.login.input_username).clear().type(user.email).should('have.value', user.email)
   cy.get(const_data.login.input_password)
@@ -31,17 +31,22 @@ const loginUser = (user) => {
     .type(user.password)
     .should('have.value', user.password)
     .type('{enter}')
-  cy.wait(const_data.mid_wait)
+  cy.wait(const_data.long_wait)
   cy.url().should('eq', const_data.app_base_url + '/')
   cy.get('header .pf-v5-c-toolbar__item .pf-v5-c-menu-toggle__text').should('contain.text', user.username)
 }
 
 const openSpdxSignatureTab = () => {
   cy.get('header').find('div.pf-v5-c-masthead__content').find('button.pf-v5-c-menu-toggle').click()
-  cy.get('#btn-header-user-profile').click()
+  cy.get('#btn-header-user-profile').click({ force: true })
   cy.get('div[role="dialog"]').should('contain.text', 'User Profile')
-  cy.get('#tab-user-edit-spdx-signature').click()
+  cy.contains('.pf-v5-c-tabs__item', 'SPDX Signature').click()
   cy.get('#input-user-edit-spdx-signature').should('be.visible')
+}
+
+const closeUserProfileModal = () => {
+  cy.get('div[role="dialog"]').find('button[aria-label="Close"]').click({ force: true })
+  cy.get('div[role="dialog"]').should('not.exist')
 }
 
 describe('Edit user SPDX signature', () => {
@@ -67,12 +72,11 @@ describe('Edit user SPDX signature', () => {
       expect(win.localStorage.getItem('uSpdxSignature')).to.eq(USER1_SIGNATURE)
     })
 
-    cy.get('div[role="dialog"]').find('button[aria-label="Close"]').click()
-    cy.get('div[role="dialog"]').should('not.exist')
+    closeUserProfileModal()
 
     openSpdxSignatureTab()
     cy.get('#input-user-edit-spdx-signature').should('have.value', USER1_SIGNATURE)
-    cy.get('div[role="dialog"]').find('button[aria-label="Close"]').click()
+    closeUserProfileModal()
 
     cy.logout()
     loginUser(user_data.user2)

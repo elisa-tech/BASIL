@@ -13,8 +13,11 @@ db_port=5432
 db_password=default_db_password
 testing=0
 tmt_test_runs_base_dir="/var/test-runs"
+db_migrations=()
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MIGRATION_DIR="${SCRIPT_DIR}/db/models/migration"
 
-OPTSTRING=":b:d:e:f:p:t:u:w:h:T:"
+OPTSTRING=":b:d:e:f:m:p:t:u:w:h:T:"
 TITLE_COLOR_STR="\033[0;92;40m"
 BODY_COLOR_STR="\033[0;97;40m"
 ALERT_COLOR_STR="\033[0;31;40m"
@@ -59,6 +62,98 @@ remove_container()
   fi
 }
 
+resolve_postgres_migration_file()
+{
+  local version="$1"
+  local normalized
+
+  # Accept 1.8.12, 1_8_12, postgres_1_8_12, or postgres_1_8_12.sql
+  normalized=$(echo "$version" | sed -e 's/^postgres_//' -e 's/\.sql$//' | tr '.' '_')
+  echo "${MIGRATION_DIR}/postgres_${normalized}.sql"
+}
+
+list_postgres_migrations()
+{
+  local f
+  for f in "${MIGRATION_DIR}"/postgres_*.sql; do
+    [ -e "$f" ] || continue
+    basename "$f"
+  done
+}
+
+db_has_schema()
+{
+  local result
+  result=$(podman exec ${BASIL_DB_CONTAINER} \
+    env PGPASSWORD="${db_password}" \
+    psql -U basil-admin -d ${db_name} -tAc \
+    "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users');") || {
+    echo -e "${ALERT_COLOR_STR}Unable to query database ${db_name} to check the schema. Aborting.${RESET_COLORS_STR}"
+    exit 1
+  }
+  result=$(echo "$result" | tr -d '[:space:]')
+  [ "$result" = "t" ]
+}
+
+wait_for_db_connections()
+{
+  local i
+  for i in {1..10}; do
+    if podman exec ${BASIL_DB_CONTAINER} \
+        env PGPASSWORD="${db_password}" \
+        psql -U basil-admin -d ${db_name} -c 'SELECT 1' >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "Waiting for database ${db_name} to accept connections..."
+    sleep 2
+  done
+  echo -e "${ALERT_COLOR_STR}Database ${db_name} did not accept connections. Aborting.${RESET_COLORS_STR}"
+  exit 1
+}
+
+apply_db_migrations()
+{
+  local version migration_file
+
+  if [ ${#db_migrations[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  echoSectionTitle "Apply database migrations"
+
+  echo -e "\n${BODY_COLOR_STR}"
+
+  wait_for_db_connections
+
+  if ! db_has_schema; then
+    echo -e "${ALERT_COLOR_STR}Skipping migrations: database ${db_name} has no existing schema."
+    echo -e "Migrations are only needed when reusing an existing basil-db-vol."
+    echo -e "${BODY_COLOR_STR}"
+    return 0
+  fi
+
+  for version in "${db_migrations[@]}"; do
+    migration_file=$(resolve_postgres_migration_file "$version")
+    if [ ! -f "$migration_file" ]; then
+      echo -e "${ALERT_COLOR_STR}Migration file not found for version '${version}'."
+      echo -e "Expected: ${migration_file}"
+      echo -e "Available postgres migrations:"
+      list_postgres_migrations
+      echo -e "${RESET_COLORS_STR}"
+      exit 1
+    fi
+
+    echo -e "${TITLE_COLOR_STR}> Applying ${migration_file}\n${BODY_COLOR_STR}"
+    if ! podman exec -i ${BASIL_DB_CONTAINER} \
+        env PGPASSWORD="${db_password}" \
+        psql -U basil-admin -d ${db_name} -v ON_ERROR_STOP=1 < "${migration_file}"; then
+      echo -e "${ALERT_COLOR_STR}Database migration '${version}' failed. Aborting API deployment.${RESET_COLORS_STR}"
+      exit 1
+    fi
+    echo -e "${TITLE_COLOR_STR}Migration '${version}' applied successfully.${BODY_COLOR_STR}"
+  done
+}
+
 echoSectionTitle()
 {
     local title=$1
@@ -90,9 +185,18 @@ usage()
                             in the local network (e.g.: http://192.168.1.15)
         -w DB_PASSWPRD      password of the basil-admin user of the postgreSQL database
         -T TMT_TEST_RUNS_BASE_DIR  Base directory for tmt test runs, default is "/var/test-runs"
+        -m, --db-migration VERSION
+                            Apply a PostgreSQL migration SQL file after the DB is up
+                            and before starting the API. VERSION is the BASIL version
+                            encoded in the filename, e.g. 1.8.12 applies
+                            db/models/migration/postgres_1_8_12.sql
+                            Repeat the option to apply several migrations in order.
+                            Required when reusing an existing basil-db-vol that was
+                            created with an older schema.
 
         example: ${0##*/} -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
         example for testing: ${0##*/} -t 1 -b 5005 -u 'http://192.168.1.15' -f 9005 -p '!myStrongPasswordForAdmin!' -w 'dbSecret123'
+        example with db migration: ${0##*/} --db-migration 1.8.12
 
         BASIL (frontend) will be available at [URL][APP_PORT] e.g. http://192.168.1.15:9005
         BASIL Api (backend) will be available at [URL][API_PORT] e.g. http://192.168.1.15:5005
@@ -103,10 +207,37 @@ usage()
 exit 0
 }
 
+# Convert long options that getopts cannot parse natively.
+converted_args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --db-migration)
+            if [[ -z "${2:-}" || "$2" == -* ]]; then
+                echo -e "${ALERT_COLOR_STR}Error: --db-migration requires a version argument (e.g. 1.8.12)${RESET_COLORS_STR}" >&2
+                exit 1
+            fi
+            converted_args+=("-m" "$2")
+            shift 2
+            ;;
+        --db-migration=*)
+            converted_args+=("-m" "${1#*=}")
+            shift
+            ;;
+        *)
+            converted_args+=("$1")
+            shift
+            ;;
+    esac
+done
+set -- "${converted_args[@]}"
+
 while getopts ${OPTSTRING} opt; do
     case ${opt} in
         b)
         api_port=${OPTARG}
+        ;;
+        m)
+        db_migrations+=("${OPTARG}")
         ;;
         d)
         if [ ${OPTARG} == "debian" ]; then
@@ -175,6 +306,11 @@ echo -e " - db port = ${db_port}"
 echo -e " - db password = ${db_password}"
 echo -e " - testing = ${testing}"
 echo -e " - tmt test runs base dir = ${tmt_test_runs_base_dir}"
+if [ ${#db_migrations[@]} -gt 0 ]; then
+  echo -e " - db migrations = ${db_migrations[*]}"
+else
+  echo -e " - db migrations = (none)"
+fi
 
 # ---------------------------------------
 echoSectionTitle "Remove existing containers"
@@ -292,6 +428,8 @@ for i in {1..10}; do
   echo "Waiting for PostgreSQL container ${BASIL_DB_CONTAINER} to be ready..."
   sleep 10
 done
+
+apply_db_migrations
 
 # ---------------------------------------
 echoSectionTitle "Start API container"

@@ -127,7 +127,7 @@ def api_doc_mapping(client_db, ut_user_db, utilities):
     api = _create_api(client_db, utilities)
     doc = DocumentModel(
         f'Doc #{utilities.generate_random_hex_string8()}', 'Fork test doc',
-        'file', 'relates-to', 'stub.md', 'section', 0, 0, user
+        'file', 'other', 'stub.md', 'section', 0, 0, user
     )
     mapping = ApiDocumentModel(api, doc, 'section', 0, 50, user)
     client_db.session.add(doc)
@@ -143,12 +143,12 @@ def doc_doc_mapping(client_db, ut_user_db, utilities):
     api = _create_api(client_db, utilities)
     parent_doc = DocumentModel(
         f'Parent Doc #{utilities.generate_random_hex_string8()}', 'Parent doc',
-        'file', 'relates-to', 'stub.md', 'section', 0, 0, user
+        'file', 'other', 'stub.md', 'section', 0, 0, user
     )
     api_doc = ApiDocumentModel(api, parent_doc, 'section', 0, 50, user)
     child_doc = DocumentModel(
         f'Child Doc #{utilities.generate_random_hex_string8()}', 'Child doc',
-        'file', 'relates-to', 'stub.md', 'section', 0, 0, user
+        'file', 'other', 'stub.md', 'section', 0, 0, user
     )
     doc_doc = DocumentDocumentModel(
         document_mapping_api=api_doc,

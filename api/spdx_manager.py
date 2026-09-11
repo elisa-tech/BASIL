@@ -30,6 +30,7 @@ from db.models.api_justification import ApiJustificationModel  # noqa E402
 from db.models.api_sw_requirement import ApiSwRequirementModel  # noqa E402
 from db.models.api_test_case import ApiTestCaseModel  # noqa E402
 from db.models.api_test_specification import ApiTestSpecificationModel  # noqa E402
+from db.models.comment import CommentModel  # noqa E402
 from db.models.document import DocumentModel  # noqa E402
 from db.models.document_document import DocumentDocumentModel  # noqa E402
 from db.models.justification import JustificationModel  # noqa E402
@@ -483,6 +484,7 @@ class SPDXAnnotation:
         subject: str = "",
         object: dict = {},
         creation_info: SPDXCreationInfo = None,
+        annotation_type: str = "other",
     ):
         self.spdx_id = f"{spdx_id}"
         self.name = name
@@ -490,11 +492,12 @@ class SPDXAnnotation:
         versioned_object = {**object, "basil:annotationVersion": BASIL_ANNOTATION_VERSION}
         self.statement = json.dumps(versioned_object)
         self.creation_info = creation_info
+        self.annotation_type = annotation_type if annotation_type in ("other", "review") else "other"
 
     def to_dict(self):
         return {
             "type": "Annotation",
-            "annotationType": "other",
+            "annotationType": self.annotation_type,
             "spdxId": self.spdx_id,
             "subject": self.subject.spdx_id,
             "statement": self.statement,
@@ -805,6 +808,7 @@ GRAPH_NODE_COLORS = {
     "bug": "salmon",
     "fix": "olivedrab",
     "artifact": "khaki",
+    "comment": "pink",
     "other": "white",
 }
 GRAPH_CONTAINER_KINDS = frozenset({"library", "software_component", "reference_document"})
@@ -819,6 +823,29 @@ def graphviz_node_id(spdx_id: Optional[str]) -> str:
     return (spdx_id or "").replace(":", "_")
 
 
+def is_basil_comment_annotation(node) -> bool:
+    """True for BASIL mapping comments exported as SPDX Annotations."""
+    if not isinstance(node, SPDXAnnotation):
+        return False
+    return (getattr(node, "spdx_id", "") or "").startswith("spdx:annotation:basil:comment:")
+
+
+def graph_comment_label(annotation, max_length: int = 60) -> str:
+    """Visible Graphviz label for a BASIL comment Annotation."""
+    text = ""
+    try:
+        statement = json.loads(getattr(annotation, "statement", "") or "{}")
+        text = statement.get("comment") or ""
+    except (TypeError, json.JSONDecodeError, AttributeError):
+        text = ""
+    if not text:
+        text = getattr(annotation, "name", "") or getattr(annotation, "spdx_id", "") or "comment"
+    text = " ".join(str(text).split())
+    if len(text) > max_length:
+        text = text[: max_length - 3] + "..."
+    return text.replace('"', "'")
+
+
 def graph_node_kind(node) -> str:
     """Classify a BASIL SPDX element for the traceability map.
 
@@ -827,6 +854,8 @@ def graph_node_kind(node) -> str:
     """
     if isinstance(node, SPDXSnippet):
         return "snippet"
+    if is_basil_comment_annotation(node):
+        return "comment"
     sid = (getattr(node, "spdx_id", None) or "").lower()
     if sid.startswith("spdx:file:basil:test-run:") and ":bug:" in sid:
         return "bug"
@@ -875,12 +904,16 @@ class SPDXManager:
         apis: List[ApiModel] = None,
         include_test_runs: bool = True,
         test_runs_limit: int = 20,
+        include_comments: bool = True,
+        test_run_config_ids: Optional[List[int]] = None,
         dbi: DbInterface = None,
     ):
         self.sbom = []
         self.user = user
         self.include_test_runs = include_test_runs
         self.test_runs_limit = test_runs_limit
+        self.include_comments = include_comments
+        self.test_run_config_ids = test_run_config_ids
 
         library_name = library_name.strip()
         export_name = f"BASIL SBOM export for library {library_name}"
@@ -1285,6 +1318,51 @@ class SPDXManager:
         self.addApiJustifications(spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
         return (creation_info, person, file_api)
 
+    def addWorkItemComments(self, spdx_work_item=None, mapping=None, dbsession=None):
+        """Export BASIL mapping comments as SPDX Annotations on the work item.
+
+        Comments in BASIL belong to a mapping row (``parent_table`` /
+        ``parent_id``), not to the work item entity itself. Each comment
+        becomes a ``review`` Annotation whose ``subject`` is the SPDX File
+        for that mapped work item, matching how HTML export attaches
+        comments to work items in the traceability tree.
+        """
+        if not getattr(self, "include_comments", True):
+            return
+        if spdx_work_item is None or mapping is None or dbsession is None:
+            return
+        if not getattr(mapping, "__tablename__", None) or not getattr(mapping, "id", None):
+            return
+
+        comments = (
+            dbsession.query(CommentModel)
+            .filter(CommentModel.parent_table == mapping.__tablename__)
+            .filter(CommentModel.parent_id == mapping.id)
+            .order_by(CommentModel.created_at.asc())
+            .all()
+        )
+        for comment in comments:
+            comment_spdx_id = f"spdx:annotation:basil:comment:{comment.id}"
+            creation_info, _person = self.getCreationInfoAndPerson(
+                item_id=comment_spdx_id,
+                created_by=comment.created_by,
+                created_at=comment.created_at,
+                add_to_sbom=True,
+            )
+            comment_dict = comment.as_dict()
+            comment_dict["kind"] = "comment"
+            comment_dict["parent_table"] = comment.parent_table
+            comment_dict["parent_id"] = comment.parent_id
+            annotation = SPDXAnnotation(
+                spdx_id=comment_spdx_id,
+                name=f"BASIL comment {comment.id}",
+                subject=spdx_work_item,
+                object=comment_dict,
+                creation_info=creation_info,
+                annotation_type="review",
+            )
+            self.add_to_sbom(annotation)
+
     def addRelationship(
         self,
         from_element=None,
@@ -1302,7 +1380,7 @@ class SPDXManager:
         )
         self.add_to_sbom(relationship)
 
-    def addSwRequirement(self, software_requirement: SwRequirementModel = None, dbsession=None):
+    def addSwRequirement(self, software_requirement: SwRequirementModel = None, dbsession=None, mapping=None):
         """This function create SPDX File class describing a BASIL Software Requirement"""
 
         sr_dict = software_requirement.as_dict(full_data=True, db_session=dbsession)
@@ -1348,9 +1426,10 @@ class SPDXManager:
 
         self.add_to_sbom(sr_file)
         self.add_to_sbom(sr_annotation)
+        self.addWorkItemComments(spdx_work_item=sr_file, mapping=mapping, dbsession=dbsession)
         return sr_file
 
-    def addTestSpecification(self, test_specification: TestSpecificationModel = None, dbsession=None):
+    def addTestSpecification(self, test_specification: TestSpecificationModel = None, dbsession=None, mapping=None):
         """This function create SPDX File class describing a BASIL Test Specification"""
         ts_dict = test_specification.as_dict(full_data=True, db_session=dbsession)
         ts_dict["__tablename__"] = test_specification.__tablename__
@@ -1392,9 +1471,10 @@ class SPDXManager:
 
         self.add_to_sbom(ts_file)
         self.add_to_sbom(ts_annotation)
+        self.addWorkItemComments(spdx_work_item=ts_file, mapping=mapping, dbsession=dbsession)
         return ts_file
 
-    def addTestCase(self, test_case: TestCaseModel = None, dbsession=None):
+    def addTestCase(self, test_case: TestCaseModel = None, dbsession=None, mapping=None):
         """This function create SPDX File class describing a BASIL Test Case"""
         tc_dict = test_case.as_dict(full_data=True, db_session=dbsession)
         tc_dict["__tablename__"] = test_case.__tablename__
@@ -1433,9 +1513,10 @@ class SPDXManager:
 
         self.add_to_sbom(tc_file)
         self.add_to_sbom(tc_annotation)
+        self.addWorkItemComments(spdx_work_item=tc_file, mapping=mapping, dbsession=dbsession)
         return tc_file
 
-    def addDocument(self, document: DocumentModel = None, dbsession=None):
+    def addDocument(self, document: DocumentModel = None, dbsession=None, mapping=None):
         """This function create SPDX File class describing a BASIL Document"""
         doc_dict = document.as_dict(full_data=True, db_session=dbsession)
         doc_dict["__tablename__"] = document.__tablename__
@@ -1474,9 +1555,10 @@ class SPDXManager:
 
         self.add_to_sbom(doc_file)
         self.add_to_sbom(doc_annotation)
+        self.addWorkItemComments(spdx_work_item=doc_file, mapping=mapping, dbsession=dbsession)
         return doc_file
 
-    def addJustification(self, justification: JustificationModel = None, dbsession=None):
+    def addJustification(self, justification: JustificationModel = None, dbsession=None, mapping=None):
         """This function create SPDX File class describing a BASIL Document"""
         js_dict = justification.as_dict(full_data=True, db_session=dbsession)
         js_dict["__tablename__"] = justification.__tablename__
@@ -1518,6 +1600,7 @@ class SPDXManager:
 
         self.add_to_sbom(js_file)
         self.add_to_sbom(js_annotation)
+        self.addWorkItemComments(spdx_work_item=js_file, mapping=mapping, dbsession=dbsession)
         return js_file
 
     def addTestRuns(
@@ -1532,6 +1615,10 @@ class SPDXManager:
             logger.warning("Skip Test Runs as per export configuration")
             return
 
+        if self.test_run_config_ids is not None and not self.test_run_config_ids:
+            logger.info("Skip Test Runs: no test run configs selected")
+            return
+
         test_runs_query = (
             dbsession.query(TestRunModel)
             .filter(TestRunModel.mapping_to == mapping_to)
@@ -1539,7 +1626,11 @@ class SPDXManager:
             .order_by(desc(TestRunModel.id))
         )
 
-        if self.test_runs_limit > 0:
+        if self.test_run_config_ids is not None:
+            test_runs_query = test_runs_query.filter(
+                TestRunModel.test_run_config_id.in_(self.test_run_config_ids)
+            )
+        elif self.test_runs_limit > 0:
             logger.info(f"Limiting test runs to {self.test_runs_limit} as per export configuration")
             test_runs_query = test_runs_query.limit(self.test_runs_limit)
 
@@ -1827,7 +1918,7 @@ class SPDXManager:
             .all()
         )
         for doc_doc in doc_docs:
-            spdx_doc_doc = self.addDocument(document=doc_doc.document, dbsession=dbsession)
+            spdx_doc_doc = self.addDocument(document=doc_doc.document, dbsession=dbsession, mapping=doc_doc)
             for relationship_type in (
                 SpdxRelationshipType.HAS_DOCUMENTATION,
                 SpdxRelationshipType.CONTAINS,
@@ -1878,7 +1969,9 @@ class SPDXManager:
             .all()
         )
         for sr_sr in sr_srs:
-            spdx_sr_sr = self.addSwRequirement(software_requirement=sr_sr.sw_requirement, dbsession=dbsession)
+            spdx_sr_sr = self.addSwRequirement(
+                software_requirement=sr_sr.sw_requirement, dbsession=dbsession, mapping=sr_sr
+            )
             for relationship_type in (
                 SpdxRelationshipType.HAS_REQUIREMENT,
                 SpdxRelationshipType.CONTAINS,
@@ -1925,7 +2018,9 @@ class SPDXManager:
             spdx_asr_snippet = self.addSnippet(
                 spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=asr, dbsession=dbsession
             )
-            spdx_sr = self.addSwRequirement(software_requirement=asr.sw_requirement, dbsession=dbsession)
+            spdx_sr = self.addSwRequirement(
+                software_requirement=asr.sw_requirement, dbsession=dbsession, mapping=asr
+            )
             self.addRelationship(
                 from_element=spdx_asr_snippet,
                 to=[spdx_sr],
@@ -1967,7 +2062,9 @@ class SPDXManager:
             spdx_ats_snippet = self.addSnippet(
                 spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=ats, dbsession=dbsession
             )
-            spdx_ts = self.addTestSpecification(test_specification=ats.test_specification, dbsession=dbsession)
+            spdx_ts = self.addTestSpecification(
+                test_specification=ats.test_specification, dbsession=dbsession, mapping=ats
+            )
             self.addRelationship(
                 from_element=spdx_ats_snippet,
                 to=[spdx_ts],
@@ -2001,7 +2098,9 @@ class SPDXManager:
             .all()
         )
         for sr_ts in sr_tss:
-            spdx_ts = self.addTestSpecification(test_specification=sr_ts.test_specification, dbsession=dbsession)
+            spdx_ts = self.addTestSpecification(
+                test_specification=sr_ts.test_specification, dbsession=dbsession, mapping=sr_ts
+            )
             self.addRelationship(
                 from_element=spdx_sr,
                 to=[spdx_ts],
@@ -2032,7 +2131,7 @@ class SPDXManager:
         )
 
         for sr_tc in sw_requirement_test_cases:
-            spdx_tc = self.addTestCase(test_case=sr_tc.test_case, dbsession=dbsession)
+            spdx_tc = self.addTestCase(test_case=sr_tc.test_case, dbsession=dbsession, mapping=sr_tc)
             self.addRelationship(
                 from_element=spdx_sr,
                 to=[spdx_tc],
@@ -2068,7 +2167,7 @@ class SPDXManager:
             return
 
         for ts_tc in test_specification_test_cases:
-            spdx_tc = self.addTestCase(test_case=ts_tc.test_case, dbsession=dbsession)
+            spdx_tc = self.addTestCase(test_case=ts_tc.test_case, dbsession=dbsession, mapping=ts_tc)
             self.addRelationship(
                 from_element=spdx_ts,
                 to=[spdx_tc],
@@ -2093,7 +2192,7 @@ class SPDXManager:
             spdx_atc_snippet = self.addSnippet(
                 spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=atc, dbsession=dbsession
             )
-            spdx_tc = self.addTestCase(test_case=atc.test_case, dbsession=dbsession)
+            spdx_tc = self.addTestCase(test_case=atc.test_case, dbsession=dbsession, mapping=atc)
             self.addRelationship(
                 from_element=spdx_atc_snippet,
                 to=[spdx_tc],
@@ -2118,7 +2217,7 @@ class SPDXManager:
             spdx_adoc_snippet = self.addSnippet(
                 spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=adoc, dbsession=dbsession
             )
-            spdx_doc = self.addDocument(document=adoc.document, dbsession=dbsession)
+            spdx_doc = self.addDocument(document=adoc.document, dbsession=dbsession, mapping=adoc)
             self.addRelationship(
                 from_element=spdx_adoc_snippet,
                 to=[spdx_doc],
@@ -2139,7 +2238,9 @@ class SPDXManager:
             spdx_ajs_snippet = self.addSnippet(
                 spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=ajs, dbsession=dbsession
             )
-            spdx_js = self.addJustification(justification=ajs.justification, dbsession=dbsession)
+            spdx_js = self.addJustification(
+                justification=ajs.justification, dbsession=dbsession, mapping=ajs
+            )
             self.addRelationship(
                 from_element=spdx_ajs_snippet,
                 to=[spdx_js],
@@ -2274,6 +2375,42 @@ class SPDXManager:
                     still_pending.append(relationship)
             pending = still_pending
 
+        def emit_comments():
+            """Attach BASIL mapping comments to each drawn work-item instance."""
+            color = GRAPH_NODE_COLORS["comment"]
+            for annotation in self.sbom:
+                if not is_basil_comment_annotation(annotation):
+                    continue
+                subject = getattr(annotation, "subject", None)
+                subject_sid = getattr(subject, "spdx_id", None)
+                if not subject_sid:
+                    continue
+                subject_label = graphviz_node_id(subject_sid)
+                comment_label = graphviz_node_id(annotation.spdx_id)
+                parent_ids = [
+                    instance_id
+                    for instance_id in added_nodes
+                    if instance_id == subject_label or instance_id.endswith(f"__{subject_label}")
+                ]
+                if not parent_ids and subject_label in last_instance:
+                    parent_ids = [last_instance[subject_label]]
+                text = graph_comment_label(annotation)
+                for parent_id in parent_ids:
+                    comment_instance = f"{parent_id}__{comment_label}"
+                    if comment_instance in added_nodes:
+                        continue
+                    dot.node(
+                        comment_instance,
+                        label=text,
+                        style="filled",
+                        fillcolor=color,
+                        shape="note",
+                    )
+                    added_nodes[comment_instance] = color
+                    add_edge(parent_id, comment_instance, "comment")
+
+        emit_comments()
+
         for src, dst in sorted(added_edges):
             dot.edge(src, dst, label=",".join(added_edges[(src, dst)]))
 
@@ -2293,6 +2430,13 @@ class SPDXManager:
         legend.node("bug", label="Bug", shape="box", style="filled", fillcolor="salmon")
         legend.node("fix", label="Fix", shape="box", style="filled", fillcolor="olivedrab")
         legend.node("artifact", label="Artifact", shape="box", style="filled", fillcolor="khaki")
+        legend.node(
+            "comment",
+            label="Comment",
+            shape="note",
+            style="filled",
+            fillcolor=GRAPH_NODE_COLORS["comment"],
+        )
         legend.edge("library", "software_component", style="invis", weight="100")
         legend.edge("software_component", "reference_document", style="invis", weight="100")
         legend.edge("reference_document", "snippet", style="invis", weight="100")
@@ -2305,6 +2449,7 @@ class SPDXManager:
         legend.edge("test_run", "bug", style="invis", weight="100")
         legend.edge("bug", "fix", style="invis", weight="100")
         legend.edge("fix", "artifact", style="invis", weight="100")
+        legend.edge("artifact", "comment", style="invis", weight="100")
         dot.subgraph(legend)
 
         dot_filepath = f"{output_file}.dot"

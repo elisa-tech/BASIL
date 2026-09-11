@@ -95,6 +95,8 @@ from api_utils import (
     list_test_run_artifacts,
     load_settings,
     parse_int,
+    parse_optional_int_id_list,
+    read_basil_version,
     read_file,
     justification_to_html,
     sw_requirement_to_html,
@@ -134,7 +136,6 @@ EMAIL_DISCORD_FOOTER_MESSAGE = "<p>Join our <a href='" \
     "'>BASIL Discord channel</a> to discuss about the tool usage and development!</p>"
 TEST_RUNS_BASE_DIR = os.getenv("TEST_RUNS_BASE_DIR", "/var/test-runs")
 USER_FILES_BASE_DIR = os.path.join(currentdir, "user-files")  # forced under api to ensure tmt tree validity
-PYPROJECT_FILEPATH = os.path.join(os.path.dirname(currentdir), "pyproject.toml")
 HISTORY_DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 HTML_EXPORT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -153,13 +154,7 @@ if not os.path.exists(USER_FILES_BASE_DIR):
 
 # Read API Version once
 # API Version is not supposed to change runtime
-API_VERSION = ""
-if os.path.exists(PYPROJECT_FILEPATH):
-    pyproject_content = read_file(PYPROJECT_FILEPATH)
-    if pyproject_content:
-        version_row = [x for x in pyproject_content.split("\n") if x.startswith("version = ")]
-        if version_row:
-            API_VERSION = version_row[0].split("=")[-1].replace('"', "").strip()
+API_VERSION = read_basil_version()
 
 USER_ROLES_DELETE_PERMISSIONS = ["ADMIN", "USER"]
 USER_ROLES_EDIT_PERMISSIONS = ["ADMIN", "USER"]
@@ -1913,12 +1908,18 @@ class SPDXApi(Resource):
         if not str(test_runs_limit).isdigit():
             test_runs_limit = 5
 
+        include_comments = bool_from_string(request_data.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_test_runs = bool_from_string(request_data.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
+        test_run_config_ids = parse_optional_int_id_list(request.args, "test_run_config_id")
+
         spdxManager = SPDXManager(
             user=user,
             library_name=api.library,
             apis=[api],
-            include_test_runs=True,
-            test_runs_limit=test_runs_limit,
+            include_test_runs=include_test_runs,
+            test_runs_limit=int(test_runs_limit),
+            include_comments=include_comments,
+            test_run_config_ids=test_run_config_ids,
             dbi=dbi
         )
 
@@ -1935,6 +1936,39 @@ class SPDXApi(Resource):
         del spdxManager
 
         return send_file(spdx_filepath)
+
+
+class SPDXApiTestRunConfigs(Resource):
+    route = "/spdx/apis/test-run-configs"
+
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        """Return Test Run Configs used by Test Runs of this Software Component."""
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        config_id_rows = (
+            dbi.session.query(TestRunModel.test_run_config_id)
+            .filter(TestRunModel.api_id == api.id)
+            .distinct()
+            .all()
+        )
+        config_ids = [row[0] for row in config_id_rows if row[0]]
+        if not config_ids:
+            api_response.set_data([])
+            return api_response.return_ok()
+
+        configs = (
+            dbi.session.query(TestRunConfigModel)
+            .filter(TestRunConfigModel.id.in_(config_ids))
+            .order_by(TestRunConfigModel.title.asc(), TestRunConfigModel.id.asc())
+            .all()
+        )
+        api_response.set_data([config.as_dict() for config in configs])
+        return api_response.return_ok()
 
 
 class HTMLApi(Resource):
@@ -8753,7 +8787,8 @@ class UserLogin(Resource):
             "id": user.id,
             "role": user.role,
             "token": user.token,
-            "username": user.username
+            "username": user.username,
+            "spdx_signature": user.spdx_signature,
         }
         api_response.set_data(ret)
         return api_response.return_ok()
@@ -9302,7 +9337,7 @@ class User(Resource):
 
     @api_response_decorator
     def put(self, api_response: ApiResponse = None):
-        """Edit username or password
+        """Edit username, password, or SPDX author signature
         Note: Need to perform the validation to avoid direct usage of the api
         """
         request_data = request.get_json(force=True)
@@ -9353,6 +9388,45 @@ class User(Resource):
             dbi.session.commit()
             dbi.close()
             ret = {"result": "success", "message": "Your password has been saved. Please login again."}
+            api_response.set_data(ret)
+            return api_response.return_ok()
+
+        # Edit SPDX author signature
+        if "spdx_signature" in request_data.keys():
+            spdx_signature = str(request_data["spdx_signature"]).strip()
+            if len(spdx_signature) < 4:
+                api_response.set_message(
+                    "SPDX signature not valid, it should be at least 4 chars"
+                )
+                return api_response.return_bad_request()
+
+            field_constraints = UserModel.get_field_constraints()
+            max_length = field_constraints.get("spdx_signature", {}).get("max_length")
+            if max_length is not None and len(spdx_signature) > max_length:
+                api_response.set_message(
+                    f"spdx_signature must be less than {max_length} characters"
+                )
+                return api_response.return_bad_request()
+
+            same_signature = (
+                dbi.session.query(UserModel)
+                .filter(UserModel.spdx_signature == spdx_signature)
+                .filter(UserModel.id != user.id)
+                .all()
+            )
+            if len(same_signature) > 0:
+                api_response.set_message("SPDX signature already in use.")
+                return api_response.return_bad_request()
+
+            user.spdx_signature = spdx_signature
+            dbi.session.add(user)
+            dbi.session.commit()
+            dbi.close()
+            ret = {
+                "result": "success",
+                "message": "Your SPDX author signature has been saved.",
+                "spdx_signature": spdx_signature,
+            }
             api_response.set_data(ret)
             return api_response.return_ok()
 
@@ -12106,6 +12180,7 @@ api.add_resource(ApiSpecification, ApiSpecification.route)
 api.add_resource(ApiWritePermissionRequest, ApiWritePermissionRequest.route)
 api.add_resource(Library, Library.route)
 api.add_resource(SPDXApi, SPDXApi.route)
+api.add_resource(SPDXApiTestRunConfigs, SPDXApiTestRunConfigs.route)
 api.add_resource(HTMLApi, HTMLApi.route)
 api.add_resource(HTMLExportDownload, HTMLExportDownload.route)
 api.add_resource(Document, Document.route)

@@ -30,7 +30,6 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
 }: UserProfileModalProps) => {
   const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [modalFormSubmitState, setModalFormSubmitState] = React.useState('waiting')
 
   const [profileUsernameValue, setProfileUsernameValue] = React.useState(auth.userName || '')
   const [validatedProfileUsernameValue, setValidatedProfileUsernameValue] = React.useState<Constants.validate>('error')
@@ -41,6 +40,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   const [validatedNewPasswordValue, setValidatedNewPasswordValue] = React.useState<Constants.validate>('error')
   const [confirmPasswordValue, setConfirmPasswordValue] = React.useState('')
   const [validatedConfirmPasswordValue, setValidatedConfirmPasswordValue] = React.useState<Constants.validate>('error')
+
+  const [spdxSignatureValue, setSpdxSignatureValue] = React.useState(auth.spdxSignature || '')
+  const [validatedSpdxSignatureValue, setValidatedSpdxSignatureValue] = React.useState<Constants.validate>('error')
 
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
   const [messageValue, setMessageValue] = React.useState<string>('')
@@ -60,7 +62,10 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
     setIsModalOpen(modalShowState)
     if (modalShowState) {
       setMessageValue('')
+      setSpdxSignatureValue(auth.spdxSignature || '')
     }
+    // Only reset when the modal opens so a successful save can keep its feedback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShowState])
 
   const comparePasswords = () => {
@@ -125,6 +130,19 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmPasswordValue])
 
+  React.useEffect(() => {
+    const trimmedSignature = spdxSignatureValue.trim()
+    if (trimmedSignature == '') {
+      setValidatedSpdxSignatureValue('error')
+    } else if (trimmedSignature.length < 4) {
+      setValidatedSpdxSignatureValue('error')
+    } else if (trimmedSignature.length > 255) {
+      setValidatedSpdxSignatureValue('error')
+    } else {
+      setValidatedSpdxSignatureValue('success')
+    }
+  }, [spdxSignatureValue])
+
   const handleProfileUsernameValueChange = (_ev, value) => {
     setProfileUsernameValue(value)
   }
@@ -141,8 +159,13 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
     setConfirmPasswordValue(value)
   }
 
+  const handleSpdxSignatureValueChange = (_ev, value) => {
+    setSpdxSignatureValue(value)
+  }
+
   const profileInfoRef = React.createRef<HTMLElement>()
   const editPasswordRef = React.createRef<HTMLElement>()
+  const editSpdxSignatureRef = React.createRef<HTMLElement>()
 
   const EditUserProfile = (_username, _password) => {
     setMessageValue('')
@@ -151,7 +174,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
     }
 
     const url = Constants.API_BASE_URL + Constants.API_USER_ENDPOINT
-    let data = {
+    const data = {
       'user-id': auth.userId,
       token: auth.token
     }
@@ -213,6 +236,61 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
       })
   }
 
+  const EditSpdxSignature = () => {
+    setMessageValue('')
+    if (!auth.isLogged()) {
+      return
+    }
+
+    const trimmedSignature = spdxSignatureValue.trim()
+    if (trimmedSignature == auth.spdxSignature) {
+      setMessageValue('The SPDX signature you selected is your current one. No changes needed.')
+      return
+    }
+    if (validatedSpdxSignatureValue != 'success') {
+      return
+    }
+
+    const url = Constants.API_BASE_URL + Constants.API_USER_ENDPOINT
+    const data = {
+      'user-id': auth.userId,
+      token: auth.token,
+      spdx_signature: trimmedSignature
+    }
+
+    let status: number = 0
+    let status_text: string = ''
+
+    fetch(url, {
+      method: 'PUT',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then((response) => {
+        status = response.status
+        status_text = response.statusText
+        if (!Constants.isHttpSuccessStatus(status)) {
+          return response.text()
+        } else {
+          return response.json()
+        }
+      })
+      .then((responseData) => {
+        if (!Constants.isHttpSuccessStatus(status)) {
+          setMessageValue(Constants.getResponseErrorMessage(status, status_text, responseData))
+        } else {
+          setMessageValue(responseData['message'] || 'Your SPDX author signature has been saved.')
+          if (auth.setSpdxSignature) {
+            auth.setSpdxSignature(responseData['spdx_signature'] || trimmedSignature)
+          }
+          setSpdxSignatureValue(responseData['spdx_signature'] || trimmedSignature)
+        }
+      })
+      .catch((err) => {
+        setMessageValue(err.toString())
+      })
+  }
+
   return (
     <React.Fragment>
       <Modal
@@ -248,6 +326,13 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
             title={<TabTitleText>Edit Password</TabTitleText>}
             tabContentId='tabUserEditPassword'
             tabContentRef={editPasswordRef}
+          />
+          <Tab
+            eventKey={2}
+            id='tab-user-edit-spdx-signature'
+            title={<TabTitleText>SPDX Signature</TabTitleText>}
+            tabContentId='tabUserEditSpdxSignature'
+            tabContentRef={editSpdxSignatureRef}
           />
         </Tabs>
         <div>
@@ -346,6 +431,34 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
               <br></br>
               <br></br>
               <Button id='btn-user-edit-password-save' onClick={() => EditUserProfile(null, newPasswordValue)}>
+                Save
+              </Button>
+            </TabContentBody>
+          </TabContent>
+          <TabContent eventKey={2} id='tabUserEditSpdxSignature' ref={editSpdxSignatureRef} hidden={2 !== activeTabKey}>
+            <TabContentBody hasPadding>
+              <FormGroup label='Author signature' isRequired fieldId={`input-user-edit-spdx-signature`}>
+                <TextInput
+                  isRequired
+                  id={`input-user-edit-spdx-signature`}
+                  value={spdxSignatureValue}
+                  onChange={(_ev, value) => handleSpdxSignatureValueChange(_ev, value)}
+                />
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem>
+                      Identifies you as the author of SPDX SBOM exports and is used to sign them. A unique value is assigned when your
+                      account is created; you can customize it.
+                    </HelperTextItem>
+                    {validatedSpdxSignatureValue === 'error' && (
+                      <HelperTextItem variant='error'>This field is mandatory and must be 4 to 255 characters</HelperTextItem>
+                    )}
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+              <br></br>
+              <br></br>
+              <Button id='btn-user-edit-spdx-signature-save' onClick={() => EditSpdxSignature()}>
                 Save
               </Button>
             </TabContentBody>

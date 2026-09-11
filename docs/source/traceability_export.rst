@@ -73,14 +73,17 @@ Traceability Relationships
 
 BASIL exports the following types of traceability relationships:
 
-- **hasDocumentation**: e.g.: API <- Reference document or API Reference document Snippet <- Document
-- **hasRequirement**: e.g.:API Reference document Snippet <- Software Requirements or Sw Requirement <- Sw Requirement
-- **hasSpecification**: e.g.:API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
-- **hasTest**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case ...
+- **hasDocumentation**: e.g.: API <- Reference document or API Reference document Snippet <- Document; Document <- nested Document
+- **hasRequirement**: e.g.: API Reference document Snippet <- Software Requirements or Sw Requirement <- nested Sw Requirement
+- **hasSpecification**: e.g.: Library <- API; API <- Reference document; API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
+- **hasTestCase**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case
+- **hasTest**: e.g.: Test Case <- Test Run; Software Component (API) <- Test Run
 - **generates**: e.g.: Test Cases <- Test Runs
-- **hasOutput**: e.g.: Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
+- **hasOutput**: e.g.: Test Case <- Test Run; Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
 - **hasEvidence**: e.g.: API Reference document Snippet <- Justification; Test Run <- Artifacts
-- **contains**: e.g.: Library <- API
+- **contains**: e.g.: Library <- API; Sw Requirement <- nested Sw Requirement; Document <- nested Document
+- **hasInput**: e.g.: Library <- API
+- **testedOn**: e.g.: Test Run <- Software Component (API)
 
 Each relationship includes:
 - Source and target elements
@@ -117,7 +120,12 @@ BASIL extends traceability to include test runs with specific limitations:
 Test Run Integration
 ~~~~~~~~~~~~~~~~~~~~
 
-- Test runs are linked to test cases via ``generates`` relationships
+- Test runs are linked to test cases via ``generates``, ``hasTest``, and
+  ``hasOutput`` relationships
+- Each Test Run is linked to the Software Component (API) with ``testedOn``
+  (the run was executed against that component)
+- The Software Component is linked to each Test Run with ``hasTest``
+  (the run is a test artifact of the component)
 - Test run data includes execution results, timestamps
 - Test runs are ordered by ID (most recent first)
 - Bugs and fixes stored on the Test Run (``bugs`` / ``fixes`` columns) are
@@ -197,14 +205,16 @@ Parameters:
 File Outputs
 ------------
 
-The export process generates multiple files:
+The export process generates multiple files that share the same basename as
+the ``filename`` argument (``.jsonld`` is appended if omitted):
 
 1. **JSON-LD File**: Main SPDX document (``.jsonld``)
 2. **DOT File**: Graphviz source (``.dot``)
 3. **PNG File**: Rendered graph image (``.png``)
 
-All files are stored in user-specific directories:
-``api/public/spdx_export/<user-id>/<filename>``
+All files are stored in user-specific directories, for example
+``api/public/spdx_export/<user-id>/my_export.jsonld``,
+``my_export.dot``, and ``my_export.png``.
 
 Security Considerations
 -----------------------
@@ -228,5 +238,6 @@ Download exported file:
 .. code-block:: bash
 
     curl -X GET "http://localhost:5000/spdx/apis/export-download?api-id=123&user-id=456&token=abc123&filename=my_export.jsonld"
+    curl -X GET "http://localhost:5000/spdx/apis/export-download?api-id=123&user-id=456&token=abc123&filename=my_export.dot"
 
 The exported SPDX documents provide comprehensive traceability information that can be used for compliance, auditing, and analysis purposes while maintaining full compatibility with the SPDX 3.0.1 specification.

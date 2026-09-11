@@ -2,9 +2,12 @@
 
 import re
 
+from types import SimpleNamespace
+
 from spdx_manager import (
     GRAPH_CONTAINER_KINDS,
     GRAPH_NODE_COLORS,
+    SPDXAnnotation,
     SPDXFile,
     SPDXManager,
     SPDXRelationship,
@@ -12,6 +15,7 @@ from spdx_manager import (
     SpdxRelationshipType,
     graph_node_kind,
     graphviz_node_id,
+    is_basil_comment_annotation,
     is_graph_container,
 )
 
@@ -99,6 +103,47 @@ def test_graph_node_kind_from_spdx_id_not_comment():
     assert graph_node_kind(_file("spdx:file:basil:test-run:3:fix:1")) == "fix"
     assert graph_node_kind(_file("spdx:file:basil:test-run:3:artifact:1")) == "artifact"
     assert graph_node_kind(_file("spdx:file:basil:test-run:3")) not in GRAPH_CONTAINER_KINDS
+
+
+def _comment_annotation(subject, comment_id=11, text="please clarify coverage"):
+    return SPDXAnnotation(
+        spdx_id=f"spdx:annotation:basil:comment:{comment_id}",
+        name=f"BASIL comment {comment_id}",
+        subject=subject,
+        object={"kind": "comment", "comment": text},
+        creation_info=SimpleNamespace(spdx_id="_:creation_info_comment"),
+        annotation_type="review",
+    )
+
+
+def test_graph_node_kind_for_comment_annotation():
+    requirement = _file("spdx:file:basil:software-requirement:2")
+    annotation = _comment_annotation(requirement)
+    assert is_basil_comment_annotation(annotation)
+    assert graph_node_kind(annotation) == "comment"
+    assert graph_node_kind(requirement) == "software_requirement"
+
+
+def test_diagraph_includes_work_item_comments(tmp_path, monkeypatch):
+    api = _file("spdx:file:basil:api:1")
+    requirement = _file("spdx:file:basil:software-requirement:2")
+    annotation = _comment_annotation(requirement, text="please clarify coverage")
+    manager = _manager_with_sbom(
+        [
+            _rel(api, requirement, SpdxRelationshipType.HAS_REQUIREMENT),
+            annotation,
+        ]
+    )
+    dot = _write_dot(manager, tmp_path, "map", monkeypatch)
+    api_id = graphviz_node_id(api.spdx_id)
+    req_label = graphviz_node_id(requirement.spdx_id)
+    comment_label = graphviz_node_id(annotation.spdx_id)
+    req_instance = f"{api_id}__{req_label}"
+    comment_instance = f"{req_instance}__{comment_label}"
+    edges = _edge_labels(dot)
+    assert edges[(req_instance, comment_instance)] == "comment"
+    assert "please clarify coverage" in dot
+    assert f'fillcolor={GRAPH_NODE_COLORS["comment"]}' in dot or "fillcolor=pink" in dot
 
 
 def test_diagraph_uses_jsonld_basename(tmp_path, monkeypatch):

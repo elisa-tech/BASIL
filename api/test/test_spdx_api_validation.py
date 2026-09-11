@@ -24,6 +24,7 @@ from db.models.api_document import ApiDocumentModel
 from db.models.document_document import DocumentDocumentModel
 from db.models.test_run import TestRunModel
 from db.models.test_run_config import TestRunConfigModel
+from db.models.comment import CommentModel
 from api_utils import get_test_run_artifacts_dir
 from conftest import UT_USER_EMAIL
 
@@ -78,6 +79,24 @@ _UT_DOCUMENT_URL = "https://spdx.dev/specification"
 _UT_TEST_RUN_BUG = "https://bugs.example.com/spdx-1"
 _UT_TEST_RUN_FIX = "https://fixes.example.com/spdx-1"
 _UT_TEST_RUN_ARTIFACT = "spdx-artifact.log"
+
+_UT_SR_MAPPING_COMMENT = "SPDX export comment on API SW requirement mapping"
+_UT_NESTED_SR_COMMENT = "SPDX export comment on nested SW requirement mapping"
+_UT_TS_MAPPING_COMMENT = "SPDX export comment on test specification mapping"
+_UT_TC_TODO_COMMENT = "SPDX export TODO on test case mapping"
+_UT_DOC_MAPPING_COMMENT = "SPDX export comment on document mapping"
+_UT_JS_MAPPING_COMMENT = "SPDX export comment on justification mapping"
+
+# One mapping comment per commentable work-item type (plus a nested SR).
+# kind, fixture collection, item index, SPDX file kind, comments dict key
+_WORK_ITEM_COMMENT_CASES = (
+    ("software_requirement", "sw_requirements", 0, "software-requirement", "api_sr"),
+    ("software_requirement_nested", "sw_requirements", 2, "software-requirement", "sr_sr"),
+    ("test_specification", "test_specifications", 0, "test-specification", "api_ts"),
+    ("test_case", "test_cases", 0, "test-case", "api_tc"),
+    ("document", "documents", 0, "document", "api_doc"),
+    ("justification", "justifications", 0, "justification", "api_j"),
+)
 
 
 logger = logging.getLogger(__name__)
@@ -588,6 +607,21 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities, tmp_path, mon
         client_db.session.add(test_run)
     client_db.session.commit()
 
+    def add_mapping_comment(mapping, text, todo=False):
+        comment = CommentModel(mapping.__tablename__, mapping.id, user, text, todo=todo)
+        client_db.session.add(comment)
+        return comment
+
+    comments = {
+        "api_sr": add_mapping_comment(api_sr_mapping_1, _UT_SR_MAPPING_COMMENT),
+        "sr_sr": add_mapping_comment(sr_sr_mapping, _UT_NESTED_SR_COMMENT),
+        "api_ts": add_mapping_comment(api_ts_mapping_1, _UT_TS_MAPPING_COMMENT),
+        "api_tc": add_mapping_comment(api_tc_mapping, _UT_TC_TODO_COMMENT, todo=True),
+        "api_doc": add_mapping_comment(api_doc_mapping_1, _UT_DOC_MAPPING_COMMENT),
+        "api_j": add_mapping_comment(api_j_mapping_1, _UT_JS_MAPPING_COMMENT),
+    }
+    client_db.session.commit()
+
     test_data = {
         "api": ut_api,
         "sw_requirements": [sw_req_1, sw_req_2, sw_req_3, sw_req_4],
@@ -615,6 +649,7 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities, tmp_path, mon
             "doc_doc": [doc_doc_mapping],
             "doc_doc_doc": [doc_doc_doc_mapping],
         },
+        "comments": comments,
     }
 
     yield test_data
@@ -676,6 +711,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     The exported JSON-LD is written to
     ``api/public/spdx_export/ci-artifacts/basil-comprehensive-traceability.jsonld``
     so GitHub Actions can upload it as a CI artifact.
+    Mapping comments are included in the JSON-LD and drawn on the DOT/PNG map.
     """
 
     test_data = comprehensive_spdx_test_data
@@ -698,6 +734,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     jsonld_file = check_latest_jsonld_file(user_id=user_authentication.json["id"])
     assert jsonld_file is not None
     dot_file = jsonld_file[: -len(".jsonld")] + ".dot"
+    png_file = jsonld_file[: -len(".jsonld")] + ".png"
     assert os.path.isfile(dot_file), f"Traceability map should share the JSON-LD basename: {dot_file}"
 
     # Save the SPDX content to a temporary file for validation
@@ -881,6 +918,14 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     assert work_item_patterns["BASIL Artifact"] == 6, "Should have 6 Artifacts (one per Test Run) in SPDX"
 
     print("✓ Work item coverage validation passed")
+
+    _assert_work_item_comments_in_graph(graph_elements, test_data)
+    with open(dot_file, encoding="utf-8") as dot_fh:
+        _assert_work_item_comments_in_dot(dot_fh.read(), test_data)
+    if os.path.isfile(png_file):
+        print(f"✓ Traceability map PNG includes comment nodes: {png_file}")
+    else:
+        print(f"Warning: PNG map was not rendered (Graphviz missing?): {png_file}")
 
 
 def test_spdx_sw_requirement_children_exported(client, user_authentication, comprehensive_spdx_test_data):
@@ -1097,16 +1142,19 @@ def _assert_test_run_outputs(relationships, test_case, test_run, api):
     )
 
 
-def _export_spdx_json(client, user_authentication, api):
+def _export_spdx_json(client, user_authentication, api, extra_query=None):
     """Shared helper: trigger an SPDX export and return the parsed JSON-LD object."""
+    query_string = {
+        "api-id": api.id,
+        "user-id": user_authentication.json["id"],
+        "token": user_authentication.json["token"],
+        "filename": "latest.jsonld",
+    }
+    if extra_query:
+        query_string.update(extra_query)
     response = client.get(
         _SPDX_API_URL,
-        query_string={
-            "api-id": api.id,
-            "user-id": user_authentication.json["id"],
-            "token": user_authentication.json["token"],
-            "filename": "latest.jsonld",
-        },
+        query_string=query_string,
     )
     assert response.status_code == HTTPStatus.OK
     return json.loads(response.data)
@@ -1115,6 +1163,58 @@ def _export_spdx_json(client, user_authentication, api):
 def _export_and_parse(client, user_authentication, api):
     """Shared helper: trigger an SPDX export and return the parsed @graph list."""
     return _export_spdx_json(client, user_authentication, api)["@graph"]
+
+
+def _comment_annotations(graph):
+    return [
+        element
+        for element in graph
+        if element.get("type") == "Annotation"
+        and element.get("spdxId", "").startswith("spdx:annotation:basil:comment:")
+    ]
+
+
+def _assert_work_item_comments_in_graph(graph, test_data):
+    """Assert JSON-LD contains one review Annotation per fixture mapping comment."""
+    comment_annotations = _comment_annotations(graph)
+    assert len(comment_annotations) == len(test_data["comments"]), (
+        f"Expected {len(test_data['comments'])} comment Annotations, got {len(comment_annotations)}"
+    )
+
+    by_subject = {}
+    for annotation in comment_annotations:
+        assert annotation.get("annotationType") == "review"
+        statement = json.loads(annotation.get("statement", "{}"))
+        assert statement.get("kind") == "comment"
+        assert statement.get("basil:annotationVersion") == "2.0"
+        by_subject.setdefault(annotation["subject"], []).append(statement)
+
+    comments = test_data["comments"]
+    for kind, collection, index, spdx_kind, comment_key in _WORK_ITEM_COMMENT_CASES:
+        item = test_data[collection][index]
+        comment = comments[comment_key]
+        subject = f"spdx:file:basil:{spdx_kind}:{item.id}"
+        statements = by_subject.get(subject, [])
+        assert any(
+            statement["comment"] == comment.comment
+            and statement["parent_table"] == comment.parent_table
+            and statement["parent_id"] == comment.parent_id
+            for statement in statements
+        ), f"Missing {kind} comment on {subject}, got {statements}"
+
+    tc_subject = f"spdx:file:basil:test-case:{test_data['test_cases'][0].id}"
+    assert any(
+        statement.get("todo") is True for statement in by_subject.get(tc_subject, [])
+    ), "Test case comment should keep the TODO flag"
+
+
+def _assert_work_item_comments_in_dot(dot_source, test_data):
+    """Assert the Graphviz map includes each fixture mapping comment."""
+    for kind, _collection, _index, _spdx_kind, comment_key in _WORK_ITEM_COMMENT_CASES:
+        comment = test_data["comments"][comment_key]
+        assert comment.comment in dot_source, (
+            f"Traceability map (.dot) is missing {kind} comment: {comment.comment!r}"
+        )
 
 
 def _external_identifiers_for(graph, spdx_id):
@@ -1494,6 +1594,95 @@ def test_spdx_author_signature_from_exporting_user(
         user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
         user.spdx_signature = original_signature
         client_db.session.commit()
+
+
+def test_spdx_work_item_comments_exported(client, user_authentication, comprehensive_spdx_test_data):
+    """BASIL mapping comments are exported as review Annotations on each work item type."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+    _assert_work_item_comments_in_graph(graph, test_data)
+
+
+def test_spdx_export_omits_comments_when_disabled(client, user_authentication, comprehensive_spdx_test_data):
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_spdx_json(
+        client, user_authentication, api, extra_query={"include_comments": "false"}
+    )["@graph"]
+    assert _comment_annotations(graph) == []
+
+
+def test_spdx_export_omits_test_runs_when_include_disabled(
+    client, user_authentication, comprehensive_spdx_test_data
+):
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_spdx_json(
+        client, user_authentication, api, extra_query={"include_test_runs": "false"}
+    )["@graph"]
+    test_run_files = [
+        element
+        for element in graph
+        if str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run:")
+    ]
+    assert test_run_files == []
+
+
+def test_spdx_export_omits_test_runs_when_none_selected(client, user_authentication, comprehensive_spdx_test_data):
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_spdx_json(
+        client,
+        user_authentication,
+        api,
+        extra_query={"include_test_runs": "true", "test_run_config_id": ""},
+    )["@graph"]
+    test_run_files = [
+        element
+        for element in graph
+        if element.get("type") == "software_File"
+        and str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run:")
+    ]
+    assert test_run_files == []
+
+
+def test_spdx_export_filters_test_runs_by_config(client, user_authentication, comprehensive_spdx_test_data):
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    config_id = test_data["test_run_config"].id
+    graph = _export_spdx_json(
+        client,
+        user_authentication,
+        api,
+        extra_query={"include_test_runs": "true", "test_run_config_id": str(config_id)},
+    )["@graph"]
+    test_run_ids = {
+        f"spdx:file:basil:test-run:{test_run.id}" for test_run in test_data["test_runs"]
+    }
+    exported = {
+        element.get("spdxId")
+        for element in graph
+        if element.get("spdxId") in test_run_ids
+    }
+    assert exported == test_run_ids
+
+
+def test_spdx_api_test_run_configs_lists_used_configs(client, user_authentication, comprehensive_spdx_test_data):
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    response = client.get(
+        "/spdx/apis/test-run-configs",
+        query_string={
+            "api-id": api.id,
+            "user-id": user_authentication.json["id"],
+            "token": user_authentication.json["token"],
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+    configs = response.json
+    assert isinstance(configs, list)
+    assert [config["id"] for config in configs] == [test_data["test_run_config"].id]
 
 
 if __name__ == "__main__":

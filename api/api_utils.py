@@ -882,6 +882,28 @@ def parse_comma_separated_list(value=None):
     return [part.strip() for part in value.split(",") if part.strip()]
 
 
+def parse_optional_int_id_list(request_args, key: str = "test_run_config_id"):
+    """Return None if ``key`` is omitted, otherwise unique positive ints.
+
+    Supports repeated query params and comma-separated values.
+    An empty value becomes ``[]`` (explicit filter with no ids).
+    """
+    if request_args is None or key not in request_args:
+        return None
+    getlist = getattr(request_args, "getlist", None)
+    raw_values = getlist(key) if callable(getlist) else [request_args.get(key)]
+    ids = []
+    seen = set()
+    for raw in raw_values:
+        for token in parse_comma_separated_list(raw):
+            if token.isdigit():
+                value = int(token)
+                if value not in seen:
+                    seen.add(value)
+                    ids.append(value)
+    return ids
+
+
 def is_http_url(value: str) -> bool:
     """Return True if value looks like an http(s) URL."""
     return bool(value) and value.lower().startswith(("http://", "https://"))

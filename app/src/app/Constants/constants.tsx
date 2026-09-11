@@ -59,6 +59,7 @@ export const API_AI_SUGGEST_TEST_CASE_METADATA_ENDPOINT = '/ai/suggest/test-case
 export const API_AI_SUGGEST_TEST_SPEC_METADATA_ENDPOINT = '/ai/suggest/test-specification/metadata'
 export const API_SPDX_API_EXPORT_ENDPOINT = '/spdx/apis'
 export const API_HTML_API_EXPORT_ENDPOINT = '/html/apis'
+export const API_SPDX_API_TEST_RUN_CONFIGS_ENDPOINT = '/spdx/apis/test-run-configs'
 export const API_SPDX_API_EXPORT_DOWNLOAD_ENDPOINT = '/spdx/apis/export-download'
 export const API_HTML_API_EXPORT_DOWNLOAD_ENDPOINT = '/html/apis/export-download'
 export const API_CUSTOM_ACTIONS_ENDPOINT = '/custom-actions'

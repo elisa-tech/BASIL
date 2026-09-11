@@ -95,6 +95,7 @@ from api_utils import (
     list_test_run_artifacts,
     load_settings,
     parse_int,
+    parse_optional_int_id_list,
     read_basil_version,
     read_file,
     justification_to_html,
@@ -1907,12 +1908,18 @@ class SPDXApi(Resource):
         if not str(test_runs_limit).isdigit():
             test_runs_limit = 5
 
+        include_comments = bool_from_string(request_data.get(EXP_CONF_INCLUDE_COMMENTS, "true"))
+        include_test_runs = bool_from_string(request_data.get(EXP_CONF_INCLUDE_TEST_RUNS, "true"))
+        test_run_config_ids = parse_optional_int_id_list(request.args, "test_run_config_id")
+
         spdxManager = SPDXManager(
             user=user,
             library_name=api.library,
             apis=[api],
-            include_test_runs=True,
-            test_runs_limit=test_runs_limit,
+            include_test_runs=include_test_runs,
+            test_runs_limit=int(test_runs_limit),
+            include_comments=include_comments,
+            test_run_config_ids=test_run_config_ids,
             dbi=dbi
         )
 
@@ -1929,6 +1936,39 @@ class SPDXApi(Resource):
         del spdxManager
 
         return send_file(spdx_filepath)
+
+
+class SPDXApiTestRunConfigs(Resource):
+    route = "/spdx/apis/test-run-configs"
+
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(self, api: ApiModel = None, user: UserModel = None, dbi: db_orm.DbInterface = None,
+            api_response: ApiResponse = None):
+        """Return Test Run Configs used by Test Runs of this Software Component."""
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        config_id_rows = (
+            dbi.session.query(TestRunModel.test_run_config_id)
+            .filter(TestRunModel.api_id == api.id)
+            .distinct()
+            .all()
+        )
+        config_ids = [row[0] for row in config_id_rows if row[0]]
+        if not config_ids:
+            api_response.set_data([])
+            return api_response.return_ok()
+
+        configs = (
+            dbi.session.query(TestRunConfigModel)
+            .filter(TestRunConfigModel.id.in_(config_ids))
+            .order_by(TestRunConfigModel.title.asc(), TestRunConfigModel.id.asc())
+            .all()
+        )
+        api_response.set_data([config.as_dict() for config in configs])
+        return api_response.return_ok()
 
 
 class HTMLApi(Resource):
@@ -12140,6 +12180,7 @@ api.add_resource(ApiSpecification, ApiSpecification.route)
 api.add_resource(ApiWritePermissionRequest, ApiWritePermissionRequest.route)
 api.add_resource(Library, Library.route)
 api.add_resource(SPDXApi, SPDXApi.route)
+api.add_resource(SPDXApiTestRunConfigs, SPDXApiTestRunConfigs.route)
 api.add_resource(HTMLApi, HTMLApi.route)
 api.add_resource(HTMLExportDownload, HTMLExportDownload.route)
 api.add_resource(Document, Document.route)

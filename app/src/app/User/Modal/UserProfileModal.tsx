@@ -447,7 +447,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 <FormHelperText>
                   <HelperText>
                     <HelperTextItem>
-                      Identifies you as the author of SPDX SBOM exports and is used to sign them. A unique value is assigned when your
+                      Identifies you as the author of SPDX SBOM exports. A unique value is assigned when your
                       account is created; you can customize it.
                     </HelperTextItem>
                     {validatedSpdxSignatureValue === 'error' && (

@@ -98,6 +98,10 @@ _WORK_ITEM_COMMENT_CASES = (
     ("justification", "justifications", 0, "justification", "api_j"),
 )
 
+# SPDX ElementCollection.element must not list these @graph types:
+# CreationInfo is not an Element; SpdxDocument is forbidden; the SBOM is the collection.
+_SBOM_ELEMENT_EXCLUDED_TYPES = frozenset({"CreationInfo", "SpdxDocument", "software_Sbom"})
+
 
 logger = logging.getLogger(__name__)
 
@@ -751,34 +755,25 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     except json.JSONDecodeError:
         pytest.fail("Generated SPDX is not valid JSON")
 
-    assert spdx_data.get("signature", {}).get("algorithm") == "HS256", (
-        "Exported JSON-LD must include a CISA SBOM author signature"
+    assert "signature" not in spdx_data, "CycloneDX/JSF signature is not an SPDX 3 field"
+    assert "signatures" not in spdx_data, (
+        "ITU-T X.590 JSS signatures require a public-key algorithm; omit until then"
     )
-    assert spdx_data["signature"].get("value"), "SBOM author signature value is missing"
     documents = [element for element in graph_elements if element.get("type") == "SpdxDocument"]
     assert documents, "Expected an SpdxDocument in the SPDX export"
-    assert all(
-        element.get("signature", {}).get("value") == spdx_data["signature"]["value"]
-        for element in documents
-    ), "SpdxDocument must carry the SBOM author signature"
+    assert all("signature" not in element and "signatures" not in element for element in graph_elements), (
+        "SPDX 3.1 forbids signing individual @graph objects"
+    )
 
-    # Persist the signed JSON-LD for GitHub Actions (and local inspection)
+    # Persist the JSON-LD for GitHub Actions (and local inspection)
     artifact_path = write_spdx_ci_artifact(spdx_content)
     print(f"Wrote SPDX CI artifact: {artifact_path}")
     assert os.path.isfile(artifact_path), f"SPDX CI artifact was not written: {artifact_path}"
 
-    # SPDX 3.0.1 JSON Schema uses unevaluatedProperties:false, so in-document
-    # CISA/JSF signature fields are stripped before spdx3-validate.
-    from spdx_manager import unsigned_sbom_payload
-
-    unsigned_path = artifact_path + ".unsigned.jsonld"
-    with open(unsigned_path, "w") as unsigned_file:
-        json.dump(unsigned_sbom_payload(spdx_data), unsigned_file, indent=2)
-
     try:
-        print(f"Running spdx3-validate on unsigned graph {unsigned_path}")
+        print(f"Running spdx3-validate on {artifact_path}")
         result = subprocess.run(
-            ["spdx3-validate", "--json", unsigned_path, "--spdx-version", "auto"],
+            ["spdx3-validate", "--json", artifact_path, "--spdx-version", "auto"],
             capture_output=True,
             text=True,
             timeout=60,  # 60 second timeout
@@ -803,9 +798,6 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         pytest.fail("spdx3-validate timed out after 60 seconds")
     except FileNotFoundError:
         pytest.skip("spdx3-validate not found - skipping validation test")
-    finally:
-        if os.path.isfile(unsigned_path):
-            os.remove(unsigned_path)
 
     """Test that the generated SPDX contains expected elements from our test data"""
 
@@ -836,6 +828,12 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     # Verify we have files (representing our work items)
     files = [e for e in graph_elements if e.get("type") == "software_File"]
     assert len(files) > 0, "Should have File elements representing work items"
+    for file_el in files:
+        copyright_text = file_el.get("software_copyrightText")
+        assert copyright_text is None or copyright_text.strip(), (
+            f"{file_el.get('spdxId')} has empty software_copyrightText; "
+            "omit the field when copyright is unknown"
+        )
 
     # Verify we have relationships
     relationships = [e for e in graph_elements if e.get("type") == "Relationship"]
@@ -919,6 +917,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
 
     print("✓ Work item coverage validation passed")
 
+    _assert_sbom_element_lists_all_graph_items(graph_elements)
     _assert_work_item_comments_in_graph(graph_elements, test_data)
     with open(dot_file, encoding="utf-8") as dot_fh:
         _assert_work_item_comments_in_dot(dot_fh.read(), test_data)
@@ -1097,6 +1096,49 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
     print("✓ All BASIL mapping chains are present as SPDX relationships")
 
 
+def test_spdx_reference_document_contains_snippets(
+    client, user_authentication, comprehensive_spdx_test_data
+):
+    """Snippets are contained by the reference document, not the Software Component.
+
+    ``addSnippet`` emits one ``contains`` Relationship per new snippet
+    (``addRelationship`` does not merge existing (from, type) pairs).
+    """
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+    relationships = [e for e in graph if e.get("type") == "Relationship"]
+    snippets = [e for e in graph if e.get("type") == "software_Snippet"]
+    assert snippets, "Expected snippets in the SPDX export"
+    snippet_ids = {snippet["spdxId"] for snippet in snippets}
+    api_id = _spdx_id_for_api(api)
+    ref_doc_id = f"spdx:file:basil:api:reference-document:{api.id}"
+
+    for snippet in snippets:
+        snippet_id = snippet["spdxId"]
+        assert not _has_spdx_relationship(relationships, api_id, snippet_id, "contains"), (
+            f"Software Component must not contain snippet {snippet_id}"
+        )
+        assert _has_spdx_relationship(relationships, ref_doc_id, snippet_id, "contains"), (
+            f"Reference document must contain snippet {snippet_id}"
+        )
+        assert snippet.get("software_snippetFromFile") == ref_doc_id
+
+    contains_from_ref = [
+        rel
+        for rel in relationships
+        if rel.get("from") == ref_doc_id and rel.get("relationshipType") == "contains"
+    ]
+    contained_ids = {
+        target for rel in contains_from_ref for target in (rel.get("to") or [])
+    }
+    assert contained_ids == snippet_ids
+    assert len(contains_from_ref) == len(snippets), (
+        "Expected one reference-document -> contains Relationship per snippet, "
+        f"got {len(contains_from_ref)} for {len(snippets)} snippets"
+    )
+
+
 def _assert_test_run_outputs(relationships, test_case, test_run, api):
     """Assert Test Case/API -> Test Run -> Artifact, Bug, and Fix (siblings under the run)."""
     tc_id = _spdx_id_for_tc(test_case)
@@ -1163,6 +1205,70 @@ def _export_spdx_json(client, user_authentication, api, extra_query=None):
 def _export_and_parse(client, user_authentication, api):
     """Shared helper: trigger an SPDX export and return the parsed @graph list."""
     return _export_spdx_json(client, user_authentication, api)["@graph"]
+
+
+def _graph_ids_expected_in_sbom_element(graph):
+    """spdxIds of generated @graph Elements that must appear on software_Sbom.element."""
+    expected = []
+    seen = set()
+    for element in graph:
+        if element.get("type") in _SBOM_ELEMENT_EXCLUDED_TYPES:
+            continue
+        spdx_id = element.get("spdxId")
+        if not spdx_id or spdx_id in seen:
+            continue
+        seen.add(spdx_id)
+        expected.append(spdx_id)
+    return expected
+
+
+def _assert_sbom_element_lists_all_graph_items(graph):
+    """Assert software_Sbom.element lists every generated SPDX Element in @graph.
+
+    Unlike SpdxDocument (implicit membership of the JSON-LD graph), a
+    software_Sbom must explicitly list its members. CreationInfo is not an
+    Element, ElementCollection forbids SpdxDocument members, and the SBOM
+    does not list itself.
+    """
+    sboms = [element for element in graph if element.get("type") == "software_Sbom"]
+    assert len(sboms) == 1, f"Expected exactly one software_Sbom, got {len(sboms)}"
+    sbom = sboms[0]
+    listed = sbom.get("element") or []
+    listed_set = set(listed)
+    assert listed, "software_Sbom.element must list the generated SPDX Elements"
+    assert len(listed) == len(listed_set), (
+        f"software_Sbom.element contains duplicate ids: "
+        f"{sorted(id_ for id_ in listed_set if listed.count(id_) > 1)}"
+    )
+
+    expected = _graph_ids_expected_in_sbom_element(graph)
+    expected_set = set(expected)
+    assert expected, "Expected generated SPDX Elements in the JSON-LD @graph"
+    missing = sorted(expected_set - listed_set)
+    extra = sorted(listed_set - expected_set)
+    assert not missing, (
+        f"software_Sbom.element is missing {len(missing)} generated item(s): {missing[:25]}"
+    )
+    assert not extra, (
+        f"software_Sbom.element lists {len(extra)} id(s) that are not generated graph Elements: "
+        f"{extra[:25]}"
+    )
+
+    excluded_ids = {
+        element.get("spdxId") or element.get("@id")
+        for element in graph
+        if element.get("type") in _SBOM_ELEMENT_EXCLUDED_TYPES
+    }
+    listed_excluded = sorted(listed_set & excluded_ids)
+    assert not listed_excluded, (
+        f"software_Sbom.element must not list CreationInfo, SpdxDocument, or the SBOM itself: "
+        f"{listed_excluded}"
+    )
+
+    for root_id in sbom.get("rootElement") or []:
+        assert root_id in listed_set, (
+            f"software_Sbom.rootElement {root_id} must also be listed in software_Sbom.element"
+        )
 
 
 def _comment_annotations(graph):
@@ -1503,8 +1609,9 @@ def test_spdx_tool_version_and_sbom_context(client, user_authentication, compreh
     assert sbom["profileConformance"] == SPDX_PROFILE_CONFORMANCE
     library_id = f"spdx:file:basil:library:{_UT_API_LIBRARY}"
     assert sbom["rootElement"] == [library_id]
-    assert library_id in sbom.get("element", [])
     api_id = f"spdx:file:basil:api:{api.id}"
+    _assert_sbom_element_lists_all_graph_items(graph)
+    assert library_id in sbom.get("element", [])
     assert api_id in sbom.get("element", [])
 
     assert document["rootElement"] == [sbom["spdxId"]]
@@ -1524,76 +1631,270 @@ def test_spdx_tool_version_and_sbom_context(client, user_authentication, compreh
     print("✓ Tool version and software_Sbom generation context validated")
 
 
-def test_spdx_author_signature_from_exporting_user(
+def test_spdx_author_from_exporting_user(
     client, user_authentication, comprehensive_spdx_test_data, client_db
 ):
-    """SPDX export carries an HMAC author signature keyed by the user's spdx_signature."""
-    from spdx_manager import canonical_sbom_bytes, make_sbom_author_signature, unsigned_sbom_payload
-
+    """SPDX export attributes CreationInfo to the exporting user, without JSS fields."""
     test_data = comprehensive_spdx_test_data
     api = test_data["api"]
     uid = user_authentication.json["id"]
     user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
-    original_signature = user.spdx_signature
-    custom_signature = "Custom SPDX Author Signature"
 
-    try:
-        user.spdx_signature = custom_signature
-        client_db.session.commit()
-        user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
+    spdx_json = _export_spdx_json(client, user_authentication, api)
+    graph = spdx_json["@graph"]
+    person_id = f"spdx:person:basil:user:{uid}"
+    persons = [
+        element
+        for element in graph
+        if element.get("type") == "Person" and element.get("spdxId") == person_id
+    ]
+    assert persons, f"Expected Person {person_id} in the SPDX export"
+    assert all(person.get("name") == user.username for person in persons)
 
-        spdx_json = _export_spdx_json(client, user_authentication, api)
-        graph = spdx_json["@graph"]
-        person_id = f"spdx:person:basil:user:{uid}"
-        persons = [
-            element
-            for element in graph
-            if element.get("type") == "Person" and element.get("spdxId") == person_id
-        ]
-        assert persons, f"Expected Person {person_id} in the SPDX export"
-        assert all(person.get("name") == user.username for person in persons)
+    document_creation_infos = [
+        element
+        for element in graph
+        if element.get("type") == "CreationInfo"
+        and person_id in element.get("createdBy", [])
+    ]
+    assert document_creation_infos, "CreationInfo.createdBy must reference the exporting user"
 
-        document_creation_infos = [
-            element
-            for element in graph
-            if element.get("type") == "CreationInfo"
-            and person_id in element.get("createdBy", [])
-        ]
-        assert document_creation_infos, "CreationInfo.createdBy must reference the exporting user"
+    assert "signature" not in spdx_json
+    assert "signatures" not in spdx_json
+    assert all("signature" not in element and "signatures" not in element for element in graph)
 
-        assert "signature" in spdx_json, "JSON-LD root must include a CISA/JSF author signature"
-        assert spdx_json["signature"]["algorithm"] == "HS256"
-        assert spdx_json["signature"]["value"]
 
-        assert "signatures" in spdx_json and spdx_json["signatures"], (
-            "JSON-LD root must include SPDX/JSS signatures"
+def _creation_info_payload(creation_info):
+    """CreationInfo fields that must be unique in an export, excluding @id."""
+    return (
+        creation_info.get("specVersion"),
+        creation_info.get("created"),
+        tuple(creation_info.get("createdBy") or []),
+        tuple(creation_info.get("createdUsing") or []),
+    )
+
+
+def test_spdx_creation_info_payloads_are_unique(
+    client, user_authentication, comprehensive_spdx_test_data
+):
+    """JSON-LD must not emit multiple CreationInfo objects with the same payload."""
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+
+    creation_infos = [element for element in graph if element.get("type") == "CreationInfo"]
+    assert creation_infos, "Expected CreationInfo objects in the SPDX export"
+    payloads = [_creation_info_payload(creation_info) for creation_info in creation_infos]
+    duplicate_payloads = [payload for payload in set(payloads) if payloads.count(payload) > 1]
+    assert not duplicate_payloads, (
+        f"CreationInfo objects with identical payload must be reused, duplicates: {duplicate_payloads}"
+    )
+
+    creation_info_ids = {creation_info.get("@id") for creation_info in creation_infos}
+    for element in graph:
+        ref = element.get("creationInfo")
+        if ref:
+            assert ref in creation_info_ids, (
+                f"{element.get('type')} {element.get('spdxId') or element.get('@id')} "
+                f"references missing CreationInfo {ref}"
+            )
+
+
+def test_software_copyright_text_omitted_when_unknown():
+    """Empty copyrightText is NOASSERTION in SPDX 3.0.1; omit the optional field."""
+    from datetime import datetime, timezone
+    from spdx_manager import SPDXCreationInfo, SPDXFile, SPDXPackage
+
+    creation_info = SPDXCreationInfo(spdx_id="_:ci", created=datetime.now(timezone.utc))
+    file_el = SPDXFile(
+        spdx_id="spdx:file:test",
+        name="test",
+        purpose="source",
+        creation_info=creation_info,
+    )
+    assert "software_copyrightText" not in file_el.to_dict()
+
+    whitespace_file = SPDXFile(
+        spdx_id="spdx:file:test-whitespace",
+        name="test",
+        purpose="source",
+        copyright_text="   ",
+        creation_info=creation_info,
+    )
+    assert "software_copyrightText" not in whitespace_file.to_dict()
+
+    file_with_notice = SPDXFile(
+        spdx_id="spdx:file:test-notice",
+        name="test",
+        purpose="source",
+        copyright_text="Copyright 2026 Example",
+        creation_info=creation_info,
+    )
+    assert file_with_notice.to_dict()["software_copyrightText"] == "Copyright 2026 Example"
+
+    pkg = SPDXPackage(
+        spdx_id="spdx:package:test",
+        name="test",
+        creation_info=creation_info,
+    )
+    assert "software_copyrightText" not in pkg.to_dict()
+
+    pkg_with_notice = SPDXPackage(
+        spdx_id="spdx:package:test-notice",
+        name="test",
+        copyright_text="Copyright 2026 Example",
+        creation_info=creation_info,
+    )
+    assert pkg_with_notice.to_dict()["software_copyrightText"] == "Copyright 2026 Example"
+
+
+def test_sbom_member_ids_excludes_document_creation_info_and_self():
+    """software_Sbom.element lists generated Elements and skips non-members."""
+    from datetime import datetime, timezone
+    from spdx_manager import (
+        SPDXAnnotation,
+        SPDXCreationInfo,
+        SPDXDocument,
+        SPDXFile,
+        SPDXLicense,
+        SPDXManager,
+        SPDXPerson,
+        SPDXRelationship,
+        SPDXSbom,
+        SPDXSnippet,
+        SPDXTool,
+        SpdxRelationshipType,
+        PositiveIntegerRange,
+    )
+
+    creation_info = SPDXCreationInfo(spdx_id="_:ci", created=datetime.now(timezone.utc))
+    person = SPDXPerson(spdx_id="spdx:person:test", name="tester", creation_info=creation_info)
+    tool = SPDXTool(spdx_id="https://example.invalid/tool", name="tool", creation_info=creation_info)
+    license_el = SPDXLicense(spdx_id="spdx:license:test", license="NOASSERTION", creation_info=creation_info)
+    library = SPDXFile(
+        spdx_id="spdx:file:basil:library:test",
+        name="Library test",
+        comment="library",
+        description="library",
+        purpose="library",
+        creation_info=creation_info,
+    )
+    snippet = SPDXSnippet(
+        spdx_id="spdx:snippet:test:1",
+        from_file=library,
+        name="snippet",
+        comment="snippet",
+        byte_range=PositiveIntegerRange(1, 4),
+        creation_info=creation_info,
+    )
+    annotation = SPDXAnnotation(
+        spdx_id="spdx:annotation:basil:library:test",
+        name="ann",
+        subject=library,
+        object={"name": "test"},
+        creation_info=creation_info,
+    )
+    software_sbom = SPDXSbom(
+        spdx_id="spdx:sbom:basil:export:test",
+        name="export",
+        creation_info=creation_info,
+    )
+    document = SPDXDocument(
+        spdx_id="spdx:document:basil:export:test",
+        name="export",
+        data_license=license_el,
+        creation_info=creation_info,
+    )
+    relationship = SPDXRelationship(
+        spdx_id="spdx:relationship:test",
+        from_element=document,
+        to=[software_sbom],
+        relationship_type=SpdxRelationshipType.DESCRIBES,
+        creation_info=creation_info,
+    )
+
+    manager = SPDXManager.__new__(SPDXManager)
+    manager.sbom = [
+        creation_info,
+        person,
+        tool,
+        license_el,
+        library,
+        snippet,
+        annotation,
+        software_sbom,
+        document,
+        relationship,
+    ]
+    assert manager._sbom_member_ids(software_sbom) == [
+        person.spdx_id,
+        tool.spdx_id,
+        license_el.spdx_id,
+        library.spdx_id,
+        snippet.spdx_id,
+        annotation.spdx_id,
+        relationship.spdx_id,
+    ]
+
+
+def test_spdx_sbom_element_lists_all_generated_items(
+    client, user_authentication, comprehensive_spdx_test_data
+):
+    """software_Sbom.element must list every generated JSON-LD Element.
+
+    Files, snippets, relationships, annotations, agents, and licenses that
+    appear in @graph belong in the SBOM member list. CreationInfo, the
+    SpdxDocument, and the software_Sbom itself do not.
+    """
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    graph = _export_and_parse(client, user_authentication, api)
+    _assert_sbom_element_lists_all_graph_items(graph)
+
+    expected_kinds = {
+        "Annotation",
+        "Person",
+        "Relationship",
+        "Tool",
+        "simplelicensing_LicenseExpression",
+        "software_File",
+        "software_Snippet",
+    }
+    sbom = next(element for element in graph if element.get("type") == "software_Sbom")
+    listed = set(sbom.get("element") or [])
+    listed_types = {
+        element.get("type")
+        for element in graph
+        if element.get("spdxId") in listed
+    }
+    missing_kinds = expected_kinds - listed_types
+    assert not missing_kinds, (
+        f"software_Sbom.element should include generated items of types {sorted(missing_kinds)}"
+    )
+
+    fixture_ids = [_spdx_id_for_api(api), f"spdx:file:basil:library:{_UT_API_LIBRARY}"]
+    fixture_ids.extend(_spdx_id_for_sr(sr) for sr in test_data["sw_requirements"])
+    fixture_ids.extend(_spdx_id_for_ts(ts) for ts in test_data["test_specifications"])
+    fixture_ids.extend(_spdx_id_for_tc(tc) for tc in test_data["test_cases"])
+    fixture_ids.extend(_spdx_id_for_justification(js) for js in test_data["justifications"])
+    fixture_ids.extend(_spdx_id_for_document(doc) for doc in test_data["documents"])
+    for test_run in test_data["test_runs"]:
+        fixture_ids.extend(
+            [
+                _spdx_id_for_test_run(test_run),
+                _spdx_id_for_test_run_bug(test_run),
+                _spdx_id_for_test_run_fix(test_run),
+                _spdx_id_for_test_run_artifact(test_run),
+            ]
         )
-        jss = spdx_json["signatures"][0]
-        assert jss["algorithm"] == "HS256"
-        assert jss["hash_algorithm"] == "sha-256"
-        assert jss["value"] == spdx_json["signature"]["value"]
-        assert user.username in jss.get("comment", "")
-
-        documents = [element for element in graph if element.get("type") == "SpdxDocument"]
-        assert documents, "Expected an SpdxDocument in the SPDX export"
-        assert all(
-            element.get("signature", {}).get("value") == spdx_json["signature"]["value"]
-            for element in documents
-        ), "SpdxDocument must carry the SBOM author signature"
-
-        expected = make_sbom_author_signature(spdx_json, user)
-        assert expected is not None
-        assert jss["value"] == expected["value"]
-        assert jss["thumbprint"] == expected["thumbprint"]
-        unsigned = unsigned_sbom_payload(spdx_json)
-        assert "signature" not in unsigned
-        assert "signatures" not in unsigned
-        assert all("signature" not in element for element in unsigned["@graph"])
-        assert canonical_sbom_bytes(unsigned)
-    finally:
-        user = client_db.session.query(UserModel).filter(UserModel.id == uid).one()
-        user.spdx_signature = original_signature
-        client_db.session.commit()
+    missing_fixture_ids = [spdx_id for spdx_id in fixture_ids if spdx_id not in listed]
+    assert not missing_fixture_ids, (
+        f"software_Sbom.element is missing fixture work items: {missing_fixture_ids}"
+    )
+    print(
+        f"✓ software_Sbom.element lists all {len(listed)} generated SPDX Elements "
+        f"({sorted(listed_types)})"
+    )
 
 
 def test_spdx_work_item_comments_exported(client, user_authentication, comprehensive_spdx_test_data):
@@ -1611,6 +1912,7 @@ def test_spdx_export_omits_comments_when_disabled(client, user_authentication, c
         client, user_authentication, api, extra_query={"include_comments": "false"}
     )["@graph"]
     assert _comment_annotations(graph) == []
+    _assert_sbom_element_lists_all_graph_items(graph)
 
 
 def test_spdx_export_omits_test_runs_when_include_disabled(
@@ -1627,6 +1929,7 @@ def test_spdx_export_omits_test_runs_when_include_disabled(
         if str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run:")
     ]
     assert test_run_files == []
+    _assert_sbom_element_lists_all_graph_items(graph)
 
 
 def test_spdx_export_omits_test_runs_when_none_selected(client, user_authentication, comprehensive_spdx_test_data):
@@ -1645,6 +1948,7 @@ def test_spdx_export_omits_test_runs_when_none_selected(client, user_authenticat
         and str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run:")
     ]
     assert test_run_files == []
+    _assert_sbom_element_lists_all_graph_items(graph)
 
 
 def test_spdx_export_filters_test_runs_by_config(client, user_authentication, comprehensive_spdx_test_data):
@@ -1666,6 +1970,7 @@ def test_spdx_export_filters_test_runs_by_config(client, user_authentication, co
         if element.get("spdxId") in test_run_ids
     }
     assert exported == test_run_ids
+    _assert_sbom_element_lists_all_graph_items(graph)
 
 
 def test_spdx_api_test_run_configs_lists_used_configs(client, user_authentication, comprehensive_spdx_test_data):

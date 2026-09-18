@@ -200,6 +200,35 @@ class SPDXCreationInfo:
     def created_using(self, created_using):
         self._created_using = created_using
 
+    @staticmethod
+    def _reference_ids(items):
+        if not items:
+            return ()
+        if isinstance(items, str):
+            return (items,) if items else ()
+        return tuple(item.spdx_id if hasattr(item, "spdx_id") else str(item) for item in items)
+
+    def created_timestamp(self) -> str:
+        """Serialize ``created`` the same way ``to_dict`` does, so reuse matches JSON-LD."""
+        if self.created is None:
+            return ""
+        if hasattr(self.created, "strftime"):
+            return self.created.strftime(DATETIME_STR_FORMAT)
+        return str(self.created)
+
+    def payload_identity(self):
+        """Identity of the CreationInfo payload, excluding ``@id``.
+
+        Two CreationInfo objects with the same spec version, creators, tools,
+        and created timestamp serialize identically and can be reused.
+        """
+        return (
+            self.spec_version,
+            self.created_timestamp(),
+            self._reference_ids(self.created_by),
+            self._reference_ids(self.created_using),
+        )
+
     def to_dict(self):
         return {
             "@id": self.spdx_id,
@@ -207,7 +236,7 @@ class SPDXCreationInfo:
             "specVersion": self.spec_version,
             "createdBy": [item.spdx_id for item in self.created_by],
             "createdUsing": [item.spdx_id for item in self.created_using],
-            "created": self.created.strftime(DATETIME_STR_FORMAT),
+            "created": self.created_timestamp(),
         }
 
 
@@ -423,14 +452,14 @@ class SPDXRelationship:
         self,
         spdx_id: str = "",
         from_element=None,  # SPDX object
-        to=[],  # list of SPDX objects
+        to=None,  # list of SPDX objects
         relationship_type: SpdxRelationshipType = None,
         completeness: int = 0,
         creation_info: SPDXCreationInfo = None,
     ):
         self.spdx_id = spdx_id
         self.from_element = from_element
-        self.to = to
+        self.to = list(to or [])
         self.relationship_type = relationship_type
         self.completeness = completeness
         self.creation_info = creation_info
@@ -589,7 +618,6 @@ class SPDXFile:
         result = {
             "type": "software_File",
             "spdxId": self.spdx_id,
-            "software_copyrightText": "",
             "software_primaryPurpose": self.purpose,
             "name": self.name,
             "comment": self.comment,
@@ -597,6 +625,9 @@ class SPDXFile:
             "verifiedUsing": [item.to_dict() for item in self.verified_using],
             "creationInfo": self.creation_info.spdx_id,
         }
+        # Empty/whitespace copyrightText is NOASSERTION in SPDX 3.0.1; omit instead.
+        if self.copyright_text and self.copyright_text.strip():
+            result["software_copyrightText"] = self.copyright_text
         if self.external_identifiers:
             result["externalIdentifier"] = [ei.to_dict() for ei in self.external_identifiers]
         return result
@@ -676,11 +707,10 @@ class SPDXPackage:
         self.creation_info = creation_info
 
     def to_dict(self):
-        return {
+        result = {
             "type": "software_Package",
             "spdxId": self.spdx_id,
             "name": self.name,
-            "software_copyrightText": self.copyright_text,
             "software_downloadLocation": self.download_location,
             "software_homePage": self.home_page,
             "software_primaryPurpose": self.primary_purpose,
@@ -688,6 +718,10 @@ class SPDXPackage:
             "originatedBy": self.originated_by,
             "creationInfo": self.creation_info.spdx_id,
         }
+        # Empty/whitespace copyrightText is NOASSERTION in SPDX 3.0.1; omit instead.
+        if self.copyright_text and self.copyright_text.strip():
+            result["software_copyrightText"] = self.copyright_text
+        return result
 
 
 class SPDXPackageVerificationCode:
@@ -756,6 +790,10 @@ class SPDXSbom:
 
     Carries CISA/SPDX sbomType values so consumers can tell this is a
     design/source traceability BOM rather than a build-time composition SBOM.
+
+    ``element`` lists every generated SPDX Element in the JSON-LD graph.
+    CreationInfo is omitted (not an Element), SpdxDocument is forbidden as a
+    collection member, and the SBOM does not list itself.
     """
 
     def __init__(
@@ -991,7 +1029,6 @@ class SPDXManager:
             comment=f"BASIL Library {library_name}",
             description=f"BASIL Library {library_name}",
             purpose="library",
-            copyright_text="",
             verified_using=[library_hash],
             creation_info=self.sbom_creation_info,
         )
@@ -1011,14 +1048,12 @@ class SPDXManager:
         self.add_to_sbom(library)
         self.add_to_sbom(library_annotation)
         software_sbom.root_element.append(library.spdx_id)
-        software_sbom.element.append(library.spdx_id)
         document.root_element.append(software_sbom.spdx_id)
 
         added_apis = []
         for api in apis:
             api_creation_info, api_person, spdx_api = self.addApi(api, dbi.session)
             added_apis.append(spdx_api)
-            software_sbom.element.append(spdx_api.spdx_id)
 
         if added_apis:
             # Library structurally contains each Software Component, uses them as
@@ -1037,6 +1072,7 @@ class SPDXManager:
         self.addRelationship(
             from_element=document, to=[software_sbom], relationship_type=SpdxRelationshipType.DESCRIBES
         )
+        software_sbom.element = self._sbom_member_ids(software_sbom)
 
     def add_to_sbom(self, element):
         """
@@ -1054,10 +1090,38 @@ class SPDXManager:
             if spdx_id not in ids:
                 self.sbom.append(element)
 
+    def _sbom_member_ids(self, software_sbom):
+        """spdxIds of every generated Element that belongs in software_Sbom.element.
+
+        Unlike SpdxDocument, a software_Sbom has no implicit membership: every
+        Element in the export must be listed. CreationInfo is not an Element,
+        ElementCollection forbids SpdxDocument members, and the SBOM does not
+        list itself.
+        """
+        member_ids = []
+        seen = set()
+        for item in self.sbom:
+            if item is software_sbom or isinstance(item, (SPDXDocument, SPDXCreationInfo)):
+                continue
+            spdx_id = getattr(item, "spdx_id", None)
+            if not spdx_id or spdx_id in seen:
+                continue
+            seen.add(spdx_id)
+            member_ids.append(spdx_id)
+        return member_ids
+
     @staticmethod
     def make_spdx_id(identifier: str) -> str:
         """Create a properly formatted SPDX blank node ID for JSON-LD"""
         return f"_:{identifier}"
+
+    def _existing_creation_info(self, candidate: SPDXCreationInfo):
+        """Return an already-emitted CreationInfo with an identical payload, if any."""
+        candidate_key = candidate.payload_identity()
+        for item in self.sbom:
+            if isinstance(item, SPDXCreationInfo) and item.payload_identity() == candidate_key:
+                return item
+        return None
 
     def getCreationInfoAndPerson(
         self,
@@ -1066,10 +1130,6 @@ class SPDXManager:
         created_by: str = "",
         add_to_sbom: bool = True,
     ):
-
-        creation_info = SPDXCreationInfo(
-            spdx_id=self.make_spdx_id(f"creation_info_{item_id}"), created_by=[], created_using=[], created=created_at
-        )
         spdx_person_id = f"spdx:person:basil:user:{created_by.id}"
         person = SPDXPerson(
             spdx_id=f"{spdx_person_id}",
@@ -1077,8 +1137,15 @@ class SPDXManager:
             creation_info=self.sbom_creation_info,
         )
 
-        creation_info.created_by = [person]
-        creation_info.created_using = [self.tool]
+        creation_info = SPDXCreationInfo(
+            spdx_id=self.make_spdx_id(f"creation_info_{item_id}"),
+            created_by=[person],
+            created_using=[self.tool] if self.tool else [],
+            created=created_at,
+        )
+        existing = self._existing_creation_info(creation_info)
+        if existing is not None:
+            creation_info = existing
 
         if add_to_sbom:
             self.add_to_sbom(creation_info)
@@ -1154,10 +1221,12 @@ class SPDXManager:
                     return True, curr_snippet
         return False, snippet
 
-    def addSnippet(self, spdx_api_file=None, spdx_api_ref_doc_file=None, mapping=None, dbsession=None):
+    def addSnippet(self, spdx_api_ref_doc_file=None, mapping=None, dbsession=None):
         """In BASIL, Software Component Reference Document are
         split in Snippets and each Snippet is assigned to work items.
-        This function create SPDX Snippet class describing snippet of the reference document
+        This function create SPDX Snippet class describing snippet of the reference document.
+
+        The snippet is contained by the reference document (not the Software Component).
         """
         mapping_to_id_prefix = ""
 
@@ -1218,13 +1287,12 @@ class SPDXManager:
         if not snippet_in_sbom:
             self.add_to_sbom(sbom_snippet)
             self.add_to_sbom(snippet_annotation)
-
-        self.addRelationship(
-            from_element=spdx_api_file,
-            to=[sbom_snippet],
-            relationship_type=SpdxRelationshipType.CONTAINS,
-            completeness_percentage=mapping.coverage,
-        )
+            self.addRelationship(
+                from_element=spdx_api_ref_doc_file,
+                to=[sbom_snippet],
+                relationship_type=SpdxRelationshipType.CONTAINS,
+                completeness_percentage=-1,
+            )
 
         return sbom_snippet
 
@@ -1246,7 +1314,6 @@ class SPDXManager:
             comment=f"BASIL Software Component id {api.id}",
             description=f"BASIL Software Component id {api.id}",
             purpose="module",
-            copyright_text="",
             verified_using=[file_api_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1276,7 +1343,6 @@ class SPDXManager:
             comment=f"BASIL Reference Document for Software Component {api.api}",
             description=f"BASIL Reference Document for Software Component {api.api} of library {api.library}",
             purpose="specification",
-            copyright_text="",
             verified_using=[file_api_ref_doc_hash],
             creation_info=creation_info,
         )
@@ -1366,14 +1432,14 @@ class SPDXManager:
     def addRelationship(
         self,
         from_element=None,
-        to: list = [],
+        to: list = None,
         relationship_type: SpdxRelationshipType = None,
         completeness_percentage: int = 0,
     ):
         relationship = SPDXRelationship(
             spdx_id=f"spdx:relationship:{self.getRelationshipIndex()}",
             from_element=from_element,
-            to=to,
+            to=list(to or []),
             relationship_type=relationship_type,
             completeness=self.get_completeness(completeness_percentage),
             creation_info=self.sbom_creation_info,
@@ -1401,7 +1467,6 @@ class SPDXManager:
             comment=f"BASIL Software Requirement ID {software_requirement.id}",
             description=software_requirement.description,
             purpose="requirement",
-            copyright_text="",
             verified_using=[sr_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1449,7 +1514,6 @@ class SPDXManager:
             comment=f"BASIL Test Specification ID {test_specification.id}",
             description=test_specification.test_description,
             purpose="specification",
-            copyright_text="",
             verified_using=[ts_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1491,7 +1555,6 @@ class SPDXManager:
             comment=f"BASIL Test Case ID {test_case.id}",
             description=test_case.description,
             purpose="test",
-            copyright_text="",
             verified_using=[tc_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1533,7 +1596,6 @@ class SPDXManager:
             comment=f"BASIL Document ID {document.id}",
             description=document.description,
             purpose="documentation",
-            copyright_text="",
             verified_using=[doc_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1578,7 +1640,6 @@ class SPDXManager:
             comment=f"BASIL Justification ID {justification.id}",
             description=justification.description,
             purpose="evidence",
-            copyright_text="",
             verified_using=[js_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1692,7 +1753,6 @@ class SPDXManager:
             comment=f"BASIL Test Run ID {test_run.id}",
             description=test_run.notes,
             purpose="evidence",
-            copyright_text="",
             verified_using=[tr_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1748,7 +1808,6 @@ class SPDXManager:
             comment=f"BASIL {kind_label}",
             description=f"{kind_label} linked from BASIL Test Run {test_run.id}",
             purpose=purpose,
-            copyright_text="",
             verified_using=[ref_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -1833,7 +1892,6 @@ class SPDXManager:
             comment="BASIL Artifact",
             description=f"Artifact '{artifact_name}' from BASIL Test Run {test_run.id}",
             purpose="evidence",
-            copyright_text="",
             verified_using=[content_hash],
             external_identifiers=[
                 SPDXExternalIdentifier(
@@ -2016,7 +2074,7 @@ class SPDXManager:
         for asr in api_sw_requirements:
             # ApiSwRequirement
             spdx_asr_snippet = self.addSnippet(
-                spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=asr, dbsession=dbsession
+                spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=asr, dbsession=dbsession
             )
             spdx_sr = self.addSwRequirement(
                 software_requirement=asr.sw_requirement, dbsession=dbsession, mapping=asr
@@ -2060,7 +2118,7 @@ class SPDXManager:
         for ats in api_test_specification:
             # ApiTestSpecification
             spdx_ats_snippet = self.addSnippet(
-                spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=ats, dbsession=dbsession
+                spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=ats, dbsession=dbsession
             )
             spdx_ts = self.addTestSpecification(
                 test_specification=ats.test_specification, dbsession=dbsession, mapping=ats
@@ -2190,7 +2248,7 @@ class SPDXManager:
         for atc in api_test_cases:
             # ApiTestCase
             spdx_atc_snippet = self.addSnippet(
-                spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=atc, dbsession=dbsession
+                spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=atc, dbsession=dbsession
             )
             spdx_tc = self.addTestCase(test_case=atc.test_case, dbsession=dbsession, mapping=atc)
             self.addRelationship(
@@ -2215,7 +2273,7 @@ class SPDXManager:
         for adoc in api_documents:
             # ApiDocument
             spdx_adoc_snippet = self.addSnippet(
-                spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=adoc, dbsession=dbsession
+                spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=adoc, dbsession=dbsession
             )
             spdx_doc = self.addDocument(document=adoc.document, dbsession=dbsession, mapping=adoc)
             self.addRelationship(
@@ -2236,7 +2294,7 @@ class SPDXManager:
         for ajs in api_justifications:
             # ApiJustification
             spdx_ajs_snippet = self.addSnippet(
-                spdx_api_file=spdx_api, spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=ajs, dbsession=dbsession
+                spdx_api_ref_doc_file=spdx_api_ref_doc, mapping=ajs, dbsession=dbsession
             )
             spdx_js = self.addJustification(
                 justification=ajs.justification, dbsession=dbsession, mapping=ajs
@@ -2487,7 +2545,7 @@ class SPDXManager:
             json_data["@graph"].append(item.to_dict())
 
         json_data["@graph"] = sorted(json_data["@graph"], key=lambda d: d["type"], reverse=False)
-        json_data = self._attach_author_signature(json_data)
+        #json_data = self._attach_author_signature(json_data) # TODO: Uncomment this when we move to support SPDX 3.1
 
         if not filepath.endswith(".jsonld"):
             filepath += ".jsonld"

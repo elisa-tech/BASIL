@@ -183,21 +183,23 @@ def test_diagraph_includes_snippet_relationships(tmp_path, monkeypatch):
     requirement = _file("spdx:file:basil:software-requirement:2")
     manager = _manager_with_sbom(
         [
-            _rel(api, snippet, SpdxRelationshipType.CONTAINS),
+            _rel(api, ref_doc, SpdxRelationshipType.HAS_DOCUMENTATION),
+            _rel(ref_doc, snippet, SpdxRelationshipType.CONTAINS),
             _rel(snippet, requirement, SpdxRelationshipType.HAS_REQUIREMENT),
         ]
     )
     dot = _write_dot(manager, tmp_path, "map", monkeypatch)
     api_id = graphviz_node_id(api.spdx_id)
     snippet_id = graphviz_node_id(snippet.spdx_id)
-    api_snippet = f"{api_id}__{snippet_id}"
     req_id = graphviz_node_id(requirement.spdx_id)
-    snippet_req = f"{api_snippet}__{req_id}"
     ref_id = graphviz_node_id(ref_doc.spdx_id)
+    ref_snippet = f"{ref_id}__{snippet_id}"
+    snippet_req = f"{ref_snippet}__{req_id}"
     edges = _edge_labels(dot)
-    assert edges[(api_id, api_snippet)] == "contains"
-    assert edges[(api_snippet, snippet_req)] == "hasRequirement"
-    assert edges[(ref_id, api_snippet)] == "contains"
+    assert edges[(api_id, ref_id)] == "hasDocumentation"
+    assert edges[(ref_id, ref_snippet)] == "contains"
+    assert edges[(ref_snippet, snippet_req)] == "hasRequirement"
+    assert not any(src == api_id and dst.endswith(snippet_id) for src, dst in edges)
     assert f'fillcolor={GRAPH_NODE_COLORS["snippet"]}' in dot or "fillcolor=yellow" in dot
     assert f'fillcolor={GRAPH_NODE_COLORS["reference_document"]}' in dot
 
@@ -287,3 +289,43 @@ def test_diagraph_attaches_test_run_outputs_to_mapped_instance(tmp_path, monkeyp
     assert edges[(tr_instance, f"{tr_instance}__{bug_label}")] == "hasOutput"
     assert edges[(tr_instance, f"{tr_instance}__{artifact_label}")] == "hasOutput,hasEvidence"
     assert orphan_tr not in {src for src, _ in edges}
+
+
+def test_add_relationship_appends_without_merging():
+    """addRelationship always appends a new Relationship.
+
+    Callers that already pass multiple targets (library → APIs, Test Case → Test Runs)
+    get a 1-to-many Relationship. Repeated calls with the same (from, type) stay separate.
+    """
+    ref_doc = _file("spdx:file:basil:api:reference-document:1")
+    snippet_one = _snippet("spdx:snippet:api:1:1", from_file=ref_doc)
+    snippet_two = _snippet("spdx:snippet:api:1:2", from_file=ref_doc)
+    manager = _manager_with_sbom([])
+    manager.sbom_creation_info = SimpleNamespace(spdx_id="_:sbom_creation_info")
+
+    manager.addRelationship(
+        from_element=ref_doc, to=[snippet_one], relationship_type=SpdxRelationshipType.CONTAINS
+    )
+    manager.addRelationship(
+        from_element=ref_doc, to=[snippet_two], relationship_type=SpdxRelationshipType.CONTAINS
+    )
+    manager.addRelationship(
+        from_element=ref_doc,
+        to=[snippet_one, snippet_two],
+        relationship_type=SpdxRelationshipType.HAS_OUTPUT,
+        completeness_percentage=-1,
+    )
+
+    relationships = [item for item in manager.sbom if isinstance(item, SPDXRelationship)]
+    assert len(relationships) == 3
+    assert relationships[0].spdx_id == "spdx:relationship:1"
+    assert [target.spdx_id for target in relationships[0].to] == [snippet_one.spdx_id]
+    assert relationships[0].completeness == "incomplete"
+    assert relationships[1].spdx_id == "spdx:relationship:2"
+    assert [target.spdx_id for target in relationships[1].to] == [snippet_two.spdx_id]
+    assert relationships[2].spdx_id == "spdx:relationship:3"
+    assert [target.spdx_id for target in relationships[2].to] == [
+        snippet_one.spdx_id,
+        snippet_two.spdx_id,
+    ]
+    assert relationships[2].completeness == "noAssertion"

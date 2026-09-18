@@ -115,7 +115,6 @@ A BASIL Software Requirement is exported as the following example:
     {
       "type": "software_File",
       "spdxId": "spdx:file:basil:software-requirement:4",
-      "software_copyrightText": "",
       "software_primaryPurpose": "requirement",
       "name": "Example Requirement one",
       "comment": "BASIL Software Requirement ID 4",

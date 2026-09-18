@@ -2,9 +2,15 @@
 
 ## 1.8.x
 
+- Download files from User Files, including folders as a gzip tarball
+- Run the API with Gunicorn gthread workers
 - PostgreSQL as default database
 - E2E Test for tmt test run plugin
 - Fix SPDX 3.0.1 export
+- Reuse identical SPDX CreationInfo objects in export
+- SPDX snippets contained by the reference document; condense 1-to-many Relationships
+- Omit SPDX JSON-LD ``signature`` and ``signatures`` until JSS signing is available
+- Omit empty software_copyrightText from SPDX 3.0.1 export
 - SPDX Export validation in CI
 - API Traceability Map
 - New version available notification

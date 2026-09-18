@@ -4,6 +4,7 @@ import os
 import pytest
 import tempfile
 import subprocess
+import time
 from http import HTTPStatus
 from db.models.user import UserModel
 from db.models.api import ApiModel
@@ -101,6 +102,45 @@ _WORK_ITEM_COMMENT_CASES = (
 # SPDX ElementCollection.element must not list these @graph types:
 # CreationInfo is not an Element; SpdxDocument is forbidden; the SBOM is the collection.
 _SBOM_ELEMENT_EXCLUDED_TYPES = frozenset({"CreationInfo", "SpdxDocument", "software_Sbom"})
+
+
+def _creation_info_payload(creation_info):
+    """CreationInfo fields that must be unique in an export, excluding @id."""
+    return (
+        creation_info.get("specVersion"),
+        creation_info.get("created"),
+        tuple(creation_info.get("createdBy") or []),
+        tuple(creation_info.get("createdUsing") or []),
+    )
+
+
+def _assert_creation_info_not_collapsed(graph):
+    """Reuse identical CreationInfo, but keep payloads that differ by created time."""
+    creation_infos = [element for element in graph if element.get("type") == "CreationInfo"]
+    assert len(creation_infos) >= 2, (
+        "Expected at least two CreationInfo objects. The comprehensive fixture "
+        "splits work-item created timestamps across a second boundary so they "
+        "cannot all reuse _:sbom_creation_info. A single CreationInfo means "
+        "work-item created_at is being ignored."
+    )
+    created_values = {info.get("created") for info in creation_infos}
+    assert len(created_values) >= 2, (
+        "Expected distinct CreationInfo created timestamps; "
+        f"got {sorted(created_values)}"
+    )
+    payloads = [_creation_info_payload(info) for info in creation_infos]
+    duplicate_payloads = [payload for payload in set(payloads) if payloads.count(payload) > 1]
+    assert not duplicate_payloads, (
+        f"CreationInfo objects with identical payload must be reused, duplicates: {duplicate_payloads}"
+    )
+    creation_info_ids = {info.get("@id") for info in creation_infos}
+    for element in graph:
+        ref = element.get("creationInfo")
+        if ref:
+            assert ref in creation_info_ids, (
+                f"{element.get('type')} {element.get('spdxId') or element.get('@id')} "
+                f"references missing CreationInfo {ref}"
+            )
 
 
 logger = logging.getLogger(__name__)
@@ -353,6 +393,11 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities, tmp_path, mon
     sw_req_2 = get_sw_requirement_model(client_db, utilities, "DataProcessing")
     sw_req_3 = get_sw_requirement_model(client_db, utilities, "ErrorHandling")
     sw_req_4 = get_sw_requirement_model(client_db, utilities, "NestedNested")
+
+    # SPDX CreationInfo is serialized at second precision. Pause so later work
+    # items cannot share the API/SW-requirement created timestamp, and the
+    # export cannot collapse the whole graph onto _:sbom_creation_info.
+    time.sleep(1)
 
     # Create Test Specifications
     test_spec_1 = get_test_specification_model(client_db, utilities, "Auth")
@@ -754,6 +799,8 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         print(f"✓ Generated valid JSON-LD with {len(spdx_data['@graph'])} elements")
     except json.JSONDecodeError:
         pytest.fail("Generated SPDX is not valid JSON")
+
+    _assert_creation_info_not_collapsed(graph_elements)
 
     assert "signature" not in spdx_data, "CycloneDX/JSF signature is not an SPDX 3 field"
     assert "signatures" not in spdx_data, (
@@ -1664,40 +1711,14 @@ def test_spdx_author_from_exporting_user(
     assert all("signature" not in element and "signatures" not in element for element in graph)
 
 
-def _creation_info_payload(creation_info):
-    """CreationInfo fields that must be unique in an export, excluding @id."""
-    return (
-        creation_info.get("specVersion"),
-        creation_info.get("created"),
-        tuple(creation_info.get("createdBy") or []),
-        tuple(creation_info.get("createdUsing") or []),
-    )
-
-
 def test_spdx_creation_info_payloads_are_unique(
     client, user_authentication, comprehensive_spdx_test_data
 ):
-    """JSON-LD must not emit multiple CreationInfo objects with the same payload."""
+    """JSON-LD reuses identical CreationInfo and keeps distinct created timestamps."""
     test_data = comprehensive_spdx_test_data
     api = test_data["api"]
     graph = _export_and_parse(client, user_authentication, api)
-
-    creation_infos = [element for element in graph if element.get("type") == "CreationInfo"]
-    assert creation_infos, "Expected CreationInfo objects in the SPDX export"
-    payloads = [_creation_info_payload(creation_info) for creation_info in creation_infos]
-    duplicate_payloads = [payload for payload in set(payloads) if payloads.count(payload) > 1]
-    assert not duplicate_payloads, (
-        f"CreationInfo objects with identical payload must be reused, duplicates: {duplicate_payloads}"
-    )
-
-    creation_info_ids = {creation_info.get("@id") for creation_info in creation_infos}
-    for element in graph:
-        ref = element.get("creationInfo")
-        if ref:
-            assert ref in creation_info_ids, (
-                f"{element.get('type')} {element.get('spdxId') or element.get('@id')} "
-                f"references missing CreationInfo {ref}"
-            )
+    _assert_creation_info_not_collapsed(graph)
 
 
 def test_software_copyright_text_omitted_when_unknown():

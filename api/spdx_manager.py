@@ -2545,7 +2545,7 @@ class SPDXManager:
             json_data["@graph"].append(item.to_dict())
 
         json_data["@graph"] = sorted(json_data["@graph"], key=lambda d: d["type"], reverse=False)
-        #json_data = self._attach_author_signature(json_data) # TODO: Uncomment this when we move to support SPDX 3.1
+        # json_data = self._attach_author_signature(json_data)  # TODO: Uncomment this when we move to support SPDX 3.1
 
         if not filepath.endswith(".jsonld"):
             filepath += ".jsonld"

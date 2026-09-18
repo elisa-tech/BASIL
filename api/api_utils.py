@@ -1,10 +1,13 @@
 import datetime
 import html as html_module
-import tarfile
+import io
 import logging
 import os
+import queue
 import re
 import subprocess
+import tarfile
+import threading
 import urllib
 from pyaml_env import parse_config
 from string import Template
@@ -779,11 +782,104 @@ def get_custom_actions(user: UserModel) -> list:
     return actions
 
 
+def require_user_files_write_user(request_data, db_session, api_response):
+    """Return the user allowed to mutate user files, or an error response.
+
+    Guests may list and download their files but cannot create, edit, move,
+    or delete them.
+    """
+    from api import USER_ROLES_WRITE_PERMISSIONS, get_active_user_from_request
+
+    user = get_active_user_from_request(request_data, db_session)
+    if not isinstance(user, UserModel):
+        return None, api_response.return_unauthorized()
+    if user.role not in USER_ROLES_WRITE_PERMISSIONS:
+        return None, api_response.return_forbidden_write()
+    return user, None
+
+
 def is_safe_user_path(user_root, requested_path):
     """Return True only if *requested_path* resolves under *user_root*."""
     abs_root = os.path.realpath(user_root)
     abs_target = os.path.realpath(requested_path)
     return abs_target == abs_root or abs_target.startswith(abs_root + os.sep)
+
+
+def _skip_hidden_tarinfo(tarinfo):
+    """Omit hidden files and directories from a user-folder tarball."""
+    parts = tarinfo.name.replace("\\", "/").split("/")
+    if any(part.startswith(".") for part in parts if part):
+        return None
+    return tarinfo
+
+
+class _QueueWriter(io.RawIOBase):
+    """File-like object that pushes writes onto a bounded queue of chunks."""
+
+    def __init__(self, chunk_queue, chunk_size, stop_event):
+        super().__init__()
+        self._queue = chunk_queue
+        self._chunk_size = chunk_size
+        self._stop = stop_event
+
+    def writable(self):
+        return True
+
+    def write(self, b):
+        if self._stop.is_set():
+            raise BrokenPipeError("download cancelled")
+        data = bytes(b)
+        if not data:
+            return 0
+        offset = 0
+        while offset < len(data):
+            if self._stop.is_set():
+                raise BrokenPipeError("download cancelled")
+            self._queue.put(data[offset:offset + self._chunk_size])
+            offset += self._chunk_size
+        return len(data)
+
+
+def iter_user_folder_tarball(folder_path: str, arcname: str, chunk_size: int = 65536):
+    """Yield a gzip tarball of *folder_path* in chunks, skipping hidden entries."""
+    chunk_queue = queue.Queue(maxsize=8)
+    stop = threading.Event()
+    errors = []
+    writer = _QueueWriter(chunk_queue, chunk_size, stop)
+
+    def _produce():
+        try:
+            with tarfile.open(fileobj=writer, mode="w|gz") as tar:
+                tar.add(folder_path, arcname=arcname, filter=_skip_hidden_tarinfo)
+        except BrokenPipeError:
+            pass
+        except Exception as exc:
+            logger.exception("Failed to stream user folder tarball")
+            errors.append(exc)
+        finally:
+            try:
+                chunk_queue.put(None, timeout=1)
+            except queue.Full:
+                pass
+
+    producer = threading.Thread(target=_produce, daemon=True)
+    producer.start()
+    try:
+        while True:
+            item = chunk_queue.get()
+            if item is None:
+                break
+            yield item
+        if errors:
+            raise errors[0]
+    finally:
+        stop.set()
+        try:
+            while True:
+                chunk_queue.get_nowait()
+        except queue.Empty:
+            pass
+        producer.join(timeout=5)
 
 
 def combine_tmt_path(repository: str, relative_path: str) -> str:

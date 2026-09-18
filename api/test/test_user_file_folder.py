@@ -21,6 +21,14 @@ def test_user_file_folder_post_unauthorized(client, user_authentication):
     assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
+def test_user_file_folder_post_forbidden_for_guest(client, guest_authentication):
+    auth = guest_authentication.json
+    name = f"{UT_PREFIX}guest_folder"
+    response = create_folder(client, auth, name)
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert not os.path.exists(os.path.join(user_files_dir(auth["id"]), name))
+
+
 def test_user_file_folder_post_missing_foldername(client, user_authentication):
     auth = user_authentication.json
     body = auth_json_body(auth)

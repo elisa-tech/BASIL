@@ -1,5 +1,6 @@
 import React from 'react'
 import { Dropdown, DropdownItem, DropdownList, MenuToggle, MenuToggleElement } from '@patternfly/react-core'
+import * as Constants from '../../Constants/constants'
 import { useAuth } from '../../User/AuthProvider'
 import EllipsisVIcon from '@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon'
 
@@ -52,43 +53,57 @@ export const UserFilesMenuKebab: React.FunctionComponent<UserFilesMenuKebabProps
       shouldFocusToggleOnSelect
     >
       <DropdownList>
-        {auth.isLogged() && !auth.isGuest() ? (
+        {auth.isLogged() ? (
           <>
-            {!isDirectory && (
-              <DropdownItem
-                value={0}
-                id={'btn-menu-user-file-edit-' + userFile.index}
-                key={'action user file edit ' + userFile.index}
-                onClick={() => openModal('edit')}
-              >
-                Edit
-              </DropdownItem>
+            <DropdownItem
+              value={0}
+              id={'btn-menu-user-file-download-' + userFile.index}
+              key={'action user file download ' + userFile.index}
+              onClick={() => Constants.downloadUserFile(auth, userFile.relative_path, userFile.name, isDirectory)}
+            >
+              {isDirectory ? 'Download as .tar.gz' : 'Download'}
+            </DropdownItem>
+            {!auth.isGuest() ? (
+              <>
+                {!isDirectory && (
+                  <DropdownItem
+                    value={0}
+                    id={'btn-menu-user-file-edit-' + userFile.index}
+                    key={'action user file edit ' + userFile.index}
+                    onClick={() => openModal('edit')}
+                  >
+                    Edit
+                  </DropdownItem>
+                )}
+                <DropdownItem
+                  value={0}
+                  id={'btn-menu-user-file-rename-' + userFile.index}
+                  key={'action user file rename ' + userFile.index}
+                  onClick={() => openModal('rename')}
+                >
+                  Rename
+                </DropdownItem>
+                <DropdownItem
+                  value={0}
+                  id={'btn-menu-user-file-move-' + userFile.index}
+                  key={'action user file move ' + userFile.index}
+                  onClick={() => openModal('move')}
+                >
+                  Move
+                </DropdownItem>
+                <DropdownItem
+                  value={0}
+                  id={'btn-menu-user-file-delete-' + userFile.index}
+                  key={'action user file delete ' + userFile.index}
+                  onClick={() => openModal('delete')}
+                  style={{ color: '#c9190b' }}
+                >
+                  Delete
+                </DropdownItem>
+              </>
+            ) : (
+              ''
             )}
-            <DropdownItem
-              value={0}
-              id={'btn-menu-user-file-rename-' + userFile.index}
-              key={'action user file rename ' + userFile.index}
-              onClick={() => openModal('rename')}
-            >
-              Rename
-            </DropdownItem>
-            <DropdownItem
-              value={0}
-              id={'btn-menu-user-file-move-' + userFile.index}
-              key={'action user file move ' + userFile.index}
-              onClick={() => openModal('move')}
-            >
-              Move
-            </DropdownItem>
-            <DropdownItem
-              value={0}
-              id={'btn-menu-user-file-delete-' + userFile.index}
-              key={'action user file delete ' + userFile.index}
-              onClick={() => openModal('delete')}
-              style={{ color: '#c9190b' }}
-            >
-              Delete
-            </DropdownItem>
           </>
         ) : (
           ''

@@ -447,8 +447,8 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                 <FormHelperText>
                   <HelperText>
                     <HelperTextItem>
-                      Identifies you as the author of SPDX SBOM exports. A unique value is assigned when your
-                      account is created; you can customize it.
+                      Identifies you as the author of SPDX SBOM exports. A unique value is assigned when your account is created; you can
+                      customize it.
                     </HelperTextItem>
                     {validatedSpdxSignatureValue === 'error' && (
                       <HelperTextItem variant='error'>This field is mandatory and must be 4 to 255 characters</HelperTextItem>

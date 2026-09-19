@@ -77,6 +77,7 @@ from api_utils import (
     BORDER_COLOR_TEST_SPECIFICATION,
     code_to_html,
     combine_tmt_path,
+    delete_user_avatar,
     document_to_html,
     extend_unmapped_sections_for_auto_fix,
     get_api_specification,
@@ -85,6 +86,7 @@ from api_utils import (
     get_mapping_comments,
     get_safe_str,
     get_test_run_artifacts_dir,
+    get_user_avatar,
     get_user_config_folder_path,
     get_user_html_folder_path,
     get_user_pdf_folder_path,
@@ -97,6 +99,7 @@ from api_utils import (
     parse_int,
     read_file,
     justification_to_html,
+    set_user_avatar,
     sw_requirement_to_html,
     test_specification_to_html,
     test_case_to_html,
@@ -9952,6 +9955,94 @@ class UserSshKey(Resource):
         return api_response.return_ok()
 
 
+class UserAvatar(Resource):
+    route = "/user/avatar"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the avatar of the current user
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["token", "user-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        api_response.set_data(get_user_avatar(user))
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        set the avatar of the current user, choosing a builtin one
+        or uploading an image
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        # Do not log the image content
+        api_response.set_args({k: v for k, v in request_data.items() if k != "data"})
+
+        mandatory_fields = ["token", "type", "user-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        error = set_user_avatar(user,
+                                avatar_type=request_data["type"],
+                                name=request_data.get("name"),
+                                data=request_data.get("data"))
+        if error:
+            api_response.set_message(error)
+            return api_response.return_bad_request()
+
+        api_response.set_data(get_user_avatar(user))
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        reset the avatar of the current user to the default one
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["token", "user-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        delete_user_avatar(user)
+
+        api_response.set_data(get_user_avatar(user))
+        return api_response.return_ok()
+
+
 class UserFiles(Resource):
     route = "/user/files"
 
@@ -12178,6 +12269,7 @@ api.add_resource(ForkApiJustification, ForkApiJustification.route)
 
 api.add_resource(User, User.route)
 api.add_resource(UserApis, UserApis.route)
+api.add_resource(UserAvatar, UserAvatar.route)
 api.add_resource(UserEnable, UserEnable.route)
 api.add_resource(UserLogin, UserLogin.route)
 api.add_resource(UserNotifications, UserNotifications.route)

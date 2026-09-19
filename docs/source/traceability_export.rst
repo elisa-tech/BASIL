@@ -6,14 +6,20 @@ Available Export Formats
 ------------------------
 
 - SPDX (JSON-LD, DOT, PNG)
+
   - Generate SPDX traceability artifacts for an API (graph + data)
   - Endpoints:
+
     - ``GET /spdx/apis`` (produce files)
     - ``GET /spdx/apis/export-download`` (download a specific file)
+
 - HTML
+
   - Generate an HTML traceability document for an API mapping view
   - Endpoint: ``GET /html/apis``
+
 - PDF
+
   - Download a PDF rendering of a previously generated HTML export
   - Endpoint: ``GET /html/apis/export-download`` (use ``filename=<...>.pdf``)
 

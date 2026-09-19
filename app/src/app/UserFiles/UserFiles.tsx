@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
-import { Breadcrumb, BreadcrumbItem, Button, Card, CardBody, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core'
+import { Breadcrumb, BreadcrumbItem, Button, Card, CardBody, Flex, FlexItem, PageSection, SearchInput, Title } from '@patternfly/react-core'
 import { UserFilesListingTable } from './UserFilesListing'
 import { UserFilesModal } from './Modal/UserFilesModal'
 import { useAuth } from '../User/AuthProvider'
@@ -16,6 +16,7 @@ const UserFiles: React.FunctionComponent = () => {
   const [currentPath, setCurrentPath] = React.useState('')
   const [userFiles, setUserFiles] = React.useState([])
   const [modalShowState, setModalShowState] = React.useState(false)
+  const [searchValue, setSearchValue] = React.useState('')
 
   const loadFiles = React.useCallback(() => {
     Constants.loadUserFiles(auth, setUserFiles, '', currentPath)
@@ -41,8 +42,13 @@ const UserFiles: React.FunctionComponent = () => {
   }
 
   const navigateTo = (path: string) => {
+    setSearchValue('')
     setCurrentPath(path)
   }
+
+  const filteredUserFiles = searchValue
+    ? userFiles.filter((userFile: { name: string }) => userFile.name.toLowerCase().includes(searchValue.toLowerCase()))
+    : userFiles
 
   const breadcrumbSegments = currentPath ? currentPath.split('/').filter(Boolean) : []
 
@@ -106,12 +112,22 @@ const UserFiles: React.FunctionComponent = () => {
             })}
           </Breadcrumb>
 
+          <SearchInput
+            id='input-user-files-search'
+            placeholder='Search files'
+            value={searchValue}
+            onChange={(_event, value) => setSearchValue(value)}
+            onClear={() => setSearchValue('')}
+            style={{ width: '400px', marginBottom: '12px' }}
+          />
+
           <UserFilesListingTable
             modalAction={modal_action}
             modalFileName={modal_filename}
             modalRelativePath={modal_relative_path}
             setModalShowState={setModalShowState}
-            userFiles={userFiles}
+            userFiles={filteredUserFiles}
+            searchValue={searchValue}
             currentPath={currentPath}
             navigateTo={navigateTo}
           />

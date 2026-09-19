@@ -211,6 +211,27 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       .should('not.exist')
   })
 
+  it('Search user files', () => {
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('TEST_FOLDER_' + UNIQUE, { force: true })
+    cy.get('#table-user-files')
+      .find('tbody')
+      .contains('test_folder_' + UNIQUE)
+      .should('exist')
+
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('no_match_' + UNIQUE, { force: true })
+    cy.get('#table-user-files').find('tbody').should('contain.text', 'No files match')
+
+    cy.get('#input-user-files-search button[aria-label="Reset"]').click({ force: true })
+    cy.get('#table-user-files')
+      .find('tbody')
+      .contains('test_folder_' + UNIQUE)
+      .should('exist')
+  })
+
   it('Delete test folder', () => {
     cy.get('#table-user-files')
       .find('tbody')

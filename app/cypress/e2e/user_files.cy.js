@@ -50,7 +50,7 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       },
       { force: true }
     )
-    cy.wait(const_data.mid_wait)
+    cy.get('.pf-v5-c-file-upload textarea').should('not.have.value', '')
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files')
@@ -127,7 +127,7 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       },
       { force: true }
     )
-    cy.wait(const_data.mid_wait)
+    cy.get('.pf-v5-c-file-upload textarea').should('not.have.value', '')
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files')

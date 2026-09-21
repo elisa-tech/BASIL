@@ -4,7 +4,7 @@ In-app AI suggestions
 =====================
 
 BASIL can use an OpenAI-compatible API to suggest content for work items directly in the app.
-The backend module :file:`api/ai.py` provides an :class:`AIPrompter` that calls the configured AI service to generate:
+The backend module :file:`api/ai.py` provides an ``AIPrompter`` class that calls the configured AI service to generate:
 
 - **Software requirement metadata** — title, description, completeness, and reasoning from a specification excerpt
 - **Test case metadata** — title, description, completeness, and reasoning for a test case from a specification
@@ -20,7 +20,7 @@ Configuration
 AI is configured via:
 
 1. The admin **settings** (recommended for host, port, model, etc.)
-2. **Environment variables** (override or supply values when the settings file does not) of API deployment
+2. **Environment variables** of the API deployment (used only for keys that are not present in the settings file)
 
 Admin Settings
 ^^^^^^^^^^^^^^
@@ -70,7 +70,7 @@ Example:
 Environment variables
 ^^^^^^^^^^^^^^^^^^^^^
 
-You can override or supply AI configuration via environment variables. These are used when the corresponding key is missing (or not set) in the settings file.
+You can supply AI configuration via environment variables. These are used only when the corresponding key is not present in the settings file: a key present with an empty value (as in the default settings file) hides the environment variable. See :doc:`settings` for details.
 
 .. list-table::
    :header-rows: 1
@@ -103,7 +103,7 @@ Example:
    export BASIL_AI_TOKEN="sk-..."
 
 Validation and health check
---------------------------
+---------------------------
 
 - On each AI request, the backend checks that **host**, **port**, and **model** are set (via settings or environment). If any is missing, the API returns a precondition failed response and the in-app suggestion feature will not call the AI.
 - A **health check** endpoint (used by the app to verify AI availability) calls ``GET {base_url}/models``. The AI service must respond with HTTP 200 for the app to consider the AI feature available.

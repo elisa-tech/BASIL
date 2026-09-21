@@ -1,5 +1,8 @@
+import base64
+import binascii
 import datetime
 import html as html_module
+import json
 import tarfile
 import logging
 import os
@@ -762,6 +765,123 @@ def get_user_pdf_folder_path(user: UserModel) -> str:
 
 def get_user_tarball_folder_path(user: UserModel) -> str:
     return get_user_folder_path(user, ".tarball")
+
+
+USER_AVATAR_CONFIG_FILENAME = "avatar.json"
+USER_AVATAR_IMAGE_BASENAME = "avatar"
+USER_AVATAR_BUILTIN_NAMES = ["blue", "cyan", "green", "orange", "purple", "red"]
+USER_AVATAR_MAX_SIZE = 512 * 1024  # bytes
+USER_AVATAR_IMAGE_TYPES = {
+    "png": "image/png",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+}
+USER_AVATAR_DEFAULT = {"type": "default"}
+
+
+def get_image_type(content: bytes):
+    """Return the image type detected from the file signature, or None
+    if the content is not a supported image"""
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if content.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if content[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def delete_user_avatar(user: UserModel):
+    """Remove the avatar configuration and the uploaded image of the user"""
+    config_dir = get_user_config_folder_path(user)
+    for filename in os.listdir(config_dir):
+        if filename == USER_AVATAR_CONFIG_FILENAME or \
+                os.path.splitext(filename)[0] == USER_AVATAR_IMAGE_BASENAME:
+            os.remove(os.path.join(config_dir, filename))
+
+
+def get_user_avatar(user: UserModel) -> dict:
+    """Return the avatar of the user:
+    - {"type": "default"}
+    - {"type": "builtin", "name": <one of USER_AVATAR_BUILTIN_NAMES>}
+    - {"type": "custom", "data": <image as data URL>}
+    """
+    config_dir = get_user_config_folder_path(user)
+    config_path = os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME)
+    if not os.path.exists(config_path):
+        return dict(USER_AVATAR_DEFAULT)
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            avatar = json.load(f)
+    except (OSError, ValueError) as e:
+        logger.warning(f"Unable to read the avatar of user {user.id}: {e}")
+        return dict(USER_AVATAR_DEFAULT)
+
+    if not isinstance(avatar, dict):
+        return dict(USER_AVATAR_DEFAULT)
+
+    if avatar.get("type") == "builtin" and avatar.get("name") in USER_AVATAR_BUILTIN_NAMES:
+        return {"type": "builtin", "name": avatar["name"]}
+
+    if avatar.get("type") == "custom":
+        image_path = os.path.join(config_dir, os.path.basename(str(avatar.get("filename", ""))))
+        if not os.path.isfile(image_path):
+            return dict(USER_AVATAR_DEFAULT)
+        with open(image_path, "rb") as f:
+            content = f.read()
+        image_type = get_image_type(content)
+        if not image_type:
+            return dict(USER_AVATAR_DEFAULT)
+        encoded = base64.b64encode(content).decode("ascii")
+        return {"type": "custom", "data": f"data:{USER_AVATAR_IMAGE_TYPES[image_type]};base64,{encoded}"}
+
+    return dict(USER_AVATAR_DEFAULT)
+
+
+def set_user_avatar(user: UserModel, avatar_type: str, name: str = None, data: str = None):
+    """Store the avatar of the user in the user config folder.
+    - avatar_type "builtin": name must be one of USER_AVATAR_BUILTIN_NAMES
+    - avatar_type "custom": data must be an image encoded as base64 data URL
+
+    Return an error message, or None on success"""
+    config_dir = get_user_config_folder_path(user)
+
+    if avatar_type == "builtin":
+        if name not in USER_AVATAR_BUILTIN_NAMES:
+            return f"Unknown avatar name. Supported names: {', '.join(USER_AVATAR_BUILTIN_NAMES)}"
+        delete_user_avatar(user)
+        with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
+            json.dump({"type": "builtin", "name": name}, f)
+        return None
+
+    if avatar_type == "custom":
+        match = re.match(r"^data:[\w/+.-]*;base64,(.*)$", str(data or ""), re.DOTALL)
+        if not match:
+            return "The image should be sent as a base64 data URL"
+        try:
+            content = base64.b64decode(match.group(1), validate=True)
+        except (binascii.Error, ValueError):
+            return "The image is not valid base64"
+        if len(content) == 0:
+            return "The image is empty"
+        if len(content) > USER_AVATAR_MAX_SIZE:
+            return f"The image is too big. Maximum size is {USER_AVATAR_MAX_SIZE // 1024} KB"
+        image_type = get_image_type(content)
+        if not image_type:
+            return f"Unsupported image format. Supported formats: {', '.join(USER_AVATAR_IMAGE_TYPES.keys())}"
+        delete_user_avatar(user)
+        image_filename = f"{USER_AVATAR_IMAGE_BASENAME}.{image_type}"
+        with open(os.path.join(config_dir, image_filename), "wb") as f:
+            f.write(content)
+        with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
+            json.dump({"type": "custom", "filename": image_filename}, f)
+        return None
+
+    return "Unknown avatar type. Supported types: builtin, custom"
 
 
 def get_custom_actions(user: UserModel) -> list:

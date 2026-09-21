@@ -16,7 +16,7 @@ import {
 } from '@patternfly/react-core'
 import BellIcon from '@patternfly/react-icons/dist/esm/icons/bell-icon'
 import QuestionCircleIcon from '@patternfly/react-icons/dist/esm/icons/question-circle-icon'
-import imgAvatar from '../bgimages/avatarImg.svg'
+import { getAvatarSrc } from '../User/Avatar/UserAvatar'
 import { UserProfileModal } from '@app/User/Modal/UserProfileModal'
 import { useAuth } from '../User/AuthProvider'
 
@@ -195,7 +195,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
                   onClick={onDropdownToggle}
                   isFullHeight
                   isExpanded={isDropdownOpen}
-                  icon={<Avatar src={imgAvatar} alt='' />}
+                  icon={<Avatar id='header-user-avatar' src={getAvatarSrc(auth.userAvatar)} alt='' />}
                 >
                   {auth.isLogged() ? auth.userEmail : 'Guest'}
                   {auth.isLogged() && auth.userRole == 'GUEST' ? ' (Guest)' : ''}

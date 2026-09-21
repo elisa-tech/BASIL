@@ -2,6 +2,7 @@
 import * as React from 'react'
 import * as Constants from '../Constants/constants'
 import { createContext, useContext, useState } from 'react'
+import { DEFAULT_AVATAR, UserAvatarData } from './Avatar/UserAvatar'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 const AuthContext = createContext<any>({
@@ -23,6 +24,7 @@ const AuthProvider = ({ children }) => {
   const [userEmail, setUserEmail] = useState(localStorage.getItem('uEmail') || '')
   const [token, setToken] = useState(localStorage.getItem('uToken') || '')
   const [loginMessage, setLoginMessage] = useState('')
+  const [userAvatar, setUserAvatar] = useState<UserAvatarData>(DEFAULT_AVATAR)
 
   React.useEffect(() => {
     localStorage.setItem('uId', userId == null ? '' : userId)
@@ -31,6 +33,24 @@ const AuthProvider = ({ children }) => {
     localStorage.setItem('uRole', userRole == null ? '' : userRole)
     localStorage.setItem('uToken', token == null ? '' : token)
   }, [userId, userRole, userEmail, userName, token])
+
+  const loadUserAvatar = React.useCallback(() => {
+    if (!userId || !token) {
+      setUserAvatar(DEFAULT_AVATAR)
+      return
+    }
+    let url = Constants.API_BASE_URL + Constants.API_USER_AVATAR_ENDPOINT
+    url += '?user-id=' + userId
+    url += '&token=' + token
+    fetch(url, { method: 'GET', headers: Constants.JSON_HEADER })
+      .then((res) => (res.ok ? res.json() : DEFAULT_AVATAR))
+      .then((data) => setUserAvatar(data))
+      .catch(() => setUserAvatar(DEFAULT_AVATAR))
+  }, [userId, token])
+
+  React.useEffect(() => {
+    loadUserAvatar()
+  }, [loadUserAvatar])
 
   const loginAction = (data) => {
     setLoginMessage('')
@@ -131,7 +151,21 @@ const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ token, userEmail, userName, userId, userRole, loginAction, loginMessage, logOut, isLogged, isAdmin, isGuest }}
+      value={{
+        token,
+        userEmail,
+        userName,
+        userId,
+        userRole,
+        userAvatar,
+        setUserAvatar,
+        loginAction,
+        loginMessage,
+        logOut,
+        isLogged,
+        isAdmin,
+        isGuest
+      }}
     >
       {children}
     </AuthContext.Provider>

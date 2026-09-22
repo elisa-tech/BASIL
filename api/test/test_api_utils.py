@@ -18,6 +18,7 @@ from api_utils import (
     LINK_BASIL_INSTANCE_HTML_MESSAGE,
     add_html_link_to_email_body,
     combine_tmt_path,
+    fuzzy_path_match,
     load_settings
 )
 
@@ -122,3 +123,71 @@ def test_combine_tmt_path_does_not_drop_repository_when_relative_is_absolute():
     assert combine_tmt_path(repository, relative_path) == (
         "/BASIL-API/api/user-files/2/tmt/tmt-dummy-test"
     )
+
+
+# ---------------------------------------------------------------------------
+# fuzzy_path_match – used to search the user files
+# ---------------------------------------------------------------------------
+
+def score_of(query, text):
+    match = fuzzy_path_match(query, text)
+    assert match is not None, f"{query!r} should match {text!r}"
+    return match[0]
+
+
+@pytest.mark.parametrize(
+    "query, text, expected_indices",
+    [
+        # a literal substring is matched where it appears
+        ("req", "specs/requirements.yaml", [6, 7, 8]),
+        # the query can match a folder name, not only the entry name
+        ("specs", "specs/requirements.yaml", [0, 1, 2, 3, 4]),
+        # the whole relative path is searched, so folder and name can both hit
+        ("specsreq", "specs/requirements.yaml", [0, 1, 2, 3, 4, 6, 7, 8]),
+        # scattered characters match as long as they keep their order; the
+        # match is tightened to the right, so the "s" lands on the last one of
+        # "specs" rather than the first
+        ("srq", "specs/requirements.yaml", [4, 6, 8]),
+        # matching is case insensitive both ways
+        ("REQ", "specs/requirements.yaml", [6, 7, 8]),
+        ("req", "specs/REQUIREMENTS.yaml", [6, 7, 8]),
+    ],
+)
+def test_fuzzy_path_match_indices(query, text, expected_indices):
+    match = fuzzy_path_match(query, text)
+    assert match is not None
+    assert match[1] == expected_indices
+
+
+@pytest.mark.parametrize(
+    "query, text",
+    [
+        ("zzz", "specs/requirements.yaml"),
+        ("qer", "specs/requirements.yaml"),  # right characters, wrong order
+        ("requirementss", "specs/requirements.yaml"),
+        ("", "specs/requirements.yaml"),
+    ],
+)
+def test_fuzzy_path_match_returns_none_when_it_does_not_match(query, text):
+    assert fuzzy_path_match(query, text) is None
+
+
+def test_fuzzy_path_match_groups_the_matched_characters():
+    """The match is tightened so the highlighted characters sit together: "kreq"
+    must land on the "k" of kernel plus "req" of requirements, not on four
+    characters spread over "kernel"."""
+    match = fuzzy_path_match("kreq", "specs/kernel/requirements.yaml")
+    assert match is not None
+    assert match[1] == [6, 13, 14, 15]
+
+
+def test_fuzzy_path_match_ranks_a_literal_match_above_a_scattered_one():
+    assert score_of("req", "specs/requirements.yaml") > score_of("req", "specs/rocket/equipment.yaml")
+
+
+def test_fuzzy_path_match_ranks_the_entry_name_above_its_folders():
+    assert score_of("report", "docs/report.md") > score_of("report", "report/docs.md")
+
+
+def test_fuzzy_path_match_ranks_a_word_start_above_a_match_inside_a_word():
+    assert score_of("test", "docs/test_plan.md") > score_of("test", "docs/latest_plan.md")

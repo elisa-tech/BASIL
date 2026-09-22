@@ -240,6 +240,224 @@ def test_user_files_get_recursive(client, user_authentication, ut_user_files_dir
         remove_if_exists(sub_path)
 
 
+def test_user_files_get_recursive_filter_matches_any_folder(
+    client, user_authentication, ut_user_files_dir, utilities
+):
+    """Recursive listing + filter is what the User Files search relies on: it must
+    match files by name in any folder and report their relative path."""
+    auth = user_authentication.json
+    suffix = utilities.generate_random_hex_string8()
+    sub_dir = f"{UT_PREFIX}search_{suffix}"
+    sub_path = os.path.join(ut_user_files_dir, sub_dir)
+    nested_dir = os.path.join(sub_path, "deeper")
+    match_name = f"needle_{suffix}.txt"
+    other_name = f"haystack_{suffix}.txt"
+
+    try:
+        os.makedirs(nested_dir, exist_ok=True)
+        with open(os.path.join(nested_dir, match_name), "w", encoding="utf-8") as f:
+            f.write("match")
+        with open(os.path.join(sub_path, other_name), "w", encoding="utf-8") as f:
+            f.write("other")
+
+        response = get_files(
+            client, auth, extra_query={"recursive": "true", "filter": f"NEEDLE_{suffix}".upper()}
+        )
+        assert response.status_code == HTTPStatus.OK
+        rows = response.get_json()
+        names = [r["name"] for r in rows]
+        assert match_name in names
+        assert other_name not in names
+
+        match_row = [r for r in rows if r["name"] == match_name][0]
+        assert match_row["relative_path"] == os.path.join(sub_dir, "deeper", match_name)
+        assert match_row["type"] == "file"
+    finally:
+        remove_if_exists(sub_path)
+
+
+# ---------------------------------------------------------------------------
+# GET /user/files – search
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def ut_search_tree(ut_user_files_dir, utilities):
+    """A small tree to search:
+
+        <suffix>_specs/requirements.yaml
+        <suffix>_specs/kernel/requirements.yaml
+        <suffix>_docs/report.md
+    """
+    suffix = utilities.generate_random_hex_string8()
+    specs = os.path.join(ut_user_files_dir, f"{UT_PREFIX}{suffix}_specs")
+    kernel = os.path.join(specs, "kernel")
+    docs = os.path.join(ut_user_files_dir, f"{UT_PREFIX}{suffix}_docs")
+
+    os.makedirs(kernel, exist_ok=True)
+    os.makedirs(docs, exist_ok=True)
+    for path in (
+        os.path.join(specs, "requirements.yaml"),
+        os.path.join(kernel, "requirements.yaml"),
+        os.path.join(docs, "report.md"),
+    ):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("x")
+
+    yield suffix, specs, docs
+
+    remove_if_exists(specs)
+    remove_if_exists(docs)
+
+
+def test_user_files_search_finds_files_in_any_folder(client, user_authentication, ut_search_tree):
+    """The search is not limited to the folder being browsed."""
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": "requirements"})
+    assert response.status_code == HTTPStatus.OK
+    paths = [r["relative_path"] for r in response.get_json()]
+
+    assert f"{UT_PREFIX}{suffix}_specs/requirements.yaml" in paths
+    assert f"{UT_PREFIX}{suffix}_specs/kernel/requirements.yaml" in paths
+
+
+def test_user_files_search_matches_the_whole_relative_path(client, user_authentication, ut_search_tree):
+    """A folder name on the way down is enough to find a file, even when the
+    file name itself does not contain the query."""
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": f"{suffix}_docs"})
+    assert response.status_code == HTTPStatus.OK
+    paths = [r["relative_path"] for r in response.get_json()]
+
+    assert f"{UT_PREFIX}{suffix}_docs/report.md" in paths
+
+
+def test_user_files_search_returns_folders_too(client, user_authentication, ut_search_tree):
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": f"{suffix}_specs"})
+    assert response.status_code == HTTPStatus.OK
+    rows = response.get_json()
+
+    folders = [r["relative_path"] for r in rows if r["type"] == "directory"]
+    assert f"{UT_PREFIX}{suffix}_specs" in folders
+    assert f"{UT_PREFIX}{suffix}_specs/kernel" in folders
+
+
+def test_user_files_search_matches_non_adjacent_characters(client, user_authentication, ut_search_tree):
+    """Characters of the query only need to appear in order."""
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": f"{suffix}krq"})
+    assert response.status_code == HTTPStatus.OK
+    paths = [r["relative_path"] for r in response.get_json()]
+
+    assert f"{UT_PREFIX}{suffix}_specs/kernel/requirements.yaml" in paths
+    assert f"{UT_PREFIX}{suffix}_docs/report.md" not in paths
+
+
+def test_user_files_search_is_case_insensitive(client, user_authentication, ut_search_tree):
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": "REQUIREMENTS.YAML"})
+    assert response.status_code == HTTPStatus.OK
+    paths = [r["relative_path"] for r in response.get_json()]
+
+    assert f"{UT_PREFIX}{suffix}_specs/requirements.yaml" in paths
+
+
+def test_user_files_search_returns_the_results_ranked(client, user_authentication, ut_search_tree):
+    """Results come back best first. How a single entry is scored is covered by
+    the fuzzy_path_match tests; what matters here is that the ranking is applied
+    and that, between two equally good matches, the shortest path wins."""
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": "requirements.yaml"})
+    assert response.status_code == HTTPStatus.OK
+    rows = response.get_json()
+    paths = [r["relative_path"] for r in rows]
+
+    scores = [r["score"] for r in rows]
+    assert scores == sorted(scores, reverse=True)
+    assert paths[0] == f"{UT_PREFIX}{suffix}_specs/requirements.yaml"
+    assert paths.index(f"{UT_PREFIX}{suffix}_specs/requirements.yaml") < paths.index(
+        f"{UT_PREFIX}{suffix}_specs/kernel/requirements.yaml"
+    )
+
+
+def test_user_files_search_reports_the_matched_characters(client, user_authentication, ut_search_tree):
+    """The UI highlights exactly the characters that matched, so the API has to
+    report their position in the relative path."""
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": "report"})
+    assert response.status_code == HTTPStatus.OK
+    rows = [r for r in response.get_json() if r["relative_path"].endswith(f"{suffix}_docs/report.md")]
+    assert len(rows) == 1
+
+    relative_path = rows[0]["relative_path"]
+    matched = "".join(relative_path[i] for i in rows[0]["match_indices"])
+    assert matched.lower() == "report"
+
+
+def test_user_files_search_without_matches_returns_empty(client, user_authentication, ut_search_tree):
+    auth = user_authentication.json
+
+    response = get_files(client, auth, extra_query={"search": "zzz_no_such_entry_zzz"})
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == []
+
+
+def test_user_files_search_skips_hidden_entries(client, user_authentication, ut_user_files_dir, utilities):
+    auth = user_authentication.json
+    suffix = utilities.generate_random_hex_string8()
+    hidden_dir = os.path.join(ut_user_files_dir, f".{UT_PREFIX}hidden_{suffix}")
+    hidden_file = os.path.join(ut_user_files_dir, f".{UT_PREFIX}hidden_{suffix}.txt")
+
+    try:
+        os.makedirs(hidden_dir, exist_ok=True)
+        with open(os.path.join(hidden_dir, "inside.txt"), "w", encoding="utf-8") as f:
+            f.write("x")
+        with open(hidden_file, "w", encoding="utf-8") as f:
+            f.write("x")
+
+        response = get_files(client, auth, extra_query={"search": f"hidden_{suffix}"})
+        assert response.status_code == HTTPStatus.OK
+        assert response.get_json() == []
+    finally:
+        remove_if_exists(hidden_dir)
+        remove_if_exists(hidden_file)
+
+
+def test_user_files_search_can_be_scoped_to_a_folder(client, user_authentication, ut_search_tree):
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(
+        client,
+        auth,
+        extra_query={"search": "requirements", "path": f"{UT_PREFIX}{suffix}_specs/kernel"},
+    )
+    assert response.status_code == HTTPStatus.OK
+    paths = [r["relative_path"] for r in response.get_json()]
+
+    assert paths == [f"{UT_PREFIX}{suffix}_specs/kernel/requirements.yaml"]
+
+
+def test_user_files_search_stays_inside_the_user_folder(client, user_authentication):
+    auth = user_authentication.json
+    response = get_files(client, auth, extra_query={"search": "yaml", "path": "../.."})
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
 # ---------------------------------------------------------------------------
 # POST /user/files
 # ---------------------------------------------------------------------------

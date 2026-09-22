@@ -905,6 +905,118 @@ def is_safe_local_user_file_path(path: str) -> bool:
     return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)
 
 
+# Fuzzy path matching, used by the user files search to rank entries the way a
+# code forge file finder does: the query characters must appear in the relative
+# path in order, but not necessarily next to each other.
+FUZZY_CHAR_SCORE = 16
+FUZZY_CONSECUTIVE_BONUS = 8
+FUZZY_BOUNDARY_BONUS = 8
+FUZZY_BASENAME_BONUS = 4
+FUZZY_EXACT_BONUS = 32
+FUZZY_GAP_PENALTY = 1
+FUZZY_MAX_GAP_PENALTY = 12
+FUZZY_WORD_SEPARATORS = "/\\_-. "
+
+
+def _fuzzy_score(text: str, indices: list) -> int:
+    """Score a set of matched positions: reward characters that are adjacent,
+    that start a word and that belong to the entry name rather than its folders.
+    """
+    basename_start = text.rfind("/") + 1
+    score = 0
+    previous = None
+
+    for index in indices:
+        score += FUZZY_CHAR_SCORE
+
+        if previous is not None:
+            gap = index - previous - 1
+            if gap == 0:
+                score += FUZZY_CONSECUTIVE_BONUS
+            else:
+                score -= min(gap * FUZZY_GAP_PENALTY, FUZZY_MAX_GAP_PENALTY)
+
+        if index == 0 or text[index - 1] in FUZZY_WORD_SEPARATORS:
+            score += FUZZY_BOUNDARY_BONUS
+        elif text[index - 1].islower() and text[index].isupper():
+            score += FUZZY_BOUNDARY_BONUS
+
+        if index >= basename_start:
+            score += FUZZY_BASENAME_BONUS
+
+        previous = index
+
+    return score
+
+
+def _fuzzy_subsequence_indices(query: str, text: str):
+    """Return the positions of *query* in *text* as a subsequence, or None.
+
+    A greedy pass from the left finds where the leftmost possible match ends,
+    then a second pass walks back from that position so the matched characters
+    end up as close together as possible. Matching "kreq" against
+    "specs/kernel/requirements.yaml" that way highlights "k" plus "req" instead
+    of four characters scattered over "kernel".
+    """
+    query_index = 0
+    match_end = -1
+
+    for text_index, char in enumerate(text):
+        if char == query[query_index]:
+            query_index += 1
+            if query_index == len(query):
+                match_end = text_index
+                break
+
+    if match_end == -1:
+        return None
+
+    query_index = len(query) - 1
+    indices = []
+
+    for text_index in range(match_end, -1, -1):
+        if text[text_index] == query[query_index]:
+            indices.append(text_index)
+            query_index -= 1
+            if query_index < 0:
+                break
+
+    indices.reverse()
+    return indices
+
+
+def fuzzy_path_match(query: str, text: str):
+    """Match *query* against *text*, case insensitively.
+
+    Returns a ``(score, indices)`` tuple, where *indices* are the matched
+    positions in *text*, or None when *text* does not match at all. A literal
+    substring always outranks a scattered match of the same query.
+    """
+    if not query:
+        return None
+
+    lower_query = query.lower()
+    lower_text = text.lower()
+    best = None
+
+    start = lower_text.find(lower_query)
+    while start != -1:
+        indices = list(range(start, start + len(lower_query)))
+        score = _fuzzy_score(text, indices) + FUZZY_EXACT_BONUS
+        if best is None or score > best[0]:
+            best = (score, indices)
+        start = lower_text.find(lower_query, start + 1)
+
+    if best is not None:
+        return best
+
+    indices = _fuzzy_subsequence_indices(lower_query, lower_text)
+    if indices is None:
+        return None
+
+    return (_fuzzy_score(text, indices), indices)
+
+
 def extend_unmapped_sections_for_auto_fix(unmapped_sections: list, api_specification: str) -> list:
     """ Extend unmapped sections for auto-fix by adding the offset of the section in the api_specification
     if the section exists in the api_specification, otherwise assign -1

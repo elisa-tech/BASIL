@@ -4,6 +4,7 @@ import '../support/e2e.js'
 import const_data from '../fixtures/consts.json'
 
 const UNIQUE = Date.now().toString()
+const downloadedPath = (filename) => `${Cypress.config('downloadsFolder')}/${filename}`
 
 describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
   before(() => {
@@ -70,7 +71,7 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
     cy.wait(const_data.fast_wait)
     cy.get('[id^="btn-menu-user-file-download-"]').should('contain.text', 'Download').click()
     cy.wait('@downloadUserFile').its('response.statusCode').should('eq', 200)
-    cy.readFile('app/cypress/downloads/nested_file_' + UNIQUE + '.yaml', { timeout: 15000 }).should(
+    cy.readFile(downloadedPath('nested_file_' + UNIQUE + '.yaml'), { timeout: 15000 }).should(
       'contain',
       'key: value'
     )
@@ -96,7 +97,7 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
     cy.wait(const_data.fast_wait)
     cy.get('[id^="btn-menu-user-file-download-"]').should('contain.text', 'Download as .tar.gz').click()
     cy.wait('@downloadUserFolder').its('response.statusCode').should('eq', 200)
-    cy.readFile('app/cypress/downloads/test_folder_' + UNIQUE + '.tar.gz', {
+    cy.readFile(downloadedPath('test_folder_' + UNIQUE + '.tar.gz'), {
       encoding: null,
       timeout: 15000
     }).should((buffer) => {

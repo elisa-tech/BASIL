@@ -23,7 +23,12 @@ UT_READER_USER_NAME = 'ut_reader_name'
 UT_READER_USER_EMAIL = 'ut_reader_email'
 UT_READER_USER_PASSWORD = 'ut_reader_password'
 
+UT_GUEST_USER_NAME = 'ut_guest_name'
+UT_GUEST_USER_EMAIL = 'ut_guest_email'
+UT_GUEST_USER_PASSWORD = 'ut_guest_password'
+
 UT_USER_ROLE = 'USER'
+UT_GUEST_USER_ROLE = 'GUEST'
 
 
 class Utilities:
@@ -83,6 +88,19 @@ def ut_reader_user_db(client_db):
     yield ut_test_user
 
 
+@pytest.fixture(scope="module")
+def ut_guest_user_db(client_db):
+    dbi = db_orm.DbInterface(DB_NAME)
+
+    ut_guest_user = UserModel(
+        UT_GUEST_USER_NAME, UT_GUEST_USER_EMAIL, UT_GUEST_USER_PASSWORD, UT_GUEST_USER_ROLE
+    )
+    dbi.session.add(ut_guest_user)
+    dbi.session.commit()
+
+    yield ut_guest_user
+
+
 class AuthActions(object):
     def __init__(self, client):
         self._client = client
@@ -108,6 +126,12 @@ def reader_authentication(client, ut_reader_user_db):
     login_response = authentication.login(email=UT_READER_USER_EMAIL, password=UT_READER_USER_PASSWORD)
 
     return login_response
+
+
+@pytest.fixture(scope="module")
+def guest_authentication(client, ut_guest_user_db):
+    authentication = AuthActions(client)
+    return authentication.login(email=UT_GUEST_USER_EMAIL, password=UT_GUEST_USER_PASSWORD)
 
 
 @pytest.fixture(scope="module")

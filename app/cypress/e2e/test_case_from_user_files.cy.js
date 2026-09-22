@@ -91,6 +91,7 @@ describe(
           },
           { action: 'drag-drop' }
         )
+        cy.get('.pf-v5-c-file-upload textarea', { timeout: uiTimeout }).should('not.have.value', '')
         cy.get('#btn-user-file-modal-confirm').click()
         cy.wait(const_data.long_wait)
         cy.get('#table-user-files', { timeout: uiTimeout }).should('contain.text', userFileName)

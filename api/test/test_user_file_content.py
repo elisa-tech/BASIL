@@ -148,6 +148,22 @@ def test_user_file_content_put_unauthorized(client, user_authentication):
     assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
+def test_user_file_content_put_forbidden_for_guest(client, guest_authentication, utilities):
+    auth = guest_authentication.json
+    name = f"{UT_PREFIX}guest_put_{utilities.generate_random_hex_string8()}.txt"
+    path = os.path.join(user_files_dir(auth["id"]), name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("original")
+        response = put_content(client, auth, name, "changed")
+        assert response.status_code == HTTPStatus.FORBIDDEN
+        with open(path, encoding="utf-8") as f:
+            assert f.read() == "original"
+    finally:
+        remove_if_exists(path)
+
+
 def test_user_file_content_put_not_found_when_user_dir_missing(client, user_authentication, ut_user_db, utilities):
     remove_user_files_dir_if_exists(ut_user_db.id)
     auth = user_authentication.json

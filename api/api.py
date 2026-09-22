@@ -54,7 +54,7 @@ import yaml
 from uuid import uuid4
 
 import gitlab
-from flask import Flask, g, redirect, request, Response, send_file, send_from_directory
+from flask import Flask, g, redirect, request, Response, send_file, send_from_directory, stream_with_context
 from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 from pyaml_env import parse_config
@@ -92,10 +92,12 @@ from api_utils import (
     is_safe_local_user_file_path,
     is_safe_user_path,
     is_testing_enabled_by_env,
+    iter_user_folder_tarball,
     list_test_run_artifacts,
     load_settings,
     parse_int,
     read_file,
+    require_user_files_write_user,
     justification_to_html,
     sw_requirement_to_html,
     test_specification_to_html,
@@ -10069,13 +10071,11 @@ class UserFiles(Resource):
             return api_response.return_bad_request()
 
         dbi = get_db()
-
-        # User
-        user_id = get_user_id_from_request(request_data, dbi.session)
-        if user_id == 0:
-            return api_response.return_unauthorized()
-
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        user_id = user.id if user is not None else 0
         dbi.close()
+        if error is not None:
+            return error
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -10137,12 +10137,11 @@ class UserFiles(Resource):
             return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
-
-        user_id = get_user_id_from_request(request_data, dbi.session)
-        if user_id == 0:
-            return api_response.return_unauthorized()
-
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        user_id = user.id if user is not None else 0
         dbi.close()
+        if error is not None:
+            return error
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -10207,13 +10206,11 @@ class UserFiles(Resource):
             return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
-
-        # User
-        user_id = get_user_id_from_request(request_data, dbi.session)
-        if user_id == 0:
-            return api_response.return_unauthorized()
-
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        user_id = user.id if user is not None else 0
         dbi.close()
+        if error is not None:
+            return error
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -10275,12 +10272,11 @@ class UserFileFolder(Resource):
             return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
-
-        user_id = get_user_id_from_request(request_data, dbi.session)
-        if user_id == 0:
-            return api_response.return_unauthorized()
-
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        user_id = user.id if user is not None else 0
         dbi.close()
+        if error is not None:
+            return error
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -10391,13 +10387,11 @@ class UserFileContent(Resource):
             return api_response.return_bad_request_missing_fields()
 
         dbi = get_db()
-
-        # User
-        user_id = get_user_id_from_request(request_data, dbi.session)
-        if user_id == 0:
-            return api_response.return_unauthorized()
-
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        user_id = user.id if user is not None else 0
         dbi.close()
+        if error is not None:
+            return error
 
         user_files_path = os.path.join(USER_FILES_BASE_DIR, f"{user_id}")
         if not os.path.exists(user_files_path):
@@ -10433,6 +10427,69 @@ class UserFileContent(Resource):
         }
         api_response.set_data(ret)
         return api_response.return_ok()
+
+
+class UserFileDownload(Resource):
+    route = "/user/files/download"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        download a user file, or a folder as a gzip tarball
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        dbi = get_db()
+        user = get_active_user_from_request(request_data, dbi.session)
+        dbi.close()
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        fields = ["filename"]
+        wrong_fields = get_wrong_mandatory_fields(fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        filename = request_data["filename"]
+        if filename == "":
+            api_response.set_message("Missing filename value")
+            return api_response.return_bad_request()
+
+        user_files_path = os.path.realpath(os.path.join(USER_FILES_BASE_DIR, f"{user.id}"))
+        if not os.path.isdir(user_files_path):
+            os.makedirs(user_files_path, exist_ok=True)
+            api_response.set_message("File not found")
+            return api_response.return_not_found()
+
+        filepath = os.path.realpath(os.path.join(user_files_path, filename))
+
+        if not is_safe_user_path(user_files_path, filepath):
+            api_response.set_message("Invalid path")
+            return api_response.return_bad_request()
+
+        if not os.path.exists(filepath):
+            api_response.set_message("File not found")
+            return api_response.return_not_found()
+
+        basename = os.path.basename(filepath.rstrip(os.sep))
+        if os.path.isdir(filepath):
+            safe_name = basename.replace('"', "").replace("\r", "").replace("\n", "")
+            return Response(
+                stream_with_context(iter_user_folder_tarball(filepath, basename)),
+                mimetype="application/gzip",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_name}.tar.gz"',
+                },
+            )
+
+        return send_file(
+            filepath,
+            as_attachment=True,
+            download_name=basename,
+        )
 
 
 class TestRunConfig(Resource):
@@ -12190,6 +12247,7 @@ api.add_resource(UserSshKey, UserSshKey.route)
 api.add_resource(UserFiles, UserFiles.route)
 api.add_resource(UserFileFolder, UserFileFolder.route)
 api.add_resource(UserFileContent, UserFileContent.route)
+api.add_resource(UserFileDownload, UserFileDownload.route)
 api.add_resource(Alert, Alert.route)
 api.add_resource(Testing, Testing.route)
 api.add_resource(Version, Version.route)

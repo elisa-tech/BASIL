@@ -453,6 +453,7 @@ export function registerCommands() {
     cy.get('#btn-add-user-file').click()
     cy.wait(const_data.long_wait)
     cy.get('#user-file-upload-browse-button').selectFile(import_file, { action: 'drag-drop' })
+    cy.get('.pf-v5-c-file-upload textarea').should('not.have.value', '')
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
   })

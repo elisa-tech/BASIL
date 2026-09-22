@@ -1,4 +1,4 @@
-"""Shared helpers for user-files HTTP tests (UserFiles, UserFileContent, UserFileFolder)."""
+"""Shared helpers for user-files HTTP tests (UserFiles, UserFileContent, UserFileFolder, UserFileDownload)."""
 import os
 import shutil
 
@@ -7,6 +7,7 @@ import api as basil_api
 USER_FILES_URL = "/user/files"
 USER_FILE_CONTENT_URL = "/user/files/content"
 USER_FILE_FOLDER_URL = "/user/files/folder"
+USER_FILE_DOWNLOAD_URL = "/user/files/download"
 UT_PREFIX = "ut_user_files_"
 
 
@@ -56,6 +57,11 @@ def create_folder(client, auth_json, foldername):
 def get_content(client, auth_json, filename):
     qs = {**auth_query(auth_json), "filename": filename}
     return client.get(USER_FILE_CONTENT_URL, query_string=qs)
+
+
+def get_download(client, auth_json, filename):
+    qs = {**auth_query(auth_json), "filename": filename}
+    return client.get(USER_FILE_DOWNLOAD_URL, query_string=qs)
 
 
 def put_content(client, auth_json, filename, filecontent):

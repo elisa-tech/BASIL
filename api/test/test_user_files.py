@@ -27,6 +27,11 @@ def test_user_files_get_unauthorized_without_credentials(client):
     assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
+def test_user_files_get_ok_for_guest(client, guest_authentication):
+    response = get_files(client, guest_authentication.json)
+    assert response.status_code == HTTPStatus.OK
+
+
 def test_user_files_get_unauthorized_invalid_token(client, user_authentication):
     auth = user_authentication.json
     response = client.get(
@@ -266,6 +271,14 @@ def test_user_files_post_unauthorized(client, user_authentication):
     assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
+def test_user_files_post_forbidden_for_guest(client, guest_authentication):
+    auth = guest_authentication.json
+    name = f"{UT_PREFIX}guest.txt"
+    response = post_file(client, auth, name, "guest-cannot-upload")
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert not os.path.exists(os.path.join(user_files_dir(auth["id"]), name))
+
+
 def test_user_files_post_rejects_leading_dot_filename(client, user_authentication):
     auth = user_authentication.json
     response = post_file(client, auth, ".secret", "x")
@@ -361,6 +374,21 @@ def test_user_files_delete_missing_mandatory_fields(client, user_authentication,
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
+def test_user_files_delete_forbidden_for_guest(client, guest_authentication, utilities):
+    auth = guest_authentication.json
+    name = f"{UT_PREFIX}guest_del_{utilities.generate_random_hex_string8()}.txt"
+    path = os.path.join(user_files_dir(auth["id"]), name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("keep-me")
+        response = delete_file(client, auth, name)
+        assert response.status_code == HTTPStatus.FORBIDDEN
+        assert os.path.isfile(path)
+    finally:
+        remove_if_exists(path)
+
+
 def test_user_files_delete_unauthorized(client, user_authentication):
     auth = user_authentication.json
     response = client.delete(
@@ -424,6 +452,26 @@ def test_user_files_delete_path_traversal_blocked(client, user_authentication):
 # ---------------------------------------------------------------------------
 # PUT /user/files – move / rename
 # ---------------------------------------------------------------------------
+
+def test_user_files_move_forbidden_for_guest(client, guest_authentication, utilities):
+    auth = guest_authentication.json
+    suffix = utilities.generate_random_hex_string8()
+    source = f"{UT_PREFIX}guest_mv_{suffix}.txt"
+    destination = f"{UT_PREFIX}guest_mv_dst_{suffix}.txt"
+    base = user_files_dir(auth["id"])
+    src_path = os.path.join(base, source)
+    os.makedirs(base, exist_ok=True)
+    try:
+        with open(src_path, "w", encoding="utf-8") as f:
+            f.write("stay")
+        response = move_file(client, auth, source, destination)
+        assert response.status_code == HTTPStatus.FORBIDDEN
+        assert os.path.isfile(src_path)
+        assert not os.path.exists(os.path.join(base, destination))
+    finally:
+        remove_if_exists(src_path)
+        remove_if_exists(os.path.join(base, destination))
+
 
 def test_user_files_move_unauthorized(client, user_authentication):
     auth = user_authentication.json

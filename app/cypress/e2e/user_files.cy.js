@@ -4,6 +4,7 @@ import '../support/e2e.js'
 import const_data from '../fixtures/consts.json'
 
 const UNIQUE = Date.now().toString()
+const downloadedPath = (filename) => `${Cypress.config('downloadsFolder')}/${filename}`
 
 describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
   before(() => {
@@ -50,13 +51,30 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       },
       { force: true }
     )
-    cy.wait(const_data.mid_wait)
+    cy.get('.pf-v5-c-file-upload textarea').should('not.have.value', '')
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files')
       .find('tbody')
       .contains('nested_file_' + UNIQUE + '.yaml')
       .should('exist')
+  })
+
+  it('Download a nested file from the context menu', () => {
+    cy.intercept('GET', '**/user/files/download*').as('downloadUserFile')
+    cy.get('#table-user-files')
+      .find('tbody')
+      .contains('nested_file_' + UNIQUE + '.yaml')
+      .parents('tr')
+      .find('button[aria-label="kebab dropdown toggle"]')
+      .click()
+    cy.wait(const_data.fast_wait)
+    cy.get('[id^="btn-menu-user-file-download-"]').should('contain.text', 'Download').click()
+    cy.wait('@downloadUserFile').its('response.statusCode').should('eq', 200)
+    cy.readFile(downloadedPath('nested_file_' + UNIQUE + '.yaml'), { timeout: 15000 }).should(
+      'contain',
+      'key: value'
+    )
   })
 
   it('Navigate back to root via breadcrumb', () => {
@@ -66,6 +84,25 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       .find('tbody')
       .contains('test_folder_' + UNIQUE)
       .should('exist')
+  })
+
+  it('Download a folder as a tarball from the context menu', () => {
+    cy.intercept('GET', '**/user/files/download*').as('downloadUserFolder')
+    cy.get('#table-user-files')
+      .find('tbody')
+      .contains('test_folder_' + UNIQUE)
+      .parents('tr')
+      .find('button[aria-label="kebab dropdown toggle"]')
+      .click()
+    cy.wait(const_data.fast_wait)
+    cy.get('[id^="btn-menu-user-file-download-"]').should('contain.text', 'Download as .tar.gz').click()
+    cy.wait('@downloadUserFolder').its('response.statusCode').should('eq', 200)
+    cy.readFile(downloadedPath('test_folder_' + UNIQUE + '.tar.gz'), {
+      encoding: null,
+      timeout: 15000
+    }).should((buffer) => {
+      expect(buffer.length).to.be.greaterThan(0)
+    })
   })
 
   it('Create a subfolder for move test', () => {
@@ -91,7 +128,7 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       },
       { force: true }
     )
-    cy.wait(const_data.mid_wait)
+    cy.get('.pf-v5-c-file-upload textarea').should('not.have.value', '')
     cy.get('#btn-user-file-modal-confirm').click()
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files')

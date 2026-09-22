@@ -45,6 +45,7 @@ export const API_USER_PERMISSIONS_API_COPY_ENDPOINT = '/user/permissions/copy'
 export const API_USER_FILES_ENDPOINT = '/user/files'
 export const API_USER_FILES_FOLDER_ENDPOINT = '/user/files/folder'
 export const API_USER_FILES_CONTENT_ENDPOINT = '/user/files/content'
+export const API_USER_FILES_DOWNLOAD_ENDPOINT = '/user/files/download'
 export const API_USER_RESET_PASSWORD_ENDPOINT = '/user/reset-password'
 export const API_USER_SIGNIN_ENDPOINT = '/user/signin'
 export const API_ADMIN_RESET_USER_PASSWORD_ENDPOINT = '/admin/reset-user-password'
@@ -311,6 +312,40 @@ export const loadUserFiles = (_auth, _setFiles, _filter = '', _path = '', _recur
         data[i]['filename'] = data[i]['name'] || getFilenameFromFilepath(data[i]['filepath'])
       }
       _setFiles(data)
+    })
+    .catch((err) => {
+      console.log(err.message)
+    })
+}
+
+export const downloadUserFile = (_auth, relativePath: string, downloadName: string, isDirectory = false) => {
+  if (!_auth.isLogged()) {
+    return
+  }
+
+  let url = API_BASE_URL + API_USER_FILES_DOWNLOAD_ENDPOINT
+  url += '?user-id=' + _auth.userId
+  url += '&token=' + _auth.token
+  url += '&filename=' + encodeURIComponent(relativePath)
+
+  fetch(url, {
+    method: 'GET'
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(response.statusText || 'Download failed')
+      }
+      return response.blob()
+    })
+    .then((blob) => {
+      const objectUrl = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = isDirectory ? downloadName + '.tar.gz' : downloadName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(objectUrl)
     })
     .catch((err) => {
       console.log(err.message)

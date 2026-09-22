@@ -19,7 +19,7 @@ Here an example running directly the gunicorn webserver:
 
 .. code-block:: bash
 
-   BASIL_ADMIN_PASSWORD=dummy_password BASIL_TESTING=1 TEST_RUNS_BASE_DIR=$(pwd) gunicorn --bind 0.0.0.0:5005 api:app
+   BASIL_ADMIN_PASSWORD=dummy_password BASIL_TESTING=1 TEST_RUNS_BASE_DIR=$(pwd) gunicorn --worker-class gthread --threads 4 --bind 0.0.0.0:5005 api:app
 
 That will create a test database **db/sqlite3/test.db** preventing the modification of your production db **db/sqlite3/basil.db**
 

@@ -295,7 +295,7 @@ export const loadUserFiles = (_auth, _setFiles, _filter = '', _path = '', _recur
   let url = API_BASE_URL + API_USER_FILES_ENDPOINT
   url += '?user-id=' + _auth.userId
   url += '&token=' + _auth.token
-  url += '&filter=' + (_filter ? _filter : '')
+  url += '&filter=' + encodeURIComponent(_filter ? _filter : '')
   if (_path) {
     url += '&path=' + encodeURIComponent(_path)
   }
@@ -346,6 +346,33 @@ export const downloadUserFile = (_auth, relativePath: string, downloadName: stri
       a.click()
       a.remove()
       window.URL.revokeObjectURL(objectUrl)
+    })
+    .catch((err) => {
+      console.log(err.message)
+    })
+}
+
+export const searchUserFiles = (_auth, _setFiles, _search, _path = '') => {
+  if (!_auth.isLogged()) {
+    return
+  }
+  let url = API_BASE_URL + API_USER_FILES_ENDPOINT
+  url += '?user-id=' + _auth.userId
+  url += '&token=' + _auth.token
+  url += '&search=' + encodeURIComponent(_search)
+  if (_path) {
+    url += '&path=' + encodeURIComponent(_path)
+  }
+  fetch(url, {
+    method: 'GET',
+    headers: JSON_HEADER
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      for (let i = 0; i < data.length; i++) {
+        data[i]['filename'] = data[i]['name'] || getFilenameFromFilepath(data[i]['filepath'])
+      }
+      _setFiles(data)
     })
     .catch((err) => {
       console.log(err.message)

@@ -11,7 +11,6 @@ export interface UserFilesListingTableProps {
   modalRelativePath
   userFiles
   setModalShowState
-  searchValue?: string
   currentPath: string
   navigateTo: (path: string) => void
 }
@@ -22,7 +21,6 @@ const UserFilesListingTable: React.FunctionComponent<UserFilesListingTableProps>
   modalFileName,
   modalRelativePath,
   setModalShowState,
-  searchValue = '',
   currentPath,
   navigateTo
 }: UserFilesListingTableProps) => {
@@ -32,7 +30,7 @@ const UserFilesListingTable: React.FunctionComponent<UserFilesListingTableProps>
         <Tbody>
           <Tr>
             <Td colSpan={4} style={{ textAlign: 'center', color: '#6a6e73', padding: '24px' }}>
-              {searchValue ? `No files match "${searchValue}"` : 'This folder is empty'}
+              This folder is empty
             </Td>
           </Tr>
         </Tbody>

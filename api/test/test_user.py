@@ -183,6 +183,8 @@ def test_get_users_ok_response_has_full_data_fields(client, admin_authentication
         assert "enabled" in user_dict
         assert "created_at" in user_dict
         assert "updated_at" in user_dict
+        assert "spdx_signature" in user_dict
+        assert user_dict["spdx_signature"]
 
 
 def test_get_users_ok_sorted_by_role_and_username(client, admin_authentication, ut_user_db):
@@ -210,7 +212,7 @@ def test_put_user_bad_request_missing_field(client, user_authentication, missing
 
 
 def test_put_user_bad_request_no_changes(client, user_authentication):
-    """PUT without username or password returns 400."""
+    """PUT without username, password, or spdx_signature returns 400."""
     uid, token = _auth_fields(user_authentication)
     response = _put_user(client, uid, token)
     assert response.status_code == HTTPStatus.BAD_REQUEST
@@ -306,6 +308,77 @@ def test_put_user_ok_change_password(client, client_db, ut_user_db):
     restored = _get_user_by_id(client_db, uid2)
     original_encoded = base64.b64encode(UT_USER_PASSWORD.encode("utf-8")).decode("utf-8")
     assert restored.pwd == original_encoded
+
+
+# -- Edit SPDX signature --
+
+@pytest.mark.parametrize("bad_signature", ["ab", "x", "", "   "])
+def test_put_user_bad_request_spdx_signature_too_short(
+    client, client_db, ut_user_db, bad_signature
+):
+    uid, token = _fresh_login(client, UT_USER_EMAIL, UT_USER_PASSWORD)
+    response = _put_user(client, uid, token, spdx_signature=bad_signature)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_put_user_bad_request_spdx_signature_too_long(client, client_db, ut_user_db):
+    uid, token = _fresh_login(client, UT_USER_EMAIL, UT_USER_PASSWORD)
+    response = _put_user(client, uid, token, spdx_signature="s" * 256)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_put_user_bad_request_spdx_signature_duplicate(
+    client, client_db, ut_user_db, ut_reader_user_db
+):
+    """Cannot change to an SPDX signature already in use."""
+    uid, token = _fresh_login(client, UT_USER_EMAIL, UT_USER_PASSWORD)
+    response = _put_user(
+        client, uid, token, spdx_signature=ut_reader_user_db.spdx_signature
+    )
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_put_user_ok_change_spdx_signature(client, client_db, ut_user_db):
+    uid, token = _fresh_login(client, UT_USER_EMAIL, UT_USER_PASSWORD)
+    original = _get_user_by_id(client_db, uid).spdx_signature
+    new_signature = "Jane Doe (jane@example.com)"
+    try:
+        response = _put_user(client, uid, token, spdx_signature=new_signature)
+        assert response.status_code == HTTPStatus.OK
+        data = response.get_json()
+        assert data["result"] == "success"
+        assert data["spdx_signature"] == new_signature
+        assert "signature" in data["message"].lower()
+
+        updated = _get_user_by_id(client_db, uid)
+        assert updated.spdx_signature == new_signature
+    finally:
+        restore_uid, restore_token = _fresh_login(client, UT_USER_EMAIL, UT_USER_PASSWORD)
+        restore = _put_user(
+            client, restore_uid, restore_token, spdx_signature=original
+        )
+        assert restore.status_code == HTTPStatus.OK
+        restored = _get_user_by_id(client_db, restore_uid)
+        assert restored.spdx_signature == original
+
+
+def test_users_have_unique_default_spdx_signatures(
+    client_db, ut_user_db, ut_reader_user_db
+):
+    """Every user, including the admin created at DB init, has a unique signature."""
+    users = client_db.session.query(UserModel).all()
+    signatures = [u.spdx_signature for u in users]
+    assert all(signatures), "Every user must have an SPDX signature"
+    assert len(signatures) == len(set(signatures))
+
+    admin = (
+        client_db.session.query(UserModel)
+        .filter(UserModel.email == "admin")
+        .filter(UserModel.role == "ADMIN")
+        .one()
+    )
+    assert admin.spdx_signature
+    assert admin.spdx_signature != ut_user_db.spdx_signature
 
 
 # ===================================================================

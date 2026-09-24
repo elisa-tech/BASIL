@@ -124,7 +124,7 @@ def api_document_db(client_db, utilities, ut_user_db):
         f"doc #{utilities.generate_random_hex_string8()}",
         "unit test document",
         "file",
-        "relates-to",
+        "other",
         raw_path,
         _UT_SPEC_SECTION,
         _UT_RAW_SPEC.find(_UT_SPEC_SECTION),

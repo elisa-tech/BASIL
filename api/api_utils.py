@@ -905,116 +905,69 @@ def is_safe_local_user_file_path(path: str) -> bool:
     return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)
 
 
-# Fuzzy path matching, used by the user files search to rank entries the way a
-# code forge file finder does: the query characters must appear in the relative
-# path in order, but not necessarily next to each other.
-FUZZY_CHAR_SCORE = 16
-FUZZY_CONSECUTIVE_BONUS = 8
-FUZZY_BOUNDARY_BONUS = 8
-FUZZY_BASENAME_BONUS = 4
-FUZZY_EXACT_BONUS = 32
-FUZZY_GAP_PENALTY = 1
-FUZZY_MAX_GAP_PENALTY = 12
-FUZZY_WORD_SEPARATORS = "/\\_-. "
+# Path matching used by the user files search. The query is split on spaces
+# and every word has to appear, as is, somewhere in the relative path of an
+# entry, in any order. Matches are scored so that the best ones come first.
+SEARCH_CHAR_SCORE = 16
+SEARCH_BOUNDARY_BONUS = 8
+SEARCH_BASENAME_BONUS = 4
+SEARCH_WORD_SEPARATORS = "/\\_-. "
 
 
-def _fuzzy_score(text: str, indices: list) -> int:
-    """Score a set of matched positions: reward characters that are adjacent,
-    that start a word and that belong to the entry name rather than its folders.
+def _search_score(text: str, indices: list) -> int:
+    """Score the matched positions of a word: reward the characters that start
+    a word and the ones that belong to the entry name rather than its folders.
     """
     basename_start = text.rfind("/") + 1
     score = 0
-    previous = None
 
     for index in indices:
-        score += FUZZY_CHAR_SCORE
+        score += SEARCH_CHAR_SCORE
 
-        if previous is not None:
-            gap = index - previous - 1
-            if gap == 0:
-                score += FUZZY_CONSECUTIVE_BONUS
-            else:
-                score -= min(gap * FUZZY_GAP_PENALTY, FUZZY_MAX_GAP_PENALTY)
-
-        if index == 0 or text[index - 1] in FUZZY_WORD_SEPARATORS:
-            score += FUZZY_BOUNDARY_BONUS
+        if index == 0 or text[index - 1] in SEARCH_WORD_SEPARATORS:
+            score += SEARCH_BOUNDARY_BONUS
         elif text[index - 1].islower() and text[index].isupper():
-            score += FUZZY_BOUNDARY_BONUS
+            score += SEARCH_BOUNDARY_BONUS
 
         if index >= basename_start:
-            score += FUZZY_BASENAME_BONUS
-
-        previous = index
+            score += SEARCH_BASENAME_BONUS
 
     return score
 
 
-def _fuzzy_subsequence_indices(query: str, text: str):
-    """Return the positions of *query* in *text* as a subsequence, or None.
-
-    A greedy pass from the left finds where the leftmost possible match ends,
-    then a second pass walks back from that position so the matched characters
-    end up as close together as possible. Matching "kreq" against
-    "specs/kernel/requirements.yaml" that way highlights "k" plus "req" instead
-    of four characters scattered over "kernel".
-    """
-    query_index = 0
-    match_end = -1
-
-    for text_index, char in enumerate(text):
-        if char == query[query_index]:
-            query_index += 1
-            if query_index == len(query):
-                match_end = text_index
-                break
-
-    if match_end == -1:
-        return None
-
-    query_index = len(query) - 1
-    indices = []
-
-    for text_index in range(match_end, -1, -1):
-        if text[text_index] == query[query_index]:
-            indices.append(text_index)
-            query_index -= 1
-            if query_index < 0:
-                break
-
-    indices.reverse()
-    return indices
-
-
-def fuzzy_path_match(query: str, text: str):
-    """Match *query* against *text*, case insensitively.
+def search_path_match(query: str, text: str):
+    """Match the space separated words of *query* against *text*, case
+    insensitively. Every word has to appear in *text*, in any order.
 
     Returns a ``(score, indices)`` tuple, where *indices* are the matched
-    positions in *text*, or None when *text* does not match at all. A literal
-    substring always outranks a scattered match of the same query.
+    positions in *text*, or None when a word does not appear at all. When a word
+    appears more than once, its best scoring occurrence is used.
     """
-    if not query:
+    words = query.lower().split()
+    if not words:
         return None
 
-    lower_query = query.lower()
     lower_text = text.lower()
-    best = None
+    total_score = 0
+    matched_indices = set()
 
-    start = lower_text.find(lower_query)
-    while start != -1:
-        indices = list(range(start, start + len(lower_query)))
-        score = _fuzzy_score(text, indices) + FUZZY_EXACT_BONUS
-        if best is None or score > best[0]:
-            best = (score, indices)
-        start = lower_text.find(lower_query, start + 1)
+    for word in words:
+        best = None
+        start = lower_text.find(word)
+        while start != -1:
+            indices = list(range(start, start + len(word)))
+            score = _search_score(text, indices)
+            if best is None or score > best[0]:
+                best = (score, indices)
+            start = lower_text.find(word, start + 1)
 
-    if best is not None:
-        return best
+        if best is None:
+            return None
 
-    indices = _fuzzy_subsequence_indices(lower_query, lower_text)
-    if indices is None:
-        return None
+        total_score += best[0]
+        matched_indices.update(best[1])
 
-    return (_fuzzy_score(text, indices), indices)
+    return (total_score, sorted(matched_indices))
 
 
 def extend_unmapped_sections_for_auto_fix(unmapped_sections: list, api_specification: str) -> list:

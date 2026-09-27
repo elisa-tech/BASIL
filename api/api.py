@@ -79,7 +79,6 @@ from api_utils import (
     combine_tmt_path,
     document_to_html,
     extend_unmapped_sections_for_auto_fix,
-    fuzzy_path_match,
     get_api_specification,
     get_custom_actions,
     get_html_email_body_from_template,
@@ -100,6 +99,7 @@ from api_utils import (
     read_file,
     require_user_files_write_user,
     justification_to_html,
+    search_path_match,
     sw_requirement_to_html,
     test_specification_to_html,
     test_case_to_html,
@@ -10004,8 +10004,11 @@ class UserFiles(Resource):
         if search:
             # Search matches the whole relative path, so a file is found by the
             # name of any folder on its way down too, and it returns folders as
-            # well as files. Results are ranked by how well they match instead
-            # of being listed alphabetically.
+            # well as files. The query can hold several words, which all have to
+            # appear in the path. Results are ranked by how well they match
+            # instead of being listed alphabetically. The whole tree under the
+            # path is searched whatever "recursive" says, and "filter" does not
+            # apply.
             for root, _dirs, files in os.walk(listing_path):
                 _dirs[:] = [d for d in _dirs if not d.startswith(".")]
                 entries = [(d, "directory") for d in _dirs] + [(f, "file") for f in files]
@@ -10015,7 +10018,7 @@ class UserFiles(Resource):
 
                     full = os.path.join(root, entry_name)
                     rel = os.path.relpath(full, user_files_path)
-                    match = fuzzy_path_match(search, rel)
+                    match = search_path_match(search, rel)
                     if match is None:
                         continue
 

@@ -38,9 +38,9 @@ const UserFiles: React.FunctionComponent = () => {
   }, [currentPath])
 
   // Searching is done by the backend, from the user root: it walks every
-  // folder, matches the query against the whole relative path of each file and
-  // folder, and ranks what it finds. So it is not limited to the folder
-  // currently browsed, nor to entry names.
+  // folder, looks for each word of the query in the whole relative path of each
+  // file and folder, and ranks what it finds. So it is not limited to the
+  // folder currently browsed, nor to entry names.
   React.useEffect(() => {
     if (!isSearchActive) {
       setSearchResults([])

@@ -254,15 +254,28 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       .should('exist')
   })
 
-  it('Search matches characters that are not adjacent', () => {
-    // "tfnf<UNIQUE>" is not a substring of anything: the characters only
-    // appear in that order along test_folder_<UNIQUE>/nested_file_<UNIQUE>.
-    cy.get('#input-user-files-search input').clear({ force: true }).type('tfnf' + UNIQUE, { force: true })
+  it('Search matches several words in any order', () => {
+    // Each word has to appear somewhere in the path, whatever the order:
+    // "nested" is in the file name, "test_folder" in the folder holding it.
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('nested ' + UNIQUE + ' test_folder', { force: true })
     cy.wait(const_data.long_wait)
     cy.get('#table-user-files-search-results')
       .find('tbody')
       .contains('nested_file_' + UNIQUE + '.yaml')
       .should('exist')
+    cy.get('#user-files-search-summary').should('contain.text', '1 result matching')
+  })
+
+  it('Search does not match scattered characters within a word', () => {
+    // "tfnf<UNIQUE>" is not a substring of anything, so nothing matches even
+    // though its characters appear in order along the path.
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('tfnf' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results').find('tbody').should('contain.text', 'Nothing matches')
   })
 
   it('Search highlights the characters that matched', () => {

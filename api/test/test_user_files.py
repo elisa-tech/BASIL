@@ -348,17 +348,28 @@ def test_user_files_search_returns_folders_too(client, user_authentication, ut_s
     assert f"{UT_PREFIX}{suffix}_specs/kernel" in folders
 
 
-def test_user_files_search_matches_non_adjacent_characters(client, user_authentication, ut_search_tree):
-    """Characters of the query only need to appear in order."""
+def test_user_files_search_matches_several_words_in_any_order(client, user_authentication, ut_search_tree):
+    """Every word of the query has to appear in the path, in any order."""
     auth = user_authentication.json
     suffix, _specs, _docs = ut_search_tree
 
-    response = get_files(client, auth, extra_query={"search": f"{suffix}krq"})
-    assert response.status_code == HTTPStatus.OK
-    paths = [r["relative_path"] for r in response.get_json()]
+    for query in (f"{suffix} kernel req", f"req kernel {suffix}"):
+        response = get_files(client, auth, extra_query={"search": query})
+        assert response.status_code == HTTPStatus.OK
+        paths = [r["relative_path"] for r in response.get_json()]
 
-    assert f"{UT_PREFIX}{suffix}_specs/kernel/requirements.yaml" in paths
-    assert f"{UT_PREFIX}{suffix}_docs/report.md" not in paths
+        assert paths == [f"{UT_PREFIX}{suffix}_specs/kernel/requirements.yaml"]
+
+
+def test_user_files_search_does_not_match_scattered_characters(client, user_authentication, ut_search_tree):
+    """Within a word, the characters have to be next to each other: "krq" is
+    not a substring of anything in the tree."""
+    auth = user_authentication.json
+    suffix, _specs, _docs = ut_search_tree
+
+    response = get_files(client, auth, extra_query={"search": f"{suffix} krq"})
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == []
 
 
 def test_user_files_search_is_case_insensitive(client, user_authentication, ut_search_tree):
@@ -374,7 +385,7 @@ def test_user_files_search_is_case_insensitive(client, user_authentication, ut_s
 
 def test_user_files_search_returns_the_results_ranked(client, user_authentication, ut_search_tree):
     """Results come back best first. How a single entry is scored is covered by
-    the fuzzy_path_match tests; what matters here is that the ranking is applied
+    the search_path_match tests; what matters here is that the ranking is applied
     and that, between two equally good matches, the shortest path wins."""
     auth = user_authentication.json
     suffix, _specs, _docs = ut_search_tree

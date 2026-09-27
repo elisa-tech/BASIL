@@ -7,8 +7,6 @@ import {
   Form,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   HelperText,
   HelperTextItem,
   Hint,
@@ -18,6 +16,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import * as Constants from '../../Constants/constants'
+import { UserFileSelect } from '../../UserFiles/UserFileSelect'
 import { useAuth } from '../../User/AuthProvider'
 
 export interface APIFormProps {
@@ -480,18 +479,13 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             onKeyUp={handleSwComponentUrlKeyUp}
           />
         ) : (
-          <FormSelect
-            value={referenceFileName}
+          <UserFileSelect
             id={`select-api-${formAction}-raw-specification-path-${formData.id}`}
+            value={referenceFileName}
+            userFiles={userFiles}
             onChange={handleReferenceFileNameChange}
-            onKeyUp={handleSwComponentUrlKeyUp}
-            aria-label='Software specification from user file'
-          >
-            <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
-            {userFiles.map((userFile, index) => (
-              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
-            ))}
-          </FormSelect>
+            ariaLabel='Software specification from user file'
+          />
         )}
         {validatedReferenceValue !== 'success' && (
           <FormHelperText>
@@ -534,18 +528,13 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
             onKeyUp={handleSwComponentImplementationFileKeyUp}
           />
         ) : (
-          <FormSelect
-            value={implementationFileName}
+          <UserFileSelect
             id={`select-api-${formAction}-implementation-file-path-${formData.id}`}
+            value={implementationFileName}
+            userFiles={userFiles}
             onChange={handleImplementationFileNameChange}
-            onKeyUp={handleSwComponentImplementationFileKeyUp}
-            aria-label='Implementation from user file'
-          >
-            <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
-            {userFiles.map((userFile, index) => (
-              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
-            ))}
-          </FormSelect>
+            ariaLabel='Implementation from user file'
+          />
         )}
       </FormGroup>
       <FormGroup

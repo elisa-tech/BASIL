@@ -4,6 +4,7 @@ import { UserFilesMenuKebab } from './Menu/UserFilesMenuKebab'
 import FileIcon from '@patternfly/react-icons/dist/esm/icons/file-icon'
 import FolderIcon from '@patternfly/react-icons/dist/esm/icons/folder-icon'
 import { Button } from '@patternfly/react-core'
+import { UserFilePath } from './UserFilePath'
 
 export interface UserFilesSearchResultsTableProps {
   modalAction
@@ -16,52 +17,10 @@ export interface UserFilesSearchResultsTableProps {
   navigateTo: (path: string) => void
 }
 
-interface PathSegment {
-  text: string
-  isMatch: boolean
-  isName: boolean
-}
-
 const getFolderPath = (relativePath: string) => {
   const separatorIndex = relativePath.lastIndexOf('/')
   return separatorIndex === -1 ? '' : relativePath.substring(0, separatorIndex)
 }
-
-// The API reports which characters of the relative path the search matched, so
-// a fuzzy match can be highlighted exactly where it hit. The folders are
-// dimmed and the entry name is bold, like the file finder of a code forge.
-const getPathSegments = (relativePath: string, matchIndices: number[]): PathSegment[] => {
-  const matched = new Set(matchIndices)
-  const nameStart = relativePath.lastIndexOf('/') + 1
-  const segments: PathSegment[] = []
-
-  for (let i = 0; i < relativePath.length; i++) {
-    const isMatch = matched.has(i)
-    const isName = i >= nameStart
-    const previous = segments[segments.length - 1]
-    if (previous && previous.isMatch === isMatch && previous.isName === isName) {
-      previous.text += relativePath[i]
-    } else {
-      segments.push({ text: relativePath[i], isMatch, isName })
-    }
-  }
-
-  return segments
-}
-
-const renderPath = (relativePath: string, matchIndices: number[]) =>
-  getPathSegments(relativePath, matchIndices || []).map((segment, index) => (
-    <span
-      key={index}
-      style={{
-        color: segment.isName ? 'inherit' : '#6a6e73',
-        fontWeight: segment.isName ? 600 : 400,
-        backgroundColor: segment.isMatch ? '#f0ab00' : 'transparent'
-      }}
-    >
-      {segment.text}
-    </span>
-  ))
 
 const UserFilesSearchResultsTable: React.FunctionComponent<UserFilesSearchResultsTableProps> = ({
   userFiles,
@@ -117,7 +76,7 @@ const UserFilesSearchResultsTable: React.FunctionComponent<UserFilesSearchResult
                 onClick={() => navigateTo(destination)}
                 title={isDirectory ? 'Open this folder' : 'Open the folder of this file'}
               >
-                {renderPath(userFile.relative_path, userFile.match_indices)}
+                <UserFilePath relativePath={userFile.relative_path} matchIndices={userFile.match_indices} />
               </Button>
             </Td>
             <Td dataLabel='updated_at'>{userFile.updated_at}</Td>

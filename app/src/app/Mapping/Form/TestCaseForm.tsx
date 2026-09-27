@@ -1,5 +1,6 @@
 import React from 'react'
 import * as Constants from '../../Constants/constants'
+import { UserFileSelect } from '../../UserFiles/UserFileSelect'
 import {
   ActionGroup,
   Button,
@@ -630,18 +631,13 @@ export const TestCaseForm: React.FunctionComponent<TestCaseFormProps> = ({
           </>
         ) : (
           <>
-            <FormSelect
-              value={implementationFilePath}
+            <UserFileSelect
               id={`${SELECT_BASE_NAME}-${formAction}-file-${formData.id}`}
-              onChange={(event, value) => handleImplementationFilePathChange(event, value)}
-              onKeyUp={(event) => handleRepositoryKeyUp(event)}
-              aria-label='Test Case from user file'
-            >
-              <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
-              {userFiles.map((userFile, index) => (
-                <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
-              ))}
-            </FormSelect>
+              value={implementationFilePath}
+              userFiles={userFiles}
+              onChange={handleImplementationFilePathChange}
+              ariaLabel='Test Case from user file'
+            />
             {validatedImplementationFilePath !== 'success' && (
               <FormHelperText>
                 <HelperText>

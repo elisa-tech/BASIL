@@ -369,6 +369,10 @@ export const searchUserFiles = (_auth, _setFiles, _search, _path = '') => {
   })
     .then((res) => res.json())
     .then((data) => {
+      // an error comes back as an object describing it, not as a list
+      if (!Array.isArray(data)) {
+        data = []
+      }
       for (let i = 0; i < data.length; i++) {
         data[i]['filename'] = data[i]['name'] || getFilenameFromFilepath(data[i]['filepath'])
       }

@@ -522,28 +522,24 @@ export function registerCommands() {
       .type(String(_obj.coverage))
       .should('have.value', String(_obj.coverage))
 
+    // The user file picker is searchable: type the file name, then pick it.
+    const picker = '[id*="select-test-case-' + _action + '-file-"][data-value]'
     cy.get('#btn-mapping-test-case-from-user-files').click()
-    cy.get('[id*="select-test-case-' + _action + '-file-"]', { timeout: 15000 }).should('be.visible')
-    cy.get('[id*="select-test-case-' + _action + '-file-"] option', { timeout: 15000 }).should(($opts) => {
-      expect($opts.length).to.be.greaterThan(1)
-      const texts = [...$opts].map((o) => o.textContent || '')
-      expect(
-        texts.some((t) => t.includes(_filename)),
-        'user file ' + _filename + ' in select options'
-      ).to.eq(true)
-    })
-    cy.get('[id*="select-test-case-' + _action + '-file-"] option').then(($opts) => {
-      const match = [...$opts].find((o) => (o.textContent || '').includes(_filename))
-      expect(match, 'option for ' + _filename).to.exist
-      cy.get('[id*="select-test-case-' + _action + '-file-"]').select(match.value)
-    })
+    cy.get(picker + ' input', { timeout: 15000 })
+      .should('be.visible')
+      .clear()
+      .type(_filename)
+    cy.get('[id*="select-test-case-' + _action + '-file-"][id$="-listbox"]')
+      .contains('li', _filename, { timeout: 15000 })
+      .click()
+    cy.get(picker).should('have.attr', 'data-value').and('not.equal', '')
   })
 
   Cypress.Commands.add('submit_test_case_from_user_file', (_action, _method) => {
     const alias = 'saveTestCaseFromUserFile'
     cy.intercept({ method: _method, url: '**/mapping/**/test-cases' }).as(alias)
-    cy.get('[id*="select-test-case-' + _action + '-file-"]')
-      .invoke('val')
+    cy.get('[id*="select-test-case-' + _action + '-file-"][data-value]')
+      .invoke('attr', 'data-value')
       .then((filepath) => {
         expect(filepath, 'selected user-file filepath').to.be.a('string').and.not.equal('')
         cy.get('#btn-mapping-test-case-submit').click()

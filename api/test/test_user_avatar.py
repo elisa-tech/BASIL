@@ -1,14 +1,18 @@
 """HTTP tests for UserAvatar (/user/avatar)."""
 import base64
+import io
+import json
 import os
 from http import HTTPStatus
 
 import pytest
 
 import api as basil_api
+import api_utils
 from api_utils import (
     USER_AVATAR_BUILTIN_NAMES,
     USER_AVATAR_CONFIG_FILENAME,
+    USER_AVATAR_MAX_REQUEST_SIZE,
     USER_AVATAR_MAX_SIZE,
     get_image_type,
 )
@@ -39,6 +43,15 @@ def clean_avatar(client, user_authentication):
     body = auth_query(user_authentication.json)
     client.delete(USER_AVATAR_URL, json=body)
     yield user_authentication.json
+    client.delete(USER_AVATAR_URL, json=body)
+
+
+@pytest.fixture()
+def clean_reader_avatar(client, reader_authentication):
+    """Reset the avatar of the UT reader user before and after each test"""
+    body = auth_query(reader_authentication.json)
+    client.delete(USER_AVATAR_URL, json=body)
+    yield reader_authentication.json
     client.delete(USER_AVATAR_URL, json=body)
 
 
@@ -167,6 +180,44 @@ def test_user_avatar_delete(client, clean_avatar):
     assert not os.path.exists(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME))
 
 
+def test_user_avatar_custom_replaces_custom_of_other_type(client, clean_avatar):
+    gif_content = b"GIF89a" + b"\0" * 8
+    put_avatar(client, clean_avatar, type="custom", data=data_url(PNG_CONTENT))
+    response = put_avatar(client, clean_avatar, type="custom", data=data_url(gif_content, mime="image/gif"))
+    assert response.status_code == HTTPStatus.OK
+
+    config_dir = user_config_dir(clean_avatar["id"])
+    assert os.path.isfile(os.path.join(config_dir, "avatar.gif"))
+    assert not os.path.exists(os.path.join(config_dir, "avatar.png"))
+
+
+@pytest.mark.parametrize("new_avatar", [
+    {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[1]},
+    {"type": "custom", "data": data_url(b"GIF89a" + b"\0" * 8, mime="image/gif")},
+], ids=["builtin", "custom"])
+def test_user_avatar_failed_write_keeps_previous_avatar(client, clean_avatar, monkeypatch, new_avatar):
+    """If the new avatar cannot be written, the previous one is still there"""
+    put_avatar(client, clean_avatar, type="custom", data=data_url(PNG_CONTENT))
+
+    def failing_write(path, content):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(api_utils, "write_file_atomically", failing_write)
+    with pytest.raises(OSError):
+        put_avatar(client, clean_avatar, **new_avatar)
+    monkeypatch.undo()
+
+    response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_avatar))
+    assert response.get_json() == {"type": "custom", "data": data_url(PNG_CONTENT)}
+
+
+def test_user_avatar_no_temporary_files_left(client, clean_avatar):
+    put_avatar(client, clean_avatar, type="custom", data=data_url(PNG_CONTENT))
+    put_avatar(client, clean_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[0])
+    config_dir = user_config_dir(clean_avatar["id"])
+    assert not [f for f in os.listdir(config_dir) if f.endswith(".tmp")]
+
+
 def test_user_avatar_corrupted_config_returns_default(client, clean_avatar):
     config_dir = user_config_dir(clean_avatar["id"])
     os.makedirs(config_dir, exist_ok=True)
@@ -175,6 +226,91 @@ def test_user_avatar_corrupted_config_returns_default(client, clean_avatar):
     response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_avatar))
     assert response.status_code == HTTPStatus.OK
     assert response.get_json() == {"type": "default"}
+
+
+# ---------------------------------------------------------------------------
+# Request size
+# ---------------------------------------------------------------------------
+
+def test_user_avatar_put_request_too_big(client, clean_avatar):
+    """Big requests are rejected before the body is parsed"""
+    body = json.dumps({**auth_query(clean_avatar), "type": "custom",
+                       "data": "A" * USER_AVATAR_MAX_REQUEST_SIZE})
+    response = client.put(USER_AVATAR_URL, data=body, content_type="application/json")
+    assert response.status_code == HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+
+    response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_avatar))
+    assert response.get_json() == {"type": "default"}
+
+
+def test_user_avatar_put_request_without_content_length(client, clean_avatar):
+    """Chunked requests have no Content-Length, so their size cannot be checked upfront"""
+    body = json.dumps({**auth_query(clean_avatar), "type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[0]})
+    response = client.put(USER_AVATAR_URL, input_stream=io.BytesIO(body.encode("utf-8")),
+                          content_type="application/json", headers={"Transfer-Encoding": "chunked"})
+    assert response.status_code == HTTPStatus.LENGTH_REQUIRED
+
+
+def test_user_avatar_put_max_size_image_fits_in_request(client, clean_avatar):
+    """An image of the maximum allowed size is not rejected by the request size limit"""
+    content = PNG_CONTENT + b"\0" * (USER_AVATAR_MAX_SIZE - len(PNG_CONTENT))
+    response = put_avatar(client, clean_avatar, type="custom", data=data_url(content))
+    assert response.status_code == HTTPStatus.OK
+
+
+# ---------------------------------------------------------------------------
+# Avatar of other users
+# ---------------------------------------------------------------------------
+
+def other_user_query(auth_json, target_user_id):
+    return {**auth_query(auth_json), "target-user-id": target_user_id}
+
+
+def test_user_avatar_get_other_user(client, clean_avatar, clean_reader_avatar):
+    put_avatar(client, clean_reader_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[2])
+
+    response = client.get(USER_AVATAR_URL, query_string=other_user_query(clean_avatar, clean_reader_avatar["id"]))
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[2]}
+
+    # The avatar of the current user is not affected
+    response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_avatar))
+    assert response.get_json() == {"type": "default"}
+
+
+def test_user_avatar_get_other_user_custom(client, clean_avatar, clean_reader_avatar):
+    put_avatar(client, clean_reader_avatar, type="custom", data=data_url(PNG_CONTENT))
+    response = client.get(USER_AVATAR_URL, query_string=other_user_query(clean_avatar, clean_reader_avatar["id"]))
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == {"type": "custom", "data": data_url(PNG_CONTENT)}
+
+
+def test_user_avatar_get_other_user_unauthorized(client, clean_reader_avatar):
+    response = client.get(USER_AVATAR_URL, query_string={"user-id": clean_reader_avatar["id"],
+                                                         "token": "invalid-token",
+                                                         "target-user-id": clean_reader_avatar["id"]})
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+
+
+def test_user_avatar_get_other_user_not_found(client, clean_avatar):
+    response = client.get(USER_AVATAR_URL, query_string=other_user_query(clean_avatar, 999999))
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_user_avatar_get_other_user_invalid_id(client, clean_avatar):
+    response = client.get(USER_AVATAR_URL, query_string=other_user_query(clean_avatar, "not-a-number"))
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+
+def test_user_avatar_other_user_cannot_be_modified(client, clean_avatar, clean_reader_avatar):
+    """PUT and DELETE only act on the user identified by user-id and token"""
+    put_avatar(client, clean_reader_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[3])
+    put_avatar(client, clean_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[0],
+               **{"target-user-id": clean_reader_avatar["id"]})
+    client.delete(USER_AVATAR_URL, json={**auth_query(clean_avatar), "target-user-id": clean_reader_avatar["id"]})
+
+    response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_reader_avatar))
+    assert response.get_json() == {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[3]}
 
 
 # ---------------------------------------------------------------------------

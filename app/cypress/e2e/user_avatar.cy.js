@@ -73,6 +73,39 @@ describe('User Avatar', { testIsolation: false }, () => {
       .and('match', /^data:image\/png;base64,/)
   })
 
+  it('Upload an image reported as image/jpg', () => {
+    // image/jpg is not a registered mime type but some systems report it for .jpg files
+    openAvatarTab()
+    cy.get('#tabUserEditAvatar .pf-v5-c-file-upload input[type="file"]').selectFile(
+      {
+        contents: Cypress.Buffer.from('ffd8ffe000104a46494600', 'hex'),
+        fileName: 'avatar.jpg',
+        mimeType: 'image/jpg'
+      },
+      { force: true }
+    )
+    cy.wait(const_data.fast_wait)
+    cy.get('#user-avatar-upload-helper').should('not.contain.text', 'Supported formats are')
+    saveAvatar()
+    closeProfile()
+    cy.get('#header-user-avatar')
+      .should('have.attr', 'src')
+      .and('match', /^data:image\/jpeg;base64,/)
+  })
+
+  it('Show the avatar in the user management table', () => {
+    cy.get('#header-user-avatar')
+      .invoke('attr', 'src')
+      .then((src) => {
+        cy.get('#nav-item-user-management').click()
+        cy.wait(const_data.mid_wait)
+        cy.get('#table-user-management')
+          .contains('td[data-label="username"]', const_data.users.admin.username)
+          .find('.user-avatar-icon')
+          .should('have.attr', 'src', src)
+      })
+  })
+
   it('Reject an unsupported file', () => {
     openAvatarTab()
     cy.get('#tabUserEditAvatar .pf-v5-c-file-upload input[type="file"]').selectFile(

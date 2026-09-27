@@ -774,6 +774,9 @@ USER_AVATAR_CONFIG_FILENAME = "avatar.json"
 USER_AVATAR_IMAGE_BASENAME = "avatar"
 USER_AVATAR_BUILTIN_NAMES = ["blue", "cyan", "green", "orange", "purple", "red"]
 USER_AVATAR_MAX_SIZE = 512 * 1024  # bytes
+# Maximum size of the PUT /user/avatar request body: the image encoded as
+# base64 (4/3 of USER_AVATAR_MAX_SIZE) plus room for the other fields
+USER_AVATAR_MAX_REQUEST_SIZE = 1024 * 1024  # bytes
 USER_AVATAR_IMAGE_TYPES = {
     "png": "image/png",
     "jpeg": "image/jpeg",
@@ -797,10 +800,26 @@ def get_image_type(content: bytes):
     return None
 
 
-def delete_user_avatar(user: UserModel):
-    """Remove the avatar configuration and the uploaded image of the user"""
+def write_file_atomically(path: str, content: bytes):
+    """Write content to path through a temporary file, so that path holds
+    either the previous content or the new one, never a partial write"""
+    tmp_path = f"{path}.tmp"
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(content)
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+def delete_user_avatar(user: UserModel, keep: tuple = ()):
+    """Remove the avatar configuration and the uploaded image of the user,
+    except the files listed in keep"""
     config_dir = get_user_config_folder_path(user)
     for filename in os.listdir(config_dir):
+        if filename in keep:
+            continue
         if filename == USER_AVATAR_CONFIG_FILENAME or \
                 os.path.splitext(filename)[0] == USER_AVATAR_IMAGE_BASENAME:
             os.remove(os.path.join(config_dir, filename))
@@ -850,15 +869,18 @@ def set_user_avatar(user: UserModel, avatar_type: str, name: str = None, data: s
     - avatar_type "builtin": name must be one of USER_AVATAR_BUILTIN_NAMES
     - avatar_type "custom": data must be an image encoded as base64 data URL
 
+    The previous avatar is removed only once the new one is stored, so a
+    failed write leaves the previous avatar in place.
+
     Return an error message, or None on success"""
     config_dir = get_user_config_folder_path(user)
+    config_path = os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME)
 
     if avatar_type == "builtin":
         if name not in USER_AVATAR_BUILTIN_NAMES:
             return f"Unknown avatar name. Supported names: {', '.join(USER_AVATAR_BUILTIN_NAMES)}"
-        delete_user_avatar(user)
-        with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
-            json.dump({"type": "builtin", "name": name}, f)
+        write_file_atomically(config_path, json.dumps({"type": "builtin", "name": name}).encode("utf-8"))
+        delete_user_avatar(user, keep=(USER_AVATAR_CONFIG_FILENAME,))
         return None
 
     if avatar_type == "custom":
@@ -876,12 +898,12 @@ def set_user_avatar(user: UserModel, avatar_type: str, name: str = None, data: s
         image_type = get_image_type(content)
         if not image_type:
             return f"Unsupported image format. Supported formats: {', '.join(USER_AVATAR_IMAGE_TYPES.keys())}"
-        delete_user_avatar(user)
         image_filename = f"{USER_AVATAR_IMAGE_BASENAME}.{image_type}"
-        with open(os.path.join(config_dir, image_filename), "wb") as f:
-            f.write(content)
-        with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
-            json.dump({"type": "custom", "filename": image_filename}, f)
+        # The image is written first: until the config is replaced, it still
+        # points to the previous avatar
+        write_file_atomically(os.path.join(config_dir, image_filename), content)
+        write_file_atomically(config_path, json.dumps({"type": "custom", "filename": image_filename}).encode("utf-8"))
+        delete_user_avatar(user, keep=(USER_AVATAR_CONFIG_FILENAME, image_filename))
         return None
 
     return "Unknown avatar type. Supported types: builtin, custom"

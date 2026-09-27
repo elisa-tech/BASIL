@@ -6,6 +6,7 @@ import { APIForm } from './Form/APIForm'
 import { ApiMenuKebab } from './Menu/ApiMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 import { useAuth } from '../User/AuthProvider'
+import { UserAvatarIcon } from '../User/Avatar/UserAvatarIcon'
 import { AttentionBellIcon } from '@patternfly/react-icons/dist/esm/icons/attention-bell-icon'
 import { EditIcon, EqualizerIcon, InboxIcon, PendingIcon } from '@patternfly/react-icons'
 
@@ -142,7 +143,12 @@ const APIListingTable: React.FunctionComponent<APIListingTableProps> = ({
                 dataRow.library_version
               )}
             </Td>
-            <Td dataLabel={columnNames.created_by}>{dataRow.created_by}</Td>
+            <Td dataLabel={columnNames.created_by}>
+              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
+                <UserAvatarIcon userId={dataRow.created_by_id} />
+                <span>{dataRow.created_by}</span>
+              </Flex>
+            </Td>
             <Td dataLabel={columnNames.category}>{dataRow.category}</Td>
             <Td dataLabel={columnNames.coverage}>
               <LeavesProgressBar progressValue={dataRow.covered} progressId={'api-coverage-' + dataRow.id} />

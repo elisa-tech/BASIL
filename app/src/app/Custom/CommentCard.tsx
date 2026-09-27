@@ -4,6 +4,7 @@ import * as Constants from '@app/Constants/constants'
 import { PencilAltIcon, TrashIcon } from '@patternfly/react-icons'
 import ReactMarkdown from 'react-markdown'
 import { useAuth } from '@app/User/AuthProvider'
+import { UserAvatarIcon } from '@app/User/Avatar/UserAvatarIcon'
 
 const CommentCard = ({
   api,
@@ -113,9 +114,12 @@ const CommentCard = ({
       <CardHeader>
         <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsFlexStart' }}>
           <Flex direction={{ default: 'column' }}>
-            <Text style={comment.created_by_id == auth.userId ? currentUserStyle : {}} component={TextVariants.h5}>
-              {comment.created_by}
-            </Text>
+            <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+              <UserAvatarIcon userId={comment.created_by_id} />
+              <Text style={comment.created_by_id == auth.userId ? currentUserStyle : {}} component={TextVariants.h5}>
+                {comment.created_by}
+              </Text>
+            </Flex>
             <Flex>
               <Text component={TextVariants.small} style={postedStyle}>
                 Posted on: {new Date(comment.created_at).toLocaleString()}

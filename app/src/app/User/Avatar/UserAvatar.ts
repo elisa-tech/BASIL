@@ -1,3 +1,4 @@
+import * as Constants from '@app/Constants/constants'
 import imgAvatarDefault from '@app/bgimages/avatarImg.svg'
 import imgAvatarBlue from '@app/bgimages/avatars/avatar_blue.svg'
 import imgAvatarCyan from '@app/bgimages/avatars/avatar_cyan.svg'
@@ -21,13 +22,30 @@ export const BUILTIN_AVATARS: { name: string; src: string }[] = [
   { name: 'red', src: imgAvatarRed }
 ]
 
+// image/jpg is not a registered mime type, but some systems report it for .jpg files.
+// The API detects the format from the file content, so the declared type is only a first filter.
 export const AVATAR_UPLOAD_ACCEPT = {
   'image/png': ['.png'],
   'image/jpeg': ['.jpg', '.jpeg'],
+  'image/jpg': ['.jpg', '.jpeg'],
   'image/gif': ['.gif'],
   'image/webp': ['.webp']
 }
 export const AVATAR_UPLOAD_MAX_SIZE = 512 * 1024 // bytes, as USER_AVATAR_MAX_SIZE in api/api_utils.py
+
+const AVATAR_UPLOAD_EXTENSIONS = Object.values(AVATAR_UPLOAD_ACCEPT).flat()
+
+// Some systems report an empty type, in that case rely on the file extension
+export const isAcceptedAvatarFile = (file: File): boolean => {
+  if (file.size > AVATAR_UPLOAD_MAX_SIZE) {
+    return false
+  }
+  if (file.type) {
+    return file.type in AVATAR_UPLOAD_ACCEPT
+  }
+  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+  return AVATAR_UPLOAD_EXTENSIONS.includes(extension)
+}
 
 export const getAvatarSrc = (avatar?: UserAvatarData | null): string => {
   if (avatar?.type === 'builtin') {
@@ -40,4 +58,25 @@ export const getAvatarSrc = (avatar?: UserAvatarData | null): string => {
     return avatar.data
   }
   return imgAvatarDefault
+}
+
+// Avatars of other users, shared by all the components showing them,
+// so that each avatar is requested only once, until the page is reloaded
+const avatarCache = new Map<string, Promise<UserAvatarData>>()
+
+export const fetchUserAvatar = (currentUserId: number | string, token: string, targetUserId: number | string): Promise<UserAvatarData> => {
+  const key = String(targetUserId)
+  const cached = avatarCache.get(key)
+  if (cached) {
+    return cached
+  }
+  let url = Constants.API_BASE_URL + Constants.API_USER_AVATAR_ENDPOINT
+  url += '?user-id=' + currentUserId
+  url += '&token=' + token
+  url += '&target-user-id=' + targetUserId
+  const request = fetch(url, { method: 'GET', headers: Constants.JSON_HEADER })
+    .then((res) => (res.ok ? res.json() : DEFAULT_AVATAR))
+    .catch(() => DEFAULT_AVATAR)
+  avatarCache.set(key, request)
+  return request
 }

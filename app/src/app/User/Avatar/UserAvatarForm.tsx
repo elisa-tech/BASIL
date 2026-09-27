@@ -13,7 +13,15 @@ import {
 } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
 import { useAuth } from '@app/User/AuthProvider'
-import { AVATAR_UPLOAD_ACCEPT, AVATAR_UPLOAD_MAX_SIZE, BUILTIN_AVATARS, DEFAULT_AVATAR, UserAvatarData, getAvatarSrc } from './UserAvatar'
+import {
+  AVATAR_UPLOAD_ACCEPT,
+  AVATAR_UPLOAD_MAX_SIZE,
+  BUILTIN_AVATARS,
+  DEFAULT_AVATAR,
+  UserAvatarData,
+  getAvatarSrc,
+  isAcceptedAvatarFile
+} from './UserAvatar'
 
 export interface UserAvatarFormProps {
   setMessageValue: (message: string) => void
@@ -52,7 +60,7 @@ export const UserAvatarForm: React.FunctionComponent<UserAvatarFormProps> = ({ s
   }
 
   const handleFileInputChange = (_event: DropEvent, file: File) => {
-    isInvalidFile.current = !(file.type in AVATAR_UPLOAD_ACCEPT) || file.size > AVATAR_UPLOAD_MAX_SIZE
+    isInvalidFile.current = !isAcceptedAvatarFile(file)
     if (isInvalidFile.current) {
       handleDropRejected()
       return

@@ -108,6 +108,7 @@ from api_utils import (
     test_run_config_to_html,
     test_run_to_html,
     tools_to_html,
+    USER_AVATAR_MAX_REQUEST_SIZE,
 )
 from pdf_converter import ConvertRequest, convert_to_pdf
 from testrun import TestRunner
@@ -963,6 +964,7 @@ def get_query_string_args(args):
         "reset_token",
         "search",
         "stage",
+        "target-user-id",
         "test-case-id",
         "test_run_config_id",
         "test_runs_limit",
@@ -9963,7 +9965,8 @@ class UserAvatar(Resource):
     @api_response_decorator
     def get(self, api_response: ApiResponse = None):
         """
-        get the avatar of the current user
+        get the avatar of the current user, or of the user identified by
+        target-user-id. Any logged in user can read the avatar of other users.
         """
         request_data = get_query_string_args(request.args)
         api_response.set_logger(logger)
@@ -9981,7 +9984,17 @@ class UserAvatar(Resource):
         if not isinstance(user, UserModel):
             return api_response.return_unauthorized()
 
-        api_response.set_data(get_user_avatar(user))
+        target_user = user
+        if "target-user-id" in request_data:
+            target_user_id = parse_int(request_data["target-user-id"])
+            if target_user_id is None:
+                api_response.set_message("target-user-id should be an integer")
+                return api_response.return_bad_request()
+            target_user = dbi.session.query(UserModel).filter(UserModel.id == target_user_id).one_or_none()
+            if not isinstance(target_user, UserModel):
+                return api_response.return_not_found_user()
+
+        api_response.set_data(get_user_avatar(target_user))
         return api_response.return_ok()
 
     @api_response_decorator
@@ -9990,6 +10003,15 @@ class UserAvatar(Resource):
         set the avatar of the current user, choosing a builtin one
         or uploading an image
         """
+        api_response.set_logger(logger)
+        # Reject big requests before reading the body in memory
+        if request.content_length is None:
+            return api_response.return_length_required()
+        if request.content_length > USER_AVATAR_MAX_REQUEST_SIZE:
+            api_response.set_message(f"The request is too big. Maximum size is "
+                                     f"{USER_AVATAR_MAX_REQUEST_SIZE // 1024} KB")
+            return api_response.return_payload_too_large()
+
         request_data = request.get_json(force=True)
         api_response.set_logger(logger)
         # Do not log the image content

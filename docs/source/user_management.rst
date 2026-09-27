@@ -79,8 +79,8 @@ From the **Avatar** tab of the user profile you can choose one of the builtin av
 or upload your own image (PNG, JPEG, GIF or WebP, up to 512 KB).
 
 The avatar is shown in the header and next to your name in comments,
-in the Software Component list (owner column), in the user permissions of a Software Component
-and in the User Management page.
+in the Software Component list (owner column), in the user permissions of a Software Component,
+in the User Management page and on the work items you created in the mapping views.
 Any logged in user can see the avatar of other users, but only you can change yours.
 
 The avatar is stored in the `.config` folder of your user files, no database change is required.

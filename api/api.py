@@ -965,6 +965,7 @@ def get_query_string_args(args):
         "search",
         "stage",
         "target-user-id",
+        "target-username",
         "test-case-id",
         "test_run_config_id",
         "test_runs_limit",
@@ -9968,7 +9969,8 @@ class UserAvatar(Resource):
     def get(self, api_response: ApiResponse = None):
         """
         get the avatar of the current user, or of the user identified by
-        target-user-id. Any logged in user can read the avatar of other users.
+        target-user-id or, when that is not given, by target-username.
+        Any logged in user can read the avatar of other users.
         """
         request_data = get_query_string_args(request.args)
         api_response.set_logger(logger)
@@ -9993,6 +9995,13 @@ class UserAvatar(Resource):
                 api_response.set_message("target-user-id should be an integer")
                 return api_response.return_bad_request()
             target_user = dbi.session.query(UserModel).filter(UserModel.id == target_user_id).one_or_none()
+            if not isinstance(target_user, UserModel):
+                return api_response.return_not_found_user()
+        elif "target-username" in request_data:
+            # Work items only carry the username of who created them.
+            # Usernames are unique: signin and profile updates refuse a taken one.
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.username == request_data["target-username"]).first()
             if not isinstance(target_user, UserModel):
                 return api_response.return_not_found_user()
 

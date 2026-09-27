@@ -285,6 +285,29 @@ def test_user_avatar_get_other_user_custom(client, clean_avatar, clean_reader_av
     assert response.get_json() == {"type": "custom", "data": data_url(PNG_CONTENT)}
 
 
+def test_user_avatar_get_other_user_by_username(client, clean_avatar, clean_reader_avatar):
+    """Work items only carry the username of their creator"""
+    put_avatar(client, clean_reader_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[3])
+    query = {**auth_query(clean_avatar), "target-username": clean_reader_avatar["username"]}
+    response = client.get(USER_AVATAR_URL, query_string=query)
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[3]}
+
+
+def test_user_avatar_get_other_user_by_username_not_found(client, clean_avatar):
+    query = {**auth_query(clean_avatar), "target-username": "no_such_user_for_avatar"}
+    response = client.get(USER_AVATAR_URL, query_string=query)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_user_avatar_get_other_user_id_wins_over_username(client, clean_avatar, clean_reader_avatar):
+    put_avatar(client, clean_reader_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[3])
+    query = {**other_user_query(clean_avatar, clean_avatar["id"]), "target-username": clean_reader_avatar["username"]}
+    response = client.get(USER_AVATAR_URL, query_string=query)
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == {"type": "default"}
+
+
 def test_user_avatar_get_other_user_unauthorized(client, clean_reader_avatar):
     response = client.get(USER_AVATAR_URL, query_string={"user-id": clean_reader_avatar["id"],
                                                          "token": "invalid-token",

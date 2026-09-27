@@ -64,8 +64,12 @@ export const getAvatarSrc = (avatar?: UserAvatarData | null): string => {
 // so that each avatar is requested only once, until the page is reloaded
 const avatarCache = new Map<string, Promise<UserAvatarData>>()
 
-export const fetchUserAvatar = (currentUserId: number | string, token: string, targetUserId: number | string): Promise<UserAvatarData> => {
-  const key = String(targetUserId)
+// The user whose avatar is shown: by id when it is known, otherwise by
+// username, which is all a work item carries about who created it
+export type UserAvatarTarget = { userId: number | string } | { username: string }
+
+export const fetchUserAvatar = (currentUserId: number | string, token: string, target: UserAvatarTarget): Promise<UserAvatarData> => {
+  const key = 'userId' in target ? 'id:' + target.userId : 'username:' + target.username
   const cached = avatarCache.get(key)
   if (cached) {
     return cached
@@ -73,7 +77,11 @@ export const fetchUserAvatar = (currentUserId: number | string, token: string, t
   let url = Constants.API_BASE_URL + Constants.API_USER_AVATAR_ENDPOINT
   url += '?user-id=' + currentUserId
   url += '&token=' + token
-  url += '&target-user-id=' + targetUserId
+  if ('userId' in target) {
+    url += '&target-user-id=' + encodeURIComponent(target.userId)
+  } else {
+    url += '&target-username=' + encodeURIComponent(target.username)
+  }
   const request = fetch(url, { method: 'GET', headers: Constants.JSON_HEADER })
     .then((res) => (res.ok ? res.json() : DEFAULT_AVATAR))
     .catch(() => DEFAULT_AVATAR)

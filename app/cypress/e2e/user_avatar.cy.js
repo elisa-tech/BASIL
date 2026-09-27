@@ -93,16 +93,22 @@ describe('User Avatar', { testIsolation: false }, () => {
       .and('match', /^data:image\/jpeg;base64,/)
   })
 
-  it('Show the avatar in the user management table', () => {
-    cy.get('#header-user-avatar')
-      .invoke('attr', 'src')
-      .then((src) => {
-        cy.get('#nav-item-user-management').click()
-        cy.wait(const_data.mid_wait)
-        cy.get('#table-user-management')
-          .contains('td[data-label="username"]', const_data.users.admin.username)
-          .find('.user-avatar-icon')
-          .should('have.attr', 'src', src)
+  it('Show the avatar of the other users in the user management table', () => {
+    // The table lists every user but the one logged in, whose avatar is in the
+    // header. The avatar of the others is read with target-user-id: answer
+    // those requests with a known image and check that each row shows it.
+    const otherUserAvatar = 'data:image/png;base64,' + PNG_BASE64
+    cy.intercept(
+      { method: 'GET', url: /\/user\/avatar\?.*target-user-id=/ },
+      { statusCode: 200, body: { type: 'custom', data: otherUserAvatar } }
+    ).as('otherUserAvatar')
+    cy.get('#nav-item-user-management').click()
+    cy.wait('@otherUserAvatar')
+    cy.get('#table-user-management')
+      .find('td[data-label="username"]')
+      .should('have.length.greaterThan', 0)
+      .each(($cell) => {
+        cy.wrap($cell).find('.user-avatar-icon').should('have.attr', 'src', otherUserAvatar)
       })
   })
 

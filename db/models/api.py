@@ -111,7 +111,6 @@ class ApiModel(Base):
                  "implementation_file_from_row": self.implementation_file_from_row,
                  "implementation_file_to_row": self.implementation_file_to_row,
                  "created_by": self.created_by.username,
-                 "created_by_id": self.created_by_id,
                  "edited_by": self.edited_by.username,
                  "last_coverage": self.last_coverage,
                  "tags": self.tags}

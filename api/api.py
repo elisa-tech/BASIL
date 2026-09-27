@@ -3116,6 +3116,8 @@ class Api(Resource):
             for iApi in range(len(apis)):
                 api_dict = apis[iApi].as_dict()
                 api_dict["covered"] = api_dict["last_coverage"]
+                # Used to show the avatar of the owner
+                api_dict["created_by_id"] = apis[iApi].created_by_id
 
                 # Permissions
                 permissions = get_api_user_permissions(apis[iApi], user, dbi.session)
@@ -10013,7 +10015,6 @@ class UserAvatar(Resource):
             return api_response.return_payload_too_large()
 
         request_data = request.get_json(force=True)
-        api_response.set_logger(logger)
         # Do not log the image content
         api_response.set_args({k: v for k, v in request_data.items() if k != "data"})
 

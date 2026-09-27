@@ -71,6 +71,21 @@ As owner of a software component you can specify read permissions.
 If you specify at least one user that cannot access a Software Component page, that will prevent also to any guest to reach it.
 
 
+------
+Avatar
+------
+
+From the **Avatar** tab of the user profile you can choose one of the builtin avatars
+or upload your own image (PNG, JPEG, GIF or WebP, up to 512 KB).
+
+The avatar is shown in the header and next to your name in comments,
+in the Software Component list (owner column), in the user permissions of a Software Component
+and in the User Management page.
+Any logged in user can see the avatar of other users, but only you can change yours.
+
+The avatar is stored in the `.config` folder of your user files, no database change is required.
+
+
 .. toctree::
    :maxdepth: 1
    :caption: Contents:

@@ -302,6 +302,15 @@ def test_user_avatar_get_other_user_invalid_id(client, clean_avatar):
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
+def test_user_avatar_get_does_not_create_user_folder():
+    """Reading the avatar of a user without files does not create folders for that user"""
+    class UserWithoutFiles:
+        id = 987654
+
+    assert api_utils.get_user_avatar(UserWithoutFiles()) == {"type": "default"}
+    assert not os.path.exists(os.path.join(basil_api.USER_FILES_BASE_DIR, str(UserWithoutFiles.id)))
+
+
 def test_user_avatar_other_user_cannot_be_modified(client, clean_avatar, clean_reader_avatar):
     """PUT and DELETE only act on the user identified by user-id and token"""
     put_avatar(client, clean_reader_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[3])

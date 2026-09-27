@@ -10,6 +10,7 @@ import queue
 import re
 import subprocess
 import tarfile
+import tempfile
 import threading
 import urllib
 from pyaml_env import parse_config
@@ -746,16 +747,16 @@ def tools_to_html() -> str:
     return html
 
 
-def get_user_folder_path(user: UserModel, folder_name: str) -> str:
+def get_user_folder_path(user: UserModel, folder_name: str, create: bool = True) -> str:
     from api import USER_FILES_BASE_DIR
     user_path = os.path.join(USER_FILES_BASE_DIR, f"{user.id}", folder_name)
-    if not os.path.exists(user_path):
+    if create and not os.path.exists(user_path):
         os.makedirs(user_path, exist_ok=True)
     return user_path
 
 
-def get_user_config_folder_path(user: UserModel) -> str:
-    return get_user_folder_path(user, ".config")
+def get_user_config_folder_path(user: UserModel, create: bool = True) -> str:
+    return get_user_folder_path(user, ".config", create=create)
 
 
 def get_user_html_folder_path(user: UserModel) -> str:
@@ -803,9 +804,9 @@ def get_image_type(content: bytes):
 def write_file_atomically(path: str, content: bytes):
     """Write content to path through a temporary file, so that path holds
     either the previous content or the new one, never a partial write"""
-    tmp_path = f"{path}.tmp"
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".", suffix=".tmp")
     try:
-        with open(tmp_path, "wb") as f:
+        with os.fdopen(fd, "wb") as f:
             f.write(content)
         os.replace(tmp_path, path)
     finally:
@@ -831,7 +832,8 @@ def get_user_avatar(user: UserModel) -> dict:
     - {"type": "builtin", "name": <one of USER_AVATAR_BUILTIN_NAMES>}
     - {"type": "custom", "data": <image as data URL>}
     """
-    config_dir = get_user_config_folder_path(user)
+    # Do not create the folder: the avatar of other users is read as well
+    config_dir = get_user_config_folder_path(user, create=False)
     config_path = os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME)
     if not os.path.exists(config_path):
         return dict(USER_AVATAR_DEFAULT)

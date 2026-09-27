@@ -43,8 +43,8 @@ export const isAcceptedAvatarFile = (file: File): boolean => {
   if (file.type) {
     return file.type in AVATAR_UPLOAD_ACCEPT
   }
-  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
-  return AVATAR_UPLOAD_EXTENSIONS.includes(extension)
+  const dotIndex = file.name.lastIndexOf('.')
+  return dotIndex >= 0 && AVATAR_UPLOAD_EXTENSIONS.includes(file.name.slice(dotIndex).toLowerCase())
 }
 
 export const getAvatarSrc = (avatar?: UserAvatarData | null): string => {

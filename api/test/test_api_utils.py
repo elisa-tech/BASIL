@@ -18,6 +18,7 @@ from api_utils import (
     LINK_BASIL_INSTANCE_HTML_MESSAGE,
     add_html_link_to_email_body,
     combine_tmt_path,
+    search_path_match,
     load_settings
 )
 
@@ -122,3 +123,69 @@ def test_combine_tmt_path_does_not_drop_repository_when_relative_is_absolute():
     assert combine_tmt_path(repository, relative_path) == (
         "/BASIL-API/api/user-files/2/tmt/tmt-dummy-test"
     )
+
+
+# ---------------------------------------------------------------------------
+# search_path_match – used to search the user files
+# ---------------------------------------------------------------------------
+
+def score_of(query, text):
+    match = search_path_match(query, text)
+    assert match is not None, f"{query!r} should match {text!r}"
+    return match[0]
+
+
+@pytest.mark.parametrize(
+    "query, text, expected_indices",
+    [
+        # a single word is matched as is, wherever it appears
+        ("req", "specs/requirements.yaml", [6, 7, 8]),
+        # the word can match a folder name, not only the entry name
+        ("specs", "specs/requirements.yaml", [0, 1, 2, 3, 4]),
+        # several words each have to appear, and the positions of all of them
+        # are reported
+        ("specs req", "specs/requirements.yaml", [0, 1, 2, 3, 4, 6, 7, 8]),
+        # the order of the words does not matter
+        ("req specs", "specs/requirements.yaml", [0, 1, 2, 3, 4, 6, 7, 8]),
+        # extra spaces are ignored
+        ("  specs   req ", "specs/requirements.yaml", [0, 1, 2, 3, 4, 6, 7, 8]),
+        # matching is case insensitive both ways
+        ("REQ", "specs/requirements.yaml", [6, 7, 8]),
+        ("req", "specs/REQUIREMENTS.yaml", [6, 7, 8]),
+    ],
+)
+def test_search_path_match_indices(query, text, expected_indices):
+    match = search_path_match(query, text)
+    assert match is not None
+    assert match[1] == expected_indices
+
+
+@pytest.mark.parametrize(
+    "query, text",
+    [
+        ("zzz", "specs/requirements.yaml"),
+        # the characters of a word have to be next to each other
+        ("sreq", "specs/requirements.yaml"),
+        # every word has to appear
+        ("specs zzz", "specs/requirements.yaml"),
+        ("", "specs/requirements.yaml"),
+        ("   ", "specs/requirements.yaml"),
+    ],
+)
+def test_search_path_match_returns_none_when_it_does_not_match(query, text):
+    assert search_path_match(query, text) is None
+
+
+def test_search_path_match_uses_the_best_occurrence_of_a_word():
+    """"req" appears in the folder and in the name; the name one wins."""
+    match = search_path_match("req", "req/specs/requirements.yaml")
+    assert match is not None
+    assert match[1] == [10, 11, 12]
+
+
+def test_search_path_match_ranks_the_entry_name_above_its_folders():
+    assert score_of("report", "docs/report.md") > score_of("report", "report/docs.md")
+
+
+def test_search_path_match_ranks_a_word_start_above_a_match_inside_a_word():
+    assert score_of("test", "docs/test_plan.md") > score_of("test", "docs/latest_plan.md")

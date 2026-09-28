@@ -1,5 +1,6 @@
 import React from 'react'
 import * as Constants from '../../Constants/constants'
+import { UserFileSelect } from '../../UserFiles/UserFileSelect'
 import {
   ActionGroup,
   Button,
@@ -507,17 +508,13 @@ export const DocumentForm: React.FunctionComponent<DocumentFormProps> = ({
             onBlur={() => readFileContent()}
           />
         ) : (
-          <FormSelect
-            value={documentFileNameValue}
+          <UserFileSelect
             id={`select-document-${formAction}-file-${formData.id}`}
-            onChange={(event, value) => handleDocumentFileNameChange(event, value)}
-            aria-label='Document from user file'
-          >
-            <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
-            {userFiles.map((userFile, index) => (
-              <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
-            ))}
-          </FormSelect>
+            value={documentFileNameValue}
+            userFiles={userFiles}
+            onChange={handleDocumentFileNameChange}
+            ariaLabel='Document from user file'
+          />
         )}
         {validatedDocumentSourceValue !== 'success' && (
           <FormHelperText>

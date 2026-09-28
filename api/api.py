@@ -102,6 +102,7 @@ from api_utils import (
     require_user_files_write_user,
     justification_to_html,
     set_user_avatar,
+    search_path_match,
     sw_requirement_to_html,
     test_specification_to_html,
     test_case_to_html,
@@ -10108,6 +10109,7 @@ class UserFiles(Resource):
 
         sub_path = request_data.get("path", "")
         recursive = str(request_data.get("recursive", "")).lower() == "true"
+        search = str(request_data.get("search", "")).strip()
 
         if sub_path:
             listing_path = os.path.join(user_files_path, sub_path)
@@ -10121,6 +10123,46 @@ class UserFiles(Resource):
         if not os.path.isdir(listing_path):
             api_response.set_message("Directory not found")
             return api_response.return_not_found()
+
+        if search:
+            # Search matches the whole relative path, so a file is found by the
+            # name of any folder on its way down too, and it returns folders as
+            # well as files. The query can hold several words, which all have to
+            # appear in the path. Results are ranked by how well they match
+            # instead of being listed alphabetically. The whole tree under the
+            # path is searched whatever "recursive" says, and "filter" does not
+            # apply.
+            for root, _dirs, files in os.walk(listing_path):
+                _dirs[:] = [d for d in _dirs if not d.startswith(".")]
+                entries = [(d, "directory") for d in _dirs] + [(f, "file") for f in files]
+                for entry_name, entry_type in entries:
+                    if entry_name.startswith("."):
+                        continue
+
+                    full = os.path.join(root, entry_name)
+                    rel = os.path.relpath(full, user_files_path)
+                    match = search_path_match(search, rel)
+                    if match is None:
+                        continue
+
+                    score, match_indices = match
+                    ret.append({
+                        "filepath": full,
+                        "relative_path": rel,
+                        "name": entry_name,
+                        "type": entry_type,
+                        "updated_at": time.ctime(os.path.getmtime(full)),
+                        "score": score,
+                        "match_indices": match_indices,
+                    })
+
+            # Best match first, then the shortest path, so that an entry closer
+            # to the root wins over a deeply nested one scoring the same.
+            ret = sorted(ret, key=lambda f: (-f["score"], len(f["relative_path"]), f["relative_path"].lower()))
+            for i, entry in enumerate(ret):
+                entry["index"] = i
+            api_response.set_data(ret)
+            return api_response.return_ok()
 
         if recursive:
             i = 0

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import * as Constants from '@app/Constants/constants'
+import { UserFileSelect } from '@app/UserFiles/UserFileSelect'
 import {
   ActionGroup,
   Button,
@@ -9,8 +10,6 @@ import {
   FlexItem,
   FormGroup,
   FormHelperText,
-  FormSelect,
-  FormSelectOption,
   Grid,
   GridItem,
   HelperText,
@@ -393,21 +392,13 @@ export const TestCaseImport: React.FunctionComponent<TestCaseImportProps> = ({ l
         {currentView == SELECT_USER_FILE_VIEW ? (
           <Grid hasGutter>
             <GridItem span={6}>
-              <FormSelect
+              <UserFileSelect
+                id='select-test-case-import-from-user-files'
                 value={selectedUserFile}
-                id={`select-test-case-import-from-user-files`}
-                onChange={(event, value) => handleSelectedUserFileChange(event, value)}
-                aria-label='User file for test case import'
-              >
-                <FormSelectOption key={0} value={''} label={'Select a file from the list'} />
-                {userFiles.map((userFile, index) => (
-                  <FormSelectOption
-                    key={index + 1}
-                    value={userFile['filepath']}
-                    label={userFile['relative_path'] || userFile['filename']}
-                  />
-                ))}
-              </FormSelect>
+                userFiles={userFiles}
+                onChange={handleSelectedUserFileChange}
+                ariaLabel='User file for test case import'
+              />
             </GridItem>
             <GridItem span={4}>
               <Flex>

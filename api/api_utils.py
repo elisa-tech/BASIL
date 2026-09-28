@@ -905,6 +905,71 @@ def is_safe_local_user_file_path(path: str) -> bool:
     return path.startswith(os.path.abspath(USER_FILES_BASE_DIR) + os.sep)
 
 
+# Path matching used by the user files search. The query is split on spaces
+# and every word has to appear, as is, somewhere in the relative path of an
+# entry, in any order. Matches are scored so that the best ones come first.
+SEARCH_CHAR_SCORE = 16
+SEARCH_BOUNDARY_BONUS = 8
+SEARCH_BASENAME_BONUS = 4
+SEARCH_WORD_SEPARATORS = "/\\_-. "
+
+
+def _search_score(text: str, indices: list) -> int:
+    """Score the matched positions of a word: reward the characters that start
+    a word and the ones that belong to the entry name rather than its folders.
+    """
+    basename_start = text.rfind("/") + 1
+    score = 0
+
+    for index in indices:
+        score += SEARCH_CHAR_SCORE
+
+        if index == 0 or text[index - 1] in SEARCH_WORD_SEPARATORS:
+            score += SEARCH_BOUNDARY_BONUS
+        elif text[index - 1].islower() and text[index].isupper():
+            score += SEARCH_BOUNDARY_BONUS
+
+        if index >= basename_start:
+            score += SEARCH_BASENAME_BONUS
+
+    return score
+
+
+def search_path_match(query: str, text: str):
+    """Match the space separated words of *query* against *text*, case
+    insensitively. Every word has to appear in *text*, in any order.
+
+    Returns a ``(score, indices)`` tuple, where *indices* are the matched
+    positions in *text*, or None when a word does not appear at all. When a word
+    appears more than once, its best scoring occurrence is used.
+    """
+    words = query.lower().split()
+    if not words:
+        return None
+
+    lower_text = text.lower()
+    total_score = 0
+    matched_indices = set()
+
+    for word in words:
+        best = None
+        start = lower_text.find(word)
+        while start != -1:
+            indices = list(range(start, start + len(word)))
+            score = _search_score(text, indices)
+            if best is None or score > best[0]:
+                best = (score, indices)
+            start = lower_text.find(word, start + 1)
+
+        if best is None:
+            return None
+
+        total_score += best[0]
+        matched_indices.update(best[1])
+
+    return (total_score, sorted(matched_indices))
+
+
 def extend_unmapped_sections_for_auto_fix(unmapped_sections: list, api_specification: str) -> list:
     """ Extend unmapped sections for auto-fix by adding the offset of the section in the api_specification
     if the section exists in the api_specification, otherwise assign -1

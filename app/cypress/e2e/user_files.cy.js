@@ -211,6 +211,137 @@ describe('User Files - Nested Folder Support', { testIsolation: false }, () => {
       .should('not.exist')
   })
 
+  it('Search user files across all folders', () => {
+    // nested_file_<UNIQUE>.yaml lives inside test_folder_<UNIQUE> while the
+    // browsed folder is Home, so it can only be found by the backend search,
+    // not by filtering the current listing.
+    cy.get('#input-user-files-search input').type('nested_file_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results')
+      .find('tbody')
+      .contains('nested_file_' + UNIQUE + '.yaml')
+      .should('exist')
+  })
+
+  it('Search results show the full relative path of each entry', () => {
+    cy.get('#table-user-files-search-results')
+      .find('tbody')
+      .should('contain.text', 'test_folder_' + UNIQUE + '/nested_file_' + UNIQUE + '.yaml')
+  })
+
+  it('Search matches the folders of a file, not only its name', () => {
+    // The query names the folder only; the file inside it has to be returned
+    // because the whole relative path is searched.
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('test_folder_' + UNIQUE + '/nested', { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results')
+      .find('tbody')
+      .contains('nested_file_' + UNIQUE + '.yaml')
+      .should('exist')
+  })
+
+  it('Search returns folders too', () => {
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('test_folder_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    // The folder itself is a result, on top of the file it contains.
+    cy.get('#table-user-files-search-results')
+      .find('tbody tr')
+      .contains('td', new RegExp('^test_folder_' + UNIQUE + '$'))
+      .should('exist')
+  })
+
+  it('Search matches several words in any order', () => {
+    // Each word has to appear somewhere in the path, whatever the order:
+    // "nested" is in the file name, "test_folder" in the folder holding it.
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('nested ' + UNIQUE + ' test_folder', { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results')
+      .find('tbody')
+      .contains('nested_file_' + UNIQUE + '.yaml')
+      .should('exist')
+    cy.get('#user-files-search-summary').should('contain.text', '1 result matching')
+  })
+
+  it('Search does not match scattered characters within a word', () => {
+    // "tfnf<UNIQUE>" is not a substring of anything, so nothing matches even
+    // though its characters appear in order along the path.
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('tfnf' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results').find('tbody').should('contain.text', 'Nothing matches')
+  })
+
+  it('Search highlights the characters that matched', () => {
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('nested_file_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results')
+      .find('tbody tr')
+      .first()
+      .find('span')
+      .filter((index, element) => element.style.backgroundColor !== '' && element.style.backgroundColor !== 'transparent')
+      .should('have.length.greaterThan', 0)
+  })
+
+  it('Search is case insensitive', () => {
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('NESTED_FILE_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results')
+      .find('tbody')
+      .contains('nested_file_' + UNIQUE + '.yaml')
+      .should('exist')
+  })
+
+  it('Search without matches', () => {
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('no_match_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files-search-results').find('tbody').should('contain.text', 'Nothing matches')
+  })
+
+  it('Open the folder of a search result', () => {
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('nested_file_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('[id^="btn-user-file-search-result-"]').first().click({ force: true })
+    cy.wait(const_data.mid_wait)
+    cy.get('#breadcrumb-0').should('contain.text', 'test_folder_' + UNIQUE)
+    cy.get('#input-user-files-search input').should('have.value', '')
+    cy.get('#table-user-files')
+      .find('tbody')
+      .contains('nested_file_' + UNIQUE + '.yaml')
+      .should('exist')
+  })
+
+  it('Clear the search to get back to the folder listing', () => {
+    cy.get('#breadcrumb-root').click({ force: true })
+    cy.wait(const_data.mid_wait)
+    cy.get('#input-user-files-search input')
+      .clear({ force: true })
+      .type('nested_file_' + UNIQUE, { force: true })
+    cy.wait(const_data.long_wait)
+    cy.get('#table-user-files').should('not.exist')
+    cy.get('#input-user-files-search button[aria-label="Reset"]').click({ force: true })
+    cy.wait(const_data.mid_wait)
+    cy.get('#table-user-files-search-results').should('not.exist')
+    cy.get('#table-user-files')
+      .find('tbody')
+      .contains('test_folder_' + UNIQUE)
+      .should('exist')
+  })
+
   it('Delete test folder', () => {
     cy.get('#table-user-files')
       .find('tbody')

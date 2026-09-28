@@ -1,6 +1,7 @@
 import _ from 'lodash'
 import React from 'react'
 import * as Constants from '../../Constants/constants'
+import { UserFileSelect } from '../../UserFiles/UserFileSelect'
 import {
   Divider,
   Form,
@@ -895,17 +896,14 @@ export const TestRunConfigForm: React.FunctionComponent<TestRunConfigFormProps> 
           </FormGroup>
 
           <FormGroup label='Job (LAVA)' fieldId={`input-test-run-config-lava-job-${testRunConfig.id || `0`}`}>
-            <FormSelect
-              value={lavaJobValue}
+            <UserFileSelect
               id={`input-test-run-config-lava-job-${testRunConfig.id || `0`}`}
+              value={lavaJobValue}
+              userFiles={userFiles}
               onChange={handleLavaJobChange}
-              aria-label='Test Run Config LAVA Job'
-            >
-              <FormSelectOption key={0} value='' label='default' />
-              {userFiles.map((userFile, index) => (
-                <FormSelectOption key={index + 1} value={userFile['filepath']} label={userFile['relative_path'] || userFile['filename']} />
-              ))}
-            </FormSelect>
+              placeholder='default'
+              ariaLabel='Test Run Config LAVA Job'
+            />
           </FormGroup>
         </>
       ) : (

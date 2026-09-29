@@ -460,11 +460,11 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         fieldId={`input-api-${formAction}-raw-specification-url-${formData.id}`}
         labelIcon={
           referenceSource == 'url' ? (
-            <Button variant='link' onClick={() => setReferenceSource('user-files')}>
+            <Button id={`btn-api-${formAction}-spec-from-user-files`} variant='link' onClick={() => setReferenceSource('user-files')}>
               From user files
             </Button>
           ) : (
-            <Button variant='link' onClick={() => setReferenceSource('url')}>
+            <Button id={`btn-api-${formAction}-spec-from-url`} variant='link' onClick={() => setReferenceSource('url')}>
               From url
             </Button>
           )
@@ -509,11 +509,15 @@ export const APIForm: React.FunctionComponent<APIFormProps> = ({
         fieldId={`input-api-${formAction}-implementation-file-${formData.id}`}
         labelIcon={
           implementationSource == 'url' ? (
-            <Button variant='link' onClick={() => setImplementationSource('user-files')}>
+            <Button
+              id={`btn-api-${formAction}-implementation-from-user-files`}
+              variant='link'
+              onClick={() => setImplementationSource('user-files')}
+            >
               From user files
             </Button>
           ) : (
-            <Button variant='link' onClick={() => setImplementationSource('url')}>
+            <Button id={`btn-api-${formAction}-implementation-from-url`} variant='link' onClick={() => setImplementationSource('url')}>
               From url
             </Button>
           )

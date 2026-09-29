@@ -56,7 +56,7 @@ describe('User file picker', { testIsolation: false }, () => {
     cy.wait(const_data.long_wait)
     cy.get('#btn-add-sw-component').click()
     cy.wait(const_data.mid_wait)
-    cy.contains('button', 'From user files').first().click()
+    cy.get('#btn-api-add-spec-from-user-files').should('be.visible').click()
     cy.get(PICKER + ' input').should('be.visible').and('have.attr', 'placeholder', 'Select a file from the list')
     cy.get(PICKER).should('have.attr', 'data-value', '')
   })
@@ -177,7 +177,7 @@ describe('User file picker', { testIsolation: false }, () => {
   })
 
   it('Delete the test folder', () => {
-    cy.contains('button', 'Cancel').click()
+    cy.get('#btn-modal-api-reset').click()
     cy.wait(const_data.fast_wait)
     cy.get('#nav-item-user-files').click()
     cy.wait(const_data.long_wait)

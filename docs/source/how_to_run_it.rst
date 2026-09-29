@@ -54,6 +54,23 @@ In the following example we are injecting all the environment variables defined 
 
 Those environment variables can be used by an admin user to populate test plugin preset configuration variables and general tool setting as the email server password.
 
+When upgrading BASIL while reusing an existing ``basil-db-vol``, apply the matching
+PostgreSQL migration **before** the API starts. Otherwise the new API may fail
+because the persisted schema does not yet include the latest columns.
+
+The version argument maps to ``db/models/migration/postgres_<version>.sql``
+(dots become underscores), for example ``1.8.12`` applies ``postgres_1_8_12.sql``:
+
+.. code-block:: bash
+
+   sudo ./run_demo.sh --db-migration 1.8.12
+
+Repeat the option to apply several migrations in order:
+
+.. code-block:: bash
+
+   sudo ./run_demo.sh --db-migration 1.8.9 --db-migration 1.8.12
+
 BASIL can be also deployed manually building Containerfile-api-fedora (or Containerfile-api-debian) and Containerfile-app provided as part of the source code.
 
 # Build the Containers

@@ -11,6 +11,11 @@ def test_user_login_post_ok(client, ut_user_db):
     user_data = {'email': UT_USER_EMAIL, 'password': UT_USER_PASSWORD}
     response = client.post(_USER_LOGIN_URL, json=user_data)
     assert response.status_code == HTTPStatus.OK
+    data = response.get_json()
+    assert data["id"] == ut_user_db.id
+    assert data["username"] == ut_user_db.username
+    assert data["spdx_signature"] == ut_user_db.spdx_signature
+    assert data["spdx_signature"]
 
 
 @pytest.mark.parametrize(('email', 'password'), (

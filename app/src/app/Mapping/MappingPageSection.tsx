@@ -132,7 +132,7 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
 
     // for each key of the config add to the query string
     for (const key in config) {
-      query_string += '&' + key + '=' + config[key]
+      query_string += '&' + key + '=' + encodeURIComponent(String(config[key]))
     }
 
     let url
@@ -501,11 +501,14 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
                       <FlexItem>
                         <Button
                           id='btn-export-sw-component-to-spdx'
-                          isDisabled={SPDXContentLoading}
                           variant='secondary'
-                          onClick={() => exportToFormat('jsonld', {})}
+                          onClick={() => {
+                            exportFilename.current = 'latest.jsonld'
+                            setSPDXContent('')
+                            setModalSPDXExportShowState(true)
+                          }}
                         >
-                          {SPDXContentLoading ? 'Loading ...' : 'Export to SPDX'}
+                          Export to SPDX
                         </Button>
                       </FlexItem>
                       <FlexItem>
@@ -868,6 +871,8 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
         SPDXContent={SPDXContent}
         SPDXFilename={exportFilename.current}
         setSPDXContent={setSPDXContent}
+        SPDXContentLoading={SPDXContentLoading}
+        exportToSPDXFormat={exportToFormat}
         modalShowState={modalSPDXExportShowState}
         setModalShowState={setModalSPDXExportShowState}
       />

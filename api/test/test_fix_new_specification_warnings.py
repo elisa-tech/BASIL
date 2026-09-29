@@ -90,7 +90,7 @@ def api_with_all_mappings(client_db, ut_user_db, utilities):
 
     doc = DocumentModel(
         f'Doc #{utilities.generate_random_hex_string8()}', 'desc',
-        'other', 'DESCRIBES', 'http://example.com', 'sec', 0, 1, user,
+        'other', 'describes', 'http://example.com', 'sec', 0, 1, user,
     )
     client_db.session.add(doc)
     client_db.session.commit()

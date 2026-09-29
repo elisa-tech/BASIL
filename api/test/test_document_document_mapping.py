@@ -36,7 +36,7 @@ def get_document_model(client_db, utilities, *, url='stub.md', section=_UT_API_S
         title=f'Doc #{utilities.generate_random_hex_string8()}',
         description='This document shall be clear and accurate.',
         document_type='file',
-        spdx_relation='relates-to',
+        spdx_relation='other',
         url=url,
         section=section,
         offset=offset,

@@ -80,7 +80,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   const adminDropdownItems = (
     <>
       <DropdownItem key='user profile'>
-        <Button variant='link' onClick={() => modalProfileSetInfo()}>
+        <Button id='btn-header-user-profile' variant='link' onClick={() => modalProfileSetInfo()}>
           Profile
         </Button>
       </DropdownItem>
@@ -125,7 +125,7 @@ const HeaderToolbar: React.FunctionComponent<HeaderToolbarProps> = ({
   const userDropdownItems = (
     <>
       <DropdownItem key='user profile'>
-        <Button variant='link' onClick={() => modalProfileSetInfo()}>
+        <Button id='btn-header-user-profile' variant='link' onClick={() => modalProfileSetInfo()}>
           Profile
         </Button>
       </DropdownItem>

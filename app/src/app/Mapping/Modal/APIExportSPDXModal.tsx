@@ -3,6 +3,7 @@ import { useAuth } from '@app/User/AuthProvider'
 import * as Constants from '@app/Constants/constants'
 import {
   Button,
+  Checkbox,
   ClipboardCopyButton,
   CodeBlock,
   CodeBlockAction,
@@ -11,12 +12,19 @@ import {
   FlexItem,
   Modal,
   ModalVariant,
+  Spinner,
   Tab,
   TabContent,
   TabContentBody,
-  Tabs,
-  TabTitleText
+  TabTitleText,
+  Tabs
 } from '@patternfly/react-core'
+
+interface SPDXTestRunConfig {
+  id: number
+  title?: string
+  plugin?: string
+}
 
 export interface APIExportSPDXModalProps {
   api
@@ -25,6 +33,8 @@ export interface APIExportSPDXModalProps {
   SPDXContent
   SPDXFilename
   setSPDXContent
+  SPDXContentLoading
+  exportToSPDXFormat
 }
 
 export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps> = ({
@@ -33,25 +43,71 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
   setModalShowState,
   SPDXContent = '',
   SPDXFilename,
-  setSPDXContent
+  setSPDXContent,
+  SPDXContentLoading = false,
+  exportToSPDXFormat
 }: APIExportSPDXModalProps) => {
   const auth = useAuth()
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
   const [imgSrc, setImgSrc] = React.useState<string>('')
   const [activeTabKey, setActiveTabKey] = React.useState<string | number>(0)
+  const [exportComments, setExportComments] = React.useState<boolean>(true)
+  const [exportTestRuns, setExportTestRuns] = React.useState<boolean>(true)
+  const [testRunConfigs, setTestRunConfigs] = React.useState<SPDXTestRunConfig[]>([])
+  const [selectedConfigIds, setSelectedConfigIds] = React.useState<number[]>([])
+  const [configsLoading, setConfigsLoading] = React.useState<boolean>(false)
 
-  // Toggle currently active tab
-  const handleTabClick = (event: React.MouseEvent | React.KeyboardEvent | MouseEvent, tabIndex: string | number) => {
+  const hasExport = SPDXContent !== '' && SPDXContent !== 'Loading... Please wait...'
+
+  const resetOptions = () => {
+    setExportComments(true)
+    setExportTestRuns(true)
+    setSelectedConfigIds([])
+    setImgSrc('')
+    setActiveTabKey(0)
+  }
+
+  const loadTestRunConfigs = () => {
+    if (!auth.isLogged()) {
+      return
+    }
+    setConfigsLoading(true)
+    let url = Constants.API_BASE_URL + Constants.API_SPDX_API_TEST_RUN_CONFIGS_ENDPOINT
+    url += '?api-id=' + api.id
+    url += '&user-id=' + auth.userId
+    url += '&token=' + auth.token
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        setTestRunConfigs(Array.isArray(data) ? data : [])
+      })
+      .catch((err) => {
+        console.error(err.message)
+        setTestRunConfigs([])
+      })
+      .finally(() => {
+        setConfigsLoading(false)
+      })
+  }
+
+  React.useEffect(() => {
+    setIsModalOpen(modalShowState)
+    if (modalShowState) {
+      resetOptions()
+      loadTestRunConfigs()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalShowState])
+
+  const handleTabClick = (_event: React.MouseEvent | React.KeyboardEvent | MouseEvent, tabIndex: string | number) => {
     setActiveTabKey(tabIndex)
-    if (tabIndex == 1) {
-      if (!imgSrc) {
-        downloadFile('png', true)
-      }
+    if (tabIndex == 1 && hasExport && !imgSrc) {
+      downloadFile('png', true)
     }
   }
 
-  const clipboardCopyFunc = (event, text) => {
+  const clipboardCopyFunc = (_event, text) => {
     navigator.clipboard.writeText(text.toString())
   }
 
@@ -60,21 +116,35 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
     setCopied(true)
   }
 
-  React.useEffect(() => {
-    setIsModalOpen(modalShowState)
-    if (modalShowState) {
-      setActiveTabKey(0)
-      setImgSrc('')
-    }
-  }, [modalShowState])
-
   const handleModalToggle = () => {
     const new_state = !modalShowState
     if (new_state == false) {
       setSPDXContent('')
+      resetOptions()
     }
     setModalShowState(new_state)
     setIsModalOpen(new_state)
+  }
+
+  const toggleConfig = (configId: number, checked: boolean) => {
+    setSelectedConfigIds((current) => {
+      if (checked) {
+        return current.includes(configId) ? current : [...current, configId]
+      }
+      return current.filter((id) => id !== configId)
+    })
+  }
+
+  const generateExport = () => {
+    setImgSrc('')
+    setActiveTabKey(0)
+    setSPDXContent('Loading... Please wait...')
+    const configExport: Record<string, string | boolean> = {
+      include_comments: exportComments,
+      include_test_runs: exportTestRuns,
+      test_run_config_id: selectedConfigIds.join(',')
+    }
+    exportToSPDXFormat('jsonld', configExport)
   }
 
   const downloadFile = (file_type: string = 'jsonld', loadStreamOnly: boolean = false) => {
@@ -149,8 +219,8 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
         aria-label='api export spdx modal'
         tabIndex={0}
         variant={ModalVariant.large}
-        title='SPDX Data'
-        description='Export of selected library work items and relationships'
+        title='SPDX Export'
+        description='Choose what to include, then generate the SPDX JSON-LD and traceability map'
         isOpen={isModalOpen}
         onClose={handleModalToggle}
         actions={[
@@ -159,70 +229,137 @@ export const APIExportSPDXModal: React.FunctionComponent<APIExportSPDXModalProps
           </Button>
         ]}
       >
-        <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='SPDX Export tabs' role='region'>
-          <Tab
-            eventKey={0}
-            id='tab-btn-spdx-export-jsonld'
-            title={<TabTitleText>JSONLD</TabTitleText>}
-            tabContentId='tabSPDXExportJSONLD'
-            tabContentRef={spdxExportJsonldRef}
-          />
-          <Tab
-            eventKey={1}
-            id='tab-btn-spdx-export-graph-map'
-            title={<TabTitleText>Map</TabTitleText>}
-            tabContentId='tabSPDXExportGraphMap'
-            tabContentRef={spxdExportGraphMapRef}
-          />
-        </Tabs>
-        <div>
-          <TabContent eventKey={0} id='tabSpdxExportJsonld' ref={spdxExportJsonldRef} hidden={0 !== activeTabKey}>
-            <TabContentBody hasPadding>
-              <Flex>
-                <FlexItem>
-                  <Button variant='link' onClick={() => downloadFile('jsonld')}>
-                    Download JSONLD
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <CodeBlock actions={actions}>
-                    <CodeBlockCode id='code-content'>{SPDXContent}</CodeBlockCode>
-                  </CodeBlock>
-                </FlexItem>
-              </Flex>
-            </TabContentBody>
-          </TabContent>
-          <TabContent eventKey={1} id='tabSpxdExportGraphMap' ref={spxdExportGraphMapRef} hidden={1 !== activeTabKey}>
-            <TabContentBody>
-              {imgSrc ? (
-                <React.Fragment>
-                  <Flex direction={{ default: 'column' }}>
+        <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsMd' }}>
+          <FlexItem>
+            <Flex
+              direction={{ default: 'row' }}
+              flexWrap={{ default: 'wrap' }}
+              alignItems={{ default: 'alignItemsCenter' }}
+              spaceItems={{ default: 'spaceItemsMd' }}
+            >
+              <Checkbox
+                id='checkbox-spdx-export-comments'
+                label='Comments'
+                isChecked={exportComments}
+                name='check-spdx-export-comments'
+                onChange={(_event, checked) => setExportComments(checked)}
+              />
+              <Checkbox
+                id='checkbox-spdx-export-test-runs'
+                label='Test Runs'
+                isChecked={exportTestRuns}
+                name='check-spdx-export-test-runs'
+                onChange={(_event, checked) => setExportTestRuns(checked)}
+              />
+              <Button
+                variant='primary'
+                onClick={generateExport}
+                id='btn-generate-spdx-export'
+                isDisabled={SPDXContentLoading || configsLoading}
+                icon={SPDXContentLoading ? <Spinner size='sm' /> : undefined}
+              >
+                {SPDXContentLoading ? 'Generating…' : 'Generate'}
+              </Button>
+            </Flex>
+          </FlexItem>
+          {exportTestRuns && (
+            <FlexItem>
+              <div id='spdx-export-test-run-configs'>
+                <strong>Test Run Configurations</strong>
+                <p>Select the configurations whose Test Runs should be included. None selected means no Test Runs.</p>
+                {configsLoading ? (
+                  <Spinner size='md' />
+                ) : testRunConfigs.length === 0 ? (
+                  <p>No Test Run configurations are used by this software component.</p>
+                ) : (
+                  <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
+                    {testRunConfigs.map((config) => (
+                      <FlexItem key={config.id}>
+                        <Checkbox
+                          id={'checkbox-spdx-test-run-config-' + config.id}
+                          label={`${config.title || 'Untitled'} (${config.plugin || 'plugin'}) #${config.id}`}
+                          isChecked={selectedConfigIds.includes(config.id)}
+                          name={'check-spdx-test-run-config-' + config.id}
+                          onChange={(_event, checked) => toggleConfig(config.id, checked)}
+                        />
+                      </FlexItem>
+                    ))}
+                  </Flex>
+                )}
+              </div>
+            </FlexItem>
+          )}
+        </Flex>
+
+        {hasExport && (
+          <React.Fragment>
+            <hr></hr>
+            <Tabs activeKey={activeTabKey} onSelect={handleTabClick} aria-label='SPDX Export tabs' role='region'>
+              <Tab
+                eventKey={0}
+                id='tab-btn-spdx-export-jsonld'
+                title={<TabTitleText>JSONLD</TabTitleText>}
+                tabContentId='tabSPDXExportJSONLD'
+                tabContentRef={spdxExportJsonldRef}
+              />
+              <Tab
+                eventKey={1}
+                id='tab-btn-spdx-export-graph-map'
+                title={<TabTitleText>Map</TabTitleText>}
+                tabContentId='tabSPDXExportGraphMap'
+                tabContentRef={spxdExportGraphMapRef}
+              />
+            </Tabs>
+            <div>
+              <TabContent eventKey={0} id='tabSpdxExportJsonld' ref={spdxExportJsonldRef} hidden={0 !== activeTabKey}>
+                <TabContentBody hasPadding>
+                  <Flex>
                     <FlexItem>
-                      <Flex>
-                        <FlexItem>
-                          <Button variant='link' onClick={() => downloadFile('png')}>
-                            Download .png Map
-                          </Button>
-                        </FlexItem>
-                        <FlexItem>|</FlexItem>
-                        <FlexItem>
-                          <Button variant='link' onClick={() => downloadFile('dot')}>
-                            Download .dot Map
-                          </Button>
-                        </FlexItem>
-                      </Flex>
+                      <Button variant='link' onClick={() => downloadFile('jsonld')}>
+                        Download JSONLD
+                      </Button>
                     </FlexItem>
                     <FlexItem>
-                      <img src={imgSrc} alt='Traceability map' width={'100%'} />
+                      <CodeBlock actions={actions}>
+                        <CodeBlockCode id='code-content'>{SPDXContent}</CodeBlockCode>
+                      </CodeBlock>
                     </FlexItem>
                   </Flex>
-                </React.Fragment>
-              ) : (
-                'Loading image...'
-              )}
-            </TabContentBody>
-          </TabContent>
-        </div>
+                </TabContentBody>
+              </TabContent>
+              <TabContent eventKey={1} id='tabSpxdExportGraphMap' ref={spxdExportGraphMapRef} hidden={1 !== activeTabKey}>
+                <TabContentBody>
+                  {imgSrc ? (
+                    <React.Fragment>
+                      <Flex direction={{ default: 'column' }}>
+                        <FlexItem>
+                          <Flex>
+                            <FlexItem>
+                              <Button variant='link' onClick={() => downloadFile('png')}>
+                                Download .png Map
+                              </Button>
+                            </FlexItem>
+                            <FlexItem>|</FlexItem>
+                            <FlexItem>
+                              <Button variant='link' onClick={() => downloadFile('dot')}>
+                                Download .dot Map
+                              </Button>
+                            </FlexItem>
+                          </Flex>
+                        </FlexItem>
+                        <FlexItem>
+                          <img src={imgSrc} alt='Traceability map' width={'100%'} />
+                        </FlexItem>
+                      </Flex>
+                    </React.Fragment>
+                  ) : (
+                    'Loading image...'
+                  )}
+                </TabContentBody>
+              </TabContent>
+            </div>
+          </React.Fragment>
+        )}
       </Modal>
     </React.Fragment>
   )

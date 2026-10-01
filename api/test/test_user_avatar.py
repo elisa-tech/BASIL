@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import shutil
 from http import HTTPStatus
 
 import pytest
@@ -12,6 +13,7 @@ import api_utils
 from api_utils import (
     USER_AVATAR_BUILTIN_NAMES,
     USER_AVATAR_CONFIG_FILENAME,
+    USER_AVATAR_CONFIG_MAX_SIZE,
     USER_AVATAR_MAX_REQUEST_SIZE,
     USER_AVATAR_MAX_SIZE,
     get_image_type,
@@ -343,6 +345,134 @@ def test_user_avatar_other_user_cannot_be_modified(client, clean_avatar, clean_r
 
     response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_reader_avatar))
     assert response.get_json() == {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[3]}
+
+
+# ---------------------------------------------------------------------------
+# Avatar files are only used from the user folder, up to their size limit.
+# The user files API can write in the user folder, so the avatar files could
+# be replaced with big files, or with links pointing elsewhere.
+# ---------------------------------------------------------------------------
+
+def get_own_avatar(client, auth_json):
+    return client.get(USER_AVATAR_URL, query_string=auth_query(auth_json)).get_json()
+
+
+def write_avatar_config(config_dir, avatar):
+    os.makedirs(config_dir, exist_ok=True)
+    with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
+        json.dump(avatar, f)
+
+
+def write_custom_avatar(config_dir, image_content):
+    write_avatar_config(config_dir, {"type": "custom", "filename": "avatar.png"})
+    with open(os.path.join(config_dir, "avatar.png"), "wb") as f:
+        f.write(image_content)
+
+
+def png_of_size(size):
+    """A PNG signature padded up to size bytes"""
+    return PNG_CONTENT + b"\0" * (size - len(PNG_CONTENT))
+
+
+def test_user_avatar_image_at_the_size_limit_is_read(client, clean_avatar):
+    write_custom_avatar(user_config_dir(clean_avatar["id"]), png_of_size(USER_AVATAR_MAX_SIZE))
+    assert get_own_avatar(client, clean_avatar)["type"] == "custom"
+
+
+def test_user_avatar_image_bigger_than_the_size_limit_is_not_read(client, clean_avatar):
+    write_custom_avatar(user_config_dir(clean_avatar["id"]), png_of_size(USER_AVATAR_MAX_SIZE + 1))
+    assert get_own_avatar(client, clean_avatar) == {"type": "default"}
+
+
+def test_user_avatar_config_bigger_than_the_size_limit_is_not_read(client, clean_avatar):
+    config_dir = user_config_dir(clean_avatar["id"])
+    os.makedirs(config_dir, exist_ok=True)
+    config = json.dumps({"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[0]})
+    with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
+        f.write(config + " " * USER_AVATAR_CONFIG_MAX_SIZE)
+    assert get_own_avatar(client, clean_avatar) == {"type": "default"}
+
+
+def test_user_avatar_image_linked_outside_the_user_folder_is_not_read(client, clean_avatar, tmp_path):
+    outside_image = tmp_path / "outside.png"
+    outside_image.write_bytes(PNG_CONTENT)
+    config_dir = user_config_dir(clean_avatar["id"])
+    write_avatar_config(config_dir, {"type": "custom", "filename": "avatar.png"})
+    os.symlink(outside_image, os.path.join(config_dir, "avatar.png"))
+
+    assert get_own_avatar(client, clean_avatar) == {"type": "default"}
+
+
+def test_user_avatar_config_linked_outside_the_user_folder_is_not_read(client, clean_avatar, tmp_path):
+    outside_config = tmp_path / USER_AVATAR_CONFIG_FILENAME
+    outside_config.write_text(json.dumps({"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[0]}))
+    config_dir = user_config_dir(clean_avatar["id"])
+    os.makedirs(config_dir, exist_ok=True)
+    os.symlink(outside_config, os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME))
+
+    assert get_own_avatar(client, clean_avatar) == {"type": "default"}
+
+
+def test_user_avatar_delete_removes_links_but_not_what_they_point_to(client, clean_avatar, tmp_path):
+    outside_image = tmp_path / "outside.png"
+    outside_image.write_bytes(PNG_CONTENT)
+    image_link = os.path.join(user_config_dir(clean_avatar["id"]), "avatar.png")
+    os.makedirs(os.path.dirname(image_link), exist_ok=True)
+    os.symlink(outside_image, image_link)
+
+    response = client.delete(USER_AVATAR_URL, json=auth_query(clean_avatar))
+    assert response.status_code == HTTPStatus.OK
+    assert not os.path.lexists(image_link)
+    assert outside_image.read_bytes() == PNG_CONTENT
+
+
+def test_user_avatar_delete_leaves_folders_named_like_the_avatar(client, clean_avatar):
+    folder = os.path.join(user_config_dir(clean_avatar["id"]), "avatar.png")
+    os.makedirs(folder, exist_ok=True)
+    try:
+        response = client.delete(USER_AVATAR_URL, json=auth_query(clean_avatar))
+        assert response.status_code == HTTPStatus.OK
+        assert os.path.isdir(folder)
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+@pytest.fixture()
+def reader_config_folder_outside(clean_reader_avatar, tmp_path):
+    """Replace the config folder of the UT reader user with a link to a folder
+    outside the user folder, and put the real one back afterwards"""
+    config_dir = user_config_dir(clean_reader_avatar["id"])
+    moved_config_dir = config_dir + ".moved"
+    outside_dir = tmp_path / "outside_config"
+    outside_dir.mkdir()
+    os.makedirs(config_dir, exist_ok=True)
+    os.rename(config_dir, moved_config_dir)
+    os.symlink(outside_dir, config_dir)
+    try:
+        yield clean_reader_avatar, outside_dir
+    finally:
+        os.remove(config_dir)
+        os.rename(moved_config_dir, config_dir)
+
+
+def test_user_avatar_config_folder_outside_the_user_folder_is_not_used(client, reader_config_folder_outside):
+    auth_json, outside_dir = reader_config_folder_outside
+    outside_config = outside_dir / USER_AVATAR_CONFIG_FILENAME
+    outside_config.write_text(json.dumps({"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[0]}))
+
+    # not read
+    assert get_own_avatar(client, auth_json) == {"type": "default"}
+
+    # not written
+    response = put_avatar(client, auth_json, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[1])
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+
+    # nothing deleted
+    response = client.delete(USER_AVATAR_URL, json=auth_query(auth_json))
+    assert response.status_code == HTTPStatus.OK
+
+    assert os.listdir(outside_dir) == [USER_AVATAR_CONFIG_FILENAME]
+    assert json.loads(outside_config.read_text())["name"] == USER_AVATAR_BUILTIN_NAMES[0]
 
 
 # ---------------------------------------------------------------------------

@@ -257,6 +257,8 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
             title={<TabTitleText>Avatar</TabTitleText>}
             tabContentId='tabUserEditAvatar'
             tabContentRef={editAvatarRef}
+            // The avatar is stored with the user files, which guests cannot change
+            isHidden={auth.isGuest()}
           />
         </Tabs>
         <div>

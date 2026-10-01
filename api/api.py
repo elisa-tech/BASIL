@@ -10036,9 +10036,10 @@ class UserAvatar(Resource):
 
         dbi = get_db()
 
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return api_response.return_unauthorized()
+        # The avatar is stored with the user files, which guests cannot change
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        if error is not None:
+            return error
 
         error = set_user_avatar(user,
                                 avatar_type=request_data["type"],
@@ -10068,9 +10069,10 @@ class UserAvatar(Resource):
 
         dbi = get_db()
 
-        user = get_active_user_from_request(request_data, dbi.session)
-        if not isinstance(user, UserModel):
-            return api_response.return_unauthorized()
+        # The avatar is stored with the user files, which guests cannot change
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        if error is not None:
+            return error
 
         delete_user_avatar(user)
 

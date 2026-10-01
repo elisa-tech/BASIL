@@ -346,6 +346,61 @@ def test_user_avatar_other_user_cannot_be_modified(client, clean_avatar, clean_r
 
 
 # ---------------------------------------------------------------------------
+# Guests can see avatars but cannot change theirs
+# ---------------------------------------------------------------------------
+
+def remove_avatar_files(user_id):
+    config_dir = user_config_dir(user_id)
+    if not os.path.isdir(config_dir):
+        return
+    for filename in os.listdir(config_dir):
+        if filename == USER_AVATAR_CONFIG_FILENAME or os.path.splitext(filename)[0] == "avatar":
+            os.remove(os.path.join(config_dir, filename))
+
+
+@pytest.fixture()
+def clean_guest_avatar(guest_authentication):
+    """Remove the avatar files of the UT guest user before and after each test,
+    since guests cannot reset their avatar through the API"""
+    remove_avatar_files(guest_authentication.json["id"])
+    yield guest_authentication.json
+    remove_avatar_files(guest_authentication.json["id"])
+
+
+@pytest.mark.parametrize("fields", [
+    {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[0]},
+    {"type": "custom", "data": data_url(PNG_CONTENT)},
+])
+def test_user_avatar_put_forbidden_for_guest(client, clean_guest_avatar, fields):
+    response = put_avatar(client, clean_guest_avatar, **fields)
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+    response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_guest_avatar))
+    assert response.get_json() == {"type": "default"}
+
+
+def test_user_avatar_delete_forbidden_for_guest(client, clean_guest_avatar):
+    config_dir = user_config_dir(clean_guest_avatar["id"])
+    os.makedirs(config_dir, exist_ok=True)
+    with open(os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME), "w", encoding="utf-8") as f:
+        json.dump({"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[1]}, f)
+
+    response = client.delete(USER_AVATAR_URL, json=auth_query(clean_guest_avatar))
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+    response = client.get(USER_AVATAR_URL, query_string=auth_query(clean_guest_avatar))
+    assert response.get_json() == {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[1]}
+
+
+def test_user_avatar_guest_can_see_the_avatar_of_other_users(client, clean_guest_avatar, clean_reader_avatar):
+    put_avatar(client, clean_reader_avatar, type="builtin", name=USER_AVATAR_BUILTIN_NAMES[2])
+    query = other_user_query(clean_guest_avatar, clean_reader_avatar["id"])
+    response = client.get(USER_AVATAR_URL, query_string=query)
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json() == {"type": "builtin", "name": USER_AVATAR_BUILTIN_NAMES[2]}
+
+
+# ---------------------------------------------------------------------------
 # Image type detection
 # ---------------------------------------------------------------------------
 

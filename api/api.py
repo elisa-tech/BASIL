@@ -106,6 +106,7 @@ from api_utils import (
     test_run_config_to_html,
     test_run_to_html,
     tools_to_html,
+    username_validation_error,
 )
 from pdf_converter import ConvertRequest, convert_to_pdf
 from testrun import TestRunner
@@ -8802,8 +8803,9 @@ class UserSignin(Resource):
         password = request_data["password"]
 
         # Input validation needed in case of direct interaction with the API
-        if " " in username or len(username) < 4:
-            api_response.set_message("Username not valid, it hould be at least 4 chars and space is not allowed")
+        username_error = username_validation_error(username)
+        if username_error:
+            api_response.set_message(username_error)
             return api_response.return_bad_request()
         if not re.match(email_regex, email):
             api_response.set_message("Email not valid, it must be a valid email")
@@ -9342,8 +9344,9 @@ class User(Resource):
         # Edit username
         if "username" in request_data.keys():
             username = request_data["username"]
-            if " " in username or len(username) < 4:
-                api_response.set_message("Username not valid, it hould be at least 4 chars and space is not allowed")
+            username_error = username_validation_error(username)
+            if username_error:
+                api_response.set_message(username_error)
                 return api_response.return_bad_request()
 
             same_username = dbi.session.query(UserModel).filter(UserModel.username == username).all()

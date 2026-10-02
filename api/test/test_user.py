@@ -239,6 +239,14 @@ def test_put_user_bad_request_username_with_space(client, user_authentication):
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
+def test_put_user_bad_request_username_with_at(client, user_authentication):
+    """Cannot change to a username containing @."""
+    uid, token = _auth_fields(user_authentication)
+    response = _put_user(client, uid, token, username="user@name")
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.get_json() == "The @ character is not permitted in the username."
+
+
 def test_put_user_bad_request_username_duplicate(
     client, user_authentication, ut_reader_user_db
 ):

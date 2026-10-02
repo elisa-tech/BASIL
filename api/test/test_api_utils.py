@@ -19,7 +19,8 @@ from api_utils import (
     add_html_link_to_email_body,
     combine_tmt_path,
     search_path_match,
-    load_settings
+    load_settings,
+    username_validation_error,
 )
 
 
@@ -57,6 +58,19 @@ def update_settings(client, admin_authentication, settings_content):
     )
     assert response.status_code == 200
     return response
+
+
+@pytest.mark.parametrize(
+    ("username", "expected"),
+    (
+        ("validuser", None),
+        ("user@name", "The @ character is not permitted in the username."),
+        ("ab", "Username not valid, it hould be at least 4 chars and space is not allowed"),
+        ("user name", "Username not valid, it hould be at least 4 chars and space is not allowed"),
+    ),
+)
+def test_username_validation_error(username, expected):
+    assert username_validation_error(username) == expected
 
 
 def test_add_html_link_to_email_body(client, admin_authentication):

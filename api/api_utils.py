@@ -983,6 +983,19 @@ def extend_unmapped_sections_for_auto_fix(unmapped_sections: list, api_specifica
     return unmapped_sections
 
 
+def username_validation_error(username: str):
+    """Return an error message when a username is not allowed, otherwise None.
+
+    A username must be at least 4 characters, must not contain a space, and
+    must not contain ``@`` so it cannot be the same as an email address.
+    """
+    if "@" in username:
+        return "The @ character is not permitted in the username."
+    if " " in username or len(username) < 4:
+        return "Username not valid, it hould be at least 4 chars and space is not allowed"
+    return None
+
+
 def get_missing_mandatory_fields(mandatory_fields: list, request_data: dict) -> list:
     """ Return the missing mandatory fields from the request data """
     missing_fields = []

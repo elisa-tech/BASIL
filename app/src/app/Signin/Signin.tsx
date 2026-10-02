@@ -66,6 +66,8 @@ const Signin: React.FunctionComponent = () => {
   React.useEffect(() => {
     if (usernameValue == '') {
       setValidateUsernameValue('error')
+    } else if (usernameValue.includes('@')) {
+      setValidateUsernameValue('error')
     } else if (usernameValue.includes(' ')) {
       setValidateUsernameValue('error')
     } else if (usernameValue.length < 4) {
@@ -132,7 +134,11 @@ const Signin: React.FunctionComponent = () => {
       setAlertMessage('Email is not valid')
       return
     } else if (validateUsernameValue != 'success') {
-      setAlertMessage('Username is not valid, It must be at least 4 chars, space char is not allowed')
+      if (usernameValue.includes('@')) {
+        setAlertMessage('The @ character is not permitted in the username.')
+      } else {
+        setAlertMessage('Username is not valid, It must be at least 4 chars, space char is not allowed')
+      }
       return
     } else if (validatePasswordValue != 'success') {
       setAlertMessage('Passord is not valid')
@@ -238,7 +244,9 @@ const Signin: React.FunctionComponent = () => {
                             <HelperText>
                               <HelperTextItem variant='warning'>
                                 {validateUsernameValue === 'error'
-                                  ? 'This field is mandatory, the current value is not valid. It must be at least 4 chars and space char is not allowed.'
+                                  ? usernameValue.includes('@')
+                                    ? 'The @ character is not permitted in the username.'
+                                    : 'This field is mandatory, the current value is not valid. It must be at least 4 chars and space char is not allowed.'
                                   : ''}
                               </HelperTextItem>
                             </HelperText>

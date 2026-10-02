@@ -72,6 +72,15 @@ const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateUsername = (username) => {
+    // Login stores the username in both session fields. The header reads userEmail.
+    const nextUsername = username == null ? '' : username
+    setUserName(nextUsername)
+    setUserEmail(nextUsername)
+    localStorage.setItem('uName', nextUsername)
+    localStorage.setItem('uEmail', nextUsername)
+  }
+
   const logOut = () => {
     console.log('logout')
     setUserEmail('')
@@ -131,7 +140,20 @@ const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ token, userEmail, userName, userId, userRole, loginAction, loginMessage, logOut, isLogged, isAdmin, isGuest }}
+      value={{
+        token,
+        userEmail,
+        userName,
+        userId,
+        userRole,
+        loginAction,
+        loginMessage,
+        updateUsername,
+        logOut,
+        isLogged,
+        isAdmin,
+        isGuest
+      }}
     >
       {children}
     </AuthContext.Provider>

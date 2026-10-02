@@ -7,7 +7,7 @@ import user_data from '../fixtures/users.json'
 describe('Edit user username', () => {
   const user = user_data.user1
 
-  it('Rejects a username already used by admin', () => {
+  const registerAndLogin = () => {
     cy.clear_db()
 
     cy.visit(const_data.app_base_url)
@@ -31,13 +31,20 @@ describe('Edit user username', () => {
     cy.wait(const_data.long_wait)
     cy.url().should('eq', const_data.app_base_url + '/')
     cy.get('header .pf-v5-c-toolbar__item .pf-v5-c-menu-toggle__text').should('contain.text', user.username)
+  }
+
+  const openProfile = () => {
+    cy.get('header').find('div.pf-v5-c-masthead__content').find('button.pf-v5-c-menu-toggle').click()
+    cy.get('div.pf-v5-c-menu__content').contains('button', 'Profile').click()
+    cy.get('[aria-label="user profile modal"]').should('be.visible')
+  }
+
+  it('Rejects a username already used by admin', () => {
+    registerAndLogin()
 
     cy.intercept('PUT', '**/user').as('updateUser')
 
-    cy.get('header').find('div.pf-v5-c-masthead__content').find('button.pf-v5-c-menu-toggle').click()
-    cy.get('div.pf-v5-c-menu__content').contains('button', 'Profile').click()
-
-    cy.get('[aria-label="user profile modal"]').should('be.visible')
+    openProfile()
     cy.get('#input-user-profile-username').clear().type(const_data.users.admin.username).should('have.value', const_data.users.admin.username)
     cy.get('#btn-user-profile-save').click()
 
@@ -50,5 +57,19 @@ describe('Edit user username', () => {
     cy.get('#btn-user-profile-save').click()
     cy.get('@updateUser.all').should('have.length', 1)
     cy.get('header .pf-v5-c-toolbar__item .pf-v5-c-menu-toggle__text').should('contain.text', user.username)
+  })
+
+  it('Reloads and shows the new username in the header', () => {
+    const newUsername = 'user1renamed'
+    registerAndLogin()
+
+    cy.intercept('PUT', '**/user').as('updateUser')
+    openProfile()
+    cy.get('#input-user-profile-username').clear().type(newUsername).should('have.value', newUsername)
+    cy.get('#btn-user-profile-save').click()
+
+    cy.wait('@updateUser').its('response.statusCode').should('eq', 200)
+    cy.wait(const_data.long_wait)
+    cy.get('header .pf-v5-c-toolbar__item .pf-v5-c-menu-toggle__text').should('contain.text', newUsername)
   })
 })

@@ -209,6 +209,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
       .then((data) => {
         if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
+        } else if (_username != null && _username != undefined) {
+          auth.updateUsername(_username)
+          window.location.reload()
         } else {
           setMessageValue(data['message'])
         }

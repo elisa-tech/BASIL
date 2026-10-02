@@ -45,6 +45,14 @@ PRECONDITION_FAILED_MESSAGE = "Some precondition failed"
 PRECONDITION_FAILED_RESPONSE_TYPE = "PRECONDITION_FAILED"
 PRECONDITION_FAILED_STATUS = 412
 
+LENGTH_REQUIRED_MESSAGE = "Content-Length header is required"
+LENGTH_REQUIRED_RESPONSE_TYPE = "LENGTH_REQUIRED"
+LENGTH_REQUIRED_STATUS = 411
+
+PAYLOAD_TOO_LARGE_MESSAGE = "Request payload too large"
+PAYLOAD_TOO_LARGE_RESPONSE_TYPE = "PAYLOAD_TOO_LARGE"
+PAYLOAD_TOO_LARGE_STATUS = 413
+
 SERVER_ERROR_MESSAGE = "Unexpected Server Error"
 SERVER_ERROR_RESPONSE_TYPE = "SERVER_ERROR"
 SERVER_ERROR_STATUS = 500
@@ -159,6 +167,22 @@ class ApiResponse():
         self.set_response_type(PRECONDITION_FAILED_RESPONSE_TYPE)
         if not self._message:
             self.set_message(PRECONDITION_FAILED_MESSAGE)
+        return self._message, self._status
+
+    def return_length_required(self):
+        self.log_message()
+        self.set_status(LENGTH_REQUIRED_STATUS)
+        self.set_response_type(LENGTH_REQUIRED_RESPONSE_TYPE)
+        if not self._message:
+            self.set_message(LENGTH_REQUIRED_MESSAGE)
+        return self._message, self._status
+
+    def return_payload_too_large(self):
+        self.log_message()
+        self.set_status(PAYLOAD_TOO_LARGE_STATUS)
+        self.set_response_type(PAYLOAD_TOO_LARGE_RESPONSE_TYPE)
+        if not self._message:
+            self.set_message(PAYLOAD_TOO_LARGE_MESSAGE)
         return self._message, self._status
 
     def return_server_error(self):

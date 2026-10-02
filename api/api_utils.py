@@ -1,12 +1,16 @@
+import base64
+import binascii
 import datetime
 import html as html_module
 import io
+import json
 import logging
 import os
 import queue
 import re
 import subprocess
 import tarfile
+import tempfile
 import threading
 import urllib
 from pyaml_env import parse_config
@@ -743,16 +747,20 @@ def tools_to_html() -> str:
     return html
 
 
-def get_user_folder_path(user: UserModel, folder_name: str) -> str:
+def get_user_root_path(user: UserModel) -> str:
     from api import USER_FILES_BASE_DIR
-    user_path = os.path.join(USER_FILES_BASE_DIR, f"{user.id}", folder_name)
-    if not os.path.exists(user_path):
+    return os.path.join(USER_FILES_BASE_DIR, f"{user.id}")
+
+
+def get_user_folder_path(user: UserModel, folder_name: str, create: bool = True) -> str:
+    user_path = os.path.join(get_user_root_path(user), folder_name)
+    if create and not os.path.exists(user_path):
         os.makedirs(user_path, exist_ok=True)
     return user_path
 
 
-def get_user_config_folder_path(user: UserModel) -> str:
-    return get_user_folder_path(user, ".config")
+def get_user_config_folder_path(user: UserModel, create: bool = True) -> str:
+    return get_user_folder_path(user, ".config", create=create)
 
 
 def get_user_html_folder_path(user: UserModel) -> str:
@@ -765,6 +773,186 @@ def get_user_pdf_folder_path(user: UserModel) -> str:
 
 def get_user_tarball_folder_path(user: UserModel) -> str:
     return get_user_folder_path(user, ".tarball")
+
+
+USER_AVATAR_CONFIG_FILENAME = "avatar.json"
+USER_AVATAR_IMAGE_BASENAME = "avatar"
+USER_AVATAR_BUILTIN_NAMES = ["blue", "cyan", "green", "orange", "purple", "red"]
+USER_AVATAR_MAX_SIZE = 512 * 1024  # bytes
+USER_AVATAR_CONFIG_MAX_SIZE = 4 * 1024  # bytes, avatar.json only holds a few fields
+# Maximum size of the PUT /user/avatar request body: the image encoded as
+# base64 (4/3 of USER_AVATAR_MAX_SIZE) plus room for the other fields
+USER_AVATAR_MAX_REQUEST_SIZE = 1024 * 1024  # bytes
+USER_AVATAR_IMAGE_TYPES = {
+    "png": "image/png",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+}
+USER_AVATAR_DEFAULT = {"type": "default"}
+
+
+def get_image_type(content: bytes):
+    """Return the image type detected from the file signature, or None
+    if the content is not a supported image"""
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if content.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    if content[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def write_file_atomically(path: str, content: bytes):
+    """Write content to path through a temporary file, so that path holds
+    either the previous content or the new one, never a partial write"""
+    fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(content)
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+def is_avatar_config_folder_safe(user: UserModel, config_dir: str) -> bool:
+    """The user files API can write in the user folder, so the config folder
+    could have been replaced by a link: never follow it outside the user folder"""
+    if is_safe_user_path(get_user_root_path(user), config_dir):
+        return True
+    logger.warning(f"The config folder of user {user.id} is outside the user folder")
+    return False
+
+
+def delete_user_avatar(user: UserModel, keep: tuple = ()):
+    """Remove the avatar configuration and the uploaded image of the user,
+    except the files listed in keep"""
+    config_dir = get_user_config_folder_path(user)
+    if not is_avatar_config_folder_safe(user, config_dir):
+        return
+    for filename in os.listdir(config_dir):
+        if filename in keep:
+            continue
+        if filename == USER_AVATAR_CONFIG_FILENAME or \
+                os.path.splitext(filename)[0] == USER_AVATAR_IMAGE_BASENAME:
+            path = os.path.join(config_dir, filename)
+            # Removing a link leaves what it points to untouched; a folder
+            # named like the avatar is not ours to remove
+            if os.path.islink(path) or os.path.isfile(path):
+                os.remove(path)
+
+
+def read_user_avatar_file(user: UserModel, path: str, max_size: int):
+    """Return the content of an avatar file, or None when it is missing, outside
+    the user folder once links are resolved, or bigger than max_size.
+    The user files API can write in the user folder, so these files cannot be trusted."""
+    if not os.path.isfile(path):
+        return None
+    filename = os.path.basename(path)
+    if not is_safe_user_path(get_user_root_path(user), path):
+        logger.warning(f"The avatar file {filename} of user {user.id} is outside the user folder")
+        return None
+    try:
+        # Read at most one byte more than allowed, whatever the size of the file
+        with open(path, "rb") as f:
+            content = f.read(max_size + 1)
+    except OSError as e:
+        logger.warning(f"Unable to read the avatar of user {user.id}: {e}")
+        return None
+    if len(content) > max_size:
+        logger.warning(f"The avatar file {filename} of user {user.id} is bigger than {max_size} bytes")
+        return None
+    return content
+
+
+def get_user_avatar(user: UserModel) -> dict:
+    """Return the avatar of the user:
+    - {"type": "default"}
+    - {"type": "builtin", "name": <one of USER_AVATAR_BUILTIN_NAMES>}
+    - {"type": "custom", "data": <image as data URL>}
+    """
+    # Do not create the folder: the avatar of other users is read as well
+    config_dir = get_user_config_folder_path(user, create=False)
+    config_path = os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME)
+    content = read_user_avatar_file(user, config_path, USER_AVATAR_CONFIG_MAX_SIZE)
+    if content is None:
+        return dict(USER_AVATAR_DEFAULT)
+
+    try:
+        avatar = json.loads(content)
+    except ValueError as e:
+        logger.warning(f"Unable to read the avatar of user {user.id}: {e}")
+        return dict(USER_AVATAR_DEFAULT)
+
+    if not isinstance(avatar, dict):
+        return dict(USER_AVATAR_DEFAULT)
+
+    if avatar.get("type") == "builtin" and avatar.get("name") in USER_AVATAR_BUILTIN_NAMES:
+        return {"type": "builtin", "name": avatar["name"]}
+
+    if avatar.get("type") == "custom":
+        image_path = os.path.join(config_dir, os.path.basename(str(avatar.get("filename", ""))))
+        content = read_user_avatar_file(user, image_path, USER_AVATAR_MAX_SIZE)
+        if content is None:
+            return dict(USER_AVATAR_DEFAULT)
+        image_type = get_image_type(content)
+        if not image_type:
+            return dict(USER_AVATAR_DEFAULT)
+        encoded = base64.b64encode(content).decode("ascii")
+        return {"type": "custom", "data": f"data:{USER_AVATAR_IMAGE_TYPES[image_type]};base64,{encoded}"}
+
+    return dict(USER_AVATAR_DEFAULT)
+
+
+def set_user_avatar(user: UserModel, avatar_type: str, name: str = None, data: str = None):
+    """Store the avatar of the user in the user config folder.
+    - avatar_type "builtin": name must be one of USER_AVATAR_BUILTIN_NAMES
+    - avatar_type "custom": data must be an image encoded as base64 data URL
+
+    The previous avatar is removed only once the new one is stored, so a
+    failed write leaves the previous avatar in place.
+
+    Return an error message, or None on success"""
+    config_dir = get_user_config_folder_path(user)
+    if not is_avatar_config_folder_safe(user, config_dir):
+        return "The avatar cannot be stored: the config folder is outside the user folder"
+    config_path = os.path.join(config_dir, USER_AVATAR_CONFIG_FILENAME)
+
+    if avatar_type == "builtin":
+        if name not in USER_AVATAR_BUILTIN_NAMES:
+            return f"Unknown avatar name. Supported names: {', '.join(USER_AVATAR_BUILTIN_NAMES)}"
+        write_file_atomically(config_path, json.dumps({"type": "builtin", "name": name}).encode("utf-8"))
+        delete_user_avatar(user, keep=(USER_AVATAR_CONFIG_FILENAME,))
+        return None
+
+    if avatar_type == "custom":
+        match = re.match(r"^data:[\w/+.-]*;base64,(.*)$", str(data or ""), re.DOTALL)
+        if not match:
+            return "The image should be sent as a base64 data URL"
+        try:
+            content = base64.b64decode(match.group(1), validate=True)
+        except (binascii.Error, ValueError):
+            return "The image is not valid base64"
+        if len(content) == 0:
+            return "The image is empty"
+        if len(content) > USER_AVATAR_MAX_SIZE:
+            return f"The image is too big. Maximum size is {USER_AVATAR_MAX_SIZE // 1024} KB"
+        image_type = get_image_type(content)
+        if not image_type:
+            return f"Unsupported image format. Supported formats: {', '.join(USER_AVATAR_IMAGE_TYPES.keys())}"
+        image_filename = f"{USER_AVATAR_IMAGE_BASENAME}.{image_type}"
+        # The image is written first: until the config is replaced, it still
+        # points to the previous avatar
+        write_file_atomically(os.path.join(config_dir, image_filename), content)
+        write_file_atomically(config_path, json.dumps({"type": "custom", "filename": image_filename}).encode("utf-8"))
+        delete_user_avatar(user, keep=(USER_AVATAR_CONFIG_FILENAME, image_filename))
+        return None
+
+    return "Unknown avatar type. Supported types: builtin, custom"
 
 
 def get_custom_actions(user: UserModel) -> list:

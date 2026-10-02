@@ -48,6 +48,15 @@ def test_api_post(client, user_authentication):
     assert response.status_code == HTTPStatus.CREATED
 
 
+def test_api_get_owner_id(client, user_authentication):
+    """The listing exposes the owner id, used to show the owner avatar"""
+    response = client.get('/apis', query_string={'user-id': user_authentication.json['id'],
+                                                 'token': user_authentication.json['token']})
+    assert response.status_code == HTTPStatus.OK
+    api = next(a for a in response.json['apis'] if a['api'] == 'test_api')
+    assert api['created_by_id'] == user_authentication.json['id']
+
+
 def test_api_put(client, user_authentication):
     # Test GET
     response = client.get('/apis')

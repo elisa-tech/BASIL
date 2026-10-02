@@ -38,6 +38,7 @@ import BalanceScaleIcon from '@patternfly/react-icons/dist/esm/icons/balance-sca
 import MigrationIcon from '@patternfly/react-icons/dist/esm/icons/migration-icon'
 import { useAuth } from '../User/AuthProvider'
 import { CompletionLabel } from '@app/Common/Label/CompletionLabel'
+import { CreatedByLabel } from '@app/Common/Label/CreatedByLabel'
 
 export interface MappingListingTableProps {
   api
@@ -352,6 +353,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>{getStatusLabel(test_case[Constants._TC_]['status'])}</FlexItem>
                   <FlexItem>
+                    <CreatedByLabel username={test_case[Constants._TC_]['created_by']} />
+                  </FlexItem>
+                  <FlexItem>
                     <CompletionLabel mappedItem={test_case} />
                   </FlexItem>
                   <FlexItem>
@@ -455,6 +459,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <Text component={TextVariants.h6}>ver. {test_spec['version']}</Text>
                   </FlexItem>
                   <FlexItem>{getStatusLabel(test_spec[Constants._TS_]['status'])}</FlexItem>
+                  <FlexItem>
+                    <CreatedByLabel username={test_spec[Constants._TS_]['created_by']} />
+                  </FlexItem>
                   <FlexItem>
                     <CompletionLabel mappedItem={test_spec} />
                   </FlexItem>
@@ -565,6 +572,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>{getStatusLabel(mappedItem[Constants._SR_]['status'])}</FlexItem>
                   <FlexItem>
+                    <CreatedByLabel username={mappedItem[Constants._SR_]['created_by']} />
+                  </FlexItem>
+                  <FlexItem>
                     <CompletionLabel mappedItem={mappedItem} />
                   </FlexItem>
                   <FlexItem>
@@ -654,6 +664,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                   </FlexItem>
                   <FlexItem>{getStatusLabel(mappedItem[Constants._J]['status'])}</FlexItem>
                   <FlexItem>
+                    <CreatedByLabel username={mappedItem[Constants._J]['created_by']} />
+                  </FlexItem>
+                  <FlexItem>
                     <CompletionLabel mappedItem={mappedItem} />
                   </FlexItem>
                   {auth.isLogged() ? (
@@ -738,6 +751,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
                     <Text component={TextVariants.h6}>ver. {mappedItem['version']}</Text>
                   </FlexItem>
                   <FlexItem>{getStatusLabel(mappedItem[Constants._D]['status'])}</FlexItem>
+                  <FlexItem>
+                    <CreatedByLabel username={mappedItem[Constants._D]['created_by']} />
+                  </FlexItem>
                   <FlexItem>
                     <CompletionLabel mappedItem={mappedItem} />
                   </FlexItem>
@@ -871,27 +887,33 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
     let work_item_id = ''
     let work_item_type = ''
     let work_item_description = ''
+    let work_item_created_by = ''
 
     if (Object.prototype.hasOwnProperty.call(snippet, 'justification')) {
       work_item_type = Constants._J
       work_item_description = snippet[Constants._J]['description']
       work_item_id = snippet[Constants._J]['id']
+      work_item_created_by = snippet[Constants._J]['created_by']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'document')) {
       work_item_type = Constants._D
       work_item_description = snippet[Constants._D]['title']
       work_item_id = snippet[Constants._D]['id']
+      work_item_created_by = snippet[Constants._D]['created_by']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'sw_requirement')) {
       work_item_type = Constants._SR
       work_item_description = snippet[Constants._SR_]['title']
       work_item_id = snippet[Constants._SR_]['id']
+      work_item_created_by = snippet[Constants._SR_]['created_by']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'test_specification')) {
       work_item_type = Constants._TS
       work_item_description = snippet[Constants._TS_]['title']
       work_item_id = snippet[Constants._TS_]['id']
+      work_item_created_by = snippet[Constants._TS_]['created_by']
     } else if (Object.prototype.hasOwnProperty.call(snippet, 'test_case')) {
       work_item_type = Constants._TC
       work_item_description = snippet[Constants._TC_]['title']
       work_item_id = snippet[Constants._TC_]['id']
+      work_item_created_by = snippet[Constants._TC_]['created_by']
     }
 
     return (
@@ -909,6 +931,9 @@ const MappingListingTable: React.FunctionComponent<MappingListingTableProps> = (
               </FlexItem>
               <FlexItem>
                 <Text component={TextVariants.h6}>ver. {snippet['version']}</Text>
+              </FlexItem>
+              <FlexItem>
+                <CreatedByLabel username={work_item_created_by} />
               </FlexItem>
               <Label variant='outline' isCompact>
                 {Constants.percentageStringFormat(snippet['coverage'])}% Completion

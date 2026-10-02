@@ -8,6 +8,7 @@ On doing so you will be recognized as a `guest` (not a GUEST as user role) and y
 You will not be able to leave comments, add or edit software components or work items.
 You can create a BASIL user by your own navigating to the /signin page.
 Creating a new user the default role will be GUEST.
+Users can log in with either their username or their email address.
 An admin will be able to modify your role, to reset your password and to enable/disable your account.
 
 -----

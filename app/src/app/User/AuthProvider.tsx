@@ -92,6 +92,15 @@ const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateUsername = (username) => {
+    // Login stores the username in both session fields. The header reads userEmail.
+    const nextUsername = username == null ? '' : username
+    setUserName(nextUsername)
+    setUserEmail(nextUsername)
+    localStorage.setItem('uName', nextUsername)
+    localStorage.setItem('uEmail', nextUsername)
+  }
+
   const logOut = () => {
     console.log('logout')
     setUserEmail('')
@@ -161,6 +170,7 @@ const AuthProvider = ({ children }) => {
         setUserAvatar,
         loginAction,
         loginMessage,
+        updateUsername,
         logOut,
         isLogged,
         isAdmin,

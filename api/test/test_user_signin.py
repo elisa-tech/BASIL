@@ -90,6 +90,14 @@ def test_user_signin_post_bad_request_username_with_space(client):
     assert response.status_code == HTTPStatus.BAD_REQUEST
 
 
+def test_user_signin_post_bad_request_username_with_at(client):
+    """POST with a username containing @ returns 400."""
+    payload = _signin_payload(username="user@name", email="userat@example.com")
+    response = client.post(_USER_SIGNIN_URL, json=payload)
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.get_json() == "The @ character is not permitted in the username."
+
+
 @pytest.mark.parametrize(
     "email",
     (

@@ -3,6 +3,8 @@
 ## 1.8.x
 
 - PostgreSQL as default database
+- Allow users to log in with their username or email address
+- Reject the @ character in usernames
 - E2E Test for tmt test run plugin
 - Fix SPDX 3.0.1 export
 - SPDX Export validation in CI

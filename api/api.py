@@ -109,6 +109,7 @@ from api_utils import (
     test_run_config_to_html,
     test_run_to_html,
     tools_to_html,
+    username_validation_error,
     USER_AVATAR_MAX_REQUEST_SIZE,
 )
 from pdf_converter import ConvertRequest, convert_to_pdf
@@ -8703,14 +8704,26 @@ class UserLogin(Resource):
         api_response.set_logger(logger)
         api_response.set_args(request_data)
         DATE_FORMAT = "%m/%d/%Y, %H:%M:%S"
-        mandatory_fields = ["email", "password"]
+        # ``username`` was the original login field.  Keep accepting ``email``
+        # as an alias for existing clients and normalize both payload formats
+        # before processing the request.
+        login = request_data.get("username")
+        if login is None:
+            login = request_data.get("email")
+            if login is not None:
+                request_data["username"] = login
 
+        mandatory_fields = ["username", "password"]
         wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
         if len(wrong_fields) > 0:
-            api_response.set_missing_fields(wrong_fields)
+            # Report the legacy field name when neither login field was sent.
+            if "username" in wrong_fields and request_data.get("email") is None:
+                api_response.set_missing_fields(["email", "password"] if "password" in wrong_fields else ["email"])
+            else:
+                api_response.set_missing_fields(wrong_fields)
             return api_response.return_bad_request_missing_fields()
 
-        cache_key = f"{request_data['email']}|{request.remote_addr}"
+        cache_key = f"{request_data['username']}|{request.remote_addr}"
 
         if cache_key in login_attempt_cache.keys():
             if login_attempt_cache[cache_key]["attempts"] >= MAX_LOGIN_ATTEMPTS:
@@ -8722,7 +8735,7 @@ class UserLogin(Resource):
                     retry_in = int(MAX_LOGIN_ATTEMPTS_TIMEOUT/60)
                     api_response.set_message(
                         f"Too many attempts (>= {MAX_LOGIN_ATTEMPTS}) for user "
-                        f"{request_data['email']}, retry in {retry_in} minutes"
+                        f"{request_data['username']}, retry in {retry_in} minutes"
                     )
                     return api_response.return_bad_request()
                 else:
@@ -8731,7 +8744,9 @@ class UserLogin(Resource):
         try:
             str_encoded_password = base64.b64encode(request_data["password"].encode("utf-8")).decode("utf-8")
             dbi = get_db()
-            user = dbi.session.query(UserModel).filter(UserModel.email == request_data["email"]).one()
+            user = dbi.session.query(UserModel).filter(
+                or_(UserModel.email == request_data["username"], UserModel.username == request_data["username"])
+            ).one()
             if not user.enabled:
                 api_response.set_message("This user has been disabled, please contact your BASIL admin")
                 return api_response.return_unauthorized()
@@ -8743,11 +8758,11 @@ class UserLogin(Resource):
 
                 login_attempt_cache[cache_key]["last_attempt_dt"] = datetime.datetime.now().strftime(DATE_FORMAT)
 
-                api_response.set_message(f"Wrong credentials for user {request_data['email']}")
+                api_response.set_message(f"Wrong credentials for user {request_data['username']}")
                 return api_response.return_bad_request()
 
         except NoResultFound:
-            api_response.set_message("Email not assigned to any user, consider to register an account")
+            api_response.set_message("Username or email not assigned to any user, consider to register an account")
             return api_response.return_unauthorized()
 
         # Login success, clear login attempt cache for that ip
@@ -8796,8 +8811,9 @@ class UserSignin(Resource):
         password = request_data["password"]
 
         # Input validation needed in case of direct interaction with the API
-        if " " in username or len(username) < 4:
-            api_response.set_message("Username not valid, it hould be at least 4 chars and space is not allowed")
+        username_error = username_validation_error(username)
+        if username_error:
+            api_response.set_message(username_error)
             return api_response.return_bad_request()
         if not re.match(email_regex, email):
             api_response.set_message("Email not valid, it must be a valid email")
@@ -9336,8 +9352,9 @@ class User(Resource):
         # Edit username
         if "username" in request_data.keys():
             username = request_data["username"]
-            if " " in username or len(username) < 4:
-                api_response.set_message("Username not valid, it hould be at least 4 chars and space is not allowed")
+            username_error = username_validation_error(username)
+            if username_error:
+                api_response.set_message(username_error)
                 return api_response.return_bad_request()
 
             same_username = dbi.session.query(UserModel).filter(UserModel.username == username).all()

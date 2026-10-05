@@ -51,12 +51,12 @@ const Login: React.FunctionComponent = () => {
     } else {
       setShowHelperText(false)
     }
-    auth.loginAction({ email: username, password: password })
+    auth.loginAction({ username: username, password: password })
   }
 
   const onResetPassword = () => {
     if (!username) {
-      setHelperText('Invalid email')
+      setHelperText('Invalid username or email')
       setShowHelperText(true)
       return
     }
@@ -142,7 +142,7 @@ const Login: React.FunctionComponent = () => {
           <ExclamationCircleIcon />
         </Icon>
       }
-      usernameLabel='Email'
+      usernameLabel='Username or email'
       usernameValue={username}
       onChangeUsername={handleUsernameChange}
       isValidUsername={isValidUsername}

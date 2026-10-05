@@ -75,6 +75,8 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
   React.useEffect(() => {
     if (profileUsernameValue == '') {
       setValidatedProfileUsernameValue('error')
+    } else if (profileUsernameValue.includes('@')) {
+      setValidatedProfileUsernameValue('error')
     } else if (profileUsernameValue.includes(' ')) {
       setValidatedProfileUsernameValue('error')
     } else if (profileUsernameValue.length < 4) {
@@ -164,6 +166,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
         return
       }
       if (validatedProfileUsernameValue != 'success') {
+        if (String(_username).includes('@')) {
+          setMessageValue('The @ character is not permitted in the username.')
+        }
         return
       }
       data['username'] = _username
@@ -206,6 +211,9 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
       .then((data) => {
         if (!Constants.isHttpSuccessStatus(status)) {
           setMessageValue(Constants.getResponseErrorMessage(status, status_text, data))
+        } else if (_username != null && _username != undefined) {
+          auth.updateUsername(_username)
+          window.location.reload()
         } else {
           setMessageValue(data['message'])
         }
@@ -275,7 +283,11 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
                   <FormHelperText>
                     <HelperText>
                       <HelperTextItem variant='error'>
-                        {validatedProfileUsernameValue === 'error' ? 'This field is mandatory' : ''}
+                        {validatedProfileUsernameValue === 'error'
+                          ? profileUsernameValue.includes('@')
+                            ? 'The @ character is not permitted in the username.'
+                            : 'This field is mandatory'
+                          : ''}
                       </HelperTextItem>
                     </HelperText>
                   </FormHelperText>

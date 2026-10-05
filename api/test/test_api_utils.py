@@ -1,6 +1,8 @@
 import os
 import pytest
 import sys
+from io import BytesIO
+from urllib.error import HTTPError, URLError
 from db.models.user import UserModel
 
 _ADMIN_SETTINGS_URL = "/admin/settings"
@@ -14,10 +16,13 @@ UT_ADMIN_USER_ROLE = "ADMIN"
 currentdir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(1, os.path.dirname(currentdir))
 
+import api_utils
 from api_utils import (
     LINK_BASIL_INSTANCE_HTML_MESSAGE,
+    _REMOTE_SPECIFICATION_ATTEMPTS,
     add_html_link_to_email_body,
     combine_tmt_path,
+    get_api_specification,
     search_path_match,
     load_settings
 )
@@ -189,3 +194,69 @@ def test_search_path_match_ranks_the_entry_name_above_its_folders():
 
 def test_search_path_match_ranks_a_word_start_above_a_match_inside_a_word():
     assert score_of("test", "docs/test_plan.md") > score_of("test", "docs/latest_plan.md")
+
+
+class _RemoteSpecification:
+    def __init__(self, payload, charset=None):
+        self._payload = payload
+        self.headers = self._Headers(charset)
+
+    def read(self):
+        return self._payload
+
+    class _Headers:
+        def __init__(self, charset):
+            self._charset = charset
+
+        def get_content_charset(self):
+            return self._charset
+
+
+def _http_error(status, reason):
+    return HTTPError("https://example.test/spec.md", status, reason, hdrs=None, fp=BytesIO(b""))
+
+
+def test_get_api_specification_retries_a_gateway_timeout(monkeypatch):
+    calls = {"n": 0}
+
+    def urlopen(_url):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _http_error(504, "Gateway Time-out")
+        return _RemoteSpecification(b"# specification")
+
+    monkeypatch.setattr(api_utils.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(api_utils.time, "sleep", lambda _seconds: None)
+
+    assert get_api_specification("https://example.test/spec.md") == "# specification"
+    assert calls["n"] == 2
+
+
+def test_get_api_specification_does_not_retry_a_missing_document(monkeypatch):
+    calls = {"n": 0}
+
+    def urlopen(_url):
+        calls["n"] += 1
+        raise _http_error(404, "Not Found")
+
+    monkeypatch.setattr(api_utils.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(api_utils.time, "sleep", lambda _seconds: None)
+
+    assert get_api_specification("https://example.test/missing.md") is None
+    assert calls["n"] == 1
+
+
+def test_get_api_specification_retries_a_dropped_connection_then_reads_the_document(monkeypatch):
+    calls = {"n": 0}
+
+    def urlopen(_url):
+        calls["n"] += 1
+        if calls["n"] < _REMOTE_SPECIFICATION_ATTEMPTS:
+            raise URLError("connection timed out")
+        return _RemoteSpecification("spéc".encode("utf-8"), charset="utf-8")
+
+    monkeypatch.setattr(api_utils.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(api_utils.time, "sleep", lambda _seconds: None)
+
+    assert get_api_specification("https://example.test/spec.md") == "spéc"
+    assert calls["n"] == _REMOTE_SPECIFICATION_ATTEMPTS

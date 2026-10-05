@@ -23,6 +23,7 @@ import { JustificationMenuKebab } from './Menu/JustificationMenuKebab'
 import { DocumentMenuKebab } from './Menu/DocumentMenuKebab'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
 import { CompletionLabel } from '@app/Common/Label/CompletionLabel'
+import { CreatedByLabel } from '@app/Common/Label/CreatedByLabel'
 import CommentBadges from '../Custom/CommentBadges'
 import OutlinedCommentsIcon from '@patternfly/react-icons/dist/esm/icons/outlined-comments-icon'
 import CodeIcon from '@patternfly/react-icons/dist/esm/icons/code-icon'
@@ -673,6 +674,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                     )}
                     <FlexItem>{getStatusLabel(tcData.status)}</FlexItem>
                     <FlexItem>
+                      <CreatedByLabel username={tcData.created_by} />
+                    </FlexItem>
+                    <FlexItem>
                       <CompletionLabel mappedItem={tc} />
                     </FlexItem>
                   </Flex>
@@ -743,6 +747,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                       </FlexItem>
                     )}
                     <FlexItem>{getStatusLabel(tsData.status)}</FlexItem>
+                    <FlexItem>
+                      <CreatedByLabel username={tsData.created_by} />
+                    </FlexItem>
                     <FlexItem>
                       <CompletionLabel mappedItem={ts} />
                     </FlexItem>
@@ -839,6 +846,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                     )}
                     <FlexItem>{getStatusLabel(srData.status)}</FlexItem>
                     <FlexItem>
+                      <CreatedByLabel username={srData.created_by} />
+                    </FlexItem>
+                    <FlexItem>
                       <CompletionLabel mappedItem={srItem} />
                     </FlexItem>
                   </Flex>
@@ -907,6 +917,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                       </FlexItem>
                     )}
                     <FlexItem>{getStatusLabel(docData.status)}</FlexItem>
+                    <FlexItem>
+                      <CreatedByLabel username={docData.created_by} />
+                    </FlexItem>
                     <FlexItem>
                       <CompletionLabel mappedItem={docItem} />
                     </FlexItem>
@@ -986,6 +999,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                   </FlexItem>
                 )}
                 <FlexItem>{getStatusLabel(sr.status)}</FlexItem>
+                <FlexItem>
+                  <CreatedByLabel username={sr.created_by} />
+                </FlexItem>
                 {firstSnippet && (
                   <FlexItem>
                     <CompletionLabel mappedItem={fakeMappingList[0]} />
@@ -1124,6 +1140,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                   </FlexItem>
                 )}
                 <FlexItem>{getStatusLabel(ts.status)}</FlexItem>
+                <FlexItem>
+                  <CreatedByLabel username={ts.created_by} />
+                </FlexItem>
                 {firstSnippet && (
                   <FlexItem>
                     <CompletionLabel mappedItem={fakeMappingList[0]} />
@@ -1239,6 +1258,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                   </FlexItem>
                 )}
                 <FlexItem>{getStatusLabel(tc.status)}</FlexItem>
+                <FlexItem>
+                  <CreatedByLabel username={tc.created_by} />
+                </FlexItem>
                 {firstSnippet && (
                   <FlexItem>
                     <CompletionLabel mappedItem={fakeMappingList[0]} />
@@ -1339,6 +1361,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                   </FlexItem>
                 )}
                 <FlexItem>{getStatusLabel(j.status)}</FlexItem>
+                <FlexItem>
+                  <CreatedByLabel username={j.created_by} />
+                </FlexItem>
                 {firstSnippet && (
                   <FlexItem>
                     <CompletionLabel mappedItem={fakeMappingList[0]} />
@@ -1441,6 +1466,9 @@ const MappingDynamicViewTable: React.FunctionComponent<MappingDynamicViewTablePr
                   </FlexItem>
                 )}
                 <FlexItem>{getStatusLabel(doc.status)}</FlexItem>
+                <FlexItem>
+                  <CreatedByLabel username={doc.created_by} />
+                </FlexItem>
                 {firstSnippet && (
                   <FlexItem>
                     <CompletionLabel mappedItem={fakeMappingList[0]} />

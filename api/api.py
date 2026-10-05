@@ -77,6 +77,7 @@ from api_utils import (
     BORDER_COLOR_TEST_SPECIFICATION,
     code_to_html,
     combine_tmt_path,
+    delete_user_avatar,
     document_to_html,
     extend_unmapped_sections_for_auto_fix,
     get_api_specification,
@@ -85,6 +86,7 @@ from api_utils import (
     get_mapping_comments,
     get_safe_str,
     get_test_run_artifacts_dir,
+    get_user_avatar,
     get_user_config_folder_path,
     get_user_html_folder_path,
     get_user_pdf_folder_path,
@@ -99,6 +101,7 @@ from api_utils import (
     read_file,
     require_user_files_write_user,
     justification_to_html,
+    set_user_avatar,
     search_path_match,
     sw_requirement_to_html,
     test_specification_to_html,
@@ -107,6 +110,7 @@ from api_utils import (
     test_run_to_html,
     tools_to_html,
     username_validation_error,
+    USER_AVATAR_MAX_REQUEST_SIZE,
 )
 from pdf_converter import ConvertRequest, convert_to_pdf
 from testrun import TestRunner
@@ -962,6 +966,8 @@ def get_query_string_args(args):
         "reset_token",
         "search",
         "stage",
+        "target-user-id",
+        "target-username",
         "test-case-id",
         "test_run_config_id",
         "test_runs_limit",
@@ -3113,6 +3119,8 @@ class Api(Resource):
             for iApi in range(len(apis)):
                 api_dict = apis[iApi].as_dict()
                 api_dict["covered"] = api_dict["last_coverage"]
+                # Used to show the avatar of the owner
+                api_dict["created_by_id"] = apis[iApi].created_by_id
 
                 # Permissions
                 permissions = get_api_user_permissions(apis[iApi], user, dbi.session)
@@ -9972,6 +9980,123 @@ class UserSshKey(Resource):
         return api_response.return_ok()
 
 
+class UserAvatar(Resource):
+    route = "/user/avatar"
+
+    @api_response_decorator
+    def get(self, api_response: ApiResponse = None):
+        """
+        get the avatar of the current user, or of the user identified by
+        target-user-id or, when that is not given, by target-username.
+        Any logged in user can read the avatar of other users.
+        """
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["token", "user-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        user = get_active_user_from_request(request_data, dbi.session)
+        if not isinstance(user, UserModel):
+            return api_response.return_unauthorized()
+
+        target_user = user
+        if "target-user-id" in request_data:
+            target_user_id = parse_int(request_data["target-user-id"])
+            if target_user_id is None:
+                api_response.set_message("target-user-id should be an integer")
+                return api_response.return_bad_request()
+            target_user = dbi.session.query(UserModel).filter(UserModel.id == target_user_id).one_or_none()
+            if not isinstance(target_user, UserModel):
+                return api_response.return_not_found_user()
+        elif "target-username" in request_data:
+            # Work items only carry the username of who created them.
+            # Usernames are unique: signin and profile updates refuse a taken one.
+            target_user = dbi.session.query(UserModel).filter(
+                UserModel.username == request_data["target-username"]).first()
+            if not isinstance(target_user, UserModel):
+                return api_response.return_not_found_user()
+
+        api_response.set_data(get_user_avatar(target_user))
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def put(self, api_response: ApiResponse = None):
+        """
+        set the avatar of the current user, choosing a builtin one
+        or uploading an image
+        """
+        api_response.set_logger(logger)
+        # Reject big requests before reading the body in memory
+        if request.content_length is None:
+            return api_response.return_length_required()
+        if request.content_length > USER_AVATAR_MAX_REQUEST_SIZE:
+            api_response.set_message(f"The request is too big. Maximum size is "
+                                     f"{USER_AVATAR_MAX_REQUEST_SIZE // 1024} KB")
+            return api_response.return_payload_too_large()
+
+        request_data = request.get_json(force=True)
+        # Do not log the image content
+        api_response.set_args({k: v for k, v in request_data.items() if k != "data"})
+
+        mandatory_fields = ["token", "type", "user-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # The avatar is stored with the user files, which guests cannot change
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        if error is not None:
+            return error
+
+        error = set_user_avatar(user,
+                                avatar_type=request_data["type"],
+                                name=request_data.get("name"),
+                                data=request_data.get("data"))
+        if error:
+            api_response.set_message(error)
+            return api_response.return_bad_request()
+
+        api_response.set_data(get_user_avatar(user))
+        return api_response.return_ok()
+
+    @api_response_decorator
+    def delete(self, api_response: ApiResponse = None):
+        """
+        reset the avatar of the current user to the default one
+        """
+        request_data = request.get_json(force=True)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        mandatory_fields = ["token", "user-id"]
+        wrong_fields = get_wrong_mandatory_fields(mandatory_fields, request_data)
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
+        dbi = get_db()
+
+        # The avatar is stored with the user files, which guests cannot change
+        user, error = require_user_files_write_user(request_data, dbi.session, api_response)
+        if error is not None:
+            return error
+
+        delete_user_avatar(user)
+
+        api_response.set_data(get_user_avatar(user))
+        return api_response.return_ok()
+
+
 class UserFiles(Resource):
     route = "/user/files"
 
@@ -12294,6 +12419,7 @@ api.add_resource(ForkApiJustification, ForkApiJustification.route)
 
 api.add_resource(User, User.route)
 api.add_resource(UserApis, UserApis.route)
+api.add_resource(UserAvatar, UserAvatar.route)
 api.add_resource(UserEnable, UserEnable.route)
 api.add_resource(UserLogin, UserLogin.route)
 api.add_resource(UserNotifications, UserNotifications.route)

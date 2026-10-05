@@ -1,8 +1,9 @@
 import * as React from 'react'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
-import { Checkbox, Label } from '@patternfly/react-core'
+import { Checkbox, Flex, Label } from '@patternfly/react-core'
 import { AdminMenuKebab } from './Menu/AdminMenuKebab'
 import { AdminModal } from './Modal/AdminModal'
+import { UserAvatarIcon } from '@app/User/Avatar/UserAvatarIcon'
 
 export interface AdminListingTableProps {
   users
@@ -33,7 +34,12 @@ const AdminListingTable: React.FunctionComponent<AdminListingTableProps> = ({ us
                 isDisabled={true}
               />
             </Td>
-            <Td dataLabel='username'>{user.username}</Td>
+            <Td dataLabel='username'>
+              <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
+                <UserAvatarIcon userId={user.id} />
+                <span>{user.username}</span>
+              </Flex>
+            </Td>
             <Td dataLabel='email'>{user.email}</Td>
             <Td dataLabel='role'>
               <Label color={user.role == 'GUEST' ? 'red' : user.role == 'ADMIN' ? 'green' : 'blue'}>{user.role}</Label>

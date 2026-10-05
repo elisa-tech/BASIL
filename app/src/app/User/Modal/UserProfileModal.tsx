@@ -18,6 +18,7 @@ import {
   TextInput
 } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
+import { UserAvatarForm } from '@app/User/Avatar/UserAvatarForm'
 
 export interface UserProfileModalProps {
   modalShowState
@@ -145,6 +146,7 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
 
   const profileInfoRef = React.createRef<HTMLElement>()
   const editPasswordRef = React.createRef<HTMLElement>()
+  const editAvatarRef = React.createRef<HTMLElement>()
 
   const EditUserProfile = (_username, _password) => {
     setMessageValue('')
@@ -257,6 +259,15 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
             tabContentId='tabUserEditPassword'
             tabContentRef={editPasswordRef}
           />
+          <Tab
+            eventKey={2}
+            id='tab-user-edit-avatar'
+            title={<TabTitleText>Avatar</TabTitleText>}
+            tabContentId='tabUserEditAvatar'
+            tabContentRef={editAvatarRef}
+            // The avatar is stored with the user files, which guests cannot change
+            isHidden={auth.isGuest()}
+          />
         </Tabs>
         <div>
           <TabContent eventKey={0} id='tabUserProfile' ref={profileInfoRef} hidden={0 !== activeTabKey}>
@@ -360,6 +371,11 @@ export const UserProfileModal: React.FunctionComponent<UserProfileModalProps> = 
               <Button id='btn-user-edit-password-save' onClick={() => EditUserProfile(null, newPasswordValue)}>
                 Save
               </Button>
+            </TabContentBody>
+          </TabContent>
+          <TabContent eventKey={2} id='tabUserEditAvatar' ref={editAvatarRef} hidden={2 !== activeTabKey}>
+            <TabContentBody hasPadding>
+              <UserAvatarForm setMessageValue={setMessageValue} />
             </TabContentBody>
           </TabContent>
         </div>

@@ -30,6 +30,7 @@
 - Fix typo: 'Eamil' → 'Email' in UserProfileModal (#226)
 - Show user role in the user profile modal
 - Comment as TODO
+- User avatar: choose a builtin one or upload an image, shown next to users across the UI (#325)
 
 ## 1.7.x
 

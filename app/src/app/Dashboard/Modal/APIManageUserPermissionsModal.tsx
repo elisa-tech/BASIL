@@ -20,6 +20,7 @@ import * as Constants from '@app/Constants/constants'
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table'
 import { useAuth } from '@app/User/AuthProvider'
 import { PendingIcon } from '@patternfly/react-icons'
+import { UserAvatarIcon } from '@app/User/Avatar/UserAvatarIcon'
 
 export interface ManageUserPermissionsProps {
   api
@@ -533,6 +534,9 @@ export const APIManageUserPermissionsModal: React.FunctionComponent<ManageUserPe
                           <Tr key={rowIndex}>
                             <Td dataLabel='username'>
                               <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
+                                <FlexItem>
+                                  <UserAvatarIcon userId={userPermission['id']} />
+                                </FlexItem>
                                 <FlexItem>{userPermission['username']}</FlexItem>
                                 <FlexItem>
                                   {userPermission?.['write_permission_request'] === 1 ? (

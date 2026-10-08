@@ -12,7 +12,8 @@ import subprocess
 import tarfile
 import tempfile
 import threading
-import urllib
+import time
+import urllib.request
 from pyaml_env import parse_config
 from string import Template
 from urllib.error import HTTPError, URLError
@@ -274,6 +275,22 @@ def async_email_notification(setting_path, template_path, recipient_list, subjec
     return False
 
 
+# Hosts such as GitHub sometimes answer 429/502/503/504 for a moment.
+# The mapping page hides section actions when the specification cannot be
+# read, so one failed read is enough to make that page unusable.
+_REMOTE_SPECIFICATION_ATTEMPTS = 3
+_REMOTE_SPECIFICATION_RETRY_STATUS = (429, 502, 503, 504)
+
+
+def _fetch_remote_specification(url):
+    resource = urllib.request.urlopen(url)
+    if resource.headers.get_content_charset():
+        content = resource.read().decode(resource.headers.get_content_charset())
+    else:
+        content = resource.read().decode("utf-8")
+    return content
+
+
 def get_api_specification(_url_or_path):
     if _url_or_path is None:
         return None
@@ -283,22 +300,37 @@ def get_api_specification(_url_or_path):
             return None
 
         if _url_or_path.startswith("http"):
-            try:
-                resource = urllib.request.urlopen(_url_or_path)
-                if resource.headers.get_content_charset():
-                    content = resource.read().decode(resource.headers.get_content_charset())
-                else:
-                    content = resource.read().decode("utf-8")
-                return content
-            except HTTPError as excp:
-                logger.error(f"HTTPError: {excp.reason} reading {_url_or_path}")
-                return None
-            except URLError as excp:
-                logger.error(f"URLError: {excp.reason} reading {_url_or_path}")
-                return None
-            except ValueError as excp:
-                logger.error(f"ValueError reading {_url_or_path}: {excp}")
-                return None
+            for attempt in range(1, _REMOTE_SPECIFICATION_ATTEMPTS + 1):
+                try:
+                    return _fetch_remote_specification(_url_or_path)
+                except HTTPError as excp:
+                    retry = (
+                        excp.code in _REMOTE_SPECIFICATION_RETRY_STATUS
+                        and attempt < _REMOTE_SPECIFICATION_ATTEMPTS
+                    )
+                    if retry:
+                        logger.warning(
+                            f"HTTPError: {excp.reason} reading {_url_or_path} "
+                            f"(attempt {attempt}/{_REMOTE_SPECIFICATION_ATTEMPTS}), retrying"
+                        )
+                        time.sleep(attempt)
+                        continue
+                    logger.error(f"HTTPError: {excp.reason} reading {_url_or_path}")
+                    return None
+                except URLError as excp:
+                    if attempt < _REMOTE_SPECIFICATION_ATTEMPTS:
+                        logger.warning(
+                            f"URLError: {excp.reason} reading {_url_or_path} "
+                            f"(attempt {attempt}/{_REMOTE_SPECIFICATION_ATTEMPTS}), retrying"
+                        )
+                        time.sleep(attempt)
+                        continue
+                    logger.error(f"URLError: {excp.reason} reading {_url_or_path}")
+                    return None
+                except ValueError as excp:
+                    logger.error(f"ValueError reading {_url_or_path}: {excp}")
+                    return None
+            return None
         else:
             if not os.path.exists(_url_or_path):
                 return None

@@ -13,6 +13,8 @@ ai:
   model: ""
   temperature: 0
   token: ""
+notifications:
+  send_email_on_tag: false
 actions:
   api:
   sw_requirement:

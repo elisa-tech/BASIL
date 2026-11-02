@@ -14,11 +14,11 @@ import {
   HintBody,
   Text,
   TextVariants,
-  TextArea,
   Checkbox,
   Label
 } from '@patternfly/react-core'
 import { useAuth } from '@app/User/AuthProvider'
+import { MentionCommentTextArea } from '@app/Custom/MentionCommentTextArea'
 
 export interface CommentFormProps {
   api
@@ -110,7 +110,7 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
       comment: commentValue,
       todo: isTodo,
       done: commentToEdit.done ? 'true' : 'false',
-      'user-id': auth.userId,
+      'user-id': Number(auth.userId),
       token: auth.token
     }
 
@@ -170,14 +170,11 @@ export const CommentForm: React.FunctionComponent<CommentFormProps> = ({
         ) : (
           ''
         )}
-        <TextArea
-          isRequired
-          rows={5}
-          resizeOrientation='vertical'
-          aria-label='Comment field'
+        <MentionCommentTextArea
+          apiId={api.id}
           id={`input-comment-comment-${commentToEdit.id}`}
           value={commentValue || ''}
-          onChange={(_ev, value) => handleCommentValueChange(_ev, value)}
+          onChange={(value) => setCommentValue(value)}
           onKeyUp={handleCommentKeyUp}
         />
         {validatedCommentValue !== 'success' && (

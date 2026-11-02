@@ -37,6 +37,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
   const [messageValue, setMessageValue] = React.useState<string>('')
 
   const auth = useAuth()
+  const canAddComment = auth.isLogged() && !auth.isGuest()
 
   const handleModalToggle = () => {
     const new_state = !modalShowState
@@ -102,7 +103,7 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
         comment={comment}
         setCommentToEdit={setCommentToEdit}
         loadComments={loadComments}
-        editEnabled={comment.created_by_id == auth.userId}
+        editEnabled={canAddComment && comment.created_by_id == auth.userId}
         parentType={parentType}
         relationData={relationData}
         workItemType={workItemType}
@@ -128,33 +129,37 @@ export const MappingCommentModal: React.FunctionComponent<MappingCommentModalPro
           <Thead>
             <Tr>
               <Th>Comments</Th>
-              <Th>Add new Comment</Th>
+              {canAddComment ? <Th>Add new Comment</Th> : ''}
             </Tr>
           </Thead>
           <Tbody key={1}>
             <Tr>
-              <Td width={50}>
+              <Td width={canAddComment ? 50 : 100}>
                 <Panel isScrollable>
                   <PanelMain tabIndex={0}>
                     <PanelMainBody>{getComments()}</PanelMainBody>
                   </PanelMain>
                 </Panel>
               </Td>
-              <Td width={50}>
-                <CommentForm
-                  api={api}
-                  commentToEdit={commentToEdit}
-                  setCommentToEdit={setCommentToEdit}
-                  handleModalToggle={handleModalToggle}
-                  loadComments={loadComments}
-                  loadMappingData={loadMappingData}
-                  parentType={parentType}
-                  relationData={relationData}
-                  workItemType={workItemType}
-                  messageValue={messageValue}
-                  setMessageValue={setMessageValue}
-                />
-              </Td>
+              {canAddComment ? (
+                <Td width={50}>
+                  <CommentForm
+                    api={api}
+                    commentToEdit={commentToEdit}
+                    setCommentToEdit={setCommentToEdit}
+                    handleModalToggle={handleModalToggle}
+                    loadComments={loadComments}
+                    loadMappingData={loadMappingData}
+                    parentType={parentType}
+                    relationData={relationData}
+                    workItemType={workItemType}
+                    messageValue={messageValue}
+                    setMessageValue={setMessageValue}
+                  />
+                </Td>
+              ) : (
+                ''
+              )}
             </Tr>
           </Tbody>
         </Table>

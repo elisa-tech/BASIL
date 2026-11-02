@@ -24,6 +24,7 @@ import { TestRunModal } from './Modal/TestRunModal'
 import { Switch } from '@patternfly/react-core'
 import { MappingViewSelect } from './MappingViewSelect'
 import { LeavesProgressBar } from '../Custom/LeavesProgressBar'
+import { parseMappingTableName } from '@app/Custom/commentMention'
 
 export interface MappingPageSectionProps {
   mappingData
@@ -116,6 +117,31 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
   const [showIndirectTestCasesOld, setShowIndirectTestCasesOld] = React.useState<boolean>(true)
   const [showIndirectTestCases, setShowIndirectTestCases] = React.useState<boolean>(true)
   const exportFilename = React.useRef('')
+  const commentDeepLinkHandled = React.useRef(false)
+
+  const workItemTypeFromKebab = (kebab: string) => {
+    switch (kebab) {
+      case 'sw-requirement':
+        return Constants._SR
+      case 'test-specification':
+        return Constants._TS
+      case 'test-case':
+        return Constants._TC
+      case 'justification':
+        return Constants._J
+      case 'document':
+        return Constants._D
+      default:
+        return kebab
+    }
+  }
+
+  const parentTypeFromKebab = (kebab: string) => {
+    if (kebab === 'api') {
+      return Constants._A
+    }
+    return workItemTypeFromKebab(kebab)
+  }
 
   const exportToFormat = (format: string = 'jsonld', config: any = {}) => {
     if (!auth.isLogged()) {
@@ -173,6 +199,29 @@ const MappingPageSection: React.FunctionComponent<MappingPageSectionProps> = ({
     const work_item_descriptions = ['Api', 'Document', 'Justification', 'Software Requirement', 'Test Specification', 'Test Case']
     return work_item_descriptions[work_item_types.indexOf(_work_item_type)]
   }
+
+  React.useEffect(() => {
+    if (!api || commentDeepLinkHandled.current) {
+      return
+    }
+    const params = Constants.getSearchParamsDict() as Record<string, string>
+    if (params['view'] !== 'comments' || !params['parent_table'] || !params['parent_id']) {
+      return
+    }
+    const parsed = parseMappingTableName(String(params['parent_table']))
+    if (!parsed) {
+      return
+    }
+    commentDeepLinkHandled.current = true
+    const workItemType = workItemTypeFromKebab(parsed.workItemType)
+    setModalWorkItemType(workItemType)
+    setModalParentType(parentTypeFromKebab(parsed.parentType))
+    setModalRelationData({ relation_id: Number(params['parent_id']) })
+    setModalTitle('Comment a ' + getWorkItemDescription(workItemType))
+    setModalDescription('')
+    setCommentModalShowState(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api])
 
   const getSwRequirementData = (_list, _index) => {
     const sr = {

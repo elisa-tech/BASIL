@@ -1,5 +1,5 @@
 export const API_BASE_URL = 'http://localhost:5000'
-export const BASIL_VERSION = '1.8.12'
+export const BASIL_VERSION = '1.8.13'
 export const TESTING_FARM_COMPOSES_URL = 'https://api.dev.testing-farm.io/v0.1/composes'
 export const force_reload = true
 
@@ -93,6 +93,7 @@ export const buildForkPath = (parentType: string, workItemType: string): string 
 export const API_ALERT_ENDPOINT = '/alert'
 export const API_USER_LOGIN_ENDPOINT = '/user/login'
 export const API_USER_NOTIFICATIONS_ENDPOINT = '/user/notifications'
+export const API_COMMENTS_MENTIONABLE_USERS_ENDPOINT = '/comments/mentionable-users'
 export const API_USER_ROLE_ENDPOINT = '/user/role'
 export const API_USER_ENABLE_ENDPOINT = '/user/enable'
 export const API_USER_SSH_KEY_ENDPOINT = '/user/ssh-key'

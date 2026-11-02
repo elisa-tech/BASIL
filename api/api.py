@@ -66,6 +66,18 @@ from api_response import (
     ApiResponse,
     api_response_decorator,
 )
+from comment_mentions import (
+    broadcast_read_by_for_tagged,
+    build_comment_deep_link_url,
+    create_tag_notifications,
+    get_mentionable_users_query,
+    mapping_belongs_to_api,
+    parse_mention_user_ids,
+    resolve_comment_context,
+    should_add_comment_broadcast_notification,
+    sync_comment_mentions,
+    validate_mention_user_ids,
+)
 from api_utils import (
     add_html_link_to_email_body,
     async_email_notification,
@@ -443,9 +455,13 @@ def get_active_user_from_request(_request, _db_session):
     ):
         return None
 
+    user_id = parse_int(_request.get("user-id"))
+    if user_id is None:
+        return None
+
     query = (
         _db_session.query(UserModel)
-        .filter(UserModel.id == _request["user-id"])
+        .filter(UserModel.id == user_id)
         .filter(UserModel.token == _request["token"])
         .filter(UserModel.enabled == 1)
     )
@@ -2643,61 +2659,72 @@ class Comment(Resource):
             api_response.set_missing_fields(wrong_fields)
             return api_response.return_bad_request_missing_fields()
 
+        if not isinstance(user, UserModel) or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            api_response.set_message("GUEST user cannot add comments.")
+            return api_response.return_unauthorized()
+
         parent_table = request_data["parent_table"].strip()
-        parent_id = request_data["parent_id"]
+        parent_id = int(request_data["parent_id"])
         comment = request_data["comment"].strip()
         todo = True if str(request_data["todo"]).strip().lower() in ["true", "1"] else False
 
+        mention_error = validate_mention_user_ids(comment, api, user, dbi.session)
+        if mention_error:
+            api_response.set_message(mention_error)
+            return api_response.return_bad_request()
+
+        if not mapping_belongs_to_api(dbi.session, parent_table, parent_id, api):
+            api_response.set_message("Invalid comment parent for this software component.")
+            return api_response.return_bad_request()
+
         new_comment = CommentModel(parent_table, parent_id, user, comment, todo)
         dbi.session.add(new_comment)
-
         dbi.session.commit()
 
-        add_notification = True
-        if parent_table == ApiSwRequirementModel.__tablename__:
-            notification_obj = "Sw Requirement"
-            query = dbi.session.query(ApiSwRequirementModel).filter(ApiSwRequirementModel.id == parent_id)
-            query_obj = "asr"
-        elif parent_table == ApiTestSpecificationModel.__tablename__:
-            notification_obj = "Test Specification"
-            query = dbi.session.query(ApiTestSpecificationModel).filter(ApiTestSpecificationModel.id == parent_id)
-            query_obj = "atc"
-        elif parent_table == ApiTestCaseModel.__tablename__:
-            notification_obj = "Test Case"
-            query = dbi.session.query(ApiTestCaseModel).filter(ApiTestCaseModel.id == parent_id)
-            query_obj = "ats"
-        elif parent_table == ApiJustificationModel.__tablename__:
-            notification_obj = "Justification"
-            query = dbi.session.query(ApiJustificationModel).filter(ApiJustificationModel.id == parent_id)
-            query_obj = "aj"
-        else:
-            add_notification = False
+        mention_user_ids = parse_mention_user_ids(comment)
+        tagged_user_ids = set(mention_user_ids)
+        sync_comment_mentions(dbi.session, new_comment, mention_user_ids)
+        dbi.session.commit()
 
-        if add_notification:
-            try:
-                mapping = query.one()
-            except NoResultFound:
-                add_notification = False
+        create_tag_notifications(
+            dbi.session,
+            api,
+            user,
+            new_comment,
+            parent_table,
+            parent_id,
+            tagged_user_ids,
+            NOTIFICATION_CATEGORY_NEW,
+            SETTINGS_FILEPATH,
+            EMAIL_TEMPLATE_PATH,
+            EMAIL_DISCORD_FOOTER_MESSAGE,
+            async_email_notification,
+        )
+        dbi.session.commit()
 
-        # Add Notifications
-        if add_notification:
+        if should_add_comment_broadcast_notification(parent_table):
             if todo:
                 notification_type = "Todo"
             else:
                 notification_type = "Comment"
 
+            work_item_label, work_item_title = resolve_comment_context(
+                dbi.session, parent_table, parent_id, api
+            )
+            title_part = f"{work_item_label} {work_item_title}".strip()
+
             notification = (
-                f"{user.username} added a {notification_type} to {notification_obj} "
+                f"{user.username} added a {notification_type} to {title_part} "
                 f"mapped to "
-                f"{mapping.api.api} as part of the library {mapping.api.library}"
+                f"{api.api} as part of the library {api.library}"
             )
             notifications = NotificationModel(
-                mapping.api,
+                api,
                 NOTIFICATION_CATEGORY_NEW,
                 f"New {notification_type} from {user.username}",
                 notification,
-                f"[{user.id}]",
-                f"/mapping/{mapping.api.id}?{query_obj}={parent_id}&view=comments",
+                broadcast_read_by_for_tagged(tagged_user_ids, user.id),
+                build_comment_deep_link_url(api.id, parent_table, parent_id),
             )
             dbi.session.add(notifications)
             dbi.session.commit()
@@ -2731,10 +2758,14 @@ class Comment(Resource):
             api_response.set_missing_fields(wrong_fields)
             return api_response.return_bad_request_missing_fields()
 
+        if not isinstance(user, UserModel) or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            api_response.set_message("GUEST user cannot add comments.")
+            return api_response.return_unauthorized()
+
         parent_table = request_data["parent_table"].strip()
-        parent_id = request_data["parent_id"]
+        parent_id = int(request_data["parent_id"])
         comment_id = request_data["comment_id"]
-        new_comment = request_data["comment"].strip()
+        new_comment_text = request_data["comment"].strip()
         todo = True if str(request_data["todo"]).strip().lower() in ["true", "1"] else False
         done = False
 
@@ -2748,6 +2779,11 @@ class Comment(Resource):
             done_by_id = None
             done_at = None
 
+        mention_error = validate_mention_user_ids(new_comment_text, api, user, dbi.session)
+        if mention_error:
+            api_response.set_message(mention_error)
+            return api_response.return_bad_request()
+
         try:
             comment_model = (
                 dbi.session.query(CommentModel)
@@ -2760,11 +2796,35 @@ class Comment(Resource):
         except NoResultFound:
             return api_response.return_not_found_comment()
 
-        comment_model.comment = new_comment
+        if not mapping_belongs_to_api(dbi.session, parent_table, parent_id, api):
+            api_response.set_message("Invalid comment parent for this software component.")
+            return api_response.return_bad_request()
+
+        comment_model.comment = new_comment_text
         comment_model.todo = todo
         comment_model.done = done
         comment_model.done_by_id = done_by_id
         comment_model.done_at = done_at
+        dbi.session.commit()
+
+        mention_user_ids = parse_mention_user_ids(new_comment_text)
+        new_mention_user_ids = sync_comment_mentions(dbi.session, comment_model, mention_user_ids)
+        dbi.session.commit()
+
+        create_tag_notifications(
+            dbi.session,
+            api,
+            user,
+            comment_model,
+            parent_table,
+            parent_id,
+            new_mention_user_ids,
+            NOTIFICATION_CATEGORY_NEW,
+            SETTINGS_FILEPATH,
+            EMAIL_TEMPLATE_PATH,
+            EMAIL_DISCORD_FOOTER_MESSAGE,
+            async_email_notification,
+        )
         dbi.session.commit()
 
         api_response.set_data(comment_model.as_dict())
@@ -2795,6 +2855,10 @@ class Comment(Resource):
             api_response.set_missing_fields(wrong_fields)
             return api_response.return_bad_request_missing_fields()
 
+        if not isinstance(user, UserModel) or user.role not in USER_ROLES_WRITE_PERMISSIONS:
+            api_response.set_message("GUEST user cannot add comments.")
+            return api_response.return_unauthorized()
+
         parent_table = request_data["parent_table"].strip()
         parent_id = request_data["parent_id"]
         comment_id = request_data["comment_id"]
@@ -2815,6 +2879,33 @@ class Comment(Resource):
         dbi.session.commit()
 
         api_response.set_data(True)
+        return api_response.return_ok()
+
+
+class CommentMentionableUsers(Resource):
+    route = "/comments/mentionable-users"
+
+    @api_response_decorator
+    @check_api_user_read_permission
+    def get(
+        self,
+        api: ApiModel = None,
+        user: UserModel = None,
+        dbi: db_orm.DbInterface = None,
+        api_response: ApiResponse = None,
+    ):
+        request_data = get_query_string_args(request.args)
+        api_response.set_logger(logger)
+        api_response.set_args(request_data)
+
+        search = request_data.get("search", "").strip()
+        exclude_user_id = user.id if isinstance(user, UserModel) else None
+        users = get_mentionable_users_query(
+            dbi.session, api, search if search else None, exclude_user_id=exclude_user_id
+        )
+        users = users[:25]
+        ret = [{"id": u.id, "username": u.username} for u in users]
+        api_response.set_data(ret)
         return api_response.return_ok()
 
 
@@ -12405,6 +12496,7 @@ api.add_resource(TestingSupportInitDb, TestingSupportInitDb.route)
 api.add_resource(MappingUsage, MappingUsage.route)
 # Comments
 api.add_resource(Comment, Comment.route)
+api.add_resource(CommentMentionableUsers, CommentMentionableUsers.route)
 # Fork
 api.add_resource(ForkApiSwRequirement, ForkApiSwRequirement.route)
 api.add_resource(ForkSwRequirementSwRequirement, ForkSwRequirementSwRequirement.route)

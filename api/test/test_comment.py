@@ -6,7 +6,7 @@ import tempfile
 from http import HTTPStatus
 from db.models.user import UserModel
 from db.models.api import ApiModel
-from conftest import UT_USER_EMAIL
+from conftest import AuthActions, UT_GUEST_USER_EMAIL, UT_GUEST_USER_PASSWORD, UT_USER_EMAIL
 
 
 _MAPPING_COMMENT_URL = '/comments'
@@ -137,6 +137,26 @@ def sw_requirement_db(client_db, ut_user_db, utilities):
 def test_login(user_authentication):
     """ Just ensure we are logged in """
     assert user_authentication.status_code == HTTPStatus.OK
+
+
+def test_guest_cannot_post_comment(client, ut_guest_user_db, api_sr_db):
+    """ GUEST role cannot create comments """
+    api_sr = api_sr_db
+    login = AuthActions(client).login(email=UT_GUEST_USER_EMAIL, password=UT_GUEST_USER_PASSWORD)
+    assert login.status_code == HTTPStatus.OK
+
+    mapping_data = {
+        'api-id': api_sr.api_id,
+        'user-id': login.json['id'],
+        'token': login.json['token'],
+        'comment': 'Guest comment',
+        'parent_table': ApiSwRequirementModel.__tablename__,
+        'parent_id': api_sr.id,
+        'todo': False
+    }
+
+    response = client.post(_MAPPING_COMMENT_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.parametrize('mandatory_field',

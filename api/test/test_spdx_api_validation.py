@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import pytest
 import tempfile
 import subprocess
@@ -28,6 +29,7 @@ from db.models.test_run_config import TestRunConfigModel
 from db.models.comment import CommentModel
 from api_utils import get_test_run_artifacts_dir
 from conftest import UT_USER_EMAIL
+from spdx_manager import graphviz_node_id, normalize_spdx_relationship_type
 
 _SPDX_API_URL = "/spdx/apis"
 _SPDX_CI_ARTIFACT_DIRNAME = "ci-artifacts"
@@ -306,6 +308,10 @@ def _spdx_id_for_test_run(tr):
     return f"spdx:file:basil:test-run:{tr.id}"
 
 
+def _spdx_id_for_test_run_config(config):
+    return f"spdx:file:basil:test-run-config:{config.id}"
+
+
 def _spdx_id_for_test_run_bug(tr, index=1):
     return f"spdx:file:basil:test-run:{tr.id}:bug:{index}"
 
@@ -415,11 +421,17 @@ def comprehensive_spdx_test_data(client_db, ut_user_db, utilities, tmp_path, mon
     justification_1 = get_justification_model(client_db, utilities, "Compliance")
     justification_2 = get_justification_model(client_db, utilities, "Performance")
 
-    # Create Documents (direct + two nested levels)
+    # Create Documents (direct + two nested levels).
+    # Distinct stored relations, including legacy SPDX 2 names, so export
+    # must read documents.spdx_relation instead of a fixed type.
     document_1 = get_document_model(client_db, utilities, "AuthDoc")
+    document_1.spdx_relation = "describes"
     document_2 = get_document_model(client_db, utilities, "APIDoc")
+    document_2.spdx_relation = "hasExample"
     document_3 = get_document_model(client_db, utilities, "NestedDoc")
+    document_3.spdx_relation = "DOCUMENTATION"
     document_4 = get_document_model(client_db, utilities, "NestedNestedDoc")
+    document_4.spdx_relation = "SPECIFICATION_FOR"
 
     # Create Test Run Config and Test Runs
     test_run_config = get_test_run_config_model(client_db, utilities)
@@ -1042,7 +1054,7 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
     test_spec_1, test_spec_2 = test_data["test_specifications"]
     test_case_1, test_case_2, test_case_3, test_case_4, test_case_5, test_case_6 = test_data["test_cases"]
     justification_1 = test_data["justifications"][0]
-    document_1, _document_2, document_3, document_4 = test_data["documents"]
+    document_1, document_2, document_3, document_4 = test_data["documents"]
     (
         test_run_api_ts_tc,
         test_run_api_sr_tc,
@@ -1060,7 +1072,14 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
         relationships, _spdx_id_for_justification(justification_1), "hasEvidence"
     )
     assert _has_incoming_spdx_relationship(
-        relationships, _spdx_id_for_document(document_1), "hasDocumentation"
+        relationships,
+        _spdx_id_for_document(document_1),
+        normalize_spdx_relationship_type(document_1.spdx_relation),
+    )
+    assert _has_incoming_spdx_relationship(
+        relationships,
+        _spdx_id_for_document(document_2),
+        normalize_spdx_relationship_type(document_2.spdx_relation),
     )
     assert _has_incoming_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_1), "hasRequirement"
@@ -1073,17 +1092,30 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
     )
 
     # API Snippet -> Document -> Document -> Document
+    # Nested documents use the child document's stored SPDX relation.
     assert _has_spdx_relationship(
-        relationships, _spdx_id_for_document(document_1), _spdx_id_for_document(document_3), "hasDocumentation"
+        relationships,
+        _spdx_id_for_document(document_1),
+        _spdx_id_for_document(document_3),
+        normalize_spdx_relationship_type(document_3.spdx_relation),
+    )
+    assert not _has_spdx_relationship(
+        relationships,
+        _spdx_id_for_document(document_1),
+        _spdx_id_for_document(document_3),
+        "contains",
     )
     assert _has_spdx_relationship(
-        relationships, _spdx_id_for_document(document_1), _spdx_id_for_document(document_3), "contains"
+        relationships,
+        _spdx_id_for_document(document_3),
+        _spdx_id_for_document(document_4),
+        normalize_spdx_relationship_type(document_4.spdx_relation),
     )
-    assert _has_spdx_relationship(
-        relationships, _spdx_id_for_document(document_3), _spdx_id_for_document(document_4), "hasDocumentation"
-    )
-    assert _has_spdx_relationship(
-        relationships, _spdx_id_for_document(document_3), _spdx_id_for_document(document_4), "contains"
+    assert not _has_spdx_relationship(
+        relationships,
+        _spdx_id_for_document(document_3),
+        _spdx_id_for_document(document_4),
+        "contains",
     )
 
     # API Snippet -> Sw Requirement -> Sw Requirement -> Sw Requirement
@@ -1558,6 +1590,7 @@ def test_spdx_entity_annotations_have_no_id_or_title(client, user_authentication
         "spdx:annotation:basil:test-case:",
         "spdx:annotation:basil:document:",
         "spdx:annotation:basil:justification:",
+        "spdx:annotation:basil:test-run-config:",
         "spdx:annotation:basil:test-run:",
     )
 
@@ -1936,6 +1969,98 @@ def test_spdx_export_omits_comments_when_disabled(client, user_authentication, c
     _assert_sbom_element_lists_all_graph_items(graph)
 
 
+def _test_run_config_files(graph):
+    return [
+        element
+        for element in graph
+        if element.get("type") == "software_File"
+        and str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run-config:")
+    ]
+
+
+def test_spdx_test_run_configuration_configures_each_test_run(
+    client, user_authentication, comprehensive_spdx_test_data
+):
+    """Each Test Run's configuration is an SPDX File linked with configures.
+
+    The configuration is emitted once when several runs share it, listed on
+    the SBOM, and drawn on the traceability map (.dot / .png).
+    """
+    test_data = comprehensive_spdx_test_data
+    api = test_data["api"]
+    config = test_data["test_run_config"]
+    graph = _export_and_parse(client, user_authentication, api)
+    relationships = [element for element in graph if element.get("type") == "Relationship"]
+    config_id = _spdx_id_for_test_run_config(config)
+
+    config_files = _test_run_config_files(graph)
+    assert [element.get("spdxId") for element in config_files] == [config_id]
+    config_file = config_files[0]
+    assert config_file.get("software_primaryPurpose") == "configuration"
+    assert config_file.get("name") == config.title
+    _assert_external_identifier(
+        graph,
+        config_id,
+        expected_identifier=f"basil:{config.__tablename__}:{config.id}",
+        expected_comment_fragment=str(config.id),
+    )
+
+    annotations = [
+        element
+        for element in graph
+        if element.get("type") == "Annotation"
+        and element.get("spdxId") == f"spdx:annotation:basil:test-run-config:{config.id}"
+    ]
+    assert len(annotations) == 1
+    assert annotations[0].get("subject") == config_id
+    statement = json.loads(annotations[0].get("statement", "{}"))
+    assert statement.get("plugin") == config.plugin
+    assert statement.get("git_repo_ref") == config.git_repo_ref
+    assert statement.get("provision_type") == config.provision_type
+    assert statement.get("__tablename__") == config.__tablename__
+    assert "id" not in statement
+    assert "title" not in statement
+
+    configures = [
+        relationship
+        for relationship in relationships
+        if relationship.get("from") == config_id and relationship.get("relationshipType") == "configures"
+    ]
+    assert all(len(relationship.get("to") or []) == 1 for relationship in configures)
+    configured_runs = {target for relationship in configures for target in relationship.get("to", [])}
+    assert configured_runs == {_spdx_id_for_test_run(test_run) for test_run in test_data["test_runs"]}
+    _assert_sbom_element_lists_all_graph_items(graph)
+
+    jsonld_file = check_latest_jsonld_file(user_id=user_authentication.json["id"])
+    assert jsonld_file is not None
+    dot_file = jsonld_file[: -len(".jsonld")] + ".dot"
+    png_file = jsonld_file[: -len(".jsonld")] + ".png"
+    assert os.path.isfile(dot_file), f"Traceability map should share the JSON-LD basename: {dot_file}"
+    with open(dot_file, encoding="utf-8") as dot_fh:
+        dot_source = dot_fh.read()
+    config_node = graphviz_node_id(config_id)
+    assert config_node in dot_source
+    assert "Test Run Configuration" in dot_source
+    configures_targets = set()
+    for match in re.finditer(
+        r'"?([\w.-]+)"?\s*->\s*"?([\w.-]+)"?\s*\[label="?([^"\]]+)"?\]',
+        dot_source,
+    ):
+        src, dst, label = match.group(1), match.group(2), match.group(3)
+        if src == config_node and label == "configures":
+            configures_targets.add(dst)
+    for test_run in test_data["test_runs"]:
+        run_node = graphviz_node_id(_spdx_id_for_test_run(test_run))
+        assert any(dst == run_node or dst.endswith(f"__{run_node}") for dst in configures_targets), (
+            f"Traceability map is missing configures edge from {config_node} to {run_node}. "
+            f"Edges: {sorted(configures_targets)}"
+        )
+    if os.path.isfile(png_file):
+        assert os.path.getsize(png_file) > 0, f"Traceability PNG is empty: {png_file}"
+    else:
+        print(f"Warning: PNG map was not rendered (Graphviz missing?): {png_file}")
+
+
 def test_spdx_export_omits_test_runs_when_include_disabled(
     client, user_authentication, comprehensive_spdx_test_data
 ):
@@ -1950,6 +2075,7 @@ def test_spdx_export_omits_test_runs_when_include_disabled(
         if str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run:")
     ]
     assert test_run_files == []
+    assert _test_run_config_files(graph) == []
     _assert_sbom_element_lists_all_graph_items(graph)
 
 
@@ -1969,6 +2095,7 @@ def test_spdx_export_omits_test_runs_when_none_selected(client, user_authenticat
         and str(element.get("spdxId", "")).startswith("spdx:file:basil:test-run:")
     ]
     assert test_run_files == []
+    assert _test_run_config_files(graph) == []
     _assert_sbom_element_lists_all_graph_items(graph)
 
 
@@ -1991,6 +2118,9 @@ def test_spdx_export_filters_test_runs_by_config(client, user_authentication, co
         if element.get("spdxId") in test_run_ids
     }
     assert exported == test_run_ids
+    assert [element.get("spdxId") for element in _test_run_config_files(graph)] == [
+        _spdx_id_for_test_run_config(test_data["test_run_config"])
+    ]
     _assert_sbom_element_lists_all_graph_items(graph)
 
 

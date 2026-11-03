@@ -40,6 +40,7 @@ from db.models.sw_requirement_test_case import SwRequirementTestCaseModel  # noq
 from db.models.sw_requirement_test_specification import SwRequirementTestSpecificationModel  # noqa E402
 from db.models.test_case import TestCaseModel  # noqa E402
 from db.models.test_run import TestRunModel  # noqa E402
+from db.models.test_run_config import TestRunConfigModel  # noqa E402
 from db.models.test_specification import TestSpecificationModel  # noqa E402
 from db.models.test_specification_test_case import TestSpecificationTestCaseModel  # noqa E402
 from db.models.user import UserModel  # noqa E402
@@ -142,6 +143,9 @@ class SPDXExternalIdentifier:
 
     Test Run artifacts use:
         basil:test_runs:<id>:artifact:<filename>
+
+    Test Run configurations use:
+        basil:test_run_configs:<id>
 
     Example:
         identifier = "basil:sw_requirements:42"
@@ -843,6 +847,7 @@ GRAPH_NODE_COLORS = {
     "test_specification": "blue",
     "test_case": "orange",
     "test_run": "purple",
+    "test_run_config": "gold",
     "bug": "salmon",
     "fix": "olivedrab",
     "artifact": "khaki",
@@ -909,6 +914,7 @@ def graph_node_kind(node) -> str:
         ("spdx:file:basil:test-case:", "test_case"),
         ("spdx:file:basil:document:", "document"),
         ("spdx:file:basil:justification:", "justification"),
+        ("spdx:file:basil:test-run-config:", "test_run_config"),
         ("spdx:file:basil:test-run:", "test_run"),
         ("spdx:file:basil:api:", "software_component"),
         ("spdx:snippet:", "snippet"),
@@ -1059,8 +1065,6 @@ class SPDXManager:
             # Library structurally contains each Software Component, uses them as
             # design/source inputs, and is specified by them (the public API surface).
             for relationship_type in (
-                SpdxRelationshipType.CONTAINS,
-                SpdxRelationshipType.HAS_INPUT,
                 SpdxRelationshipType.HAS_SPECIFICATION,
             ):
                 self.addRelationship(
@@ -1069,9 +1073,6 @@ class SPDXManager:
 
         self.add_to_sbom(software_sbom)
         self.add_to_sbom(document)
-        self.addRelationship(
-            from_element=document, to=[software_sbom], relationship_type=SpdxRelationshipType.DESCRIBES
-        )
         software_sbom.element = self._sbom_member_ids(software_sbom)
 
     def add_to_sbom(self, element):
@@ -1364,7 +1365,6 @@ class SPDXManager:
         # The reference document is both documentation of the Software Component
         # and its specification (File.purpose is already "specification").
         for relationship_type in (
-            SpdxRelationshipType.HAS_DOCUMENTATION,
             SpdxRelationshipType.HAS_SPECIFICATION,
         ):
             self.addRelationship(
@@ -1706,12 +1706,11 @@ class SPDXManager:
 
         if added_test_runs:
             # Link the Test Run to its Test Case / Software Component before
-            # attaching bug/fix/artifact outputs so JSON-LD consumers walk
-            # TC → TR → outputs instead of seeing an unparented run.
+            # attaching configuration, bug/fix, and artifact outputs so JSON-LD
+            # consumers walk TC → TR → related elements instead of seeing an
+            # unparented run.
             for relationship_type in (
                 SpdxRelationshipType.GENERATES,
-                SpdxRelationshipType.HAS_TEST,
-                SpdxRelationshipType.HAS_OUTPUT,
             ):
                 self.addRelationship(
                     from_element=spdx_tc, to=added_test_runs, relationship_type=relationship_type
@@ -1722,13 +1721,10 @@ class SPDXManager:
                     to=added_test_runs,
                     relationship_type=SpdxRelationshipType.HAS_TEST,
                 )
-                for spdx_tr in added_test_runs:
-                    self.addRelationship(
-                        from_element=spdx_tr,
-                        to=[spdx_api],
-                        relationship_type=SpdxRelationshipType.TESTED_ON,
-                    )
             for test_run, tr_file in test_run_files:
+                self.addTestRunConfiguration(
+                    test_run_config=test_run.test_run_config, spdx_tr=tr_file
+                )
                 self.addTestRunBugAndFixOutputs(
                     spdx_tr=tr_file, test_run=test_run, creation_info=tr_file.creation_info
                 )
@@ -1775,6 +1771,79 @@ class SPDXManager:
         self.add_to_sbom(tr_file)
         self.add_to_sbom(tr_annotation)
         return tr_file
+
+    def _sbom_item(self, spdx_id: str):
+        """Return the SBOM object already emitted with this SPDX id, if any."""
+        for item in self.sbom:
+            if getattr(item, "spdx_id", None) == spdx_id:
+                return item
+        return None
+
+    def addTestRunConfiguration(
+        self, test_run_config: TestRunConfigModel = None, spdx_tr: SPDXFile = None
+    ):
+        """Export the Test Run Configuration that configures one Test Run.
+
+        SPDX ``configures`` means the from element is used to configure the to
+        element, so the relationship is Configuration → Test Run. The same
+        configuration is reused by many runs and is emitted once.
+        """
+        if test_run_config is None or spdx_tr is None:
+            return None
+
+        config_spdx_id = f"spdx:file:basil:test-run-config:{test_run_config.id}"
+        config_file = self._sbom_item(config_spdx_id)
+        if config_file is None:
+            config_dict = test_run_config.as_dict(full_data=True)
+            config_dict["__tablename__"] = test_run_config.__tablename__
+            config_hash = self.make_hash_object(data_dict=config_dict)
+            creation_info, _person = self.getCreationInfoAndPerson(
+                item_id=config_spdx_id,
+                created_by=test_run_config.created_by,
+                created_at=test_run_config.created_at,
+                add_to_sbom=True,
+            )
+            title = test_run_config.title or f"Test Run Configuration {test_run_config.id}"
+            plugin = test_run_config.plugin or ""
+            description = f"BASIL Test Run Configuration '{title}'"
+            if plugin:
+                description += f" using plugin {plugin}"
+
+            config_file = SPDXFile(
+                spdx_id=config_spdx_id,
+                name=title,
+                comment=f"BASIL Test Run Configuration ID {test_run_config.id}",
+                description=description,
+                purpose="configuration",
+                verified_using=[config_hash],
+                external_identifiers=[
+                    SPDXExternalIdentifier(
+                        identifier=f"basil:{test_run_config.__tablename__}:{test_run_config.id}",
+                        comment=(
+                            f"BASIL Test Run Configuration '{title}'"
+                            f" with ID {test_run_config.id}"
+                        ),
+                    )
+                ],
+                creation_info=creation_info,
+            )
+            config_annotation_dict = self.clean_entity_annotation_dict(dict(config_dict))
+            config_annotation = SPDXAnnotation(
+                spdx_id=f"spdx:annotation:basil:test-run-config:{test_run_config.id}",
+                name=f"Annotation for BASIL Test Run Configuration {test_run_config.id}",
+                subject=config_file,
+                object=config_annotation_dict,
+                creation_info=creation_info,
+            )
+            self.add_to_sbom(config_file)
+            self.add_to_sbom(config_annotation)
+
+        self.addRelationship(
+            from_element=config_file,
+            to=[spdx_tr],
+            relationship_type=SpdxRelationshipType.CONFIGURES,
+        )
+        return config_file
 
     def addTestRunBugOrFix(
         self,
@@ -1935,12 +2004,7 @@ class SPDXManager:
         self.addRelationship(
             from_element=spdx_tr,
             to=added_artifacts,
-            relationship_type=SpdxRelationshipType.HAS_OUTPUT,
-        )
-        self.addRelationship(
-            from_element=spdx_tr,
-            to=added_artifacts,
-            relationship_type=SpdxRelationshipType.HAS_EVIDENCE,
+            relationship_type=SpdxRelationshipType.GENERATES,
         )
 
     def addDocumentsNestedElements(
@@ -1977,16 +2041,15 @@ class SPDXManager:
         )
         for doc_doc in doc_docs:
             spdx_doc_doc = self.addDocument(document=doc_doc.document, dbsession=dbsession, mapping=doc_doc)
-            for relationship_type in (
-                SpdxRelationshipType.HAS_DOCUMENTATION,
-                SpdxRelationshipType.CONTAINS,
-            ):
-                self.addRelationship(
-                    from_element=spdx_doc,
-                    to=[spdx_doc_doc],
-                    relationship_type=relationship_type,
-                    completeness_percentage=doc_doc.coverage,
-                )
+            self.addRelationship(
+                from_element=spdx_doc,
+                to=[spdx_doc_doc],
+                relationship_type=normalize_spdx_relationship_type(
+                    doc_doc.document.spdx_relation,
+                    default=SpdxRelationshipType.HAS_DOCUMENTATION,
+                ),
+                completeness_percentage=doc_doc.coverage,
+            )
 
             # DocumentDocument
             self.addDocumentsNestedElements(
@@ -2032,7 +2095,6 @@ class SPDXManager:
             )
             for relationship_type in (
                 SpdxRelationshipType.HAS_REQUIREMENT,
-                SpdxRelationshipType.CONTAINS,
             ):
                 self.addRelationship(
                     from_element=spdx_sr,
@@ -2279,8 +2341,10 @@ class SPDXManager:
             self.addRelationship(
                 from_element=spdx_adoc_snippet,
                 to=[spdx_doc],
-                # TODO: Read the relationship from the document mapping
-                relationship_type=SpdxRelationshipType.HAS_DOCUMENTATION,
+                relationship_type=normalize_spdx_relationship_type(
+                    adoc.document.spdx_relation,
+                    default=SpdxRelationshipType.HAS_DOCUMENTATION,
+                ),
                 completeness_percentage=adoc.coverage,
             )
 
@@ -2313,7 +2377,10 @@ class SPDXManager:
         ``{output_file}.dot`` and ``{output_file}.png``.
         Multiple SPDX relationship types between the same pair become one
         edge labeled ``a,b,c``. Test Run outputs are attached after the run
-        is placed under its Test Case so they are not orphaned.
+        is placed under its Test Case so they are not orphaned. A Test Run
+        Configuration is drawn once, with a ``configures`` edge to each
+        already placed Test Run, so the configuration does not fork a second
+        copy of the run.
         """
 
         last_instance = {}
@@ -2377,22 +2444,41 @@ class SPDXManager:
             if rel_label not in labels:
                 labels.append(rel_label)
 
-        def link_snippet_to_source_file(snippet, snippet_instance_id):
-            from_file = getattr(snippet, "from_file", None)
-            if from_file is None or not getattr(from_file, "spdx_id", None):
-                return
-            file_id = graphviz_node_id(from_file.spdx_id)
-            register_instance(file_id, file_id)
-            add_node(file_id, from_file)
-            add_edge(file_id, snippet_instance_id, SpdxRelationshipType.CONTAINS.value)
+        def relationship_label(relationship):
+            rel_type = relationship.relationship_type
+            if isinstance(rel_type, Enum):
+                return rel_type.value
+            return str(rel_type)
+
+        def test_run_config_targets_ready(relationship):
+            """True once every Test Run this configuration points at is placed."""
+            targets = [node for node in (relationship.to or []) if is_graph_element(node)]
+            if not targets:
+                return False
+            return all(graphviz_node_id(node.spdx_id) in last_instance for node in targets)
+
+        def emit_test_run_config_relationship(relationship):
+            """Draw one configuration node and reuse each existing Test Run instance.
+
+            SPDX ``configures`` is Configuration → Test Run. Nesting the run
+            under the configuration would replace the mapping-tree instance
+            and orphan bugs, fixes, and artifacts.
+            """
+            from_node = relationship.from_element
+            config_id = graphviz_node_id(from_node.spdx_id)
+            register_instance(config_id, config_id)
+            add_node(config_id, from_node)
+            rel_label = relationship_label(relationship)
+            for to_node in relationship.to or []:
+                if not is_graph_element(to_node):
+                    continue
+                to_id = last_instance[graphviz_node_id(to_node.spdx_id)]
+                add_node(to_id, to_node)
+                add_edge(config_id, to_id, rel_label)
 
         def emit_relationship(relationship):
             from_node = relationship.from_element
-            rel_label = (
-                relationship.relationship_type.value
-                if isinstance(relationship.relationship_type, Enum)
-                else str(relationship.relationship_type)
-            )
+            rel_label = relationship_label(relationship)
             for to_node in relationship.to or []:
                 if not is_graph_element(to_node):
                     continue
@@ -2401,10 +2487,21 @@ class SPDXManager:
                 add_node(from_id, from_node)
                 add_node(to_id, to_node)
                 add_edge(from_id, to_id, rel_label)
-                if isinstance(to_node, SPDXSnippet):
-                    link_snippet_to_source_file(to_node, to_id)
-                if isinstance(from_node, SPDXSnippet):
-                    link_snippet_to_source_file(from_node, from_id)
+
+        def try_emit(relationship):
+            """Draw the relationship, or return False so the caller can retry later."""
+            from_node = relationship.from_element
+            if not is_graph_element(from_node):
+                return True
+            if graph_node_kind(from_node) == "test_run_config":
+                if not test_run_config_targets_ready(relationship):
+                    return False
+                emit_test_run_config_relationship(relationship)
+                return True
+            if not from_is_ready(from_node):
+                return False
+            emit_relationship(relationship)
+            return True
 
         dot = Digraph(format="png")
         dot.attr(rankdir="TB")
@@ -2413,12 +2510,7 @@ class SPDXManager:
         for relationship in self.sbom:
             if not isinstance(relationship, SPDXRelationship):
                 continue
-            from_node = relationship.from_element
-            if not is_graph_element(from_node):
-                continue
-            if from_is_ready(from_node):
-                emit_relationship(relationship)
-            else:
+            if not try_emit(relationship):
                 pending.append(relationship)
 
         progress = True
@@ -2426,8 +2518,7 @@ class SPDXManager:
             progress = False
             still_pending = []
             for relationship in pending:
-                if from_is_ready(relationship.from_element):
-                    emit_relationship(relationship)
+                if try_emit(relationship):
                     progress = True
                 else:
                     still_pending.append(relationship)
@@ -2485,6 +2576,13 @@ class SPDXManager:
         legend.node("test_specification", label="Test Specification", shape="box", style="filled", fillcolor="blue")
         legend.node("test_case", label="Test Case", shape="box", style="filled", fillcolor="orange")
         legend.node("test_run", label="Test Run", shape="box", style="filled", fillcolor="purple")
+        legend.node(
+            "test_run_config",
+            label="Test Run Configuration",
+            shape="box",
+            style="filled",
+            fillcolor=GRAPH_NODE_COLORS["test_run_config"],
+        )
         legend.node("bug", label="Bug", shape="box", style="filled", fillcolor="salmon")
         legend.node("fix", label="Fix", shape="box", style="filled", fillcolor="olivedrab")
         legend.node("artifact", label="Artifact", shape="box", style="filled", fillcolor="khaki")
@@ -2504,7 +2602,8 @@ class SPDXManager:
         legend.edge("software_requirement", "test_specification", style="invis", weight="100")
         legend.edge("test_specification", "test_case", style="invis", weight="100")
         legend.edge("test_case", "test_run", style="invis", weight="100")
-        legend.edge("test_run", "bug", style="invis", weight="100")
+        legend.edge("test_run", "test_run_config", style="invis", weight="100")
+        legend.edge("test_run_config", "bug", style="invis", weight="100")
         legend.edge("bug", "fix", style="invis", weight="100")
         legend.edge("fix", "artifact", style="invis", weight="100")
         legend.edge("artifact", "comment", style="invis", weight="100")

@@ -79,6 +79,7 @@ BASIL exports the following types of traceability relationships:
 - **hasTestCase**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case
 - **hasTest**: e.g.: Test Case <- Test Run; Software Component (API) <- Test Run
 - **generates**: e.g.: Test Cases <- Test Runs
+- **configures**: e.g.: Test Run Configuration <- Test Run
 - **hasOutput**: e.g.: Test Case <- Test Run; Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
 - **hasEvidence**: e.g.: API Reference document Snippet <- Justification; Test Run <- Artifacts
 - **contains**: e.g.: Library <- API; Sw Requirement <- nested Sw Requirement; Document <- nested Document
@@ -107,7 +108,7 @@ Graph Structure
 ~~~~~~~~~~~~~~~
 
 The generated graph shows:
-- Work items as nodes (requirements, specifications, test cases, test runs, bugs, fixes, artifacts)
+- Work items as nodes (requirements, specifications, test cases, test runs, test run configurations, bugs, fixes, artifacts)
 - Relationships as directed edges
 - Color coding for different work item types
 - Hierarchical layout from requirements to test runs
@@ -126,6 +127,14 @@ Test Run Integration
   (the run was executed against that component)
 - The Software Component is linked to each Test Run with ``hasTest``
   (the run is a test artifact of the component)
+- Each Test Run Configuration used by an exported Test Run is exported once
+  as an SPDX File with ``software_primaryPurpose`` ``configuration``, an
+  Annotation of the configuration fields, and an ExternalIdentifier
+  ``basil:test_run_configs:<id>``
+- That configuration is linked to each Test Run that uses it with
+  ``configures`` (the configuration configures the run)
+- The traceability map (``.dot`` and ``.png``) draws each configuration once
+  and a ``configures`` edge to every related Test Run
 - Test run data includes execution results, timestamps
 - Test runs are ordered by ID (most recent first)
 - Bugs and fixes stored on the Test Run (``bugs`` / ``fixes`` columns) are

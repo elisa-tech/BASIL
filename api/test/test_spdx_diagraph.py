@@ -315,8 +315,7 @@ def test_diagraph_attaches_test_run_outputs_to_mapped_instance(tmp_path, monkeyp
         [
             _rel(api, test_case, SpdxRelationshipType.HAS_TEST_CASE),
             _rel(test_run, bug, SpdxRelationshipType.HAS_OUTPUT),
-            _rel(test_run, artifact, SpdxRelationshipType.HAS_OUTPUT),
-            _rel(test_run, artifact, SpdxRelationshipType.HAS_EVIDENCE),
+            _rel(test_run, artifact, SpdxRelationshipType.GENERATES),
             _rel(test_case, test_run, SpdxRelationshipType.GENERATES),
             _rel(api, test_run, SpdxRelationshipType.HAS_TEST),
         ]
@@ -332,7 +331,7 @@ def test_diagraph_attaches_test_run_outputs_to_mapped_instance(tmp_path, monkeyp
     edges = _edge_labels(dot)
     assert (f"{api_id}__{tc_label}", tr_instance) in edges
     assert edges[(tr_instance, f"{tr_instance}__{bug_label}")] == "hasOutput"
-    assert edges[(tr_instance, f"{tr_instance}__{artifact_label}")] == "hasOutput,hasEvidence"
+    assert edges[(tr_instance, f"{tr_instance}__{artifact_label}")] == "generates"
     assert orphan_tr not in {src for src, _ in edges}
 
 

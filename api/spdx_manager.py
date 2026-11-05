@@ -1982,9 +1982,8 @@ class SPDXManager:
         """Emit SPDX Files for Test Run artifacts and link them 1-to-many.
 
         Each on-disk artifact becomes an SPDX File (purpose ``evidence``).
-        The Test Run is linked to all artifacts with both ``hasOutput`` and
-        ``hasEvidence`` relationships (one relationship of each type covering
-        the full artifact list).
+        The Test Run generates those artifacts (one ``generates`` relationship
+        covering the full artifact list).
         """
         artifact_names = list_test_run_artifacts(test_run.uid)
         if not artifact_names:

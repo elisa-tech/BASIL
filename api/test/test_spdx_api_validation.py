@@ -945,6 +945,7 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         "Test Case": 0,
         "Justification": 0,
         "Document ID": 0,
+        "Test Run Configuration": 0,
         "Test Run": 0,
         "Software Component id": 0,
         "Snippet": 0,
@@ -953,10 +954,14 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
         "BASIL Artifact": 0,
     }
 
+    # Longest label first so "Test Run Configuration" is not also counted as a Test Run.
+    patterns_longest_first = sorted(work_item_patterns, key=len, reverse=True)
     for spdx_comment in spdx_comments:
-        for pattern in work_item_patterns.keys():
-            if pattern.lower() in spdx_comment.lower():
+        comment_lower = spdx_comment.lower()
+        for pattern in patterns_longest_first:
+            if pattern.lower() in comment_lower:
                 work_item_patterns[pattern] += 1
+                break
 
     print(f"Work item representation in SPDX: {work_item_patterns}")
 
@@ -967,6 +972,9 @@ def test_spdx_api_export_and_validation(client, user_authentication, comprehensi
     assert work_item_patterns["Test Case"] == 6, "Should have 6 Test Cases in SPDX"
     assert work_item_patterns["Justification"] == 2, "Should have 2 Justifications in SPDX"
     assert work_item_patterns["Document ID"] == 4, "Should have 4 Documents in SPDX"
+    assert work_item_patterns["Test Run Configuration"] == 1, (
+        "Should have 1 shared Test Run Configuration in SPDX"
+    )
     assert work_item_patterns["Test Run"] == 6, "Should have 6 Test Runs in SPDX"
     assert work_item_patterns["Software Component id"] == 1, "Should have 1 API representation in SPDX"
     assert work_item_patterns["Snippet"] == 9, "Should have 9 Snippets in SPDX"
@@ -1118,17 +1126,17 @@ def test_spdx_all_mapping_chains_exported(client, user_authentication, comprehen
         "contains",
     )
 
-    # API Snippet -> Sw Requirement -> Sw Requirement -> Sw Requirement
+    # Nested software requirements keep hasRequirement. contains is not emitted.
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_sr(sw_req_3), "hasRequirement"
     )
-    assert _has_spdx_relationship(
+    assert not _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_1), _spdx_id_for_sr(sw_req_3), "contains"
     )
     assert _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_sr(sw_req_4), "hasRequirement"
     )
-    assert _has_spdx_relationship(
+    assert not _has_spdx_relationship(
         relationships, _spdx_id_for_sr(sw_req_3), _spdx_id_for_sr(sw_req_4), "contains"
     )
 
@@ -1219,41 +1227,50 @@ def test_spdx_reference_document_contains_snippets(
 
 
 def _assert_test_run_outputs(relationships, test_case, test_run, api):
-    """Assert Test Case/API -> Test Run -> Artifact, Bug, and Fix (siblings under the run)."""
+    """Assert the single SPDX edge kept on each test-run link.
+
+    The test case generates the run. The software component hasTest the run.
+    The run hasOutput each bug and fix, and generates its artifacts.
+    """
     tc_id = _spdx_id_for_tc(test_case)
     tr_id = _spdx_id_for_test_run(test_run)
     api_id = _spdx_id_for_api(api)
+    bug_id = _spdx_id_for_test_run_bug(test_run)
+    fix_id = _spdx_id_for_test_run_fix(test_run)
+    artifact_id = _spdx_id_for_test_run_artifact(test_run)
     assert _has_spdx_relationship(relationships, tc_id, tr_id, "generates"), (
         f"Missing generates relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
     )
-    assert _has_spdx_relationship(relationships, tc_id, tr_id, "hasTest"), (
-        f"Missing hasTest relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
+    assert not _has_spdx_relationship(relationships, tc_id, tr_id, "hasTest"), (
+        f"Test Case {test_case.id} must not hasTest Test Run {test_run.id}"
     )
-    assert _has_spdx_relationship(relationships, tc_id, tr_id, "hasOutput"), (
-        f"Missing hasOutput relationship: Test Case {test_case.id} -> Test Run {test_run.id}"
+    assert not _has_spdx_relationship(relationships, tc_id, tr_id, "hasOutput"), (
+        f"Test Case {test_case.id} must not hasOutput Test Run {test_run.id}"
     )
     assert _has_spdx_relationship(relationships, api_id, tr_id, "hasTest"), (
         f"Missing hasTest relationship: Software Component {api.id} -> Test Run {test_run.id}"
     )
-    assert _has_spdx_relationship(relationships, tr_id, api_id, "testedOn"), (
-        f"Missing testedOn relationship: Test Run {test_run.id} -> Software Component {api.id}"
+    assert not _has_spdx_relationship(relationships, tr_id, api_id, "testedOn"), (
+        f"Test Run {test_run.id} must not testedOn Software Component {api.id}"
     )
     assert _has_spdx_relationship(
-        relationships, tr_id, _spdx_id_for_test_run_bug(test_run), "hasOutput"
+        relationships, tr_id, bug_id, "hasOutput"
     ), f"Missing hasOutput relationship: Test Run {test_run.id} -> Bug"
     assert _has_spdx_relationship(
-        relationships, tr_id, _spdx_id_for_test_run_fix(test_run), "hasOutput"
+        relationships, tr_id, fix_id, "hasOutput"
     ), f"Missing hasOutput relationship: Test Run {test_run.id} -> Fix"
-    artifact_id = _spdx_id_for_test_run_artifact(test_run)
     assert _has_spdx_relationship(
+        relationships, tr_id, artifact_id, "generates"
+    ), f"Missing generates relationship: Test Run {test_run.id} -> Artifact"
+    assert not _has_spdx_relationship(
         relationships, tr_id, artifact_id, "hasOutput"
-    ), f"Missing hasOutput relationship: Test Run {test_run.id} -> Artifact"
-    assert _has_spdx_relationship(
+    ), f"Test Run {test_run.id} must not hasOutput its Artifact"
+    assert not _has_spdx_relationship(
         relationships, tr_id, artifact_id, "hasEvidence"
-    ), f"Missing hasEvidence relationship: Test Run {test_run.id} -> Artifact"
+    ), f"Test Run {test_run.id} must not hasEvidence its Artifact"
     generates_idx = _first_relationship_index(relationships, tc_id, tr_id, "generates")
-    bug_idx = _first_relationship_index(relationships, tr_id, _spdx_id_for_test_run_bug(test_run), "hasOutput")
-    artifact_idx = _first_relationship_index(relationships, tr_id, artifact_id, "hasOutput")
+    bug_idx = _first_relationship_index(relationships, tr_id, bug_id, "hasOutput")
+    artifact_idx = _first_relationship_index(relationships, tr_id, artifact_id, "generates")
     assert generates_idx is not None and bug_idx is not None and artifact_idx is not None
     assert generates_idx < bug_idx, (
         f"Test Case → Test Run must precede Test Run → Bug in JSON-LD (got {generates_idx} >= {bug_idx})"
@@ -1639,8 +1656,11 @@ def test_spdx_snippet_annotations_stripped(client, user_authentication, comprehe
 
 
 def test_spdx_tool_version_and_sbom_context(client, user_authentication, comprehensive_spdx_test_data):
-    """Tool must carry a version identifier; the document must wrap a software_Sbom
-    with sbomType and profileConformance (SPDX generation context)."""
+    """Tool must carry a version identifier; the document rootElement is the software_Sbom.
+
+    Structural links keep a single relationship: the library hasSpecification each
+    software component, and the component hasSpecification its reference document.
+    """
     from spdx_manager import (
         BASIL_TOOL_NAME,
         BASIL_TOOL_PURL,
@@ -1696,18 +1716,23 @@ def test_spdx_tool_version_and_sbom_context(client, user_authentication, compreh
 
     assert document["rootElement"] == [sbom["spdxId"]]
     relationships = [e for e in graph if e.get("type") == "Relationship"]
-    assert _has_spdx_relationship(relationships, document["spdxId"], sbom["spdxId"], "describes"), (
-        "SpdxDocument must describe the software_Sbom"
+    assert not _has_spdx_relationship(relationships, document["spdxId"], sbom["spdxId"], "describes"), (
+        "SpdxDocument points at the software_Sbom through rootElement only"
     )
-    for rel_type in ("contains", "hasInput", "hasSpecification"):
-        assert _has_spdx_relationship(relationships, library_id, api_id, rel_type), (
-            f"Library must {rel_type} each Software Component (API)"
+    assert _has_spdx_relationship(relationships, library_id, api_id, "hasSpecification"), (
+        "Library must hasSpecification each Software Component (API)"
+    )
+    for rel_type in ("contains", "hasInput"):
+        assert not _has_spdx_relationship(relationships, library_id, api_id, rel_type), (
+            f"Library must not {rel_type} each Software Component (API)"
         )
     ref_doc_id = f"spdx:file:basil:api:reference-document:{api.id}"
-    for rel_type in ("hasDocumentation", "hasSpecification"):
-        assert _has_spdx_relationship(relationships, api_id, ref_doc_id, rel_type), (
-            f"Software Component must {rel_type} its reference document"
-        )
+    assert _has_spdx_relationship(relationships, api_id, ref_doc_id, "hasSpecification"), (
+        "Software Component must hasSpecification its reference document"
+    )
+    assert not _has_spdx_relationship(relationships, api_id, ref_doc_id, "hasDocumentation"), (
+        "Software Component must not hasDocumentation its reference document"
+    )
     print("✓ Tool version and software_Sbom generation context validated")
 
 

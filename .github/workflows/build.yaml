@@ -12,7 +12,7 @@ on:
 jobs:
   lint:
     name: Lint Python and JavaScript
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
@@ -52,7 +52,8 @@ jobs:
           fi
 
   apache_deployment:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is Ubuntu 26.04, which no longer ships wkhtmltopdf.
+    runs-on: ubuntu-24.04
     steps:
 
       - name: Checkout

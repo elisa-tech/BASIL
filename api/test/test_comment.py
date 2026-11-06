@@ -6,7 +6,7 @@ import tempfile
 from http import HTTPStatus
 from db.models.user import UserModel
 from db.models.api import ApiModel
-from conftest import UT_USER_EMAIL
+from conftest import AuthActions, UT_GUEST_USER_EMAIL, UT_GUEST_USER_PASSWORD, UT_USER_EMAIL
 
 
 _MAPPING_COMMENT_URL = '/comments'
@@ -20,13 +20,9 @@ _UT_API_IMPLEMENTATION_FILE_TO_ROW = 42
 _UT_API_TAGS = 'ut_api_tags'
 
 _UT_API_SPEC_SECTION_NO_MAPPING = 'This section has no mapping.'
-_UT_API_SPEC_SECTION_WITH_MAPPING = 'This section has mapping.'
-_UT_API_SPEC_SECTION_TO_BE_MAPPED = 'This section is to be mapped.'
 _UT_API_RAW_RESTRICTED_SPEC = 'BASIL UT: "Reader" user is not able to read this API.' \
                               f' Used for {_MAPPING_COMMENT_URL}.'
 _UT_API_RAW_UNMAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_NO_MAPPING} Used for {_MAPPING_COMMENT_URL}.'
-_UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_API_SPEC_SECTION_TO_BE_MAPPED} ' \
-                          f'Used for {_MAPPING_COMMENT_URL}.'
 
 
 @pytest.fixture()
@@ -85,41 +81,6 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
 
 
 @pytest.fixture()
-def api_sr_db(client_db, ut_user_db, utilities):
-    """ Create Api with one mapped section """
-
-    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
-
-    # create raw API specification
-    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    raw_spec.write(_UT_API_RAW_MAPPED_SPEC)
-    raw_spec.close()
-
-    # create API
-    ut_api = ApiModel(_UT_API_NAME + '#' + utilities.generate_random_hex_string8(),
-                      _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                      _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
-                      _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
-                      _UT_API_TAGS, user)
-    ut_sw_requirement = SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',
-                                           'SW shall work as well as possible.', user)
-    ut_api_requirement_mapping = ApiSwRequirementModel(ut_api, ut_sw_requirement, _UT_API_SPEC_SECTION_WITH_MAPPING,
-                                                       _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
-                                                       0, user)
-
-    client_db.session.add(ut_api)
-    client_db.session.add(ut_sw_requirement)
-    client_db.session.add(ut_api_requirement_mapping)
-    client_db.session.commit()
-
-    yield ut_api_requirement_mapping
-
-    # remove the raw_spec tempfile
-    if os.path.isfile(raw_spec.name):
-        os.remove(raw_spec.name)
-
-
-@pytest.fixture()
 def sw_requirement_db(client_db, ut_user_db, utilities):
     """ Create SW requirement """
 
@@ -137,6 +98,26 @@ def sw_requirement_db(client_db, ut_user_db, utilities):
 def test_login(user_authentication):
     """ Just ensure we are logged in """
     assert user_authentication.status_code == HTTPStatus.OK
+
+
+def test_guest_cannot_post_comment(client, ut_guest_user_db, api_sr_db):
+    """ GUEST role cannot create comments """
+    api_sr = api_sr_db
+    login = AuthActions(client).login(email=UT_GUEST_USER_EMAIL, password=UT_GUEST_USER_PASSWORD)
+    assert login.status_code == HTTPStatus.OK
+
+    mapping_data = {
+        'api-id': api_sr.api_id,
+        'user-id': login.json['id'],
+        'token': login.json['token'],
+        'comment': 'Guest comment',
+        'parent_table': ApiSwRequirementModel.__tablename__,
+        'parent_id': api_sr.id,
+        'todo': False
+    }
+
+    response = client.post(_MAPPING_COMMENT_URL, json=mapping_data)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.parametrize('mandatory_field',

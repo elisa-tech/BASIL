@@ -1,5 +1,6 @@
 import logging
 import os
+import tempfile
 os.environ['BASIL_TESTING'] = "True"
 
 import pytest
@@ -7,8 +8,11 @@ import string
 import random
 from api import api
 from db import db_orm
+from db.models.api import ApiModel
+from db.models.api_sw_requirement import ApiSwRequirementModel
 from db.models.db_base import Base
 import db.models.init_db as init_db
+from db.models.sw_requirement import SwRequirementModel
 from db.models.user import UserModel
 
 logger = logging.getLogger(__name__)
@@ -151,3 +155,39 @@ def ut_user_files_dir(ut_user_db):
             os.remove(p)
         elif os.path.isdir(p):
             shutil.rmtree(p)
+
+
+@pytest.fixture()
+def api_sr_db(client_db, ut_user_db, utilities):
+    """ Create Api with one mapped section """
+
+    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
+    section = 'This section has mapping.'
+    raw_mapped_spec = (
+        f'BASIL UT: {section} This section is to be mapped. Used for /comments.'
+    )
+
+    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
+    raw_spec.write(raw_mapped_spec)
+    raw_spec.close()
+
+    ut_api = ApiModel('ut_api#' + utilities.generate_random_hex_string8(),
+                      'ut_api_library', 'v1.0.0', raw_spec.name,
+                      'ut_api_category', utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
+                      0, 42,
+                      'ut_api_tags', user)
+    ut_sw_requirement = SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',
+                                           'SW shall work as well as possible.', user)
+    ut_api_requirement_mapping = ApiSwRequirementModel(ut_api, ut_sw_requirement, section,
+                                                       raw_mapped_spec.find(section),
+                                                       0, user)
+
+    client_db.session.add(ut_api)
+    client_db.session.add(ut_sw_requirement)
+    client_db.session.add(ut_api_requirement_mapping)
+    client_db.session.commit()
+
+    yield ut_api_requirement_mapping
+
+    if os.path.isfile(raw_spec.name):
+        os.remove(raw_spec.name)

@@ -15,6 +15,7 @@ from db.models.api_sw_requirement import ApiSwRequirementModel, ApiSwRequirement
 from db.models.api_test_case import ApiTestCaseModel, ApiTestCaseHistoryModel
 from db.models.api_test_specification import ApiTestSpecificationModel, ApiTestSpecificationHistoryModel
 from db.models.comment import CommentModel
+from db.models.comment_mention import CommentMentionModel
 from db.models.document import DocumentModel, DocumentHistoryModel
 from db.models.document_document import DocumentDocumentModel, DocumentDocumentHistoryModel
 from db.models.justification import JustificationModel, JustificationHistoryModel

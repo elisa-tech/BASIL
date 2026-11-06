@@ -2,7 +2,7 @@ import React from 'react'
 import { Badge, Card, CardHeader, CardBody, Text, TextVariants, Button, Flex, Tooltip, CardFooter } from '@patternfly/react-core'
 import * as Constants from '@app/Constants/constants'
 import { PencilAltIcon, TrashIcon } from '@patternfly/react-icons'
-import ReactMarkdown from 'react-markdown'
+import { CommentMarkdown } from '@app/Custom/CommentMarkdown'
 import { useAuth } from '@app/User/AuthProvider'
 import { UserAvatarIcon } from '@app/User/Avatar/UserAvatarIcon'
 
@@ -151,7 +151,7 @@ const CommentCard = ({
         </Flex>
       </CardHeader>
       <CardBody>
-        <ReactMarkdown>{comment.comment}</ReactMarkdown>
+        <CommentMarkdown>{comment.comment}</CommentMarkdown>
       </CardBody>
       <CardFooter>
         <Flex fullWidth={{ default: 'fullWidth' }} justifyContent={{ default: 'justifyContentFlexEnd' }}>

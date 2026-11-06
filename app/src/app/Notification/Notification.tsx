@@ -69,7 +69,30 @@ export const NotificationDrawerBasic: React.FunctionComponent<NotificationDrawer
   }
 
   const onNotificationSelect = (notification) => {
-    location.href = notification['url']
+    openNotificationLink(notification['id'], notification['url'])
+  }
+
+  const openNotificationLink = (notification_id, target_url) => {
+    if (!target_url) {
+      return
+    }
+    const url = Constants.API_BASE_URL + Constants.API_USER_NOTIFICATIONS_ENDPOINT
+    const data = { 'user-id': auth.userId, token: auth.token }
+    if (notification_id != null) {
+      data['id'] = notification_id
+    }
+    fetch(url, {
+      method: 'DELETE',
+      headers: Constants.JSON_HEADER,
+      body: JSON.stringify(data)
+    })
+      .then(() => {
+        window.location.href = target_url
+      })
+      .catch((err) => {
+        console.log(err.message)
+        window.location.href = target_url
+      })
   }
 
   const clearNotification = (notification_id) => {

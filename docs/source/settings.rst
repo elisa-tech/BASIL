@@ -33,6 +33,8 @@ The default settings file looks like this:
      model: ""
      temperature: 0
      token: ""
+   notifications:
+     send_email_on_tag: false
    actions:
      api:
      sw_requirement:
@@ -55,6 +57,8 @@ The top-level keys are:
      - Email server used to send notifications. See `smtp`_.
    * - ``ai``
      - AI service used for in-app suggestions. See :ref:`ai_suggestions`.
+   * - ``notifications``
+     - Extra emails, including the email sent when a user is mentioned in a comment. See `Notification options`_.
    * - ``actions``
      - Custom action buttons shown on work items. See `actions`_.
    * - ``alert``
@@ -89,6 +93,7 @@ Configuration of the SMTP server used to send emails. BASIL sends an email:
 - to the owners of a Software Component, when a user asks for write permission on it
 - to a user, on password reset
 - to a user, when an admin changes their role
+- to a user mentioned in a comment, when ``notifications.send_email_on_tag`` is ``true``
 
 .. list-table::
    :header-rows: 1
@@ -148,6 +153,31 @@ ai
 Configuration of the OpenAI-compatible service used for in-app AI suggestions.
 The options (``host``, ``port``, ``model``, ``api_version``, ``temperature``, ``token``, ``max_tokens``)
 and their environment variables are described in :ref:`ai_suggestions`.
+
+
+.. _settings_notifications:
+
+Notification options
+^^^^^^^^^^^^^^^^^^^^
+
+The ``notifications`` section controls extra emails on top of the in-app notifications.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - Option
+     - Description
+   * - ``send_email_on_tag``
+     - When ``true``, a user mentioned in a comment also receives an email.
+       The email is sent when SMTP is configured (see `smtp`_).
+       The default is ``false``. An in-app notification is created either way.
+       See :ref:`mention_users_in_comments`.
+
+.. code-block:: yaml
+
+   notifications:
+     send_email_on_tag: false
 
 
 actions

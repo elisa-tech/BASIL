@@ -77,14 +77,12 @@ BASIL exports the following types of traceability relationships:
 - **hasRequirement**: e.g.: API Reference document Snippet <- Software Requirements or Sw Requirement <- nested Sw Requirement
 - **hasSpecification**: e.g.: Library <- API; API <- Reference document; API Reference document Snippet <- Test Specifications or Sw Requirement <- Test Specification
 - **hasTestCase**: e.g.: Test Specification <- Test Cases or Sw Requirement <- Test Case
-- **hasTest**: e.g.: Test Case <- Test Run; Software Component (API) <- Test Run
 - **generates**: e.g.: Test Cases <- Test Runs
 - **configures**: e.g.: Test Run Configuration <- Test Run
 - **hasOutput**: e.g.: Test Case <- Test Run; Test Run <- Bug or Fix (tracker URL / reference); Test Run <- Artifacts
 - **hasEvidence**: e.g.: API Reference document Snippet <- Justification; Test Run <- Artifacts
 - **contains**: e.g.: Library <- API; Sw Requirement <- nested Sw Requirement; Document <- nested Document
 - **hasInput**: e.g.: Library <- API
-- **testedOn**: e.g.: Test Run <- Software Component (API)
 
 Each relationship includes:
 - Source and target elements
@@ -121,12 +119,7 @@ BASIL extends traceability to include test runs with specific limitations:
 Test Run Integration
 ~~~~~~~~~~~~~~~~~~~~
 
-- Test runs are linked to test cases via ``generates``, ``hasTest``, and
-  ``hasOutput`` relationships
-- Each Test Run is linked to the Software Component (API) with ``testedOn``
-  (the run was executed against that component)
-- The Software Component is linked to each Test Run with ``hasTest``
-  (the run is a test artifact of the component)
+- Test runs are linked to test cases via ``generates``
 - Each Test Run Configuration used by an exported Test Run is exported once
   as an SPDX File with ``software_primaryPurpose`` ``configuration``, an
   Annotation of the configuration fields, and an ExternalIdentifier

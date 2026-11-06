@@ -1227,10 +1227,10 @@ def test_spdx_reference_document_contains_snippets(
 
 
 def _assert_test_run_outputs(relationships, test_case, test_run, api):
-    """Assert the single SPDX edge kept on each test-run link.
+    """Assert the SPDX edges kept on each test-run link.
 
-    The test case generates the run. The software component hasTest the run.
-    The run hasOutput each bug and fix, and generates its artifacts.
+    The test case generates the run. The run hasOutput each bug and fix,
+    and generates its artifacts.
     """
     tc_id = _spdx_id_for_tc(test_case)
     tr_id = _spdx_id_for_test_run(test_run)
@@ -1247,8 +1247,8 @@ def _assert_test_run_outputs(relationships, test_case, test_run, api):
     assert not _has_spdx_relationship(relationships, tc_id, tr_id, "hasOutput"), (
         f"Test Case {test_case.id} must not hasOutput Test Run {test_run.id}"
     )
-    assert _has_spdx_relationship(relationships, api_id, tr_id, "hasTest"), (
-        f"Missing hasTest relationship: Software Component {api.id} -> Test Run {test_run.id}"
+    assert not _has_spdx_relationship(relationships, api_id, tr_id, "hasTest"), (
+        f"Software Component {api.id} must not hasTest Test Run {test_run.id}"
     )
     assert not _has_spdx_relationship(relationships, tr_id, api_id, "testedOn"), (
         f"Test Run {test_run.id} must not testedOn Software Component {api.id}"

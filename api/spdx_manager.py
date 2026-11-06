@@ -855,8 +855,8 @@ GRAPH_NODE_COLORS = {
     "other": "white",
 }
 GRAPH_CONTAINER_KINDS = frozenset({"library", "software_component", "reference_document"})
-# When a container (e.g. API) links at a Test Run already created under a Test Case,
-# reuse that instance. Independently mapped work items still get a node per parent.
+# When a container links at a Test Run, bug, fix, or artifact already placed in the
+# mapping tree, reuse that instance. Independently mapped work items still get a node per parent.
 GRAPH_CROSSLINK_KINDS = frozenset({"test_run", "bug", "fix", "artifact"})
 _GRAPH_ELEMENT_TYPES = (SPDXFile, SPDXSnippet)
 
@@ -1371,13 +1371,13 @@ class SPDXManager:
                 from_element=file_api, to=[file_api_ref_doc], relationship_type=relationship_type
             )
 
-        self.addApiSwRequirements(spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
+        self.addApiSwRequirements(spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
 
         self.addApiTestSpecifications(
-            spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession
+            spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession
         )
 
-        self.addApiTestCases(spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
+        self.addApiTestCases(spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
 
         self.addApiDocuments(spdx_api=file_api, spdx_api_ref_doc=file_api_ref_doc, api=api, dbsession=dbsession)
 
@@ -1670,7 +1670,6 @@ class SPDXManager:
         mapping_to: str = "",
         mapping_id: int = 0,
         dbsession=None,
-        spdx_api: SPDXFile = None,
     ):
         if not self.include_test_runs:
             logger.warning("Skip Test Runs as per export configuration")
@@ -1705,21 +1704,14 @@ class SPDXManager:
             test_run_files.append((test_run, tr_file))
 
         if added_test_runs:
-            # Link the Test Run to its Test Case / Software Component before
-            # attaching configuration, bug/fix, and artifact outputs so JSON-LD
-            # consumers walk TC → TR → related elements instead of seeing an
-            # unparented run.
+            # Link the Test Run to its Test Case before attaching configuration,
+            # bug/fix, and artifact outputs so JSON-LD consumers walk
+            # TC → TR → related elements instead of seeing an unparented run.
             for relationship_type in (
                 SpdxRelationshipType.GENERATES,
             ):
                 self.addRelationship(
                     from_element=spdx_tc, to=added_test_runs, relationship_type=relationship_type
-                )
-            if spdx_api:
-                self.addRelationship(
-                    from_element=spdx_api,
-                    to=added_test_runs,
-                    relationship_type=SpdxRelationshipType.HAS_TEST,
                 )
             for test_run, tr_file in test_run_files:
                 self.addTestRunConfiguration(
@@ -2061,7 +2053,6 @@ class SPDXManager:
         xsr: Optional[Union[ApiSwRequirementModel, SwRequirementSwRequirementModel]] = None,
         spdx_sr: SPDXFile = None,  # SPDX object of SwRequirement from xsr.sw_requriement
         dbsession=None,
-        spdx_api: SPDXFile = None,
     ):
         """In BASIL user can create a complex hierarchy of Software Requirements.
         Moreover we can assign other work items to each Software Requirement in the chain.
@@ -2108,7 +2099,6 @@ class SPDXManager:
                 mapping_to=SwRequirementSwRequirementModel.__tablename__,
                 mapping_id=sr_sr.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
             # SwRequirementTestCases
@@ -2117,14 +2107,13 @@ class SPDXManager:
                 mapping_to=SwRequirementSwRequirementModel.__tablename__,
                 mapping_id=sr_sr.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
             self.addSoftwareRequirementNestedElements(
-                api=api, xsr=sr_sr, spdx_sr=spdx_sr_sr, dbsession=dbsession, spdx_api=spdx_api
+                api=api, xsr=sr_sr, spdx_sr=spdx_sr_sr, dbsession=dbsession
             )
 
-    def addApiSwRequirements(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
+    def addApiSwRequirements(self, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
         """Collect all the work items of a BASIL Software Component and their relationships
         and add them to the class payload"""
 
@@ -2153,7 +2142,6 @@ class SPDXManager:
                 mapping_to=ApiSwRequirementModel.__tablename__,
                 mapping_id=asr.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
             # SwRequirementTestCases for this SW Requirement
@@ -2162,14 +2150,13 @@ class SPDXManager:
                 mapping_to=ApiSwRequirementModel.__tablename__,
                 mapping_id=asr.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
             self.addSoftwareRequirementNestedElements(
-                api=api, xsr=asr, spdx_sr=spdx_sr, dbsession=dbsession, spdx_api=spdx_api
+                api=api, xsr=asr, spdx_sr=spdx_sr, dbsession=dbsession
             )
 
-    def addApiTestSpecifications(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
+    def addApiTestSpecifications(self, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
         """..."""
 
         # ApiTestSpecifications
@@ -2198,11 +2185,10 @@ class SPDXManager:
                 mapping_to=mapping_to,
                 mapping_id=ats.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
     def addSwRequirementTestSpecifications(
-        self, spdx_sr=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None, spdx_api=None
+        self, spdx_sr=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None
     ):
 
         if mapping_to not in [ApiSwRequirementModel.__tablename__, SwRequirementSwRequirementModel.__tablename__]:
@@ -2233,11 +2219,10 @@ class SPDXManager:
                 mapping_to=sr_ts.__tablename__,
                 mapping_id=sr_ts.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
     def addSwRequirementTestCases(
-        self, spdx_sr=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None, spdx_api=None
+        self, spdx_sr=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None
     ):
         if mapping_to not in [ApiSwRequirementModel.__tablename__, SwRequirementSwRequirementModel.__tablename__]:
             return
@@ -2264,11 +2249,10 @@ class SPDXManager:
                 mapping_to=SwRequirementTestCaseModel.__tablename__,
                 mapping_id=sr_tc.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
     def addTestSpecificationTestCases(
-        self, spdx_ts=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None, spdx_api=None
+        self, spdx_ts=None, mapping_to: str = "", mapping_id: int = 0, dbsession=None
     ):
         if mapping_to == ApiTestSpecificationModel.__tablename__:
             test_specification_test_cases = (
@@ -2300,10 +2284,9 @@ class SPDXManager:
                 mapping_to=TestSpecificationTestCaseModel.__tablename__,
                 mapping_id=ts_tc.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
-    def addApiTestCases(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
+    def addApiTestCases(self, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
         # ApiTestCases
         api_test_cases = dbsession.query(ApiTestCaseModel).filter(ApiTestCaseModel.api_id == api.id).all()
         for atc in api_test_cases:
@@ -2325,7 +2308,6 @@ class SPDXManager:
                 mapping_to=ApiTestCaseModel.__tablename__,
                 mapping_id=atc.id,
                 dbsession=dbsession,
-                spdx_api=spdx_api,
             )
 
     def addApiDocuments(self, spdx_api=None, spdx_api_ref_doc=None, api: ApiModel = None, dbsession=None):
@@ -2429,8 +2411,8 @@ class SPDXManager:
                 instance_id = f"{from_id}__{label}"
                 register_instance(label, instance_id)
                 return instance_id
-            # Container → derived artifact already in the mapping tree (API hasTest
-            # Test Run): reuse that instance. Mapped work items still duplicate.
+            # Container → derived artifact already in the mapping tree: reuse that
+            # instance. Mapped work items still duplicate.
             if graph_node_kind(to_node) in GRAPH_CROSSLINK_KINDS and label in last_instance:
                 return last_instance[label]
             instance_id = f"{from_id}__{label}"

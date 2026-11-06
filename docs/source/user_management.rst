@@ -18,8 +18,11 @@ Roles
 
 BASIL support 3 different user roles: ADMIN, GUEST, USER.
  * ADMIN: same rules as USER but an ADMIN can also enable/disable other users and reset their password.
- * GUEST: Can navigate and add comments to public contents. A guest cannot create a new software components.
+ * GUEST: Can navigate public contents. A guest cannot create a software component or write comments.
  * USER: Can navigate and add comments to public contents. Moreover a USER can work on Software Components accordingly with the user permission defined by owners/managers.
+
+Users with role **USER** or **ADMIN** can mention colleagues in a comment.
+See :ref:`mention_users_in_comments`.
 
 
 ----------------

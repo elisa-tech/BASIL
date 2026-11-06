@@ -2898,6 +2898,13 @@ class CommentMentionableUsers(Resource):
         api_response.set_logger(logger)
         api_response.set_args(request_data)
 
+        wrong_fields = get_wrong_mandatory_fields(
+            ["user-id", "token"], request_data, allow_empty_string=False
+        )
+        if len(wrong_fields) > 0:
+            api_response.set_missing_fields(wrong_fields)
+            return api_response.return_bad_request_missing_fields()
+
         search = request_data.get("search", "").strip()
         exclude_user_id = user.id if isinstance(user, UserModel) else None
         users = get_mentionable_users_query(

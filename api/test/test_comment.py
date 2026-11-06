@@ -20,13 +20,9 @@ _UT_API_IMPLEMENTATION_FILE_TO_ROW = 42
 _UT_API_TAGS = 'ut_api_tags'
 
 _UT_API_SPEC_SECTION_NO_MAPPING = 'This section has no mapping.'
-_UT_API_SPEC_SECTION_WITH_MAPPING = 'This section has mapping.'
-_UT_API_SPEC_SECTION_TO_BE_MAPPED = 'This section is to be mapped.'
 _UT_API_RAW_RESTRICTED_SPEC = 'BASIL UT: "Reader" user is not able to read this API.' \
                               f' Used for {_MAPPING_COMMENT_URL}.'
 _UT_API_RAW_UNMAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_NO_MAPPING} Used for {_MAPPING_COMMENT_URL}.'
-_UT_API_RAW_MAPPED_SPEC = f'BASIL UT: {_UT_API_SPEC_SECTION_WITH_MAPPING} {_UT_API_SPEC_SECTION_TO_BE_MAPPED} ' \
-                          f'Used for {_MAPPING_COMMENT_URL}.'
 
 
 @pytest.fixture()
@@ -78,41 +74,6 @@ def unmapped_api_db(client_db, ut_user_db, utilities):
     client_db.session.commit()
 
     yield ut_api
-
-    # remove the raw_spec tempfile
-    if os.path.isfile(raw_spec.name):
-        os.remove(raw_spec.name)
-
-
-@pytest.fixture()
-def api_sr_db(client_db, ut_user_db, utilities):
-    """ Create Api with one mapped section """
-
-    user = client_db.session.query(UserModel).filter(UserModel.email == UT_USER_EMAIL).one()
-
-    # create raw API specification
-    raw_spec = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    raw_spec.write(_UT_API_RAW_MAPPED_SPEC)
-    raw_spec.close()
-
-    # create API
-    ut_api = ApiModel(_UT_API_NAME + '#' + utilities.generate_random_hex_string8(),
-                      _UT_API_LIBRARY, _UT_API_LIBRARY_VERSION, raw_spec.name,
-                      _UT_API_CATEGORY, utilities.generate_random_hex_string8(), raw_spec.name + 'impl',
-                      _UT_API_IMPLEMENTATION_FILE_FROM_ROW, _UT_API_IMPLEMENTATION_FILE_TO_ROW,
-                      _UT_API_TAGS, user)
-    ut_sw_requirement = SwRequirementModel(f'SW req #{utilities.generate_random_hex_string8()}',
-                                           'SW shall work as well as possible.', user)
-    ut_api_requirement_mapping = ApiSwRequirementModel(ut_api, ut_sw_requirement, _UT_API_SPEC_SECTION_WITH_MAPPING,
-                                                       _UT_API_RAW_MAPPED_SPEC.find(_UT_API_SPEC_SECTION_WITH_MAPPING),
-                                                       0, user)
-
-    client_db.session.add(ut_api)
-    client_db.session.add(ut_sw_requirement)
-    client_db.session.add(ut_api_requirement_mapping)
-    client_db.session.commit()
-
-    yield ut_api_requirement_mapping
 
     # remove the raw_spec tempfile
     if os.path.isfile(raw_spec.name):

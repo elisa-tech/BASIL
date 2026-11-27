@@ -177,3 +177,10 @@ The objective is to demonstrate how safety-related artifacts can be traced
 through requirements, verification activities, evidence, reviews, and
 approvals while identifying potential opportunities for future BASIL
 enhancements.
+
+The workflow may also serve as a basis for interoperability experiments and
+exchange formats such as Safety Relevance Assertion Capability (SRAC). In
+such scenarios, hazards, safety goals, requirements, evidence, reviews, and
+approval relationships maintained within BASIL could be represented in an
+external safety-context exchange format while preserving existing BASIL
+traceability information.

@@ -23,6 +23,7 @@ It comes also with a REST web api to simplify the integration in other toolchain
    settings
    ai_suggestions
    functional_safety
+   railway_safety_workflow
    e2e_testing
    notifications
    repos_scanner

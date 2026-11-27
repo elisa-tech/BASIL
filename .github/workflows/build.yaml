@@ -92,11 +92,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: app/package-lock.json
 
-      # Pin cypress-fail-fast here (CI only, --no-save); v7.x matches Cypress 14; v8+ needs Cypress 15+
+      # Pin cypress-fail-fast here (CI only, --no-save); v8.x matches Cypress 15+
       - name: Install app dependencies and cypress-fail-fast (CI only)
         run: |
           npm ci
-          npm install --no-save cypress-fail-fast@7.1.1
+          npm install --no-save cypress-fail-fast@8.2.0
         working-directory: ./app
 
       - name: Cypress E2E Testing Chrome
